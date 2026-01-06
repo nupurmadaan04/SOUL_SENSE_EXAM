@@ -10,6 +10,10 @@ and this project follows [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- User authentication system with signup, login, and logout functionality
+- Secure password hashing using SHA-256
+- User-specific sessions and data security
+- Foundation for future role-based access control
 - Initial project setup
 - Core exam/test flow
 - Result generation logic

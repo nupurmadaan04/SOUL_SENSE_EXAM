@@ -1,4 +1,21 @@
 import logging
+import hashlib
+
+def ensure_users_schema(cursor):
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT UNIQUE NOT NULL,
+        password_hash TEXT NOT NULL,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    )
+    """)
+
+def hash_password(password):
+    return hashlib.sha256(password.encode()).hexdigest()
+
+def verify_password(password, password_hash):
+    return hash_password(password) == password_hash
 
 def ensure_scores_schema(cursor):
     cursor.execute("PRAGMA table_info(scores)")

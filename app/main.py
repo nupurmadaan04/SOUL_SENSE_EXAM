@@ -13,10 +13,12 @@ from app.db import get_connection
 from app.models import (
     ensure_scores_schema,
     ensure_responses_schema,
-    ensure_question_bank_schema
+    ensure_question_bank_schema,
+    ensure_users_schema
 )
 from app.questions import load_questions
 from app.utils import compute_age_group
+from app.auth import create_user, authenticate_user
 
 # ---------------- LOGGING ----------------
 logging.basicConfig(
@@ -43,6 +45,7 @@ CREATE TABLE IF NOT EXISTS scores (
 ensure_scores_schema(cursor)
 ensure_responses_schema(cursor)
 ensure_question_bank_schema(cursor)
+ensure_users_schema(cursor)
 
 conn.commit()
 
@@ -57,23 +60,104 @@ class SoulSenseApp:
         self.username = ""
         self.age = None
         self.age_group = None
+        self.logged_in = False
 
         self.questions = []
         self.current_question = 0
         self.total_questions = 0
         self.responses = []
 
-        self.create_username_screen()
+        self.create_login_screen()
 
     # ---------- SCREENS ----------
+    def create_login_screen(self):
+        self.clear_screen()
+        
+        tk.Label(self.root, text="Soul Sense EQ Test", font=("Arial", 18, "bold")).pack(pady=20)
+        
+        tk.Label(self.root, text="Username:", font=("Arial", 12)).pack(pady=5)
+        self.login_username = tk.Entry(self.root, font=("Arial", 12))
+        self.login_username.pack(pady=5)
+        
+        tk.Label(self.root, text="Password:", font=("Arial", 12)).pack(pady=5)
+        self.login_password = tk.Entry(self.root, font=("Arial", 12), show="*")
+        self.login_password.pack(pady=5)
+        
+        button_frame = tk.Frame(self.root)
+        button_frame.pack(pady=20)
+        
+        tk.Button(button_frame, text="Login", command=self.login, font=("Arial", 12)).pack(side=tk.LEFT, padx=10)
+        tk.Button(button_frame, text="Sign Up", command=self.create_signup_screen, font=("Arial", 12)).pack(side=tk.LEFT, padx=10)
+    
+    def create_signup_screen(self):
+        self.clear_screen()
+        
+        tk.Label(self.root, text="Create Account", font=("Arial", 18, "bold")).pack(pady=20)
+        
+        tk.Label(self.root, text="Username:", font=("Arial", 12)).pack(pady=5)
+        self.signup_username = tk.Entry(self.root, font=("Arial", 12))
+        self.signup_username.pack(pady=5)
+        
+        tk.Label(self.root, text="Password:", font=("Arial", 12)).pack(pady=5)
+        self.signup_password = tk.Entry(self.root, font=("Arial", 12), show="*")
+        self.signup_password.pack(pady=5)
+        
+        button_frame = tk.Frame(self.root)
+        button_frame.pack(pady=20)
+        
+        tk.Button(button_frame, text="Create Account", command=self.signup, font=("Arial", 12)).pack(side=tk.LEFT, padx=10)
+        tk.Button(button_frame, text="Back to Login", command=self.create_login_screen, font=("Arial", 12)).pack(side=tk.LEFT, padx=10)
+    
+    def login(self):
+        username = self.login_username.get().strip()
+        password = self.login_password.get()
+        
+        if not username or not password:
+            messagebox.showwarning("Input Error", "Please enter both username and password.")
+            return
+        
+        success, message = authenticate_user(username, password)
+        if success:
+            self.username = username
+            self.logged_in = True
+            self.create_username_screen()
+        else:
+            messagebox.showerror("Login Failed", message)
+    
+    def signup(self):
+        username = self.signup_username.get().strip()
+        password = self.signup_password.get()
+        
+        if not username or not password:
+            messagebox.showwarning("Input Error", "Please enter both username and password.")
+            return
+        
+        if len(password) < 4:
+            messagebox.showwarning("Input Error", "Password must be at least 4 characters.")
+            return
+        
+        success, message = create_user(username, password)
+        if success:
+            messagebox.showinfo("Success", "Account created successfully! Please login.")
+            self.create_login_screen()
+        else:
+            messagebox.showerror("Signup Failed", message)
+    
+    def logout(self):
+        self.logged_in = False
+        self.username = ""
+        self.create_login_screen()
+
     def create_username_screen(self):
         self.clear_screen()
 
-        tk.Label(self.root, text="Enter Your Name:", font=("Arial", 14)).pack(pady=10)
-        self.name_entry = tk.Entry(self.root, font=("Arial", 14))
-        self.name_entry.pack(pady=5)
+        # Add logout button
+        logout_frame = tk.Frame(self.root)
+        logout_frame.pack(anchor="ne", padx=10, pady=5)
+        tk.Label(logout_frame, text=f"Logged in as: {self.username}", font=("Arial", 10)).pack(side=tk.LEFT)
+        tk.Button(logout_frame, text="Logout", command=self.logout, font=("Arial", 10)).pack(side=tk.RIGHT, padx=5)
 
-        tk.Label(self.root, text="Enter Your Age (optional):", font=("Arial", 14)).pack(pady=5)
+        tk.Label(self.root, text="Enter Your Age (optional):", font=("Arial", 14)).pack(pady=20)
         self.age_entry = tk.Entry(self.root, font=("Arial", 14))
         self.age_entry.pack(pady=5)
 
@@ -100,13 +184,12 @@ class SoulSenseApp:
 
     # ---------- FLOW ----------
     def start_test(self):
-        self.username = self.name_entry.get().strip()
-        age_str = self.age_entry.get().strip()
-
-        ok, err = self.validate_name_input(self.username)
-        if not ok:
-            messagebox.showwarning("Input Error", err)
+        if not self.logged_in:
+            messagebox.showerror("Access Denied", "Please login first.")
+            self.create_login_screen()
             return
+            
+        age_str = self.age_entry.get().strip()
 
         ok, age, err = self.validate_age_input(age_str)
         if not ok:

@@ -7,11 +7,13 @@ It provides an interactive self-reflection test, persists results locally, and i
 
 ## ✨ Features
 
+- **User Authentication:** Secure signup, login, and logout system
 - Interactive Tkinter-based GUI
 - SQLite-backed persistence for questions, responses, and scores
 - Questions loaded once into the database, then read-only at runtime
 - Automatic EQ score calculation with interpretation
 - Stores:
+  - User credentials (securely hashed)
   - Per-question responses
   - Final EQ score
   - Optional age and age group
@@ -164,6 +166,13 @@ Start the application:
 ```bash
     python -m app.main
 ```
+
+### First Time Setup
+1. When you first run the application, you'll see a login screen
+2. Click "Sign Up" to create a new account with username and password
+3. After creating an account, login with your credentials
+4. You can now take the EQ test with personalized data tracking
+5. Use the "Logout" button to switch users or end your session
 ---
 
 ## 🧪 Running Tests
