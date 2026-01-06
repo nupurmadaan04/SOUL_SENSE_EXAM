@@ -155,6 +155,22 @@ class SoulSenseApp:
     pady=8
 ).pack(pady=25)
 
+    def return_to_home(self):
+        confirm = messagebox.askyesno(
+            "Return to Home",
+            "Are you sure you want to return to the home page?\nYour current progress will be lost."
+        )
+        if confirm:
+            # Reset session state
+            self.current_question = 0
+            self.responses = {}
+            self.age_group = None
+            self.age = None
+            self.education = None
+
+            logging.info("User returned to home page | user=%s", self.username)
+
+            self.create_username_screen()
 
 
     # ---------- VALIDATION ----------
@@ -238,6 +254,15 @@ class SoulSenseApp:
         # --- NEW: Progress Bar ---
         progress_frame = tk.Frame(self.root)
         progress_frame.pack(pady=5)
+        progress_frame = tk.Frame(self.root)
+        progress_frame.pack(fill="x", pady=5, padx=10)
+
+        tk.Button(
+            progress_frame,
+            text="← Home",
+            command=self.return_to_home,
+            fg="#555"
+        ).pack(side="right")
 
         max_val = self.total_questions if self.total_questions > 0 else 10
 

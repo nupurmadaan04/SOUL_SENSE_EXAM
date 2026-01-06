@@ -36,3 +36,13 @@
 2026-01-06 22:18:41,262 - INFO - Session started | user=Anushka | age=19 | education=Undergraduate | age_group=adult
 2026-01-06 22:18:51,054 - INFO - Application started
 2026-01-06 22:18:51,056 - INFO - Loaded 10 questions from DB
+2026-01-06 22:29:54,670 - INFO - Application started
+2026-01-06 22:29:54,679 - INFO - Loaded 10 questions from DB
+2026-01-06 22:30:04,065 - INFO - Session started | user=Anu | age=18 | education=Postgraduate | age_group=adult
+2026-01-06 22:34:13,341 - INFO - Application started
+2026-01-06 22:34:48,886 - INFO - Session started | user=Anu | age=19 | education=Working Professional | age_group=adult
+2026-01-06 22:38:05,004 - INFO - Application started
+2026-01-06 22:38:17,208 - INFO - Session started | user=Ana | age=19 | education=Undergraduate | age_group=adult
+2026-01-06 22:38:21,364 - INFO - User returned to home page | user=Ana
+2026-01-06 22:38:28,107 - INFO - Session started | user=Ana | age=19 | education=Undergraduate | age_group=adult
+2026-01-06 22:39:09,033 - INFO - User returned to home page | user=Ana
