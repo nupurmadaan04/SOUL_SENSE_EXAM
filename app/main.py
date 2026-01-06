@@ -255,38 +255,21 @@ ensure_question_bank_schema(cursor)
 
 conn.commit()
 
-# ---------------- LOAD QUESTIONS FROM DB ----------------
-try:
-    rows = load_questions()  # [(id, text)]
-    questions = [q[1] for q in rows]   # preserve text only
-    
-    # reading only 10 for testing
-    questions = questions[:10]
-    
-    if not questions:
-        raise RuntimeError("Question bank empty")
-
-    logging.info("Loaded %s questions from DB", len(questions))
-
-except Exception:
-    logging.critical("Failed to load questions from DB", exc_info=True)
-    messagebox.showerror("Fatal Error", "Question bank could not be loaded.")
-    sys.exit(1)
-
 # ---------------- GUI ----------------
 class SoulSenseApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Soul Sense EQ Test")
-        # Slightly taller to accommodate graph imports comfortably
+        # RESOLVED: Kept the taller size for graphs
         self.root.geometry("500x400")
 
         self.username = ""
         self.age = None
         self.age_group = None
 
+        self.questions = []
         self.current_question = 0
-        self.total_questions = len(questions)
+        self.total_questions = 0  # Will be set after loading questions
         self.responses = []
 
         self.create_username_screen()
@@ -342,25 +325,55 @@ class SoulSenseApp:
         self.age = age
         self.age_group = compute_age_group(age)
 
+        # -------- LOAD AGE-APPROPRIATE QUESTIONS --------
+        try:
+            # RESOLVED: Using the repo's logic to load by age
+            rows = load_questions(age=self.age)  # [(id, text)]
+            self.questions = [q[1] for q in rows]
+
+            # Limit to 10 for consistency
+            self.questions = self.questions[:10]
+            
+            # RESOLVED: Set total_questions here for the progress bar
+            self.total_questions = len(self.questions)
+
+            if not self.questions:
+                raise RuntimeError("No questions loaded")
+
+        except Exception:
+            logging.error("Failed to load age-appropriate questions", exc_info=True)
+            messagebox.showerror(
+                "Error",
+                "No questions available for your age group."
+            )
+            return
+
         logging.info(
-            "Session started | user=%s | age=%s | age_group=%s",
-            self.username, self.age, self.age_group
+            "Session started | user=%s | age=%s | age_group=%s | questions=%s",
+            self.username,
+            self.age,
+            self.age_group,
+            len(self.questions)
         )
 
         self.show_question()
 
     def show_question(self):
         self.clear_screen()
-        # -------- Progress Bar --------
+        
+        # --- Progress Bar (From Graph Feature) ---
         progress_frame = tk.Frame(self.root)
         progress_frame.pack(pady=5)
+
+        # RESOLVED: Check for total_questions > 0 to avoid division by zero
+        max_val = self.total_questions if self.total_questions > 0 else 10
 
         self.progress = ttk.Progressbar(
             progress_frame,
             orient="horizontal",
             length=300,
             mode="determinate",
-            maximum=self.total_questions,
+            maximum=max_val,
             value=self.current_question
         )
         self.progress.pack()
@@ -372,11 +385,13 @@ class SoulSenseApp:
         )
         self.progress_label.pack()
 
-        if self.current_question >= len(questions):
+        # RESOLVED: Using self.questions (instance variable)
+        if self.current_question >= len(self.questions):
             self.finish_test()
             return
 
-        q = questions[self.current_question]
+        q = self.questions[self.current_question]
+
         tk.Label(
             self.root,
             text=f"Q{self.current_question + 1}: {q}",
@@ -423,7 +438,7 @@ class SoulSenseApp:
         self.current_question += 1
         self.show_question()
 
-    # ---------------- GRAPH GENERATION (NEW) ----------------
+    # ---------------- GRAPH GENERATION ----------------
     def create_radar_chart(self, parent_frame, categories, values):
         """
         Creates a Radar/Spider chart embedded in a Tkinter frame.
@@ -453,13 +468,13 @@ class SoulSenseApp:
         total_score = sum(self.responses)
         
         # --- SIMULATE CATEGORIES (Splitting 10 questions) ---
-        # NOTE: Logic assumes 10 questions. If questions change, adjust indices.
-        cat1_score = sum(self.responses[0:3])   # Q1-Q3
-        cat2_score = sum(self.responses[3:6])   # Q4-Q6
-        cat3_score = sum(self.responses[6:10])  # Q7-Q10
+        # Logic ensures we don't crash if fewer than 10 questions are answered
+        r = self.responses
+        cat1_score = sum(r[0:3]) if len(r) > 0 else 0
+        cat2_score = sum(r[3:6]) if len(r) > 3 else 0
+        cat3_score = sum(r[6:10]) if len(r) > 6 else 0
 
         # Normalize to scale of 10 for graph
-        # Max score per question is 4.
         vals_normalized = [
             (cat1_score / 12) * 10,
             (cat2_score / 12) * 10,
@@ -467,7 +482,7 @@ class SoulSenseApp:
         ]
         categories = ["Self-Awareness", "Empathy", "Social Skills"]
 
-        # 2. Save to DB (Unchanged)
+        # 2. Save to DB
         try:
             cursor.execute(
                 "INSERT INTO scores (username, age, total_score) VALUES (?, ?, ?)",
@@ -484,7 +499,7 @@ class SoulSenseApp:
             "Room for improvement."
         )
 
-        # 3. Build Result Screen (Visual Updated)
+        # 3. Build Result Screen
         self.clear_screen()
         self.root.geometry("800x600") # Resize for results
 
@@ -495,7 +510,7 @@ class SoulSenseApp:
         tk.Label(left_frame, text=f"Results for {self.username}", font=("Arial", 18, "bold")).pack(pady=20)
         tk.Label(
             left_frame,
-            text=f"Total Score: {total_score} / {len(self.responses) * 4}",
+            text=f"Total Score: {total_score}",
             font=("Arial", 16)
         ).pack(pady=10)
         tk.Label(left_frame, text=interpretation, font=("Arial", 14), fg="blue", wraplength=250).pack(pady=10)
