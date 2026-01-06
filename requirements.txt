@@ -9,7 +9,7 @@
 # - collections (Counter for analytics)
 
 # External packages (REQUIRED for Graphs):
-matplotlib
-numpy
+# - matplotlib
+# - numpy
 
 # Python 3.6+ recommended
