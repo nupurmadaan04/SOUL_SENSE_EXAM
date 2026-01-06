@@ -134,7 +134,8 @@ class JournalFeature:
         emotional_patterns = self.extract_emotional_patterns(content)
         
         # Save to database
-        conn = sqlite3.connect("soulsense_db")
+        from app.db import get_connection
+        conn = get_connection()
         cursor = conn.cursor()
         
         entry_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -201,7 +202,8 @@ class JournalFeature:
         text_area.pack(pady=10, padx=20, fill=tk.BOTH, expand=True)
         
         # Fetch entries from database
-        conn = sqlite3.connect("soulsense_db")
+        from app.db import get_connection
+        conn = get_connection()
         cursor = conn.cursor()
         cursor.execute("""
         SELECT entry_date, content, sentiment_score, emotional_patterns 

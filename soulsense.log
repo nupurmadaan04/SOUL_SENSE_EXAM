@@ -1,6 +1,0 @@
-2026-01-02 21:01:57,855 - INFO - Application started
-2026-01-02 21:01:57,866 - INFO - Database initialized successfully
-2026-01-02 21:02:04,153 - INFO - User session started for username: Aleena
-2026-01-02 21:02:31,178 - INFO - Score saved successfully | user=Aleena | score=78
-2026-01-02 21:02:33,873 - INFO - Database connection closed
-2026-01-02 21:02:33,873 - INFO - Application exited gracefully

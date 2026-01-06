@@ -45,3 +45,17 @@ def ensure_question_bank_schema(cursor):
         created_at TEXT
     )
     """)
+
+
+def ensure_journal_entries_schema(cursor):
+    """Ensure journal_entries table exists"""
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS journal_entries (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        username TEXT NOT NULL,
+        entry_date TEXT NOT NULL,
+        content TEXT NOT NULL,
+        sentiment_score REAL,
+        emotional_patterns TEXT
+    )
+    """)

@@ -8,10 +8,12 @@ from app.db import get_connection
 from app.models import (
     ensure_scores_schema,
     ensure_responses_schema,
-    ensure_question_bank_schema
+    ensure_question_bank_schema,
+    ensure_journal_entries_schema
 )
 from app.questions import load_questions
 from app.utils import compute_age_group
+from app.login_gui import LoginWindow
 
 # ---------------- LOGGING ----------------
 logging.basicConfig(
@@ -38,17 +40,18 @@ CREATE TABLE IF NOT EXISTS scores (
 ensure_scores_schema(cursor)
 ensure_responses_schema(cursor)
 ensure_question_bank_schema(cursor)
+ensure_journal_entries_schema(cursor)
 
 conn.commit()
 
 # ---------------- GUI ----------------
 class SoulSenseApp:
-    def __init__(self, root):
+    def __init__(self, root, authenticated_username):
         self.root = root
         self.root.title("Soul Sense EQ Test")
         self.root.geometry("500x350")
 
-        self.username = ""
+        self.username = authenticated_username
         self.age = None
         self.age_group = None
 
@@ -56,9 +59,53 @@ class SoulSenseApp:
         self.current_question = 0
         self.responses = []
 
-        self.create_username_screen()
+        self.create_main_menu()
 
     # ---------- SCREENS ----------
+    def create_main_menu(self):
+        """Create main menu with options"""
+        self.clear_screen()
+        
+        tk.Label(self.root, text=f"Welcome, {self.username}!", font=("Arial", 16, "bold")).pack(pady=20)
+        
+        tk.Button(self.root, text="Take EQ Test", command=self.create_age_screen, 
+                 font=("Arial", 14), bg="#4CAF50", fg="white", width=20).pack(pady=10)
+        
+        tk.Button(self.root, text="Emotional Journal", command=self.open_journal, 
+                 font=("Arial", 14), bg="#FF9800", fg="white", width=20).pack(pady=10)
+        
+        tk.Button(self.root, text="Logout", command=self.logout, 
+                 font=("Arial", 14), width=20).pack(pady=10)
+    
+    def create_age_screen(self):
+        """Create age input screen"""
+        self.clear_screen()
+        
+        tk.Label(self.root, text="Enter Your Age (optional):", font=("Arial", 14)).pack(pady=20)
+        self.age_entry = tk.Entry(self.root, font=("Arial", 14))
+        self.age_entry.pack(pady=10)
+        
+        button_frame = tk.Frame(self.root)
+        button_frame.pack(pady=20)
+        
+        tk.Button(button_frame, text="Start Test", command=self.start_test, 
+                 font=("Arial", 12)).pack(side=tk.LEFT, padx=5)
+        tk.Button(button_frame, text="Back", command=self.create_main_menu, 
+                 font=("Arial", 12)).pack(side=tk.LEFT, padx=5)
+    
+    def open_journal(self):
+        """Open journal feature"""
+        try:
+            from journal_feature import JournalFeature
+            journal = JournalFeature(self.root, self.username)
+        except ImportError:
+            messagebox.showinfo("Feature Unavailable", "Journal feature is not available.")
+    
+    def logout(self):
+        """Logout and return to login screen"""
+        self.root.destroy()
+        start_application()
+
     def create_username_screen(self):
         self.clear_screen()
 
@@ -93,13 +140,7 @@ class SoulSenseApp:
 
     # ---------- FLOW ----------
     def start_test(self):
-        self.username = self.name_entry.get().strip()
         age_str = self.age_entry.get().strip()
-
-        ok, err = self.validate_name_input(self.username)
-        if not ok:
-            messagebox.showwarning("Input Error", err)
-            return
 
         ok, age, err = self.validate_age_input(age_str)
         if not ok:
@@ -236,8 +277,16 @@ class SoulSenseApp:
             w.destroy()
 
 # ---------------- MAIN ----------------
+def start_application():
+    """Start the application with authentication"""
+    def on_login_success(username):
+        root = tk.Tk()
+        app = SoulSenseApp(root, username)
+        root.protocol("WM_DELETE_WINDOW", app.force_exit)
+        root.mainloop()
+    
+    login_window = LoginWindow(on_login_success)
+    login_window.show()
+
 if __name__ == "__main__":
-    root = tk.Tk()
-    app = SoulSenseApp(root)
-    root.protocol("WM_DELETE_WINDOW", app.force_exit)
-    root.mainloop()
+    start_application()
