@@ -1,6 +1,6 @@
 import sqlite3
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import messagebox,ttk
 from journal_feature import JournalFeature
 from analytics_dashboard import AnalyticsDashboard
 
@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS scores (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT,
     age INTEGER,
+    education TEXT,
     total_score INTEGER
 )
 """)
@@ -24,7 +25,12 @@ except sqlite3.OperationalError:
     pass  # Column already exists
 
 conn.commit()
+try:
+    cursor.execute("ALTER TABLE scores ADD COLUMN education TEXT")
+except sqlite3.OperationalError:
+    pass
 
+conn.commit()
 #QUESTIONS
 questions = [
     {"text": "You can recognize your emotions as they happen.", "age_min": 12, "age_max": 25},
@@ -42,26 +48,60 @@ root.resizable(False, False)
 
 username = tk.StringVar()
 age = tk.StringVar()
+education = tk.StringVar()
 
-tk.Label(
-    root,
-    text="SoulSense Assessment",
+style = ttk.Style()
+style.theme_use("clam")
+
+container = ttk.Frame(root, padding=20)
+container.pack(expand=True)
+
+ttk.Label(
+    container,
+    text="🧠 SoulSense EQ Assessment",
     font=("Arial", 20, "bold")
-).pack(pady=20)
+).pack(pady=15)
 
-tk.Label(root, text="Enter your name:", font=("Arial", 15)).pack()
-tk.Entry(root, textvariable=username, font=("Arial", 15), width=25).pack(pady=8)
+ttk.Label(container, text="Name", font=("Arial", 12)).pack(anchor="w")
+ttk.Entry(container, textvariable=username, font=("Arial", 12), width=30).pack(pady=5)
 
-tk.Label(root, text="Enter your age:", font=("Arial", 15)).pack()
-tk.Entry(root, textvariable=age, font=("Arial", 15), width=25).pack(pady=8)
+ttk.Label(container, text="Age", font=("Arial", 12)).pack(anchor="w")
+ttk.Entry(container, textvariable=age, font=("Arial", 12), width=30).pack(pady=5)
+
+ttk.Label(container, text="Education Level", font=("Arial", 12)).pack(anchor="w")
+
+education_combo = ttk.Combobox(
+    container,
+    textvariable=education,
+    values=[
+        "School Student",
+        "Undergraduate",
+        "Postgraduate",
+        "Working Professional",
+        "Other"
+    ],
+    state="readonly",
+    width=28
+)
+education_combo.pack(pady=5)
+education_combo.current(0)
+
 
 def submit_details():
-    if not username.get() or not age.get().isdigit():
-        messagebox.showerror("Error", "Please enter valid name and age")
+    if not username.get().strip():
+        messagebox.showerror("Error", "Please enter your name")
+        return
+
+    if not age.get().isdigit():
+        messagebox.showerror("Error", "Please enter a valid age")
+        return
+
+    if not education.get():
+        messagebox.showerror("Error", "Please select education level")
         return
 
     root.destroy()
-    start_quiz(username.get(), int(age.get()))
+    start_quiz(username.get(), int(age.get()), education.get())
 
 tk.Button(
     root,
@@ -97,7 +137,7 @@ tk.Button(
 ).pack(pady=5)
 
 #QUIZ WINDOW
-def start_quiz(username, age):
+def start_quiz(username, age, education):
     filtered_questions = [
         q for q in questions if q["age_min"] <= age <= q["age_max"]
     ]
@@ -121,6 +161,8 @@ def start_quiz(username, age):
         font=("Arial", 16)
     )
     question_label.pack(pady=25)
+    progress = ttk.Label(quiz, text="", font=("Arial", 11))
+    progress.pack()
 
     options = [
         ("Strongly Disagree", 1),
@@ -141,6 +183,8 @@ def start_quiz(username, age):
 
     def load_question():
         question_label.config(text=filtered_questions[current_q]["text"])
+        progress.config(text=f"Question {current_q + 1} of {len(filtered_questions)}")
+
 
     def next_question():
         nonlocal current_q, score
@@ -157,9 +201,10 @@ def start_quiz(username, age):
             load_question()
         else:
             cursor.execute(
-                "INSERT INTO scores (username, age, total_score) VALUES (?, ?, ?)",
-                (username, age, score)
-            )
+    "INSERT INTO scores (username, age, education, total_score) VALUES (?, ?, ?, ?)",
+    (username, age, education, score)
+)
+
             conn.commit()
 
             # Show completion message with options

@@ -277,11 +277,13 @@ class SoulSenseApp:
     def __init__(self, root):
         self.root = root
         self.root.title("Soul Sense EQ Test")
-        self.root.geometry("500x350")   # Same GUI window dimensions
-
+        self.root.geometry("600x500")   # Same GUI window dimensions
+        self.root.configure(bg="#F5F7FA")
         self.username = ""
         self.age = None
+        self.education = None
         self.age_group = None
+
 
         self.current_question = 0
         self.total_questions = len(questions) #length of the questions
@@ -293,15 +295,93 @@ class SoulSenseApp:
     def create_username_screen(self):
         self.clear_screen()
 
-        tk.Label(self.root, text="Enter Your Name:", font=("Arial", 14)).pack(pady=10)
-        self.name_entry = tk.Entry(self.root, font=("Arial", 14))
+        card = tk.Frame(
+            self.root,
+            bg="white",
+            padx=30,
+            pady=25
+        )
+        card.pack(pady=30)
+
+        tk.Label(
+    card,
+    text="🧠 Soul Sense EQ Test",
+    font=("Arial", 22, "bold"),
+    bg="white",
+    fg="#2C3E50"
+).pack(pady=(0, 8))
+
+
+        tk.Label(
+            card,
+            text="Answer honestly to understand your emotional intelligence",
+            font=("Arial", 11),
+            bg="white",
+            fg="#7F8C8D"
+        ).pack(pady=(0, 20))
+
+
+        # Name
+        tk.Label(
+    card,
+    text="Enter Name",
+    bg="white",
+    fg="#34495E",
+    font=("Arial", 11, "bold")
+).pack(anchor="w", pady=(5, 2))
+
+        self.name_entry = ttk.Entry(card, font=("Arial", 12), width=30)
         self.name_entry.pack(pady=5)
 
-        tk.Label(self.root, text="Enter Your Age (optional):", font=("Arial", 14)).pack(pady=5)
-        self.age_entry = tk.Entry(self.root, font=("Arial", 14))
+        # Age
+        tk.Label(
+    card,
+    text="Enter Age",
+    bg="white",
+    fg="#34495E",
+    font=("Arial", 11, "bold")
+).pack(anchor="w", pady=(5, 2))
+        self.age_entry = ttk.Entry(card, font=("Arial", 12), width=30)
         self.age_entry.pack(pady=5)
 
-        tk.Button(self.root, text="Start Test", command=self.start_test).pack(pady=15)
+        # Education (NEW)
+        tk.Label(
+    card,
+    text="Your Name",
+    bg="white",
+    fg="#34495E",
+    font=("Arial", 11, "bold")
+).pack(anchor="w", pady=(5, 2))
+        self.education_combo = ttk.Combobox(
+            card,
+            state="readonly",
+            width=28,
+            values=[
+                "School Student",
+                "Undergraduate",
+                "Postgraduate",
+                "Working Professional",
+                "Other"
+            ]
+        )
+        self.education_combo.pack(pady=5)
+        self.education_combo.set("Select your education")
+
+        tk.Button(
+    card,
+    text="Start EQ Test →",
+    command=self.start_test,
+    font=("Arial", 12, "bold"),
+    bg="#4CAF50",
+    fg="white",
+    activebackground="#43A047",
+    activeforeground="white",
+    relief="flat",
+    padx=20,
+    pady=8
+).pack(pady=25)
+
+
 
     # ---------- VALIDATION ----------
     def validate_name_input(self, name):
@@ -326,11 +406,17 @@ class SoulSenseApp:
     def start_test(self):
         self.username = self.name_entry.get().strip()
         age_str = self.age_entry.get().strip()
+        self.education = self.education_combo.get()
+
 
         ok, err = self.validate_name_input(self.username)
         if not ok:
             messagebox.showwarning("Input Error", err)
             return
+        if not self.education or self.education == "Select your education":
+            messagebox.showwarning("Input Error", "Please select your education level.")
+            return
+
 
         ok, age, err = self.validate_age_input(age_str)
         if not ok:
@@ -341,9 +427,10 @@ class SoulSenseApp:
         self.age_group = compute_age_group(age)
 
         logging.info(
-            "Session started | user=%s | age=%s | age_group=%s",
-            self.username, self.age, self.age_group
+            "Session started | user=%s | age=%s | education=%s | age_group=%s",
+            self.username, self.age, self.education, self.age_group
         )
+
 
         self.show_question()
 

@@ -15,3 +15,24 @@
 2026-01-05 14:21:56,888 - INFO - Application started
 2026-01-05 14:21:56,890 - INFO - Loaded 10 questions from DB
 2026-01-05 14:22:04,848 - INFO - Session started | user=asdasd | age=12 | age_group=child
+2026-01-06 21:11:01,454 - INFO - Application started
+2026-01-06 21:11:01,457 - INFO - Loaded 10 questions from DB
+2026-01-06 21:11:20,873 - INFO - Session started | user=Anushka | age=8 | age_group=child
+2026-01-06 22:01:52,790 - INFO - Application started
+2026-01-06 22:01:52,815 - INFO - Loaded 10 questions from DB
+2026-01-06 22:11:01,038 - INFO - Application started
+2026-01-06 22:11:01,048 - INFO - Loaded 10 questions from DB
+2026-01-06 22:11:25,414 - INFO - Session started | user=Anushka | age=18 | education=Undergraduate | age_group=adult
+2026-01-06 22:11:37,806 - INFO - Application started
+2026-01-06 22:11:37,808 - INFO - Loaded 10 questions from DB
+2026-01-06 22:11:54,301 - INFO - Application started
+2026-01-06 22:11:54,303 - INFO - Loaded 10 questions from DB
+2026-01-06 22:17:24,871 - INFO - Application started
+2026-01-06 22:17:24,889 - INFO - Loaded 10 questions from DB
+2026-01-06 22:18:05,783 - INFO - Application started
+2026-01-06 22:18:05,785 - INFO - Loaded 10 questions from DB
+2026-01-06 22:18:29,010 - INFO - Application started
+2026-01-06 22:18:29,012 - INFO - Loaded 10 questions from DB
+2026-01-06 22:18:41,262 - INFO - Session started | user=Anushka | age=19 | education=Undergraduate | age_group=adult
+2026-01-06 22:18:51,054 - INFO - Application started
+2026-01-06 22:18:51,056 - INFO - Loaded 10 questions from DB
