@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 import sqlite3
 
-# ---------- DATABASE FUNCTION ----------
+# DATABASE FUNCTION
 def fetch_resources(emotion, intensity):
     conn = sqlite3.connect("database.db")
     cur = conn.cursor()
@@ -25,7 +25,7 @@ def fetch_resources(emotion, intensity):
     return result, insight
 
 
-# ---------- BUTTON ACTION ----------
+# BUTTON ACTION
 def show_resources():
     emotion = emotion_var.get()
     intensity = intensity_var.get()
@@ -50,7 +50,7 @@ def show_resources():
         output.insert(tk.END, f"• {item}\n")
 
 
-# ---------- TKINTER UI ----------
+# TKINTER UI
 root = tk.Tk()
 root.title("Emotional Health Resource Library")
 root.geometry("650x550")
