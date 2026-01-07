@@ -3,6 +3,8 @@ from tkinter import messagebox, ttk
 import logging
 import sys
 from datetime import datetime
+import json
+import os
 
 # --- NEW IMPORTS FOR GRAPHS ---
 import matplotlib.pyplot as plt
@@ -14,6 +16,7 @@ from app.models import Score, Response
 from app.questions import load_questions
 from app.utils import compute_age_group
 from app.auth import AuthManager
+from app import config
 
 # ---------------- LOGGING ----------------
 logging.basicConfig(
@@ -25,66 +28,6 @@ logging.basicConfig(
 logging.info("Application started")
 
 # Note: DB Init is handled by app.db.check_db_state() on import
-
-class SplashScreen:
-    def __init__(self, root):
-        self.root = root
-        self.root.overrideredirect(True)  # remove title bar
-        self.root.geometry("450x300")
-        
-        # Default to light theme for splash or load from config (simple way: hardcode safe default or import config)
-        from app import config
-        theme = config.THEME
-        # Mini-theme map just for splash or duplicate logic
-        bg = "#1a1a1a" if theme == "dark" else "#F5F7FA"
-        fg = "#ffffff" if theme == "dark" else "#2C3E50"
-        
-        self.root.configure(bg=bg)
-
-        # Center window
-        x = (self.root.winfo_screenwidth() // 2) - 225
-        y = (self.root.winfo_screenheight() // 2) - 150
-        self.root.geometry(f"+{x}+{y}")
-
-        container = tk.Frame(self.root, bg=bg)
-        container.pack(expand=True)
-
-        tk.Label(
-            container,
-            text="🧠",
-            font=("Arial", 40),
-            bg=bg
-        ).pack(pady=(10, 5))
-
-        tk.Label(
-            container,
-            text="Soul Sense EQ Test",
-            font=("Arial", 20, "bold"),
-            fg=fg,
-            bg=bg
-        ).pack(pady=5)
-
-        tk.Label(
-            container,
-            text="Understanding emotions, one step at a time",
-            font=("Arial", 10),
-            fg="#7F8C8D", # Keep neutral
-            bg=bg
-        ).pack(pady=5)
-
-        # Simple loading text (safe default)
-        self.loading_label = tk.Label(
-            container,
-            text="Loading...",
-            font=("Arial", 10),
-            fg="#555",
-            bg=bg
-        )
-        self.loading_label.pack(pady=15)
-    def close_after_delay(self, delay_ms, callback):
-        self.root.after(delay_ms, callback)
-
-from app import config
 
 # ---------------- THEMES ----------------
 THEMES = {
@@ -120,6 +63,64 @@ THEMES = {
     }
 }
 
+class SplashScreen:
+    def __init__(self, root):
+        self.root = root
+        self.root.overrideredirect(True)  # remove title bar
+        self.root.geometry("450x300")
+        
+        # Load theme from config
+        theme = config.THEME
+        # Simple local theme logic for splash
+        bg = "#1a1a1a" if theme == "dark" else "#F5F7FA"
+        fg = "#ffffff" if theme == "dark" else "#2C3E50"
+        
+        self.root.configure(bg=bg)
+
+        # Center window
+        x = (self.root.winfo_screenwidth() // 2) - 225
+        y = (self.root.winfo_screenheight() // 2) - 150
+        self.root.geometry(f"+{x}+{y}")
+
+        container = tk.Frame(self.root, bg=bg)
+        container.pack(expand=True)
+
+        tk.Label(
+            container,
+            text="🧠",
+            font=("Arial", 40),
+            bg=bg
+        ).pack(pady=(10, 5))
+
+        tk.Label(
+            container,
+            text="Soul Sense EQ Test",
+            font=("Arial", 20, "bold"),
+            fg=fg,
+            bg=bg
+        ).pack(pady=5)
+
+        tk.Label(
+            container,
+            text="Assess your Emotional Intelligence",
+            font=("Arial", 10),
+            fg="#7F8C8D",
+            bg=bg
+        ).pack(pady=5)
+
+        # Simple loading text
+        self.loading_label = tk.Label(
+            container,
+            text="Loading...",
+            font=("Arial", 10),
+            fg="#555",
+            bg=bg
+        )
+        self.loading_label.pack(pady=15)
+
+    def close_after_delay(self, delay_ms, callback):
+        self.root.after(delay_ms, callback)
+
 # ---------------- GUI ----------------
 class SoulSenseApp:
     def return_to_home(self):
@@ -135,15 +136,11 @@ class SoulSenseApp:
         self.current_question = 0
         self.responses = [] 
         self.answer_var = None
-
-        # Optional: reset user-related session data
-        # (keep username if you want prefilled name)
         self.age = None
         self.age_group = None
 
         logging.info("User returned to home screen during test")
 
-        # ---- GO TO HOME ----
         if self.auth_manager.is_logged_in():
             self.create_username_screen()
         else:
@@ -173,18 +170,23 @@ class SoulSenseApp:
 
     # ---------- HELPERS ----------
     def toggle_theme(self):
+        # Determine new theme
         new_theme = "dark" if self.current_theme_name == "light" else "light"
         
-        # Load current config, update, and save
+        # Update app state
+        self.current_theme_name = new_theme
+        self.colors = THEMES.get(self.current_theme_name, THEMES["light"])
+        self.root.configure(bg=self.colors["bg_primary"])
+        
+        # Save to config
         try:
             current_config = config.load_config()
             current_config["ui"]["theme"] = new_theme
-            if config.save_config(current_config):
-                messagebox.showinfo("Theme Changed", "Theme changed! Please restart the application to apply changes.")
-                # Optional: self.force_exit() 
+            config.save_config(current_config)
+            messagebox.showinfo("Theme Changed", "Theme changed! Please restart the application to fully apply changes.")
         except Exception as e:
-            messagebox.showerror("Error", f"Failed to save theme: {e}")
-
+            logging.error(f"Failed to save theme: {e}")
+            
     # ---------- SCREENS ----------
     def create_login_screen(self):
         self.clear_screen()
@@ -197,18 +199,19 @@ class SoulSenseApp:
         )
         card.pack(pady=50)
         
-        # Header with Theme Toggle
+        # Header with Theme Toggle & Settings Button
         header_frame = tk.Frame(card, bg=self.colors["card_bg"])
         header_frame.pack(fill="x", pady=(0, 8))
         
         tk.Label(
             header_frame,
-            text="🧠 Soul Sense EQ Test",
+            text="🧠 Soul Sense",
             font=("Arial", 22, "bold"),
             bg=self.colors["card_bg"],
             fg=self.colors["text_primary"]
         ).pack(side="left")
         
+        # Theme Toggle
         tk.Button(
             header_frame,
             text="🌓",
@@ -218,7 +221,19 @@ class SoulSenseApp:
             fg=self.colors["text_primary"],
             relief="flat",
             cursor="hand2"
-        ).pack(side="right")
+        ).pack(side="right", padx=5)
+
+        # Settings Button (Merged from Upstream)
+        tk.Button(
+            header_frame,
+            text="⚙️",
+            command=self.show_settings,
+            font=("Arial", 12),
+            bg=self.colors["card_bg"],
+            fg=self.colors["text_primary"],
+            relief="flat",
+            cursor="hand2"
+        ).pack(side="right", padx=5)
         
         tk.Label(
             card,
@@ -279,6 +294,50 @@ class SoulSenseApp:
             padx=20,
             pady=8
         ).pack(side="left")
+
+    def show_settings(self):
+        """Show settings configuration window (Merged Feature)"""
+        settings_win = tk.Toplevel(self.root)
+        settings_win.title("Settings")
+        settings_win.geometry("400x300")
+        settings_win.configure(bg=self.colors["bg_primary"])
+        
+        # Center window
+        x = self.root.winfo_x() + (self.root.winfo_width() - settings_win.winfo_width()) // 2
+        y = self.root.winfo_y() + (self.root.winfo_height() - settings_win.winfo_height()) // 2
+        settings_win.geometry(f"+{x}+{y}")
+        
+        tk.Label(
+            settings_win,
+            text="Settings",
+            font=("Arial", 16, "bold"),
+            bg=self.colors["bg_primary"],
+            fg=self.colors["text_primary"]
+        ).pack(pady=15)
+        
+        # Current Config Display
+        tk.Label(
+            settings_win,
+            text=f"Current Theme: {self.current_theme_name}",
+            bg=self.colors["bg_primary"],
+            fg=self.colors["text_secondary"]
+        ).pack(pady=5)
+
+        tk.Label(
+            settings_win,
+            text="Modify 'config.json' to change database paths or other settings.",
+            bg=self.colors["bg_primary"],
+            fg=self.colors["text_secondary"],
+            font=("Arial", 9, "italic")
+        ).pack(pady=20)
+        
+        tk.Button(
+            settings_win,
+            text="Close",
+            command=settings_win.destroy,
+            bg=self.colors["accent"],
+            fg="white"
+        ).pack(pady=10)
     
     def create_signup_screen(self):
         self.clear_screen()
@@ -587,10 +646,7 @@ class SoulSenseApp:
             # Store (text, tooltip) tuples
             self.questions = [(q[1], q[2]) for q in rows]
 
-            # temporary limit (existing behavior)
-            self.questions = self.questions[:10]
-            
-            # Added for Progress Bar logic
+            # temporary limit based on config (merged feature idea)
             self.total_questions = len(self.questions)
 
             if not self.questions:
@@ -616,13 +672,15 @@ class SoulSenseApp:
         self.clear_screen()
         
         # --- NEW: Progress Bar ---
-        progress_frame = tk.Frame(self.root)
+        progress_frame = tk.Frame(self.root, bg=self.colors["bg_primary"])
         progress_frame.pack(fill="x", pady=5, padx=10)
 
         tk.Button(
             progress_frame,
             text="🏠 Home",
-            command=self.return_to_home
+            command=self.return_to_home,
+            bg=self.colors["bg_secondary"],
+            relief="flat"
         ).pack(side="right")
         
         tk.Button(
@@ -630,7 +688,7 @@ class SoulSenseApp:
             text="Logout",
             command=self.handle_logout,
             font=("Arial", 10),
-            bg="#E74C3C",
+            bg=self.colors["danger"],
             fg="white",
             relief="flat",
             padx=10,
@@ -653,7 +711,9 @@ class SoulSenseApp:
         self.progress_label = tk.Label(
             progress_frame,
             text=f"{self.current_question}/{self.total_questions} Completed",
-            font=("Arial", 10)
+            font=("Arial", 10),
+            bg=self.colors["bg_primary"],
+            fg=self.colors["text_primary"]
         )
         self.progress_label.pack()
 
@@ -728,9 +788,13 @@ class SoulSenseApp:
         tk.Button(self.root, text="Next", command=self.save_answer).pack(pady=15)
 
     def save_answer(self):
-        ans = self.answer_var.get()
-        if ans == 0:
-            messagebox.showwarning("Input Error", "Please select an answer.")
+        try:
+            ans = self.answer_var.get()
+            if ans == 0:
+                messagebox.showwarning("Input Error", "Please select an answer.")
+                return
+        except Exception: 
+            messagebox.showwarning("Input Error", "Invalid selection.")
             return
 
         self.responses.append(ans)
@@ -880,28 +944,25 @@ class SoulSenseApp:
         
         # Embed the chart
         chart_widget = self.create_radar_chart(right_frame, categories, vals_normalized)
-        chart_widget.pack(fill=tk.BOTH, expand=True)
 
     def force_exit(self):
-        # Connection management is handled by session context/closing
         self.root.destroy()
         sys.exit(0)
 
     def clear_screen(self):
-        for w in self.root.winfo_children():
-            w.destroy()
+        for widget in self.root.winfo_children():
+            widget.destroy()
 
 # ---------------- MAIN ----------------
 if __name__ == "__main__":
     splash_root = tk.Tk()
     splash = SplashScreen(splash_root)
-
+    
     def launch_main_app():
-        splash_root.destroy()
-        main_root = tk.Tk()
-        app = SoulSenseApp(main_root)
-        main_root.protocol("WM_DELETE_WINDOW", app.force_exit)
-        main_root.mainloop()
+        splash.root.destroy()
+        root = tk.Tk()
+        app = SoulSenseApp(root)
+        root.mainloop()
 
     splash.close_after_delay(2500, launch_main_app)
     splash_root.mainloop()
