@@ -54,8 +54,10 @@ DB_FILENAME = _config["database"]["filename"]
 DB_PATH = os.path.join(BASE_DIR, DB_DIR_NAME, DB_FILENAME)
 DATABASE_URL = f"sqlite:///{DB_PATH}"
 
+
 # Ensure DB Directory Exists
 if not os.path.exists(os.path.dirname(DB_PATH)):
+
     try:
         os.makedirs(os.path.dirname(DB_PATH))
     except OSError:

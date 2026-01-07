@@ -22,8 +22,9 @@ def load_questions(
             
         questions = query.order_by(Question.id).all()
         
-        # Return as list of tuples to match legacy signature
-        rows = [(q.id, q.question_text) for q in questions]
+        # Return as list of tuples with tooltip
+        # (id, question_text, tooltip)
+        rows = [(q.id, q.question_text, q.tooltip) for q in questions]
         
         if not rows:
             # Fallback: if strict age filtering returns nothing, maybe return all?

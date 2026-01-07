@@ -61,6 +61,7 @@ class Question(Base):
     max_age = Column(Integer, default=120)
     weight = Column(Float, default=1.0)
     is_active = Column(Integer, default=1)
+    tooltip = Column(Text, nullable=True)
     created_at = Column(String, default=lambda: datetime.utcnow().isoformat())
 
 class QuestionMetadata(Base):
