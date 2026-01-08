@@ -111,8 +111,8 @@ def _get_cached_questions_from_db(age: Optional[int] = None) -> List[Tuple[int, 
         ).order_by(Question.id).all()
         
         # Convert to list of tuples
-        rows = [(q.id, q.question_text, q.tooltip) for q in questions]
-        
+        rows = [(q.id, q.question_text, q.tooltip, q.min_age, q.max_age) for q in questions]
+
         if not rows:
             raise RuntimeError("No questions found in database")
             
@@ -384,6 +384,24 @@ def clear_all_caches():
         session.close()
     
     return True
+
+import random
+
+def get_random_questions_by_age(all_questions, user_age, num_questions):
+    """
+    Filters questions by min_age and max_age, returns randomized,
+    non-repeating set of questions for one attempt.
+    """
+    filtered_questions = [
+        q for q in all_questions if q[3] <= user_age <= q[4]
+    ]
+
+    if len(filtered_questions) < num_questions:
+        raise ValueError("Not enough questions for this age")
+
+    selected_questions = random.sample(filtered_questions, num_questions)
+    return selected_questions
+
 
 # ------------------ INITIALIZATION ------------------
 

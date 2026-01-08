@@ -13,6 +13,9 @@ class SoulSenseApp:
         self.current_question = 0
         self.responses = []
         self.num_questions = 15
+
+        # 
+        self.user_history = {}  # stores username: list of question indices already used
         
         self.setup_database()
         self.load_questions()
@@ -49,10 +52,26 @@ class SoulSenseApp:
         except FileNotFoundError:
             messagebox.showerror("Error", "question_bank.txt file not found!")
             self.root.quit()
-    
     def select_questions(self):
-        self.questions = random.sample(self.all_questions, min(self.num_questions, len(self.all_questions)))
+     if self.username not in self.user_history:
+        self.user_history[self.username] = []
+     if not hasattr(self, 'all_questions') or not self.all_questions:
+        messagebox.showerror("Error", "No questions loaded!")
+        self.questions = []
+        return
+     all_indices = list(range(len(self.all_questions)))
 
+     recent_indices = self.user_history[self.username][-self.num_questions*2:]  
+     available_indices = [i for i in all_indices if i not in recent_indices]
+     if len(available_indices) < self.num_questions:
+        available_indices = all_indices
+
+     selected_indices = random.sample(available_indices, min(self.num_questions, len(available_indices)))
+     self.questions = [self.all_questions[i] for i in selected_indices]
+
+     self.user_history[self.username].extend(selected_indices)
+
+     random.shuffle(self.questions)
     def create_username_screen(self):
         self.clear_screen()
         
@@ -80,28 +99,37 @@ class SoulSenseApp:
                  font=("Arial", 14), bg="green", fg="white", width=15).pack(pady=30)
 
     def start_test(self):
-        self.username = self.name_entry.get().strip()
-        age_str = self.age_entry.get().strip()
-        
-        if not self.username:
-            messagebox.showwarning("Input Error", "Please enter your name.")
-            return
-        
-        if age_str:
-            try:
-                self.age = int(age_str)
-                if self.age < 1 or self.age > 120:
-                    messagebox.showwarning("Input Error", "Please enter a valid age (1-120).")
-                    return
-            except ValueError:
-                messagebox.showwarning("Input Error", "Age must be a number.")
+     self.username = self.name_entry.get().strip()
+     age_str = self.age_entry.get().strip()
+
+     if not self.username:
+        messagebox.showwarning("Input Error", "Please enter your name.")
+        return
+
+     if age_str:
+        try:
+            self.age = int(age_str)
+            if self.age < 1 or self.age > 120:
+                messagebox.showwarning("Input Error", "Please enter a valid age (1-120).")
                 return
-        
-        self.num_questions = self.question_var.get()
-        self.select_questions()
-        self.current_question = 0
-        self.responses = []
-        self.show_question()
+        except ValueError:
+            messagebox.showwarning("Input Error", "Age must be a number.")
+            return
+
+     self.num_questions = self.question_var.get()
+
+     self.select_questions()
+     print("USERNAME:", self.username)
+     print("NUM QUESTIONS:", self.num_questions)
+     print("QUESTIONS LOADED:", self.questions)
+
+     if not self.questions:
+        messagebox.showerror("Error", "No questions available to start the test!")
+        return
+
+     self.current_question = 0
+     self.responses = []
+     self.show_question()
 
     def show_question(self):
         self.clear_screen()

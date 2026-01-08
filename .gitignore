@@ -111,3 +111,4 @@ __pypackages__/
 .github/instructions/snyk_rules.instructions.md
 db/*.db 
 db/*.sqlite 
+soulsesne_db
