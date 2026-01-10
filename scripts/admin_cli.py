@@ -234,29 +234,39 @@ class AdminCLI:
         cursor = conn.cursor()
         
         try:
-            cursor.execute("SELECT sentiment_score FROM scores WHERE sentiment_score IS NOT NULL")
-            scores = [row[0] for row in cursor.fetchall()]
+            # Stats for Total Score
+            cursor.execute("SELECT total_score FROM scores WHERE total_score IS NOT NULL")
+            total_scores = [row[0] for row in cursor.fetchall()]
             
-            if not scores:
-                print("No sentiment scores available.\n")
+            # Stats for Sentiment Score
+            cursor.execute("SELECT sentiment_score FROM scores WHERE sentiment_score IS NOT NULL")
+            sentiment_scores = [row[0] for row in cursor.fetchall()]
+            
+            if not total_scores and not sentiment_scores:
+                print("No scores available.\n")
                 return
 
-            scores_arr = np.array(scores)
-            
-            mean_val = np.mean(scores_arr)
-            median_val = np.median(scores_arr)
-            variance_val = np.var(scores_arr)
-            min_val = np.min(scores_arr)
-            max_val = np.max(scores_arr)
+            def calculate_stats(data, name):
+                if not data:
+                    return []
+                arr = np.array(data)
+                return [
+                    [f"--- {name} ---", ""],
+                    ["Count", len(data)],
+                    ["Mean", f"{np.mean(arr):.2f}"],
+                    ["Median", f"{np.median(arr):.2f}"],
+                    ["Variance", f"{np.var(arr):.2f}"],
+                    ["Min", f"{np.min(arr):.2f}"],
+                    ["Max", f"{np.max(arr):.2f}"]
+                ]
 
-            data = [
-                ["Count", len(scores)],
-                ["Mean", f"{mean_val:.2f}"],
-                ["Median", f"{median_val:.2f}"],
-                ["Variance", f"{variance_val:.2f}"],
-                ["Min", f"{min_val:.2f}"],
-                ["Max", f"{max_val:.2f}"]
-            ]
+            data = []
+            if total_scores:
+                data.extend(calculate_stats(total_scores, "Total Score"))
+                data.append(["", ""]) # Spacer
+            
+            if sentiment_scores:
+                data.extend(calculate_stats(sentiment_scores, "Sentiment Score"))
             
             print(tabulate(data, headers=["Metric", "Value"], tablefmt="grid"))
             print("\n")
