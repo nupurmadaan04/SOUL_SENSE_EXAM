@@ -9,7 +9,7 @@ import webbrowser
 import os
 import sys
 import random # For random tips
-from app.ui.styles import UIStyles
+from app.ui.styles import UIStyles, ColorSchemes
 from app.ui.auth import AuthManager
 from app.ui.exam import ExamManager
 from app.ui.results import ResultsManager
@@ -185,57 +185,38 @@ class SoulSenseApp:
         # Load settings
         self.settings = load_settings()
         
-        # Define color schemes
+        # Define color schemes using premium design system
+        # Start with the base schemes from styles module
         self.color_schemes = {
             "light": {
-                "bg": "#FFFFFF", # Pure white for max contrast
-                "fg": "#000000",
-                "button_bg": "#E0E0E0",
-                "button_fg": "#000000",
-                "entry_bg": "#FFFFFF",
-                "entry_fg": "#000000",
-                "radiobutton_bg": "#FFFFFF",
-                "radiobutton_fg": "#000000",
-                "label_bg": "#FFFFFF",
-                "label_fg": "#000000",
-                "frame_bg": "#FFFFFF",
+                **ColorSchemes.LIGHT,
                 "chart_bg": "#FFFFFF",
-                "chart_fg": "#000000",
-                "improvement_good": "#2E7D32", # Darker green
-                "improvement_bad": "#C62828", # Darker red
-                "improvement_neutral": "#F9A825", # Darker yellow
-                "excellent": "#1565C0", # Darker blue
-                "good": "#2E7D32",
-                "average": "#EF6C00", # Darker orange
-                "needs_work": "#C62828",
-                "benchmark_better": "#2E7D32",
-                "benchmark_worse": "#C62828",
-                "benchmark_same": "#F9A825"
+                "chart_fg": "#0F172A",
+                "improvement_good": "#10B981",
+                "improvement_bad": "#EF4444",
+                "improvement_neutral": "#F59E0B",
+                "excellent": "#3B82F6",
+                "good": "#10B981",
+                "average": "#F59E0B",
+                "needs_work": "#EF4444",
+                "benchmark_better": "#10B981",
+                "benchmark_worse": "#EF4444",
+                "benchmark_same": "#F59E0B"
             },
             "dark": {
-                "bg": "#121212", # Hard dark
-                "fg": "#FFFFFF",
-                "button_bg": "#333333",
-                "button_fg": "#FFFFFF",
-                "entry_bg": "#000000",
-                "entry_fg": "#FFFFFF",
-                "radiobutton_bg": "#121212",
-                "radiobutton_fg": "#FFFFFF",
-                "label_bg": "#121212",
-                "label_fg": "#FFFFFF",
-                "frame_bg": "#121212",
-                "chart_bg": "#1E1E1E",
-                "chart_fg": "#FFFFFF",
-                "improvement_good": "#66BB6A", # Lighter green
-                "improvement_bad": "#EF5350", # Lighter red
-                "improvement_neutral": "#FFEE58", # Lighter yellow
-                "excellent": "#42A5F5", # Lighter blue
-                "good": "#66BB6A",
-                "average": "#FFA726", # Lighter orange
-                "needs_work": "#EF5350",
-                "benchmark_better": "#66BB6A",
-                "benchmark_worse": "#EF5350",
-                "benchmark_same": "#FFEE58"
+                **ColorSchemes.DARK,
+                "chart_bg": "#1E293B",
+                "chart_fg": "#F8FAFC",
+                "improvement_good": "#34D399",
+                "improvement_bad": "#F87171",
+                "improvement_neutral": "#FBBF24",
+                "excellent": "#60A5FA",
+                "good": "#34D399",
+                "average": "#FBBF24",
+                "needs_work": "#F87171",
+                "benchmark_better": "#34D399",
+                "benchmark_worse": "#F87171",
+                "benchmark_same": "#FBBF24"
             }
         }
         

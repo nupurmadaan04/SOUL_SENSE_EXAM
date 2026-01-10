@@ -1,242 +1,445 @@
+"""
+Soul Sense Auth/Welcome Screen Module
+Premium UI with modern aesthetics
+"""
+
 import tkinter as tk
 import logging
+import random
+
 
 class AuthManager:
+    """Manages authentication and welcome screens with premium styling"""
+    
     def __init__(self, app):
         self.app = app
         self.root = app.root
 
     def create_welcome_screen(self):
-        """Create initial welcome screen with settings option"""
+        """Create premium welcome screen with hero section and cards"""
         self.app.clear_screen()
         
-        # Header
-        header_frame = self.app.create_widget(
-            tk.Frame,
-            self.app.root,
-            height=80
-        )
-        header_frame.pack(fill="x", pady=20)
+        colors = self.app.colors
         
-        title_label = self.app.create_widget(
-            tk.Label,
-            header_frame,
+        # Main container with gradient-like effect (using frame layers)
+        main_container = tk.Frame(self.root, bg=colors["bg"])
+        main_container.pack(fill="both", expand=True)
+        
+        # Hero Section (top gradient area)
+        hero_frame = tk.Frame(
+            main_container, 
+            bg=colors.get("primary", "#3B82F6"),
+            height=150
+        )
+        hero_frame.pack(fill="x")
+        hero_frame.pack_propagate(False)
+        
+        # App Title in Hero
+        title_label = tk.Label(
+            hero_frame,
             text="Soul Sense",
-            font=("Helvetica", 32, "bold")
+            font=("Segoe UI", 36, "bold"),
+            bg=colors.get("primary", "#3B82F6"),
+            fg=colors.get("text_inverse", "#FFFFFF")
         )
-        title_label.pack()
+        title_label.pack(pady=(40, 5))
         
-        subtitle_label = self.app.create_widget(
-            tk.Label,
-            header_frame,
+        # Subtitle
+        subtitle_label = tk.Label(
+            hero_frame,
             text="Emotional Intelligence Assessment",
-            font=("Arial", 16)
+            font=("Segoe UI", 14),
+            bg=colors.get("primary", "#3B82F6"),
+            fg=colors.get("text_inverse", "#FFFFFF")
         )
-        subtitle_label.pack(pady=5)
+        subtitle_label.pack()
         
-        # Main content area
-        content_frame = self.app.create_widget(tk.Frame, self.app.root)
-        content_frame.pack(expand=True, fill="both", padx=40)
+        # Content Frame (below hero)
+        content_frame = tk.Frame(main_container, bg=colors["bg"])
+        content_frame.pack(fill="both", expand=True, padx=40, pady=20)
         
-        # Intro text
-        intro_text = (
-            "Welcome to Soul Sense. This application measures your Emotional Intelligence (EQ) "
-            "through a series of situation-based questions.\n\n"
-            "You will be presented with scenarios and asked to choose the most appropriate response. "
-            "There is no time limit, so please answer honestly."
-        )
-        
-        intro_label = self.app.create_widget(
-            tk.Label,
+        # Welcome Card
+        welcome_card = tk.Frame(
             content_frame,
+            bg=colors.get("surface", "#FFFFFF"),
+            highlightbackground=colors.get("border", "#E2E8F0"),
+            highlightthickness=1
+        )
+        welcome_card.pack(fill="x", pady=10)
+        
+        # Card Inner Padding
+        card_inner = tk.Frame(welcome_card, bg=colors.get("surface", "#FFFFFF"))
+        card_inner.pack(fill="x", padx=20, pady=15)
+        
+        intro_text = (
+            "Discover your emotional intelligence through science-backed assessment. "
+            "Answer honestly — there are no right or wrong answers."
+        )
+        
+        intro_label = tk.Label(
+            card_inner,
             text=intro_text,
-            font=("Arial", 12),
+            font=("Segoe UI", 12),
+            bg=colors.get("surface", "#FFFFFF"),
+            fg=colors.get("text_secondary", "#475569"),
             wraplength=500,
             justify="center"
         )
-        intro_label.pack(pady=20)
+        intro_label.pack()
         
-        # Tips Carousel
+        # Tips Section (if available)
         if hasattr(self.app, 'tips') and self.app.tips:
-            import random
-            tip_frame = self.app.create_widget(tk.Frame, content_frame, relief="sunken", borderwidth=1)
-            tip_frame.pack(fill="x", pady=10, padx=20)
-            
-            tip_label = self.app.create_widget(
-                tk.Label,
-                tip_frame,
-                text=f"💡 Tip: {random.choice(self.app.tips)}",
-                font=("Arial", 10, "italic"),
-                wraplength=450
+            tip_frame = tk.Frame(
+                content_frame,
+                bg=colors.get("primary_light", "#DBEAFE"),
+                highlightbackground=colors.get("primary", "#3B82F6"),
+                highlightthickness=1
             )
-            tip_label.pack(pady=10)
+            tip_frame.pack(fill="x", pady=10)
+            
+            tip_inner = tk.Frame(tip_frame, bg=colors.get("primary_light", "#DBEAFE"))
+            tip_inner.pack(fill="x", padx=15, pady=10)
+            
+            tip_label = tk.Label(
+                tip_inner,
+                text=f"💡 {random.choice(self.app.tips)}",
+                font=("Segoe UI", 11, "italic"),
+                bg=colors.get("primary_light", "#DBEAFE"),
+                fg=colors.get("text_primary", "#0F172A"),
+                wraplength=480
+            )
+            tip_label.pack()
         
-        # Buttons
-        button_frame = self.app.create_widget(tk.Frame, content_frame)
-        button_frame.pack(pady=30)
+        # Action Buttons Section
+        buttons_frame = tk.Frame(content_frame, bg=colors["bg"])
+        buttons_frame.pack(pady=20)
         
-        start_btn = self.app.create_widget(
-            tk.Button,
-            button_frame,
-            text="Start Assessment",
+        # Primary Action: Start Assessment
+        start_btn = tk.Button(
+            buttons_frame,
+            text="▶  Start Assessment",
             command=self.create_username_screen,
-            font=("Arial", 14, "bold"),
-            width=20,
-            pady=10
+            font=("Segoe UI", 14, "bold"),
+            bg=colors.get("primary", "#3B82F6"),
+            fg=colors.get("text_inverse", "#FFFFFF"),
+            activebackground=colors.get("primary_hover", "#2563EB"),
+            activeforeground=colors.get("text_inverse", "#FFFFFF"),
+            relief="flat",
+            cursor="hand2",
+            width=22,
+            pady=12,
+            borderwidth=0
         )
-        start_btn.pack(pady=10)
+        start_btn.pack(pady=8)
+        start_btn.bind("<Enter>", lambda e: start_btn.configure(bg=colors.get("primary_hover", "#2563EB")))
+        start_btn.bind("<Leave>", lambda e: start_btn.configure(bg=colors.get("primary", "#3B82F6")))
+        
+        # Secondary Actions Row
+        secondary_frame = tk.Frame(buttons_frame, bg=colors["bg"])
+        secondary_frame.pack(pady=5)
         
         # Journal Button
-        journal_btn = self.app.create_widget(
-            tk.Button,
-            button_frame,
-            text="📖 Daily Journal",
+        journal_btn = tk.Button(
+            secondary_frame,
+            text="📖 Journal",
             command=self.app.open_journal_flow,
-            font=("Arial", 12),
-            width=20,
-            bg="#81C784", # Light Green accent
-            fg="black"
+            font=("Segoe UI", 11),
+            bg=colors.get("success", "#10B981"),
+            fg=colors.get("text_inverse", "#FFFFFF"),
+            activebackground=colors.get("success_hover", "#059669"),
+            activeforeground=colors.get("text_inverse", "#FFFFFF"),
+            relief="flat",
+            cursor="hand2",
+            width=10,
+            pady=8,
+            borderwidth=0
         )
-        journal_btn.pack(pady=5)
-
-        # Dashboard Button (NEW)
-        dashboard_btn = self.app.create_widget(
-            tk.Button,
-            button_frame,
+        journal_btn.pack(side="left", padx=5)
+        journal_btn.bind("<Enter>", lambda e: journal_btn.configure(bg=colors.get("success_hover", "#059669")))
+        journal_btn.bind("<Leave>", lambda e: journal_btn.configure(bg=colors.get("success", "#10B981")))
+        
+        # Dashboard Button
+        dashboard_btn = tk.Button(
+            secondary_frame,
             text="📊 Dashboard",
             command=self.app.open_dashboard_flow,
-            font=("Arial", 12),
-            width=15,
-            bg="#29B6F6", # Light Blue accent
-            fg="black"
+            font=("Segoe UI", 11),
+            bg=colors.get("secondary", "#8B5CF6"),
+            fg=colors.get("text_inverse", "#FFFFFF"),
+            activebackground=colors.get("secondary_hover", "#7C3AED"),
+            activeforeground=colors.get("text_inverse", "#FFFFFF"),
+            relief="flat",
+            cursor="hand2",
+            width=10,
+            pady=8,
+            borderwidth=0
         )
-        dashboard_btn.pack(pady=5)
+        dashboard_btn.pack(side="left", padx=5)
+        dashboard_btn.bind("<Enter>", lambda e: dashboard_btn.configure(bg=colors.get("secondary_hover", "#7C3AED")))
+        dashboard_btn.bind("<Leave>", lambda e: dashboard_btn.configure(bg=colors.get("secondary", "#8B5CF6")))
         
-        # View History button
-        history_btn = self.app.create_widget(
-            tk.Button,
-            button_frame,
-            text="View History",
+        # Tertiary Actions Row
+        tertiary_frame = tk.Frame(buttons_frame, bg=colors["bg"])
+        tertiary_frame.pack(pady=5)
+        
+        # History Button
+        history_btn = tk.Button(
+            tertiary_frame,
+            text="History",
             command=self.app.show_history_screen,
-            font=("Arial", 12),
-            width=15
+            font=("Segoe UI", 10),
+            bg=colors.get("surface", "#FFFFFF"),
+            fg=colors.get("text_secondary", "#475569"),
+            activebackground=colors.get("surface_hover", "#F8FAFC"),
+            activeforeground=colors.get("text_primary", "#0F172A"),
+            relief="flat",
+            cursor="hand2",
+            width=10,
+            pady=6,
+            borderwidth=1,
+            highlightbackground=colors.get("border", "#E2E8F0")
         )
-        history_btn.pack(pady=5)
+        history_btn.pack(side="left", padx=4)
+        history_btn.bind("<Enter>", lambda e: history_btn.configure(bg=colors.get("surface_hover", "#F8FAFC")))
+        history_btn.bind("<Leave>", lambda e: history_btn.configure(bg=colors.get("surface", "#FFFFFF")))
         
-        settings_btn = self.app.create_widget(
-            tk.Button,
-            button_frame,
-            text="Settings",
+        # Settings Button
+        settings_btn = tk.Button(
+            tertiary_frame,
+            text="⚙ Settings",
             command=self.app.show_settings,
-            font=("Arial", 12),
-            width=15
+            font=("Segoe UI", 10),
+            bg=colors.get("surface", "#FFFFFF"),
+            fg=colors.get("text_secondary", "#475569"),
+            activebackground=colors.get("surface_hover", "#F8FAFC"),
+            activeforeground=colors.get("text_primary", "#0F172A"),
+            relief="flat",
+            cursor="hand2",
+            width=10,
+            pady=6,
+            borderwidth=1,
+            highlightbackground=colors.get("border", "#E2E8F0")
         )
-        settings_btn.pack(pady=5)
+        settings_btn.pack(side="left", padx=4)
+        settings_btn.bind("<Enter>", lambda e: settings_btn.configure(bg=colors.get("surface_hover", "#F8FAFC")))
+        settings_btn.bind("<Leave>", lambda e: settings_btn.configure(bg=colors.get("surface", "#FFFFFF")))
         
-        exit_btn = self.app.create_widget(
-            tk.Button,
-            button_frame,
+        # Exit Button
+        exit_btn = tk.Button(
+            tertiary_frame,
             text="Exit",
             command=self.app.force_exit,
-            font=("Arial", 12),
-            width=15
+            font=("Segoe UI", 10),
+            bg=colors.get("surface", "#FFFFFF"),
+            fg=colors.get("error", "#EF4444"),
+            activebackground=colors.get("error_light", "#FEE2E2"),
+            activeforeground=colors.get("error", "#EF4444"),
+            relief="flat",
+            cursor="hand2",
+            width=8,
+            pady=6,
+            borderwidth=1,
+            highlightbackground=colors.get("border", "#E2E8F0")
         )
-        exit_btn.pack(pady=5)
+        exit_btn.pack(side="left", padx=4)
+        exit_btn.bind("<Enter>", lambda e: exit_btn.configure(bg=colors.get("error_light", "#FEE2E2")))
+        exit_btn.bind("<Leave>", lambda e: exit_btn.configure(bg=colors.get("surface", "#FFFFFF")))
 
     def create_username_screen(self):
+        """Create premium username input screen"""
         self.app.clear_screen()
         
-        # Username
-        self.app.create_widget(
-            tk.Label,
-            self.app.root,
-            text="Enter Your Name:",
-            font=("Arial", 14)
-        ).pack(pady=10)
+        colors = self.app.colors
         
-        # We need to store entry ref in app or locally. 
-        # Ideally app.name_entry since start_test uses it.
-        # But for better encapsulation, we should get value here and pass it.
-        # BUT start_test reads self.name_entry.
-        # For Phase 2, we must replicate self.name_entry on the app to avoid breaking start_test
+        # Main container
+        main_frame = tk.Frame(self.root, bg=colors["bg"])
+        main_frame.pack(fill="both", expand=True)
         
-        self.app.name_entry = self.app.create_widget(
-            tk.Entry,
-            self.app.root,
-            font=("Arial", 14)
+        # Header
+        header_frame = tk.Frame(main_frame, bg=colors.get("primary", "#3B82F6"), height=80)
+        header_frame.pack(fill="x")
+        header_frame.pack_propagate(False)
+        
+        header_label = tk.Label(
+            header_frame,
+            text="Let's Get Started",
+            font=("Segoe UI", 24, "bold"),
+            bg=colors.get("primary", "#3B82F6"),
+            fg=colors.get("text_inverse", "#FFFFFF")
         )
-        self.app.name_entry.pack(pady=5)
-
-        # Age
-        self.app.create_widget(
-            tk.Label,
-            self.app.root,
-            text="Enter Your Age (optional):",
-            font=("Arial", 14)
-        ).pack(pady=5)
+        header_label.pack(pady=25)
         
-        self.app.age_entry = self.app.create_widget(
-            tk.Entry,
-            self.app.root,
-            font=("Arial", 14)
+        # Content
+        content_frame = tk.Frame(main_frame, bg=colors["bg"])
+        content_frame.pack(fill="both", expand=True, padx=60, pady=30)
+        
+        # Form Card
+        form_card = tk.Frame(
+            content_frame,
+            bg=colors.get("surface", "#FFFFFF"),
+            highlightbackground=colors.get("border", "#E2E8F0"),
+            highlightthickness=1
         )
-        self.app.age_entry.pack(pady=5)
-        self.root.bind("<Return>", self._enter_start)
+        form_card.pack(fill="x", pady=10)
         
-        # Profession (optional, for benchmarking)
-        self.app.create_widget(
-            tk.Label,
-            self.app.root,
-            text="Your Profession (optional, for benchmarking):",
-            font=("Arial", 14)
-        ).pack(pady=5)
+        form_inner = tk.Frame(form_card, bg=colors.get("surface", "#FFFFFF"))
+        form_inner.pack(fill="x", padx=30, pady=25)
         
-        self.app.profession_var = tk.StringVar()
-        profession_frame = self.app.create_widget(tk.Frame, self.app.root)
-        profession_frame.pack(pady=5)
+        # Username Field
+        username_label = tk.Label(
+            form_inner,
+            text="Your Name",
+            font=("Segoe UI", 12, "bold"),
+            bg=colors.get("surface", "#FFFFFF"),
+            fg=colors.get("text_primary", "#0F172A")
+        )
+        username_label.pack(anchor="w", pady=(0, 5))
         
-        professions = ["Student", "Professional", "Manager", "Healthcare", "Education", "Technology", "Creative", "Other"]
-        # OptionMenu doesn't support easy styling via create_widget wrapper args passing directly usually
-        # But we can try or do post-config
-        profession_menu = tk.OptionMenu(profession_frame, self.app.profession_var, *professions)
-        # We access colors from app
-        colors = self.app.colors if hasattr(self.app, 'colors') else {'button_bg':'white', 'button_fg':'black'}
-        profession_menu.config(font=("Arial", 12), bg=colors.get("button_bg"), fg=colors.get("button_fg"))
-        profession_menu.pack()
-
-        # Start button
-        self.app.create_widget(
-            tk.Button,
-            self.app.root,
-            text="Start Test",
-            command=self.app.start_test
-        ).pack(pady=15)
+        self.username_entry = tk.Entry(
+            form_inner,
+            font=("Segoe UI", 14),
+            bg=colors.get("entry_bg", "#FFFFFF"),
+            fg=colors.get("entry_fg", "#0F172A"),
+            insertbackground=colors.get("text_primary", "#0F172A"),
+            relief="flat",
+            highlightthickness=2,
+            highlightbackground=colors.get("border", "#E2E8F0"),
+            highlightcolor=colors.get("primary", "#3B82F6")
+        )
+        self.username_entry.pack(fill="x", pady=(0, 15), ipady=8)
         
-        # Back button
-        self.app.create_widget(
-            tk.Button,
-            self.app.root,
-            text="Back to Main",
-            command=self.create_welcome_screen
-        ).pack(pady=5)
+        # Age Field
+        age_label = tk.Label(
+            form_inner,
+            text="Your Age",
+            font=("Segoe UI", 12, "bold"),
+            bg=colors.get("surface", "#FFFFFF"),
+            fg=colors.get("text_primary", "#0F172A")
+        )
+        age_label.pack(anchor="w", pady=(10, 5))
+        
+        self.age_entry = tk.Entry(
+            form_inner,
+            font=("Segoe UI", 14),
+            bg=colors.get("entry_bg", "#FFFFFF"),
+            fg=colors.get("entry_fg", "#0F172A"),
+            insertbackground=colors.get("text_primary", "#0F172A"),
+            relief="flat",
+            highlightthickness=2,
+            highlightbackground=colors.get("border", "#E2E8F0"),
+            highlightcolor=colors.get("primary", "#3B82F6")
+        )
+        self.age_entry.pack(fill="x", pady=(0, 15), ipady=8)
+        
+        # Profession Field
+        profession_label = tk.Label(
+            form_inner,
+            text="Profession (Optional)",
+            font=("Segoe UI", 12, "bold"),
+            bg=colors.get("surface", "#FFFFFF"),
+            fg=colors.get("text_primary", "#0F172A")
+        )
+        profession_label.pack(anchor="w", pady=(10, 5))
+        
+        self.profession_entry = tk.Entry(
+            form_inner,
+            font=("Segoe UI", 14),
+            bg=colors.get("entry_bg", "#FFFFFF"),
+            fg=colors.get("entry_fg", "#0F172A"),
+            insertbackground=colors.get("text_primary", "#0F172A"),
+            relief="flat",
+            highlightthickness=2,
+            highlightbackground=colors.get("border", "#E2E8F0"),
+            highlightcolor=colors.get("primary", "#3B82F6")
+        )
+        self.profession_entry.pack(fill="x", pady=(0, 20), ipady=8)
+        
+        # Buttons
+        buttons_frame = tk.Frame(content_frame, bg=colors["bg"])
+        buttons_frame.pack(pady=15)
+        
+        # Continue Button
+        continue_btn = tk.Button(
+            buttons_frame,
+            text="Continue →",
+            command=self.submit_user_info,
+            font=("Segoe UI", 13, "bold"),
+            bg=colors.get("primary", "#3B82F6"),
+            fg=colors.get("text_inverse", "#FFFFFF"),
+            activebackground=colors.get("primary_hover", "#2563EB"),
+            activeforeground=colors.get("text_inverse", "#FFFFFF"),
+            relief="flat",
+            cursor="hand2",
+            width=18,
+            pady=10,
+            borderwidth=0
+        )
+        continue_btn.pack(side="left", padx=5)
+        continue_btn.bind("<Enter>", lambda e: continue_btn.configure(bg=colors.get("primary_hover", "#2563EB")))
+        continue_btn.bind("<Leave>", lambda e: continue_btn.configure(bg=colors.get("primary", "#3B82F6")))
+        
+        # Back Button
+        back_btn = tk.Button(
+            buttons_frame,
+            text="← Back",
+            command=self.create_welcome_screen,
+            font=("Segoe UI", 12),
+            bg=colors.get("surface", "#FFFFFF"),
+            fg=colors.get("text_secondary", "#475569"),
+            activebackground=colors.get("surface_hover", "#F8FAFC"),
+            activeforeground=colors.get("text_primary", "#0F172A"),
+            relief="flat",
+            cursor="hand2",
+            width=10,
+            pady=8,
+            borderwidth=1,
+            highlightbackground=colors.get("border", "#E2E8F0")
+        )
+        back_btn.pack(side="left", padx=5)
+        back_btn.bind("<Enter>", lambda e: back_btn.configure(bg=colors.get("surface_hover", "#F8FAFC")))
+        back_btn.bind("<Leave>", lambda e: back_btn.configure(bg=colors.get("surface", "#FFFFFF")))
+        
+        # Focus on username field
+        self.username_entry.focus()
 
-    def _enter_start(self, event):
-        self.app.start_test()
-
-    def validate_name_input(self, name):
-        if not name:
-            return False, "Please enter your name."
-        if not all(c.isalpha() or c.isspace() for c in name):
-            return False, "Name must contain only letters and spaces."
-        return True, None
-
-    def validate_age_input(self, age_str):
-        if age_str == "":
-            return True, None, None
+    def submit_user_info(self):
+        """Validate and submit user info"""
+        from tkinter import messagebox
+        from app.utils import compute_age_group
+        
+        username = self.username_entry.get().strip()
+        age_str = self.age_entry.get().strip()
+        profession = self.profession_entry.get().strip()
+        
+        # Validation
+        if not username:
+            messagebox.showwarning("Missing Information", "Please enter your name.")
+            return
+        
+        if not age_str:
+            messagebox.showwarning("Missing Information", "Please enter your age.")
+            return
+        
         try:
             age = int(age_str)
-            if not (1 <= age <= 120):
-                return False, None, "Age must be between 1 and 120."
-            return True, age, None
+            if age < 10 or age > 100:
+                messagebox.showwarning("Invalid Age", "Please enter a valid age between 10 and 100.")
+                return
         except ValueError:
-            return False, None, "Age must be numeric."
+            messagebox.showwarning("Invalid Age", "Please enter a valid number for age.")
+            return
+        
+        # Store user info
+        self.app.username = username
+        self.app.age = age
+        self.app.age_group = compute_age_group(age)
+        self.app.profession = profession if profession else "Not specified"
+        
+        logging.info(
+            f"Session started | user={username} | age={age} | "
+            f"age_group={self.app.age_group} | profession={self.app.profession} | "
+            f"questions={len(self.app.questions)}"
+        )
+        
+        # Start exam
+        self.app.start_test()
