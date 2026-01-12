@@ -6,6 +6,15 @@ import logging
 # Create Base
 Base = declarative_base()
 
+class UserProfile:
+    def __init__(self):
+        self.occupation = ""
+        self.workload = 0 # 1-10
+        self.stressors = [] # ["exams", "deadlines"]
+        self.health_concerns = []
+        self.preferred_tone = "empathetic" # or "direct"
+        self.language = "English"
+        
 class User(Base):
     __tablename__ = 'users'
     
