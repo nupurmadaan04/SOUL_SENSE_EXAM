@@ -49,10 +49,12 @@ def upgrade() -> None:
         )
     else:
         # Apply legacy fixes if table exists
-        op.alter_column('users', 'username', existing_type=sa.TEXT(), type_=sa.String(), existing_nullable=False)
-        op.alter_column('users', 'password_hash', existing_type=sa.TEXT(), type_=sa.String(), existing_nullable=False)
-        op.alter_column('users', 'created_at', existing_type=sa.TEXT(), type_=sa.String(), nullable=True)
-        op.alter_column('users', 'last_login', existing_type=sa.TEXT(), type_=sa.String(), existing_nullable=True)
+        with op.batch_alter_table('users') as batch_op:
+            batch_op.alter_column('username', existing_type=sa.TEXT(), type_=sa.String(), existing_nullable=False)
+            batch_op.alter_column('password_hash', existing_type=sa.TEXT(), type_=sa.String(), existing_nullable=False)
+            batch_op.alter_column('created_at', existing_type=sa.TEXT(), type_=sa.String(), nullable=True)
+            batch_op.alter_column('last_login', existing_type=sa.TEXT(), type_=sa.String(), existing_nullable=True)
+
 
     # --- SCORES ---
     if 'scores' not in tables:
@@ -68,11 +70,12 @@ def upgrade() -> None:
             sa.PrimaryKeyConstraint('id')
         )
     else:
-        op.alter_column('scores', 'username', existing_type=sa.TEXT(), type_=sa.String(), existing_nullable=True)
-        op.alter_column('scores', 'detailed_age_group', existing_type=sa.TEXT(), type_=sa.String(), existing_nullable=True)
-        # Add FK if missing is tricky in sqlite, assuming batch mode handles it or it's fine
-        with op.batch_alter_table("scores") as batch_op:
+        with op.batch_alter_table('scores') as batch_op:
+            batch_op.alter_column('username', existing_type=sa.TEXT(), type_=sa.String(), existing_nullable=True)
+            batch_op.alter_column('detailed_age_group', existing_type=sa.TEXT(), type_=sa.String(), existing_nullable=True)
+            # Add FK if missing is tricky in sqlite, assuming batch mode handles it or it's fine
             batch_op.create_foreign_key("fk_scores_users", 'users', ['user_id'], ['id'])
+
 
     # --- RESPONSES ---
     if 'responses' not in tables:
@@ -89,12 +92,13 @@ def upgrade() -> None:
             sa.PrimaryKeyConstraint('id')
         )
     else:
-        op.alter_column('responses', 'username', existing_type=sa.TEXT(), type_=sa.String(), existing_nullable=True)
-        op.alter_column('responses', 'age_group', existing_type=sa.TEXT(), type_=sa.String(), existing_nullable=True)
-        op.alter_column('responses', 'detailed_age_group', existing_type=sa.TEXT(), type_=sa.String(), existing_nullable=True)
-        op.alter_column('responses', 'timestamp', existing_type=sa.TEXT(), type_=sa.String(), existing_nullable=True)
-        with op.batch_alter_table("responses") as batch_op:
+        with op.batch_alter_table('responses') as batch_op:
+            batch_op.alter_column('username', existing_type=sa.TEXT(), type_=sa.String(), existing_nullable=True)
+            batch_op.alter_column('age_group', existing_type=sa.TEXT(), type_=sa.String(), existing_nullable=True)
+            batch_op.alter_column('detailed_age_group', existing_type=sa.TEXT(), type_=sa.String(), existing_nullable=True)
+            batch_op.alter_column('timestamp', existing_type=sa.TEXT(), type_=sa.String(), existing_nullable=True)
             batch_op.create_foreign_key("fk_responses_users", 'users', ['user_id'], ['id'])
+
 
     # --- QUESTION CATEGORY ---
     if 'question_category' not in tables:
@@ -105,7 +109,9 @@ def upgrade() -> None:
             sa.PrimaryKeyConstraint('id')
         )
     else:
-        op.alter_column('question_category', 'name', existing_type=sa.TEXT(), type_=sa.String(), existing_nullable=False)
+        with op.batch_alter_table('question_category') as batch_op:
+            batch_op.alter_column('name', existing_type=sa.TEXT(), type_=sa.String(), existing_nullable=False)
+
 
     # --- QUESTION BANK ---
     if 'question_bank' not in tables:
@@ -124,8 +130,10 @@ def upgrade() -> None:
         )
     else:
         # Legacy fixes
-        op.alter_column('question_bank', 'weight', existing_type=sa.REAL(), type_=sa.Float(), existing_nullable=True, existing_server_default=sa.text('(1.0)'))
-        op.alter_column('question_bank', 'created_at', existing_type=sa.TEXT(), type_=sa.String(), existing_nullable=True)
+        with op.batch_alter_table('question_bank') as batch_op:
+            batch_op.alter_column('weight', existing_type=sa.REAL(), type_=sa.Float(), existing_nullable=True, existing_server_default=sa.text('(1.0)'))
+            batch_op.alter_column('created_at', existing_type=sa.TEXT(), type_=sa.String(), existing_nullable=True)
+
 
     # --- QUESTION METADATA ---
     if 'question_metadata' not in tables:
@@ -137,106 +145,55 @@ def upgrade() -> None:
             sa.PrimaryKeyConstraint('question_id')
         )
     else:
-        op.alter_column('question_metadata', 'source', existing_type=sa.TEXT(), type_=sa.String(), existing_nullable=True)
-        op.alter_column('question_metadata', 'version', existing_type=sa.TEXT(), type_=sa.String(), existing_nullable=True)
-        op.alter_column('question_metadata', 'tags', existing_type=sa.TEXT(), type_=sa.String(), existing_nullable=True)
+        with op.batch_alter_table('question_metadata') as batch_op:
+            batch_op.alter_column('source', existing_type=sa.TEXT(), type_=sa.String(), existing_nullable=True)
+            batch_op.alter_column('version', existing_type=sa.TEXT(), type_=sa.String(), existing_nullable=True)
+            batch_op.alter_column('tags', existing_type=sa.TEXT(), type_=sa.String(), existing_nullable=True)
+
 
 
 def downgrade() -> None:
     """Downgrade schema."""
     # ### commands auto generated by Alembic - please adjust! ###
-    op.alter_column('users', 'last_login',
-               existing_type=sa.String(),
-               type_=sa.TEXT(),
-               existing_nullable=True)
-    op.alter_column('users', 'created_at',
-               existing_type=sa.String(),
-               type_=sa.TEXT(),
-               nullable=False)
-    op.alter_column('users', 'password_hash',
-               existing_type=sa.String(),
-               type_=sa.TEXT(),
-               existing_nullable=False)
-    op.alter_column('users', 'username',
-               existing_type=sa.String(),
-               type_=sa.TEXT(),
-               existing_nullable=False)
-    op.alter_column('users', 'id',
-               existing_type=sa.INTEGER(),
-               nullable=True,
-               autoincrement=True)
-    op.drop_constraint(None, 'scores', type_='foreignkey')
-    op.alter_column('scores', 'detailed_age_group',
-               existing_type=sa.String(),
-               type_=sa.TEXT(),
-               existing_nullable=True)
-    op.alter_column('scores', 'username',
-               existing_type=sa.String(),
-               type_=sa.TEXT(),
-               existing_nullable=True)
-    op.alter_column('scores', 'id',
-               existing_type=sa.INTEGER(),
-               nullable=True,
-               autoincrement=True)
-    op.drop_constraint(None, 'responses', type_='foreignkey')
-    op.alter_column('responses', 'timestamp',
-               existing_type=sa.String(),
-               type_=sa.TEXT(),
-               existing_nullable=True)
-    op.alter_column('responses', 'detailed_age_group',
-               existing_type=sa.String(),
-               type_=sa.TEXT(),
-               existing_nullable=True)
-    op.alter_column('responses', 'age_group',
-               existing_type=sa.String(),
-               type_=sa.TEXT(),
-               existing_nullable=True)
-    op.alter_column('responses', 'username',
-               existing_type=sa.String(),
-               type_=sa.TEXT(),
-               existing_nullable=True)
-    op.alter_column('responses', 'id',
-               existing_type=sa.INTEGER(),
-               nullable=True,
-               autoincrement=True)
-    op.create_foreign_key(None, 'question_metadata', 'question_bank', ['question_id'], ['id'])
-    op.alter_column('question_metadata', 'tags',
-               existing_type=sa.String(),
-               type_=sa.TEXT(),
-               existing_nullable=True)
-    op.alter_column('question_metadata', 'version',
-               existing_type=sa.String(),
-               type_=sa.TEXT(),
-               existing_nullable=True)
-    op.alter_column('question_metadata', 'source',
-               existing_type=sa.String(),
-               type_=sa.TEXT(),
-               existing_nullable=True)
-    op.alter_column('question_metadata', 'question_id',
-               existing_type=sa.INTEGER(),
-               nullable=True,
-               autoincrement=True)
-    op.alter_column('question_category', 'name',
-               existing_type=sa.String(),
-               type_=sa.TEXT(),
-               existing_nullable=False)
-    op.alter_column('question_category', 'id',
-               existing_type=sa.INTEGER(),
-               nullable=True,
-               autoincrement=True)
-    op.create_foreign_key(None, 'question_bank', 'question_category', ['category_id'], ['id'])
-    op.alter_column('question_bank', 'created_at',
-               existing_type=sa.String(),
-               type_=sa.TEXT(),
-               existing_nullable=True)
-    op.alter_column('question_bank', 'weight',
-               existing_type=sa.Float(),
-               type_=sa.REAL(),
-               existing_nullable=True,
-               existing_server_default=sa.text('(1.0)'))
-    op.alter_column('question_bank', 'id',
-               existing_type=sa.INTEGER(),
-               nullable=True,
-               autoincrement=True)
+    # ### commands auto generated by Alembic - please adjust! ###
+    with op.batch_alter_table('users') as batch_op:
+        batch_op.alter_column('last_login', existing_type=sa.String(), type_=sa.TEXT(), existing_nullable=True)
+        batch_op.alter_column('created_at', existing_type=sa.String(), type_=sa.TEXT(), nullable=False)
+        batch_op.alter_column('password_hash', existing_type=sa.String(), type_=sa.TEXT(), existing_nullable=False)
+        batch_op.alter_column('username', existing_type=sa.String(), type_=sa.TEXT(), existing_nullable=False)
+        batch_op.alter_column('id', existing_type=sa.INTEGER(), nullable=True, autoincrement=True)
+
+    with op.batch_alter_table('scores') as batch_op:
+        batch_op.drop_constraint("fk_scores_users", type_='foreignkey')
+        batch_op.alter_column('detailed_age_group', existing_type=sa.String(), type_=sa.TEXT(), existing_nullable=True)
+        batch_op.alter_column('username', existing_type=sa.String(), type_=sa.TEXT(), existing_nullable=True)
+        batch_op.alter_column('id', existing_type=sa.INTEGER(), nullable=True, autoincrement=True)
+
+    with op.batch_alter_table('responses') as batch_op:
+        batch_op.drop_constraint("fk_responses_users", type_='foreignkey')
+        batch_op.alter_column('timestamp', existing_type=sa.String(), type_=sa.TEXT(), existing_nullable=True)
+        batch_op.alter_column('detailed_age_group', existing_type=sa.String(), type_=sa.TEXT(), existing_nullable=True)
+        batch_op.alter_column('age_group', existing_type=sa.String(), type_=sa.TEXT(), existing_nullable=True)
+        batch_op.alter_column('username', existing_type=sa.String(), type_=sa.TEXT(), existing_nullable=True)
+        batch_op.alter_column('id', existing_type=sa.INTEGER(), nullable=True, autoincrement=True)
+
+    with op.batch_alter_table('question_metadata') as batch_op:
+        batch_op.create_foreign_key("fk_metadata_bank", 'question_bank', ['question_id'], ['id'])
+        batch_op.alter_column('tags', existing_type=sa.String(), type_=sa.TEXT(), existing_nullable=True)
+
+        batch_op.alter_column('version', existing_type=sa.String(), type_=sa.TEXT(), existing_nullable=True)
+        batch_op.alter_column('source', existing_type=sa.String(), type_=sa.TEXT(), existing_nullable=True)
+        batch_op.alter_column('question_id', existing_type=sa.INTEGER(), nullable=True, autoincrement=True)
+
+    with op.batch_alter_table('question_category') as batch_op:
+        batch_op.alter_column('name', existing_type=sa.String(), type_=sa.TEXT(), existing_nullable=False)
+        batch_op.alter_column('id', existing_type=sa.INTEGER(), nullable=True, autoincrement=True)
+
+    with op.batch_alter_table('question_bank') as batch_op:
+        batch_op.create_foreign_key("fk_bank_category", 'question_category', ['category_id'], ['id'])
+        batch_op.alter_column('created_at', existing_type=sa.String(), type_=sa.TEXT(), existing_nullable=True)
+        batch_op.alter_column('weight', existing_type=sa.Float(), type_=sa.REAL(), existing_nullable=True, existing_server_default=sa.text('(1.0)'))
+        batch_op.alter_column('id', existing_type=sa.INTEGER(), nullable=True, autoincrement=True)
+
     op.drop_table('journal_entries')
     # ### end Alembic commands ###

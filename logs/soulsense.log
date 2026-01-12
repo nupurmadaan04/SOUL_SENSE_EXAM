@@ -4788,3 +4788,44 @@ _tkinter.TclError: unknown option "-capstyle"
 2026-01-13 02:15:44,021 - matplotlib.category - INFO - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
 2026-01-13 02:15:47,402 - matplotlib.category - INFO - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
 2026-01-13 02:15:47,403 - matplotlib.category - INFO - Using categorical units to plot a list of strings that are all parsable as floats or dates. If these strings should be plotted as numbers, cast to the appropriate data type before plotting.
+2026-01-13 02:23:33,778 - root - INFO - Logging initialized.
+2026-01-13 02:23:33,778 - root - INFO - Application started
+2026-01-13 02:23:33,779 - root - INFO - Loaded 10 total questions from DB
+2026-01-13 02:23:36,096 - root - INFO - Loading ML Model: models\risk_model_v20260111_223056.pkl
+2026-01-13 02:23:36,127 - root - INFO - ML Predictor initialized successfully
+2026-01-13 02:23:36,151 - root - INFO - SentimentIntensityAnalyzer initialized successfully
+2026-01-13 02:23:36,151 - root - ERROR - 
+
+>>> APP INITIALIZED V2.1 <<<
+
+2026-01-13 02:23:36,151 - root - INFO - Using 10 questions based on settings
+2026-01-13 02:23:42,393 - root - ERROR - 
+
+>>> DEBUG: Start Test Clicked! (New Handler)
+2026-01-13 02:23:42,396 - root - ERROR - >>> DEBUG: self.current_user_id = None
+2026-01-13 02:23:42,396 - root - ERROR - >>> DEBUG: GOING TO FORM (ID Missing)
+2026-01-13 02:23:50,943 - root - INFO - Session started | user=rohan | age=20 | age_group=adult | profession=Student | questions=10
+2026-01-13 02:23:51,102 - root - INFO - Loaded settings for user 4: {'theme': 'dark', 'question_count': 5, 'sound_enabled': True, 'notifications_enabled': True, 'language': 'en'}
+2026-01-13 02:23:51,103 - root - INFO - Reloaded 5 questions based on settings
+2026-01-13 02:23:52,376 - root - ERROR - 
+
+>>> DEBUG: Start Test Clicked! (New Handler)
+2026-01-13 02:23:52,376 - root - ERROR - >>> DEBUG: self.current_user_id = 4
+2026-01-13 02:23:52,376 - root - ERROR - >>> DEBUG: GOING TO EXAM
+2026-01-13 02:23:52,394 - app.services.exam_service - INFO - Exam session started for user: rohan
+2026-01-13 02:24:06,728 - app.services.exam_service - INFO - Exam saved. Score: 9, Sentiment: 52.669999999999995
+2026-01-13 02:24:10,896 - app.ml.clustering - INFO - Model loaded from B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\ml\models\clustering\emotional_profile_model.pkl
+2026-01-13 02:24:30,927 - root - ERROR - AI Analysis failed
+Traceback (most recent call last):
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\ui\results.py", line 855, in show_ml_analysis
+    visual_features = {k: v for k, v in result['features'].items()
+                                        ~~~~~~^^^^^^^^^^^^
+KeyError: 'features'
+2026-01-13 02:24:42,793 - root - ERROR - 
+
+>>> DEBUG: Start Test Clicked! (New Handler)
+2026-01-13 02:24:42,793 - root - ERROR - >>> DEBUG: self.current_user_id = 4
+2026-01-13 02:24:42,794 - root - ERROR - >>> DEBUG: GOING TO EXAM
+2026-01-13 02:24:42,794 - app.services.exam_service - INFO - Exam session started for user: rohan
+2026-01-13 02:24:57,544 - app.services.exam_service - INFO - Exam saved. Score: 8, Sentiment: 52.669999999999995
+2026-01-13 02:25:05,051 - app.ml.clustering - INFO - Model loaded from B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\ml\models\clustering\emotional_profile_model.pkl

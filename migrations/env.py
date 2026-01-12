@@ -43,9 +43,31 @@ def run_migrations_offline() -> None:
 
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode."""
-    # Create engine from app config URL
+    
+    # Logic to support both Tests (overridden config) and App (app.config)
+    # Check if we are running in a test environment
+    # The test runner sets the URL in the config object.
+    # Default Alembic command uses the .ini file value.
+    
+    ini_url = config.get_main_option("sqlalchemy.url")
+    
+    # If the URL in config is different from the hardcoded default in .ini, 
+    # it means it was overridden (e.g. by Test), so we trust it.
+    # Otherwise, we prefer the App's DATABASE_URL source of truth.
+    
+    # Hardcoded check for the default value in alembic.ini
+    # This is safer than checking for 'pytest' in modules
+    DEFAULT_INI_URL = "sqlite:///db/soulsense.db"
+    
+    if ini_url != DEFAULT_INI_URL:
+        # It's an override (Test)
+        target_url = ini_url
+    else:
+        # It's the default, so use App Config
+        target_url = DATABASE_URL
+        
     from sqlalchemy import create_engine
-    connectable = create_engine(DATABASE_URL)
+    connectable = create_engine(target_url)
 
     with connectable.connect() as connection:
         context.configure(
