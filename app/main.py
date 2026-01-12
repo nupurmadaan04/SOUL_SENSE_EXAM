@@ -454,67 +454,8 @@ class SoulSenseApp:
             self.create_username_screen(callback=self.create_welcome_screen)
 
     def show_history_screen(self):
-
-        # Journal Button
-
-        
-        if self.current_user_id:
-            # Journal Button
-            journal_btn = self.create_widget(
-                tk.Button,
-                button_frame,
-                text="≡ƒôû Daily Journal",
-                command=self.open_journal_flow,
-                font=("Arial", 12),
-                width=15,
-                bg="#FFB74D", # Orange accent
-                fg="black"
-            )
-            journal_btn.pack(pady=5)
-
-            # Dashboard Button (NEW)
-            dashboard_btn = self.create_widget(
-                tk.Button,
-                button_frame,
-                text="≡ƒôè Dashboard",
-                command=self.open_dashboard_flow,
-                font=("Arial", 12),
-                width=15,
-                bg="#29B6F6", # Light Blue accent
-                fg="black"
-            )
-            dashboard_btn.pack(pady=5)
-            
-            # View History button
-            history_btn = self.create_widget(
-                tk.Button,
-                button_frame,
-                text="View History",
-                command=self.show_history_screen,
-                font=("Arial", 12),
-                width=15
-            )
-            history_btn.pack(pady=5)
-        
-        settings_btn = self.create_widget(
-            tk.Button,
-            button_frame,
-            text="Settings",
-            command=self.show_settings,
-            font=("Arial", 12),
-            width=15
-        )
-        settings_btn.pack(pady=5)
-        
-        exit_btn = self.create_widget(
-            tk.Button,
-            button_frame,
-            text="Exit",
-            command=self.force_exit,
-            font=("Arial", 12),
-            width=15
-        )
-        exit_btn.pack(pady=5)
+        """Display history screen using ResultsManager"""
+        self.results_manager.show_history_screen()
         
 
 
