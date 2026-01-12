@@ -1454,13 +1454,21 @@ class ResultsManager:
 
     def reset_test(self):
         """Reset test variables and start over"""
-        self.app.username = ""
-        self.app.age = None
-        self.app.age_group = None
-        self.app.profession = None
+        # Only clear user info if NOT logged in
+        if not self.app.current_user_id:
+            self.app.username = ""
+            self.app.age = None
+            self.app.age_group = None
+            self.app.profession = None
+            
         self.app.current_question = 0
         self.app.responses = []
         self.app.current_score = 0
         self.app.current_max_score = 0
         self.app.current_percentage = 0
-        self.app.auth.create_username_screen()
+        
+        # Start fresh
+        if self.app.current_user_id:
+            self.app.start_test()
+        else:
+            self.app.auth.create_username_screen()

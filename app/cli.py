@@ -107,7 +107,7 @@ class SoulSenseCLI:
             return ""
 
     def authenticate(self):
-        """Get user details with validation"""
+        """Get user details with validation and load settings"""
         self.print_header()
         
         # Username
@@ -130,7 +130,50 @@ class SoulSenseCLI:
             print("Invalid age. Please enter a number between 10 and 100.")
             
         print(f"\nWelcome, {self.username} ({self.age_group}).")
-        print("Loading assessment...\n")
+        
+        # === DB Integration: Implicit Registration & Settings ===
+        try:
+            from app.db import safe_db_context, get_user_settings
+            from app.models import User
+            
+            user_id = None
+            print("Syncing with database...")
+            
+            with safe_db_context() as session:
+                # Check for existing user
+                user = session.query(User).filter_by(username=self.username).first()
+                
+                if not user:
+                    print(f"Creating new user profile for '{self.username}'...")
+                    # Create new user with valid constraints
+                    user = User(
+                        username=self.username, 
+                        password_hash="implicit_cli_auth" # Placeholder
+                    )
+                    session.add(user)
+                    session.commit()
+                    session.refresh(user)
+                else:
+                    print("User profile found.")
+                
+                user_id = user.id
+            
+            # Load User Settings
+            if user_id:
+                settings = get_user_settings(user_id)
+                self.settings.update(settings)
+                
+                # Apply CLI specific overrides
+                self.num_questions = self.settings.get("question_count", 10)
+                
+                theme = self.settings.get("theme", "light")
+                print(f"Loaded settings: {self.num_questions} questions | Theme: {theme}")
+                
+        except Exception as e:
+            print(f"⚠️  {Colors.RED}Offline Mode/Error: Could not sync with DB ({e}){Colors.RESET}")
+            print("Using default settings.")
+        
+        print("\nLoading assessment...\n")
         time.sleep(1)
 
     def initialize_session(self):

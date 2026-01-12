@@ -138,5 +138,70 @@ def get_connection(db_path=None):
     try:
         return sqlite3.connect(db_path or DB_PATH)
     except sqlite3.Error as e:
-        logger.error(f"Failed to connect to SQLite DB: {e}", exc_info=True)
+        logger.error(f"Failed to connect to raw database: {e}", exc_info=True)
         raise DatabaseError("Failed to connect to raw database.", original_exception=e)
+
+def get_user_settings(user_id):
+    """
+    Fetch settings for a user.
+    Returns a dictionary of settings. Creates defaults if not found.
+    """
+    from app.models import UserSettings
+    from datetime import datetime
+    
+    with safe_db_context() as session:
+        settings = session.query(UserSettings).filter_by(user_id=user_id).first()
+        
+        if not settings:
+            # Create default settings for this user
+            try:
+                settings = UserSettings(user_id=user_id)
+                session.add(settings)
+                session.commit()
+                # Refresh to get defaults
+                session.refresh(settings)
+            except Exception as e:
+                logger.error(f"Failed to create default settings for user {user_id}: {e}")
+                # Return generic defaults on failure (fallback)
+                return {
+                    "theme": "light", 
+                    "question_count": 10, 
+                    "sound_enabled": True,
+                    "notifications_enabled": True,
+                    "language": "en"
+                }
+
+        return {
+            "theme": settings.theme,
+            "question_count": settings.question_count,
+            "sound_enabled": settings.sound_enabled,
+            "notifications_enabled": settings.notifications_enabled,
+            "language": settings.language
+        }
+
+def update_user_settings(user_id, **kwargs):
+    """
+    Update settings for a user.
+    Args:
+        user_id: ID of the user
+        **kwargs: Key-value pairs of settings to update
+    """
+    from app.models import UserSettings
+    from datetime import datetime
+    
+    with safe_db_context() as session:
+        settings = session.query(UserSettings).filter_by(user_id=user_id).first()
+        
+        if not settings:
+            settings = UserSettings(user_id=user_id)
+            session.add(settings)
+        
+        # dynamic update
+        for key, value in kwargs.items():
+            if hasattr(settings, key):
+                setattr(settings, key, value)
+        
+        settings.updated_at = datetime.utcnow().isoformat()
+        session.commit()
+        return True
+

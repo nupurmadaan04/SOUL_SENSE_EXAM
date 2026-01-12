@@ -27,7 +27,22 @@ class User(Base):
     scores = relationship("Score", back_populates="user", cascade="all, delete-orphan")
     responses = relationship("Response", back_populates="user", cascade="all, delete-orphan")
     satisfaction_records = relationship("WorkStudySatisfaction", back_populates="user", cascade="all, delete-orphan")
-    # ADDED: satisfaction_records relationship
+    settings = relationship("UserSettings", uselist=False, back_populates="user", cascade="all, delete-orphan")
+    # ADDED: Both satisfaction_records and settings relationships
+
+class UserSettings(Base):
+    __tablename__ = 'user_settings'
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id'), unique=True, index=True, nullable=False)
+    theme = Column(String, default='light')
+    question_count = Column(Integer, default=10)
+    sound_enabled = Column(Boolean, default=True)
+    notifications_enabled = Column(Boolean, default=True) # Web-ready
+    language = Column(String, default='en') # Web-ready
+    updated_at = Column(String, default=lambda: datetime.utcnow().isoformat())
+
+    user = relationship("User", back_populates="settings")
 
 class Score(Base):
     __tablename__ = 'scores'

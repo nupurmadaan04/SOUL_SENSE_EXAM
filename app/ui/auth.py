@@ -119,7 +119,7 @@ class AuthManager:
         start_btn = tk.Button(
             buttons_frame,
             text="\u25b6  Start Assessment",
-            command=self.create_username_screen,
+            command=self.app.on_start_test_click,
             font=("Segoe UI", 14, "bold"),
             bg=colors.get("primary", "#3B82F6"),
             fg=colors.get("text_inverse", "#FFFFFF"),
@@ -246,9 +246,10 @@ class AuthManager:
         exit_btn.bind("<Enter>", lambda e: exit_btn.configure(bg=colors.get("error_light", "#FEE2E2")))
         exit_btn.bind("<Leave>", lambda e: exit_btn.configure(bg=colors.get("surface", "#FFFFFF")))
 
-    def create_username_screen(self):
+    def create_username_screen(self, callback=None):
         """Create premium username input screen"""
         self.app.clear_screen()
+        self.callback = callback  # Store callback for post-login action
         
         colors = self.app.colors
         
@@ -358,9 +359,10 @@ class AuthManager:
         buttons_frame.pack(pady=15)
         
         # Continue Button
+        action_text = "Login & Return" if callback else "Start Test →"
         continue_btn = tk.Button(
             buttons_frame,
-            text="Continue →",
+            text=action_text,
             command=self.submit_user_info,
             font=("Segoe UI", 13, "bold"),
             bg=colors.get("primary", "#3B82F6"),
@@ -369,7 +371,7 @@ class AuthManager:
             activeforeground=colors.get("text_inverse", "#FFFFFF"),
             relief="flat",
             cursor="hand2",
-            width=18,
+            width=20,
             pady=10,
             borderwidth=0
         )
@@ -381,7 +383,7 @@ class AuthManager:
         back_btn = tk.Button(
             buttons_frame,
             text="← Back",
-            command=self.create_welcome_screen,
+            command=self.app.create_welcome_screen,
             font=("Segoe UI", 12),
             bg=colors.get("surface", "#FFFFFF"),
             fg=colors.get("text_secondary", "#475569"),
@@ -440,5 +442,45 @@ class AuthManager:
             f"questions={len(self.app.questions)}"
         )
         
-        # Start exam
-        self.app.start_test()
+        # Check/Create User in DB for Settings Persistence
+        try:
+            from app.db import get_session
+            from app.models import User
+            from datetime import datetime
+            
+            session = get_session()
+            user = session.query(User).filter_by(username=username).first()
+            
+            if not user:
+                # Implicit Registration
+                user = User(
+                    username=username,
+                    password_hash="guest_access", 
+                    created_at=datetime.utcnow().isoformat(),
+                    last_login=datetime.utcnow().isoformat()
+                )
+                session.add(user)
+                session.commit()
+                logging.info(f"Created new user for settings: {username}")
+                
+                # RESET SETTINGS FOR NEW USER (As requested)
+                # Ensure we start with defaults
+                # Note: load_user_settings will load from DB, which are defaults for new user. 
+                # Guest settings in self.app.settings will be overwritten. This is CORRECT.
+                
+            else:
+                user.last_login = datetime.utcnow().isoformat()
+                session.commit()
+            
+            # Load User Settings (Applies Theme etc)
+            self.app.load_user_settings(user.id)
+            session.close()
+            
+        except Exception as e:
+            logging.error(f"Failed to load user settings: {e}")
+
+        # Navigate
+        if hasattr(self, 'callback') and self.callback:
+            self.callback()
+        else:
+            self.app.start_test()

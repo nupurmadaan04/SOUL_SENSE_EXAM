@@ -336,19 +336,27 @@ class SettingsManager:
         # Save settings
         self.app.settings.update(new_settings)
         
-        if save_settings(self.app.settings):
-            # Apply theme immediately
-            self.app.apply_theme(new_settings["theme"])
-            
-            # Reload questions
-            if hasattr(self.app, 'reload_questions'):
-                self.app.reload_questions(new_settings["question_count"])
-            
-            messagebox.showinfo("Success", "Settings saved successfully!")
-            self.settings_win.destroy()
-            
-            # Refresh welcome screen
-            self.app.create_welcome_screen()
+        saved_to_db = False
+        if hasattr(self.app, 'current_user_id') and self.app.current_user_id:
+            try:
+                from app.db import update_user_settings
+                update_user_settings(self.app.current_user_id, **new_settings)
+                saved_to_db = True
+            except Exception as e:
+                print(f"Failed to save settings to DB: {e}")
+        
+        # Apply theme immediately
+        self.app.apply_theme(new_settings["theme"])
+
+        # Reload questions
+        if hasattr(self.app, 'reload_questions'):
+            self.app.reload_questions(new_settings["question_count"])
+        
+        messagebox.showinfo("Success", "Settings saved successfully!")
+        self.settings_win.destroy()
+        
+        # Refresh welcome screen
+        self.app.create_welcome_screen()
     
     def _reset_defaults(self):
         """Reset settings to defaults"""

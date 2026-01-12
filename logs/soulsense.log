@@ -3179,3 +3179,614 @@ Traceback (most recent call last):
     text=f"Confidence: {result['confidence']:.1%}",
                         ~~~~~~^^^^^^^^^^^^^^
 KeyError: 'confidence'
+2026-01-12 12:32:53,620 - root - INFO - Logging initialized.
+2026-01-12 12:32:53,620 - root - INFO - Application started
+2026-01-12 12:32:53,622 - root - INFO - Loaded 10 total questions from DB
+2026-01-12 12:32:58,537 - root - INFO - Loading ML Model: models\risk_model_v20260111_223056.pkl
+2026-01-12 12:32:58,811 - root - INFO - ML Predictor initialized successfully
+2026-01-12 12:36:56,985 - root - INFO - Logging initialized.
+2026-01-12 12:36:57,033 - root - INFO - Application started
+2026-01-12 12:36:57,082 - root - INFO - Loaded 10 total questions from DB
+2026-01-12 12:36:59,476 - root - INFO - Loading ML Model: models\risk_model_v20260111_223056.pkl
+2026-01-12 12:36:59,523 - root - INFO - ML Predictor initialized successfully
+2026-01-12 12:40:45,681 - root - INFO - Logging initialized.
+2026-01-12 12:40:45,713 - root - INFO - Application started
+2026-01-12 12:40:45,716 - root - INFO - Loaded 10 total questions from DB
+2026-01-12 12:40:49,040 - root - INFO - Loading ML Model: models\risk_model_v20260111_223056.pkl
+2026-01-12 12:40:49,125 - root - INFO - ML Predictor initialized successfully
+2026-01-12 12:47:59,335 - root - INFO - Logging initialized.
+2026-01-12 12:47:59,371 - root - INFO - Application started
+2026-01-12 12:47:59,373 - root - INFO - Loaded 10 total questions from DB
+2026-01-12 12:48:02,039 - root - INFO - Loading ML Model: models\risk_model_v20260111_223056.pkl
+2026-01-12 12:48:02,142 - root - INFO - ML Predictor initialized successfully
+2026-01-12 12:55:17,114 - root - INFO - Logging initialized.
+2026-01-12 12:55:17,155 - root - INFO - Application started
+2026-01-12 12:55:17,157 - root - INFO - Loaded 10 total questions from DB
+2026-01-12 12:55:19,661 - root - INFO - Loading ML Model: models\risk_model_v20260111_223056.pkl
+2026-01-12 12:55:19,741 - root - INFO - ML Predictor initialized successfully
+2026-01-12 13:29:47,847 - root - INFO - Logging initialized.
+2026-01-12 13:29:47,871 - root - INFO - Application started
+2026-01-12 13:29:47,874 - root - INFO - Loaded 10 total questions from DB
+2026-01-12 13:29:50,552 - root - INFO - Loading ML Model: models\risk_model_v20260111_223056.pkl
+2026-01-12 13:29:50,691 - root - INFO - ML Predictor initialized successfully
+2026-01-12 13:49:19,090 - root - INFO - Logging initialized.
+2026-01-12 13:49:19,120 - root - INFO - Application started
+2026-01-12 13:49:19,123 - root - INFO - Loaded 10 total questions from DB
+2026-01-12 13:49:21,633 - root - INFO - Loading ML Model: models\risk_model_v20260111_223056.pkl
+2026-01-12 13:49:21,738 - root - INFO - ML Predictor initialized successfully
+2026-01-12 13:50:45,079 - root - INFO - Logging initialized.
+2026-01-12 13:50:45,115 - root - INFO - Application started
+2026-01-12 13:50:45,117 - root - INFO - Loaded 10 total questions from DB
+2026-01-12 13:50:47,729 - root - INFO - Loading ML Model: models\risk_model_v20260111_223056.pkl
+2026-01-12 13:50:47,823 - root - INFO - ML Predictor initialized successfully
+2026-01-12 13:50:47,876 - root - INFO - SentimentIntensityAnalyzer initialized successfully
+2026-01-12 13:50:47,884 - root - INFO - Using 10 questions based on settings
+2026-01-12 13:50:56,714 - root - INFO - Reloaded 10 questions based on settings
+2026-01-12 14:10:25,167 - root - INFO - Logging initialized.
+2026-01-12 14:10:25,193 - root - INFO - Application started
+2026-01-12 14:10:25,197 - root - INFO - Loaded 10 total questions from DB
+2026-01-12 14:10:27,784 - root - INFO - Loading ML Model: models\risk_model_v20260111_223056.pkl
+2026-01-12 14:10:27,838 - root - INFO - ML Predictor initialized successfully
+2026-01-12 14:10:27,882 - root - INFO - SentimentIntensityAnalyzer initialized successfully
+2026-01-12 14:10:27,883 - root - INFO - Using 10 questions based on settings
+2026-01-12 14:11:01,868 - root - INFO - Reloaded 10 questions based on settings
+2026-01-12 14:11:09,844 - root - INFO - Reloaded 10 questions based on settings
+2026-01-12 14:11:18,078 - root - INFO - Reloaded 5 questions based on settings
+2026-01-12 14:11:28,810 - root - INFO - Session started | user=rohan | age=20 | age_group=adult | profession=Student | questions=5
+2026-01-12 14:11:28,957 - root - INFO - Created new user for settings: rohan
+2026-01-12 14:11:29,007 - root - INFO - Loaded settings for user 4: {'theme': 'light', 'question_count': 10, 'sound_enabled': True, 'notifications_enabled': True, 'language': 'en'}
+2026-01-12 14:11:29,007 - root - INFO - Reloaded 10 questions based on settings
+2026-01-12 14:11:29,058 - app.services.exam_service - INFO - Exam session started for user: rohan
+2026-01-12 14:11:50,376 - app.services.exam_service - INFO - Exam saved. Score: 20, Sentiment: 52.669999999999995
+2026-01-12 14:11:57,910 - app.db - ERROR - Unexpected error in DB context: 'Response' object is not subscriptable
+Traceback (most recent call last):
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\db.py", line 32, in safe_db_context
+    yield session
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\analysis\time_based_analysis.py", line 218, in analyze_response_patterns_over_time
+    all_values = [r["response_value"] for r in responses]
+                  ~^^^^^^^^^^^^^^^^^^
+TypeError: 'Response' object is not subscriptable
+2026-01-12 14:11:57,927 - app.analysis.time_based_analysis - ERROR - Error analyzing response patterns for rohan: An unexpected database error occurred.
+2026-01-12 14:11:58,040 - app.ml.clustering - INFO - Model loaded from B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\ml\models\clustering\emotional_profile_model.pkl
+2026-01-12 14:12:02,459 - app.db - ERROR - Unexpected error in DB context: 'Response' object is not subscriptable
+Traceback (most recent call last):
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\db.py", line 32, in safe_db_context
+    yield session
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\analysis\time_based_analysis.py", line 218, in analyze_response_patterns_over_time
+    all_values = [r["response_value"] for r in responses]
+                  ~^^^^^^^^^^^^^^^^^^
+TypeError: 'Response' object is not subscriptable
+2026-01-12 14:12:02,460 - app.analysis.time_based_analysis - ERROR - Error analyzing response patterns for rohan: An unexpected database error occurred.
+2026-01-12 14:12:02,473 - app.ml.clustering - INFO - Model loaded from B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\ml\models\clustering\emotional_profile_model.pkl
+2026-01-12 14:12:28,301 - root - ERROR - AI Analysis failed
+Traceback (most recent call last):
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\ui\results.py", line 855, in show_ml_analysis
+    visual_features = {k: v for k, v in result['features'].items()
+                                        ~~~~~~^^^^^^^^^^^^
+KeyError: 'features'
+2026-01-12 14:12:31,764 - root - ERROR - AI Analysis failed
+Traceback (most recent call last):
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\ui\results.py", line 855, in show_ml_analysis
+    visual_features = {k: v for k, v in result['features'].items()
+                                        ~~~~~~^^^^^^^^^^^^
+KeyError: 'features'
+2026-01-12 14:12:51,483 - root - INFO - Reloaded 10 questions based on settings
+2026-01-12 14:13:00,869 - root - INFO - Session started | user=rohan | age=20 | age_group=adult | profession=Student | questions=10
+2026-01-12 14:13:00,977 - root - INFO - Loaded settings for user 4: {'theme': 'dark', 'question_count': 10, 'sound_enabled': True, 'notifications_enabled': True, 'language': 'en'}
+2026-01-12 14:13:00,977 - root - INFO - Reloaded 10 questions based on settings
+2026-01-12 14:13:00,978 - app.services.exam_service - INFO - Exam session started for user: rohan
+2026-01-12 14:13:23,564 - app.services.exam_service - INFO - Exam saved. Score: 20, Sentiment: 52.669999999999995
+2026-01-12 14:13:36,580 - root - INFO - Reloaded 5 questions based on settings
+2026-01-12 14:13:54,564 - app.services.exam_service - ERROR - Failed to save response: list index out of range
+2026-01-12 14:14:05,381 - app.services.exam_service - INFO - Exam saved. Score: 22, Sentiment: 52.669999999999995
+2026-01-12 14:14:19,795 - app.services.exam_service - ERROR - Failed to save response: list index out of range
+2026-01-12 14:14:27,393 - app.services.exam_service - INFO - Exam saved. Score: 24, Sentiment: 0.0
+2026-01-12 14:14:58,985 - root - INFO - Logging initialized.
+2026-01-12 14:14:58,985 - root - INFO - Application started
+2026-01-12 14:14:58,987 - root - INFO - Loaded 10 total questions from DB
+2026-01-12 14:15:01,385 - root - INFO - Loading ML Model: models\risk_model_v20260111_223056.pkl
+2026-01-12 14:15:01,451 - root - INFO - ML Predictor initialized successfully
+2026-01-12 14:15:01,501 - root - INFO - SentimentIntensityAnalyzer initialized successfully
+2026-01-12 14:15:01,511 - root - INFO - Using 10 questions based on settings
+2026-01-12 14:33:27,527 - root - CRITICAL - Unhandled exception in GUI
+Traceback (most recent call last):
+  File "C:\Python314\Lib\tkinter\__init__.py", line 2088, in __call__
+    return self.func(*args)
+           ~~~~~~~~~^^^^^^^
+  File "C:\Python314\Lib\tkinter\__init__.py", line 876, in callit
+    func(*args, **kw)
+    ~~~~^^^^^^^^^^^^^
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\main.py", line 610, in launch_main_app
+    root.mainloop()
+    ~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\tkinter\__init__.py", line 1613, in mainloop
+    self.tk.mainloop(n)
+    ~~~~~~~~~~~~~~~~^^^
+  File "C:\Python314\Lib\tkinter\__init__.py", line 2083, in __call__
+    def __call__(self, *args):
+    
+KeyboardInterrupt
+2026-01-12 14:33:27,866 - root - ERROR - Unexpected Error: An unexpected error occurred.
+2026-01-12 14:33:53,303 - root - INFO - Logging initialized.
+2026-01-12 14:33:53,303 - root - INFO - Application started
+2026-01-12 14:33:53,305 - root - INFO - Loaded 10 total questions from DB
+2026-01-12 14:33:55,632 - root - INFO - Loading ML Model: models\risk_model_v20260111_223056.pkl
+2026-01-12 14:33:55,704 - root - INFO - ML Predictor initialized successfully
+2026-01-12 14:33:55,774 - root - INFO - SentimentIntensityAnalyzer initialized successfully
+2026-01-12 14:33:55,788 - root - INFO - Using 10 questions based on settings
+2026-01-12 14:44:30,446 - root - INFO - Logging initialized.
+2026-01-12 14:44:30,498 - root - INFO - Application started
+2026-01-12 14:44:30,500 - root - INFO - Loaded 10 total questions from DB
+2026-01-12 14:44:34,331 - root - INFO - Loading ML Model: models\risk_model_v20260111_223056.pkl
+2026-01-12 14:44:34,619 - root - INFO - ML Predictor initialized successfully
+2026-01-12 14:44:34,774 - root - INFO - SentimentIntensityAnalyzer initialized successfully
+2026-01-12 14:44:34,795 - root - INFO - Using 10 questions based on settings
+2026-01-12 14:47:48,710 - root - INFO - Session started | user=rohan | age=20 | age_group=adult | profession=Student | questions=10
+2026-01-12 14:47:49,189 - root - INFO - Loaded settings for user 4: {'theme': 'dark', 'question_count': 5, 'sound_enabled': True, 'notifications_enabled': True, 'language': 'en'}
+2026-01-12 14:47:49,189 - root - INFO - Reloaded 5 questions based on settings
+2026-01-12 14:47:49,212 - app.services.exam_service - INFO - Exam session started for user: rohan
+2026-01-12 14:48:03,681 - app.services.exam_service - INFO - Exam saved. Score: 10, Sentiment: 52.669999999999995
+2026-01-12 14:48:21,609 - root - ERROR - AI Analysis failed
+Traceback (most recent call last):
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\ui\results.py", line 855, in show_ml_analysis
+    visual_features = {k: v for k, v in result['features'].items()
+                                        ~~~~~~^^^^^^^^^^^^
+KeyError: 'features'
+2026-01-12 14:48:26,656 - app.db - ERROR - Unexpected error in DB context: 'Response' object is not subscriptable
+Traceback (most recent call last):
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\db.py", line 32, in safe_db_context
+    yield session
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\analysis\time_based_analysis.py", line 218, in analyze_response_patterns_over_time
+    all_values = [r["response_value"] for r in responses]
+                  ~^^^^^^^^^^^^^^^^^^
+TypeError: 'Response' object is not subscriptable
+2026-01-12 14:48:26,714 - app.analysis.time_based_analysis - ERROR - Error analyzing response patterns for rohan: An unexpected database error occurred.
+2026-01-12 14:48:26,845 - app.ml.clustering - INFO - Model loaded from B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\ml\models\clustering\emotional_profile_model.pkl
+2026-01-12 14:51:10,528 - root - INFO - Logging initialized.
+2026-01-12 14:51:10,565 - root - INFO - Application started
+2026-01-12 14:51:10,567 - root - INFO - Loaded 10 total questions from DB
+2026-01-12 14:51:13,550 - root - INFO - Loading ML Model: models\risk_model_v20260111_223056.pkl
+2026-01-12 14:51:13,646 - root - INFO - ML Predictor initialized successfully
+2026-01-12 14:51:13,673 - root - INFO - SentimentIntensityAnalyzer initialized successfully
+2026-01-12 14:51:13,674 - root - INFO - Using 10 questions based on settings
+2026-01-12 14:52:13,141 - root - CRITICAL - Unhandled exception in GUI
+Traceback (most recent call last):
+  File "C:\Python314\Lib\tkinter\__init__.py", line 2088, in __call__
+    return self.func(*args)
+           ~~~~~~~~~^^^^^^^
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\main.py", line 364, in <lambda>
+    auth_cmd = lambda: self.create_username_screen(callback=self.create_welcome_screen)
+                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: SoulSenseApp.create_username_screen() got an unexpected keyword argument 'callback'
+2026-01-12 14:52:13,162 - root - ERROR - Unexpected Error: An unexpected error occurred.
+2026-01-12 14:52:24,923 - root - CRITICAL - Unhandled exception in GUI
+Traceback (most recent call last):
+  File "C:\Python314\Lib\tkinter\__init__.py", line 2088, in __call__
+    return self.func(*args)
+           ~~~~~~~~~^^^^^^^
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\main.py", line 364, in <lambda>
+    auth_cmd = lambda: self.create_username_screen(callback=self.create_welcome_screen)
+                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: SoulSenseApp.create_username_screen() got an unexpected keyword argument 'callback'
+2026-01-12 14:52:24,924 - root - ERROR - Unexpected Error: An unexpected error occurred.
+2026-01-12 14:55:51,879 - root - INFO - Logging initialized.
+2026-01-12 14:55:51,933 - root - INFO - Application started
+2026-01-12 14:55:51,943 - root - INFO - Loaded 10 total questions from DB
+2026-01-12 14:55:54,537 - root - INFO - Loading ML Model: models\risk_model_v20260111_223056.pkl
+2026-01-12 14:55:54,590 - root - INFO - ML Predictor initialized successfully
+2026-01-12 14:55:54,631 - root - INFO - SentimentIntensityAnalyzer initialized successfully
+2026-01-12 14:55:54,658 - root - INFO - Using 10 questions based on settings
+2026-01-12 14:59:41,380 - root - INFO - Logging initialized.
+2026-01-12 14:59:41,389 - root - INFO - Application started
+2026-01-12 14:59:41,390 - root - INFO - Loaded 10 total questions from DB
+2026-01-12 14:59:43,757 - root - INFO - Loading ML Model: models\risk_model_v20260111_223056.pkl
+2026-01-12 14:59:43,831 - root - INFO - ML Predictor initialized successfully
+2026-01-12 14:59:43,913 - root - INFO - SentimentIntensityAnalyzer initialized successfully
+2026-01-12 14:59:43,931 - root - INFO - Using 10 questions based on settings
+2026-01-12 15:06:56,341 - root - INFO - Logging initialized.
+2026-01-12 15:06:56,363 - root - INFO - Application started
+2026-01-12 15:06:56,365 - root - INFO - Loaded 10 total questions from DB
+2026-01-12 15:06:58,702 - root - INFO - Loading ML Model: models\risk_model_v20260111_223056.pkl
+2026-01-12 15:06:58,786 - root - INFO - ML Predictor initialized successfully
+2026-01-12 15:06:58,852 - root - INFO - SentimentIntensityAnalyzer initialized successfully
+2026-01-12 15:06:58,863 - root - INFO - Using 10 questions based on settings
+2026-01-12 15:07:32,188 - root - INFO - Session started | user=rohan | age=20 | age_group=adult | profession=Student | questions=10
+2026-01-12 15:07:32,388 - root - INFO - Loaded settings for user 4: {'theme': 'dark', 'question_count': 5, 'sound_enabled': True, 'notifications_enabled': True, 'language': 'en'}
+2026-01-12 15:07:32,388 - root - INFO - Reloaded 5 questions based on settings
+2026-01-12 15:07:32,394 - app.services.exam_service - INFO - Exam session started for user: rohan
+2026-01-12 15:07:50,490 - app.services.exam_service - INFO - Exam saved. Score: 8, Sentiment: 0.0
+2026-01-12 15:11:16,689 - root - INFO - Logging initialized.
+2026-01-12 15:11:16,689 - root - INFO - Application started
+2026-01-12 15:11:16,690 - root - INFO - Loaded 10 total questions from DB
+2026-01-12 15:11:19,040 - root - INFO - Loading ML Model: models\risk_model_v20260111_223056.pkl
+2026-01-12 15:11:19,121 - root - INFO - ML Predictor initialized successfully
+2026-01-12 15:11:19,199 - root - INFO - SentimentIntensityAnalyzer initialized successfully
+2026-01-12 15:11:19,208 - root - INFO - Using 10 questions based on settings
+2026-01-12 15:13:45,836 - root - INFO - Logging initialized.
+2026-01-12 15:13:45,840 - root - INFO - Application started
+2026-01-12 15:13:45,842 - root - INFO - Loaded 10 total questions from DB
+2026-01-12 15:13:48,211 - root - INFO - Loading ML Model: models\risk_model_v20260111_223056.pkl
+2026-01-12 15:13:48,279 - root - INFO - ML Predictor initialized successfully
+2026-01-12 15:13:48,320 - root - INFO - SentimentIntensityAnalyzer initialized successfully
+2026-01-12 15:13:48,333 - root - INFO - Using 10 questions based on settings
+2026-01-12 15:14:23,221 - root - CRITICAL - Unhandled exception in GUI
+Traceback (most recent call last):
+  File "C:\Python314\Lib\tkinter\__init__.py", line 2088, in __call__
+    return self.func(*args)
+           ~~~~~~~~~^^^^^^^
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\main.py", line 421, in <lambda>
+    auth_cmd = lambda: self.create_username_screen(callback=self.create_welcome_screen)
+                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: SoulSenseApp.create_username_screen() got an unexpected keyword argument 'callback'
+2026-01-12 15:14:23,241 - root - ERROR - Unexpected Error: An unexpected error occurred.
+2026-01-12 15:25:39,402 - root - INFO - Logging initialized.
+2026-01-12 15:25:39,402 - root - INFO - Application started
+2026-01-12 15:25:39,404 - root - INFO - Loaded 10 total questions from DB
+2026-01-12 15:25:42,051 - root - INFO - Loading ML Model: models\risk_model_v20260111_223056.pkl
+2026-01-12 15:25:42,198 - root - INFO - ML Predictor initialized successfully
+2026-01-12 15:25:42,318 - root - INFO - SentimentIntensityAnalyzer initialized successfully
+2026-01-12 15:25:42,356 - root - INFO - Using 10 questions based on settings
+2026-01-12 15:29:41,811 - root - INFO - Logging initialized.
+2026-01-12 15:29:41,811 - root - INFO - Application started
+2026-01-12 15:29:41,813 - root - INFO - Loaded 10 total questions from DB
+2026-01-12 15:29:44,142 - root - INFO - Loading ML Model: models\risk_model_v20260111_223056.pkl
+2026-01-12 15:29:44,308 - root - INFO - ML Predictor initialized successfully
+2026-01-12 15:29:44,385 - root - INFO - SentimentIntensityAnalyzer initialized successfully
+2026-01-12 15:29:44,400 - root - INFO - Using 10 questions based on settings
+2026-01-12 15:29:59,859 - root - INFO - Session started | user=rohan | age=20 | age_group=adult | profession=Student | questions=10
+2026-01-12 15:30:00,096 - root - INFO - Loaded settings for user 4: {'theme': 'dark', 'question_count': 5, 'sound_enabled': True, 'notifications_enabled': True, 'language': 'en'}
+2026-01-12 15:30:00,096 - root - INFO - Reloaded 5 questions based on settings
+2026-01-12 15:30:00,112 - app.services.exam_service - INFO - Exam session started for user: rohan
+2026-01-12 15:32:02,917 - root - INFO - Logging initialized.
+2026-01-12 15:32:02,928 - root - INFO - Application started
+2026-01-12 15:32:02,931 - root - INFO - Loaded 10 total questions from DB
+2026-01-12 15:32:05,343 - root - INFO - Loading ML Model: models\risk_model_v20260111_223056.pkl
+2026-01-12 15:32:05,408 - root - INFO - ML Predictor initialized successfully
+2026-01-12 15:32:05,490 - root - INFO - SentimentIntensityAnalyzer initialized successfully
+2026-01-12 15:32:05,508 - root - INFO - Using 10 questions based on settings
+2026-01-12 15:33:03,160 - root - INFO - Session started | user=rohan | age=20 | age_group=adult | profession=Student | questions=10
+2026-01-12 15:33:03,330 - root - INFO - Loaded settings for user 4: {'theme': 'dark', 'question_count': 5, 'sound_enabled': True, 'notifications_enabled': True, 'language': 'en'}
+2026-01-12 15:33:03,331 - root - INFO - Reloaded 5 questions based on settings
+2026-01-12 15:35:31,814 - root - INFO - Logging initialized.
+2026-01-12 15:35:31,851 - root - INFO - Application started
+2026-01-12 15:35:31,853 - root - INFO - Loaded 10 total questions from DB
+2026-01-12 15:35:34,154 - root - INFO - Loading ML Model: models\risk_model_v20260111_223056.pkl
+2026-01-12 15:35:34,232 - root - INFO - ML Predictor initialized successfully
+2026-01-12 15:35:34,273 - root - INFO - SentimentIntensityAnalyzer initialized successfully
+2026-01-12 15:35:34,281 - root - INFO - Using 10 questions based on settings
+2026-01-12 15:37:49,833 - root - INFO - Logging initialized.
+2026-01-12 15:37:49,849 - root - INFO - Application started
+2026-01-12 15:37:49,852 - root - INFO - Loaded 10 total questions from DB
+2026-01-12 15:37:52,354 - root - INFO - Loading ML Model: models\risk_model_v20260111_223056.pkl
+2026-01-12 15:37:52,436 - root - INFO - ML Predictor initialized successfully
+2026-01-12 15:37:52,539 - root - INFO - SentimentIntensityAnalyzer initialized successfully
+2026-01-12 15:37:52,556 - root - INFO - Using 10 questions based on settings
+2026-01-12 15:38:42,951 - root - INFO - Logging initialized.
+2026-01-12 15:38:42,972 - root - INFO - Application started
+2026-01-12 15:38:42,988 - root - INFO - Loaded 10 total questions from DB
+2026-01-12 15:38:45,438 - root - INFO - Loading ML Model: models\risk_model_v20260111_223056.pkl
+2026-01-12 15:38:45,489 - root - INFO - ML Predictor initialized successfully
+2026-01-12 15:38:45,527 - root - INFO - SentimentIntensityAnalyzer initialized successfully
+2026-01-12 15:38:45,535 - root - INFO - Using 10 questions based on settings
+2026-01-12 15:43:36,493 - root - INFO - Logging initialized.
+2026-01-12 15:43:36,512 - root - INFO - Application started
+2026-01-12 15:43:36,513 - root - INFO - Loaded 10 total questions from DB
+2026-01-12 15:43:38,809 - root - INFO - Loading ML Model: models\risk_model_v20260111_223056.pkl
+2026-01-12 15:43:38,875 - root - INFO - ML Predictor initialized successfully
+2026-01-12 15:43:38,952 - root - INFO - SentimentIntensityAnalyzer initialized successfully
+2026-01-12 15:43:38,958 - root - INFO - Using 10 questions based on settings
+2026-01-12 15:50:40,564 - root - INFO - Logging initialized.
+2026-01-12 15:50:40,588 - root - INFO - Application started
+2026-01-12 15:50:40,591 - root - INFO - Loaded 10 total questions from DB
+2026-01-12 15:50:43,097 - root - INFO - Loading ML Model: models\risk_model_v20260111_223056.pkl
+2026-01-12 15:50:43,173 - root - INFO - ML Predictor initialized successfully
+2026-01-12 15:50:43,237 - root - INFO - SentimentIntensityAnalyzer initialized successfully
+2026-01-12 15:50:43,251 - root - INFO - Using 10 questions based on settings
+2026-01-12 15:55:42,638 - root - INFO - Logging initialized.
+2026-01-12 15:55:42,669 - root - INFO - Application started
+2026-01-12 15:55:42,671 - root - INFO - Loaded 10 total questions from DB
+2026-01-12 15:55:45,564 - root - INFO - Loading ML Model: models\risk_model_v20260111_223056.pkl
+2026-01-12 15:55:45,632 - root - INFO - ML Predictor initialized successfully
+2026-01-12 15:55:45,698 - root - INFO - SentimentIntensityAnalyzer initialized successfully
+2026-01-12 15:55:45,710 - root - INFO - Using 10 questions based on settings
+2026-01-12 15:58:22,091 - root - INFO - Logging initialized.
+2026-01-12 15:58:22,103 - root - INFO - Application started
+2026-01-12 15:58:22,105 - root - INFO - Loaded 10 total questions from DB
+2026-01-12 15:58:24,600 - root - INFO - Loading ML Model: models\risk_model_v20260111_223056.pkl
+2026-01-12 15:58:24,646 - root - INFO - ML Predictor initialized successfully
+2026-01-12 15:58:24,695 - root - INFO - SentimentIntensityAnalyzer initialized successfully
+2026-01-12 15:58:24,711 - root - INFO - Using 10 questions based on settings
+2026-01-12 16:00:51,960 - root - INFO - Logging initialized.
+2026-01-12 16:00:51,960 - root - INFO - Application started
+2026-01-12 16:00:51,961 - root - INFO - Loaded 10 total questions from DB
+2026-01-12 16:00:54,317 - root - INFO - Loading ML Model: models\risk_model_v20260111_223056.pkl
+2026-01-12 16:00:54,364 - root - INFO - ML Predictor initialized successfully
+2026-01-12 16:00:54,413 - root - INFO - SentimentIntensityAnalyzer initialized successfully
+2026-01-12 16:00:54,431 - root - INFO - Using 10 questions based on settings
+2026-01-12 16:01:49,008 - root - INFO - Session started | user=rohan | age=20 | age_group=adult | profession=Student | questions=10
+2026-01-12 16:01:49,466 - root - INFO - Loaded settings for user 4: {'theme': 'dark', 'question_count': 5, 'sound_enabled': True, 'notifications_enabled': True, 'language': 'en'}
+2026-01-12 16:01:49,467 - root - INFO - Reloaded 5 questions based on settings
+2026-01-12 16:01:54,378 - root - INFO - User rohan logged out
+2026-01-12 16:01:54,379 - root - INFO - Reloaded 10 questions based on settings
+2026-01-12 16:02:04,473 - root - INFO - Session started | user=rohan | age=20 | age_group=adult | profession=Student | questions=10
+2026-01-12 16:02:04,570 - root - INFO - Loaded settings for user 4: {'theme': 'dark', 'question_count': 5, 'sound_enabled': True, 'notifications_enabled': True, 'language': 'en'}
+2026-01-12 16:02:04,572 - root - INFO - Reloaded 5 questions based on settings
+2026-01-12 16:06:32,098 - root - INFO - Logging initialized.
+2026-01-12 16:06:32,115 - root - INFO - Application started
+2026-01-12 16:06:32,130 - root - INFO - Loaded 10 total questions from DB
+2026-01-12 16:06:34,684 - root - INFO - Loading ML Model: models\risk_model_v20260111_223056.pkl
+2026-01-12 16:06:34,746 - root - INFO - ML Predictor initialized successfully
+2026-01-12 16:06:34,808 - root - INFO - SentimentIntensityAnalyzer initialized successfully
+2026-01-12 16:06:34,823 - root - INFO - Using 10 questions based on settings
+2026-01-12 16:06:48,396 - root - INFO - Session started | user=rohan | age=20 | age_group=adult | profession=Student | questions=10
+2026-01-12 16:06:48,470 - root - INFO - Loaded settings for user 4: {'theme': 'dark', 'question_count': 5, 'sound_enabled': True, 'notifications_enabled': True, 'language': 'en'}
+2026-01-12 16:06:48,472 - root - INFO - Reloaded 5 questions based on settings
+2026-01-12 16:09:52,837 - root - INFO - Logging initialized.
+2026-01-12 16:09:52,837 - root - INFO - Application started
+2026-01-12 16:09:52,839 - root - INFO - Loaded 10 total questions from DB
+2026-01-12 16:09:55,069 - root - INFO - Loading ML Model: models\risk_model_v20260111_223056.pkl
+2026-01-12 16:09:55,143 - root - INFO - ML Predictor initialized successfully
+2026-01-12 16:09:55,193 - root - INFO - SentimentIntensityAnalyzer initialized successfully
+2026-01-12 16:09:55,204 - root - INFO - Using 10 questions based on settings
+2026-01-12 16:10:38,422 - root - INFO - Session started | user=rohan | age=20 | age_group=adult | profession=Student | questions=10
+2026-01-12 16:10:38,579 - root - INFO - Loaded settings for user 4: {'theme': 'dark', 'question_count': 5, 'sound_enabled': True, 'notifications_enabled': True, 'language': 'en'}
+2026-01-12 16:10:38,580 - root - INFO - Reloaded 5 questions based on settings
+2026-01-12 16:10:44,761 - app.db - ERROR - Unexpected error in DB context: 'Response' object is not subscriptable
+Traceback (most recent call last):
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\db.py", line 32, in safe_db_context
+    yield session
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\analysis\time_based_analysis.py", line 218, in analyze_response_patterns_over_time
+    all_values = [r["response_value"] for r in responses]
+                  ~^^^^^^^^^^^^^^^^^^
+TypeError: 'Response' object is not subscriptable
+2026-01-12 16:10:44,787 - app.analysis.time_based_analysis - ERROR - Error analyzing response patterns for rohan: An unexpected database error occurred.
+2026-01-12 16:10:44,974 - app.ml.clustering - INFO - Model loaded from B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\ml\models\clustering\emotional_profile_model.pkl
+2026-01-12 16:22:26,067 - root - INFO - Logging initialized.
+2026-01-12 16:22:26,080 - root - INFO - Application started
+2026-01-12 16:22:26,081 - root - INFO - Loaded 10 total questions from DB
+2026-01-12 16:22:28,473 - root - INFO - Loading ML Model: models\risk_model_v20260111_223056.pkl
+2026-01-12 16:22:28,562 - root - INFO - ML Predictor initialized successfully
+2026-01-12 16:22:28,634 - root - INFO - SentimentIntensityAnalyzer initialized successfully
+2026-01-12 16:22:28,641 - root - INFO - Using 10 questions based on settings
+2026-01-12 16:22:40,321 - root - INFO - Session started | user=rohan | age=20 | age_group=adult | profession=Student | questions=10
+2026-01-12 16:22:40,471 - root - INFO - Loaded settings for user 4: {'theme': 'dark', 'question_count': 5, 'sound_enabled': True, 'notifications_enabled': True, 'language': 'en'}
+2026-01-12 16:22:40,472 - root - INFO - Reloaded 5 questions based on settings
+2026-01-12 16:38:54,562 - root - INFO - Logging initialized.
+2026-01-12 16:38:54,583 - root - INFO - Application started
+2026-01-12 16:38:54,585 - root - INFO - Loaded 10 total questions from DB
+2026-01-12 16:38:57,145 - root - INFO - Loading ML Model: models\risk_model_v20260111_223056.pkl
+2026-01-12 16:38:57,248 - root - INFO - ML Predictor initialized successfully
+2026-01-12 16:38:57,326 - root - INFO - SentimentIntensityAnalyzer initialized successfully
+2026-01-12 16:38:57,336 - root - INFO - Using 10 questions based on settings
+2026-01-12 16:39:53,671 - root - INFO - Session started | user=rohan | age=20 | age_group=adult | profession=Student | questions=10
+2026-01-12 16:39:58,545 - root - INFO - Loaded settings for user 4: {'theme': 'dark', 'question_count': 5, 'sound_enabled': True, 'notifications_enabled': True, 'language': 'en'}
+2026-01-12 16:39:58,546 - root - INFO - Reloaded 5 questions based on settings
+2026-01-12 17:48:25,165 - root - INFO - Logging initialized.
+2026-01-12 17:48:25,183 - root - INFO - Application started
+2026-01-12 17:48:25,187 - root - INFO - Loaded 10 total questions from DB
+2026-01-12 17:48:27,900 - root - INFO - Loading ML Model: models\risk_model_v20260111_223056.pkl
+2026-01-12 17:48:28,033 - root - INFO - ML Predictor initialized successfully
+2026-01-12 17:48:28,127 - root - INFO - SentimentIntensityAnalyzer initialized successfully
+2026-01-12 17:48:28,133 - root - INFO - Using 10 questions based on settings
+2026-01-12 17:52:18,132 - root - INFO - Logging initialized.
+2026-01-12 17:52:18,146 - root - INFO - Application started
+2026-01-12 17:52:18,151 - root - INFO - Loaded 10 total questions from DB
+2026-01-12 17:52:20,806 - root - INFO - Loading ML Model: models\risk_model_v20260111_223056.pkl
+2026-01-12 17:52:20,939 - root - INFO - ML Predictor initialized successfully
+2026-01-12 17:52:21,046 - root - INFO - SentimentIntensityAnalyzer initialized successfully
+2026-01-12 17:52:21,071 - root - INFO - Using 10 questions based on settings
+2026-01-12 17:52:56,262 - root - INFO - Session started | user=rohan | age=20 | age_group=adult | profession=Student | questions=10
+2026-01-12 17:52:56,472 - root - INFO - Loaded settings for user 4: {'theme': 'dark', 'question_count': 5, 'sound_enabled': True, 'notifications_enabled': True, 'language': 'en'}
+2026-01-12 17:52:56,474 - root - INFO - Reloaded 5 questions based on settings
+2026-01-12 17:55:56,869 - root - INFO - Logging initialized.
+2026-01-12 17:55:56,964 - root - INFO - Application started
+2026-01-12 17:55:56,967 - root - INFO - Loaded 10 total questions from DB
+2026-01-12 17:55:59,555 - root - INFO - Loading ML Model: models\risk_model_v20260111_223056.pkl
+2026-01-12 17:55:59,649 - root - INFO - ML Predictor initialized successfully
+2026-01-12 17:55:59,746 - root - INFO - SentimentIntensityAnalyzer initialized successfully
+2026-01-12 17:55:59,774 - root - INFO - Using 10 questions based on settings
+2026-01-12 17:56:16,632 - root - INFO - Session started | user=rohan | age=20 | age_group=adult | profession=Student | questions=10
+2026-01-12 17:56:16,716 - root - INFO - Loaded settings for user 4: {'theme': 'dark', 'question_count': 5, 'sound_enabled': True, 'notifications_enabled': True, 'language': 'en'}
+2026-01-12 17:56:16,717 - root - INFO - Reloaded 5 questions based on settings
+2026-01-12 17:57:22,585 - root - INFO - Session started | user=rohan | age=20 | age_group=adult | profession=Student | questions=5
+2026-01-12 17:57:22,956 - root - INFO - Loaded settings for user 4: {'theme': 'dark', 'question_count': 5, 'sound_enabled': True, 'notifications_enabled': True, 'language': 'en'}
+2026-01-12 17:57:22,958 - root - INFO - Reloaded 5 questions based on settings
+2026-01-12 17:57:22,982 - app.services.exam_service - INFO - Exam session started for user: rohan
+2026-01-12 18:02:44,442 - root - CRITICAL - Unhandled exception in GUI
+Traceback (most recent call last):
+  File "C:\Python314\Lib\tkinter\__init__.py", line 2088, in __call__
+    return self.func(*args)
+           ~~~~~~~~~^^^^^^^
+  File "C:\Python314\Lib\tkinter\__init__.py", line 876, in callit
+    func(*args, **kw)
+    ~~~~^^^^^^^^^^^^^
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\main.py", line 709, in launch_main_app
+    root.mainloop()
+    ~~~~~~~~~~~~~^^
+  File "C:\Python314\Lib\tkinter\__init__.py", line 1613, in mainloop
+    self.tk.mainloop(n)
+    ~~~~~~~~~~~~~~~~^^^
+KeyboardInterrupt
+2026-01-12 18:02:44,588 - root - ERROR - Unexpected Error: An unexpected error occurred.
+2026-01-12 18:03:52,199 - root - INFO - Logging initialized.
+2026-01-12 18:03:52,239 - root - INFO - Application started
+2026-01-12 18:03:52,249 - root - INFO - Loaded 10 total questions from DB
+2026-01-12 18:03:54,964 - root - INFO - Loading ML Model: models\risk_model_v20260111_223056.pkl
+2026-01-12 18:03:55,068 - root - INFO - ML Predictor initialized successfully
+2026-01-12 18:03:55,133 - root - INFO - SentimentIntensityAnalyzer initialized successfully
+2026-01-12 18:03:55,134 - root - INFO - Using 10 questions based on settings
+2026-01-12 18:05:44,577 - root - INFO - Session started | user=rohan | age=20 | age_group=adult | profession=Student | questions=10
+2026-01-12 18:05:45,086 - root - INFO - Loaded settings for user 4: {'theme': 'dark', 'question_count': 5, 'sound_enabled': True, 'notifications_enabled': True, 'language': 'en'}
+2026-01-12 18:05:45,087 - root - INFO - Reloaded 5 questions based on settings
+2026-01-12 18:08:49,052 - root - INFO - Logging initialized.
+2026-01-12 18:08:49,071 - root - INFO - Application started
+2026-01-12 18:08:49,074 - root - INFO - Loaded 10 total questions from DB
+2026-01-12 18:08:51,684 - root - INFO - Loading ML Model: models\risk_model_v20260111_223056.pkl
+2026-01-12 18:08:51,765 - root - INFO - ML Predictor initialized successfully
+2026-01-12 18:08:51,833 - root - INFO - SentimentIntensityAnalyzer initialized successfully
+2026-01-12 18:08:51,850 - root - INFO - Using 10 questions based on settings
+2026-01-12 18:09:04,194 - root - INFO - Session started | user=rohan | age=20 | age_group=adult | profession=Student | questions=10
+2026-01-12 18:09:04,478 - root - INFO - Loaded settings for user 4: {'theme': 'dark', 'question_count': 5, 'sound_enabled': True, 'notifications_enabled': True, 'language': 'en'}
+2026-01-12 18:09:04,492 - root - INFO - Reloaded 5 questions based on settings
+2026-01-12 18:09:26,659 - root - INFO - User rohan logged out
+2026-01-12 18:09:26,661 - root - INFO - Reloaded 10 questions based on settings
+2026-01-12 18:09:38,697 - root - INFO - Session started | user=rohan | age=20 | age_group=adult | profession=Student | questions=10
+2026-01-12 18:09:38,818 - root - INFO - Loaded settings for user 4: {'theme': 'dark', 'question_count': 5, 'sound_enabled': True, 'notifications_enabled': True, 'language': 'en'}
+2026-01-12 18:09:38,820 - root - INFO - Reloaded 5 questions based on settings
+2026-01-12 18:12:39,303 - root - INFO - Logging initialized.
+2026-01-12 18:12:39,307 - root - INFO - Application started
+2026-01-12 18:12:39,310 - root - INFO - Loaded 10 total questions from DB
+2026-01-12 18:12:41,912 - root - INFO - Loading ML Model: models\risk_model_v20260111_223056.pkl
+2026-01-12 18:12:41,999 - root - INFO - ML Predictor initialized successfully
+2026-01-12 18:12:42,064 - root - INFO - SentimentIntensityAnalyzer initialized successfully
+2026-01-12 18:12:42,079 - root - INFO - Using 10 questions based on settings
+2026-01-12 18:13:24,082 - root - INFO - Session started | user=rohan | age=20 | age_group=adult | profession=Student | questions=10
+2026-01-12 18:13:24,498 - root - INFO - Loaded settings for user 4: {'theme': 'dark', 'question_count': 5, 'sound_enabled': True, 'notifications_enabled': True, 'language': 'en'}
+2026-01-12 18:13:24,499 - root - INFO - Reloaded 5 questions based on settings
+2026-01-12 18:14:10,311 - root - INFO - Logging initialized.
+2026-01-12 18:14:10,311 - root - INFO - Application started
+2026-01-12 18:14:10,313 - root - INFO - Loaded 10 total questions from DB
+2026-01-12 18:14:12,674 - root - INFO - Loading ML Model: models\risk_model_v20260111_223056.pkl
+2026-01-12 18:14:12,755 - root - INFO - ML Predictor initialized successfully
+2026-01-12 18:14:12,810 - root - INFO - SentimentIntensityAnalyzer initialized successfully
+2026-01-12 18:14:12,818 - root - INFO - Using 10 questions based on settings
+2026-01-12 18:14:22,945 - root - INFO - Session started | user=rohan | age=20 | age_group=adult | profession=Student | questions=10
+2026-01-12 18:14:23,167 - root - INFO - Loaded settings for user 4: {'theme': 'dark', 'question_count': 5, 'sound_enabled': True, 'notifications_enabled': True, 'language': 'en'}
+2026-01-12 18:14:23,172 - root - INFO - Reloaded 5 questions based on settings
+2026-01-12 18:14:30,953 - root - INFO - Session started | user=rohan | age=20 | age_group=adult | profession=Student | questions=5
+2026-01-12 18:14:31,069 - root - INFO - Loaded settings for user 4: {'theme': 'dark', 'question_count': 5, 'sound_enabled': True, 'notifications_enabled': True, 'language': 'en'}
+2026-01-12 18:14:31,083 - root - INFO - Reloaded 5 questions based on settings
+2026-01-12 18:14:31,097 - app.services.exam_service - INFO - Exam session started for user: rohan
+2026-01-12 18:20:02,694 - root - INFO - Logging initialized.
+2026-01-12 18:20:02,718 - root - INFO - Application started
+2026-01-12 18:20:02,721 - root - INFO - Loaded 10 total questions from DB
+2026-01-12 18:20:05,641 - root - INFO - Loading ML Model: models\risk_model_v20260111_223056.pkl
+2026-01-12 18:20:05,768 - root - INFO - ML Predictor initialized successfully
+2026-01-12 18:20:05,875 - root - INFO - SentimentIntensityAnalyzer initialized successfully
+2026-01-12 18:20:05,888 - root - INFO - Using 10 questions based on settings
+2026-01-12 18:20:16,253 - root - INFO - Session started | user=rohan | age=20 | age_group=adult | profession=Student | questions=10
+2026-01-12 18:20:16,446 - root - INFO - Loaded settings for user 4: {'theme': 'dark', 'question_count': 5, 'sound_enabled': True, 'notifications_enabled': True, 'language': 'en'}
+2026-01-12 18:20:16,463 - root - INFO - Reloaded 5 questions based on settings
+2026-01-12 18:20:40,970 - root - INFO - Session started | user=rohan | age=20 | age_group=adult | profession=Student | questions=5
+2026-01-12 18:20:41,079 - root - INFO - Loaded settings for user 4: {'theme': 'dark', 'question_count': 5, 'sound_enabled': True, 'notifications_enabled': True, 'language': 'en'}
+2026-01-12 18:20:41,081 - root - INFO - Reloaded 5 questions based on settings
+2026-01-12 18:20:41,088 - app.services.exam_service - INFO - Exam session started for user: rohan
+2026-01-12 18:25:33,271 - root - INFO - Logging initialized.
+2026-01-12 18:25:33,298 - root - INFO - Application started
+2026-01-12 18:25:33,309 - root - INFO - Loaded 10 total questions from DB
+2026-01-12 18:25:36,030 - root - INFO - Loading ML Model: models\risk_model_v20260111_223056.pkl
+2026-01-12 18:25:36,141 - root - INFO - ML Predictor initialized successfully
+2026-01-12 18:25:36,221 - root - INFO - SentimentIntensityAnalyzer initialized successfully
+2026-01-12 18:25:36,238 - root - ERROR - 
+
+>>> APP INITIALIZED V2.1 <<<
+
+2026-01-12 18:25:36,255 - root - INFO - Using 10 questions based on settings
+2026-01-12 18:25:53,856 - root - INFO - Session started | user=rohan | age=20 | age_group=adult | profession=Student | questions=10
+2026-01-12 18:25:54,025 - root - INFO - Loaded settings for user 4: {'theme': 'dark', 'question_count': 5, 'sound_enabled': True, 'notifications_enabled': True, 'language': 'en'}
+2026-01-12 18:25:54,026 - root - INFO - Reloaded 5 questions based on settings
+2026-01-12 18:26:07,984 - root - INFO - Session started | user=rohan | age=20 | age_group=adult | profession=Student | questions=5
+2026-01-12 18:26:08,110 - root - INFO - Loaded settings for user 4: {'theme': 'dark', 'question_count': 5, 'sound_enabled': True, 'notifications_enabled': True, 'language': 'en'}
+2026-01-12 18:26:08,111 - root - INFO - Reloaded 5 questions based on settings
+2026-01-12 18:26:08,126 - app.services.exam_service - INFO - Exam session started for user: rohan
+2026-01-12 18:30:55,978 - root - INFO - Logging initialized.
+2026-01-12 18:30:56,002 - root - INFO - Application started
+2026-01-12 18:30:56,005 - root - INFO - Loaded 10 total questions from DB
+2026-01-12 18:30:59,080 - root - INFO - Loading ML Model: models\risk_model_v20260111_223056.pkl
+2026-01-12 18:30:59,225 - root - INFO - ML Predictor initialized successfully
+2026-01-12 18:30:59,283 - root - INFO - SentimentIntensityAnalyzer initialized successfully
+2026-01-12 18:30:59,288 - root - ERROR - 
+
+>>> APP INITIALIZED V2.1 <<<
+
+2026-01-12 18:30:59,291 - root - INFO - Using 10 questions based on settings
+2026-01-12 18:31:08,154 - root - INFO - Session started | user=rohan | age=20 | age_group=adult | profession=Student | questions=10
+2026-01-12 18:31:08,320 - root - INFO - Loaded settings for user 4: {'theme': 'dark', 'question_count': 5, 'sound_enabled': True, 'notifications_enabled': True, 'language': 'en'}
+2026-01-12 18:31:08,321 - root - INFO - Reloaded 5 questions based on settings
+2026-01-12 18:31:09,435 - root - ERROR - 
+
+>>> DEBUG: Start Test Clicked! (New Handler)
+2026-01-12 18:31:09,439 - root - ERROR - >>> DEBUG: self.current_user_id = 4
+2026-01-12 18:31:09,446 - root - ERROR - >>> DEBUG: GOING TO EXAM
+2026-01-12 18:31:09,467 - app.services.exam_service - INFO - Exam session started for user: rohan
+2026-01-12 18:31:25,890 - app.services.exam_service - INFO - Exam saved. Score: 8, Sentiment: 52.669999999999995
+2026-01-12 18:31:35,688 - app.db - ERROR - Unexpected error in DB context: 'Response' object is not subscriptable
+Traceback (most recent call last):
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\db.py", line 32, in safe_db_context
+    yield session
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\analysis\time_based_analysis.py", line 218, in analyze_response_patterns_over_time
+    all_values = [r["response_value"] for r in responses]
+                  ~^^^^^^^^^^^^^^^^^^
+TypeError: 'Response' object is not subscriptable
+2026-01-12 18:31:35,796 - app.analysis.time_based_analysis - ERROR - Error analyzing response patterns for rohan: An unexpected database error occurred.
+2026-01-12 18:31:36,147 - app.ml.clustering - INFO - Model loaded from B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\ml\models\clustering\emotional_profile_model.pkl
+2026-01-12 18:31:56,260 - root - ERROR - AI Analysis failed
+Traceback (most recent call last):
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\ui\results.py", line 855, in show_ml_analysis
+    visual_features = {k: v for k, v in result['features'].items()
+                                        ~~~~~~^^^^^^^^^^^^
+KeyError: 'features'
+2026-01-12 18:32:15,824 - root - INFO - User rohan logged out
+2026-01-12 18:32:15,825 - root - INFO - Reloaded 10 questions based on settings
+2026-01-12 18:32:17,413 - root - ERROR - 
+
+>>> DEBUG: Start Test Clicked! (New Handler)
+2026-01-12 18:32:17,414 - root - ERROR - >>> DEBUG: self.current_user_id = None
+2026-01-12 18:32:17,415 - root - ERROR - >>> DEBUG: GOING TO FORM (ID Missing)
+2026-01-12 18:32:23,535 - root - INFO - Session started | user=rohan | age=20 | age_group=adult | profession=Student | questions=10
+2026-01-12 18:32:23,634 - root - INFO - Loaded settings for user 4: {'theme': 'dark', 'question_count': 5, 'sound_enabled': True, 'notifications_enabled': True, 'language': 'en'}
+2026-01-12 18:32:23,636 - root - INFO - Reloaded 5 questions based on settings
+2026-01-12 18:32:25,561 - root - ERROR - 
+
+>>> DEBUG: Start Test Clicked! (New Handler)
+2026-01-12 18:32:25,562 - root - ERROR - >>> DEBUG: self.current_user_id = 4
+2026-01-12 18:32:25,562 - root - ERROR - >>> DEBUG: GOING TO EXAM
+2026-01-12 18:32:25,563 - app.services.exam_service - INFO - Exam session started for user: rohan
+2026-01-12 18:32:55,570 - root - INFO - Logging initialized.
+2026-01-12 18:32:55,571 - root - INFO - Application started
+2026-01-12 18:32:55,574 - root - INFO - Loaded 10 total questions from DB
+2026-01-12 18:32:58,063 - root - INFO - Loading ML Model: models\risk_model_v20260111_223056.pkl
+2026-01-12 18:32:58,137 - root - INFO - ML Predictor initialized successfully
+2026-01-12 18:32:58,202 - root - INFO - SentimentIntensityAnalyzer initialized successfully
+2026-01-12 18:32:58,209 - root - ERROR - 
+
+>>> APP INITIALIZED V2.1 <<<
+
+2026-01-12 18:32:58,209 - root - INFO - Using 10 questions based on settings
+2026-01-12 18:33:25,952 - root - INFO - Session started | user=rohan | age=20 | age_group=adult | profession=Student | questions=10
+2026-01-12 18:33:26,144 - root - INFO - Loaded settings for user 4: {'theme': 'dark', 'question_count': 5, 'sound_enabled': True, 'notifications_enabled': True, 'language': 'en'}
+2026-01-12 18:33:26,145 - root - INFO - Reloaded 5 questions based on settings
+2026-01-12 18:47:48,499 - root - INFO - Logging initialized.
+2026-01-12 18:47:48,521 - root - INFO - Application started
+2026-01-12 18:47:48,524 - root - INFO - Loaded 10 total questions from DB
+2026-01-12 18:47:51,388 - root - INFO - Loading ML Model: models\risk_model_v20260111_223056.pkl
+2026-01-12 18:47:51,486 - root - INFO - ML Predictor initialized successfully
+2026-01-12 18:47:51,541 - root - INFO - SentimentIntensityAnalyzer initialized successfully
+2026-01-12 18:47:51,542 - root - ERROR - 
+
+>>> APP INITIALIZED V2.1 <<<
+
+2026-01-12 18:47:51,542 - root - INFO - Using 10 questions based on settings
+2026-01-12 18:48:22,362 - root - INFO - Session started | user=rohan | age=20 | age_group=adult | profession=Student | questions=10
+2026-01-12 18:48:22,536 - root - INFO - Loaded settings for user 4: {'theme': 'dark', 'question_count': 5, 'sound_enabled': True, 'notifications_enabled': True, 'language': 'en'}
+2026-01-12 18:48:22,538 - root - INFO - Reloaded 5 questions based on settings
+2026-01-12 18:48:23,971 - root - ERROR - 
+
+>>> DEBUG: Start Test Clicked! (New Handler)
+2026-01-12 18:48:23,971 - root - ERROR - >>> DEBUG: self.current_user_id = 4
+2026-01-12 18:48:23,972 - root - ERROR - >>> DEBUG: GOING TO EXAM
+2026-01-12 18:48:24,073 - app.services.exam_service - INFO - Exam session started for user: rohan
+2026-01-12 18:51:36,408 - root - INFO - Logging initialized.
+2026-01-12 18:51:36,431 - root - INFO - Application started
+2026-01-12 18:51:36,444 - root - INFO - Loaded 10 total questions from DB
+2026-01-12 18:51:39,296 - root - INFO - Loading ML Model: models\risk_model_v20260111_223056.pkl
+2026-01-12 18:51:39,373 - root - INFO - ML Predictor initialized successfully
+2026-01-12 18:51:39,458 - root - INFO - SentimentIntensityAnalyzer initialized successfully
+2026-01-12 18:51:39,473 - root - ERROR - 
+
+>>> APP INITIALIZED V2.1 <<<
+
+2026-01-12 18:51:39,488 - root - INFO - Using 10 questions based on settings
+2026-01-12 18:51:51,485 - root - INFO - Session started | user=rohan | age=20 | age_group=adult | profession=Student | questions=10
+2026-01-12 18:51:51,684 - root - INFO - Loaded settings for user 4: {'theme': 'dark', 'question_count': 5, 'sound_enabled': True, 'notifications_enabled': True, 'language': 'en'}
+2026-01-12 18:51:51,692 - root - INFO - Reloaded 5 questions based on settings
