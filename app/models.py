@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, Float, DateTime, ForeignKey, Boolean, Index, func, event, text
+from sqlalchemy import Column, Integer, String, Text, Float, DateTime, ForeignKey, Boolean, Index, func, event, text, JSON
 from sqlalchemy.orm import declarative_base, relationship
 from datetime import datetime, timedelta
 import logging
@@ -26,6 +26,8 @@ class User(Base):
 
     scores = relationship("Score", back_populates="user", cascade="all, delete-orphan")
     responses = relationship("Response", back_populates="user", cascade="all, delete-orphan")
+    satisfaction_records = relationship("WorkStudySatisfaction", back_populates="user", cascade="all, delete-orphan")
+    # ADDED: satisfaction_records relationship
 
 class Score(Base):
     __tablename__ = 'scores'
@@ -102,6 +104,212 @@ class JournalEntry(Base):
     content = Column(Text)
     sentiment_score = Column(Float)
     emotional_patterns = Column(Text)
+
+# ==================== WORK/STUDY SATISFACTION MODEL ====================
+
+class WorkStudySatisfaction(Base):
+    __tablename__ = 'work_study_satisfaction'
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False, index=True)
+    
+    # Core satisfaction scores (1-5 scale)
+    motivation_score = Column(Integer, nullable=False)  # How motivated are you?
+    engagement_score = Column(Integer, nullable=False)  # How engaged do you feel?
+    progress_score = Column(Integer, nullable=False)    # Satisfaction with progress
+    environment_score = Column(Integer, nullable=False) # Satisfaction with environment
+    balance_score = Column(Integer, nullable=False)     # Work-study-life balance
+    
+    # Calculated scores
+    overall_score = Column(Float, index=True)  # 0-100 scale
+    weighted_average = Column(Float)           # Weighted average (1-5 scale)
+    
+    # Context
+    context_type = Column(String, default="work")  # "work", "study", or "both"
+    occupation = Column(String, nullable=True)     # Job title/student status
+    tenure_months = Column(Integer, nullable=True) # Months in current role/study
+    
+    # Interpretation and recommendations
+    interpretation = Column(String, nullable=False)
+    recommendations = Column(JSON)  # Structured recommendations
+    insights = Column(Text)         # Free-text insights
+    
+    # Metadata
+    assessment_date = Column(String, default=lambda: datetime.utcnow().isoformat())
+    created_at = Column(String, default=lambda: datetime.utcnow().isoformat())
+    updated_at = Column(String, default=lambda: datetime.utcnow().isoformat(), 
+                       onupdate=lambda: datetime.utcnow().isoformat())
+    
+    # Relationship
+    user = relationship("User", back_populates="satisfaction_records")
+    
+    # Indexes for performance
+    __table_args__ = (
+        Index('idx_satisfaction_user_date', 'user_id', 'assessment_date'),
+        Index('idx_satisfaction_score_range', 'overall_score'),
+        Index('idx_satisfaction_context', 'context_type', 'overall_score'),
+        Index('idx_satisfaction_occupation', 'occupation', 'overall_score'),
+    )
+    
+    def to_dict(self):
+        """Convert to dictionary for API responses"""
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'domain_scores': {
+                'motivation': {
+                    'raw': self.motivation_score,
+                    'interpretation': self._interpret_domain_score(self.motivation_score)
+                },
+                'engagement': {
+                    'raw': self.engagement_score,
+                    'interpretation': self._interpret_domain_score(self.engagement_score)
+                },
+                'progress': {
+                    'raw': self.progress_score,
+                    'interpretation': self._interpret_domain_score(self.progress_score)
+                },
+                'environment': {
+                    'raw': self.environment_score,
+                    'interpretation': self._interpret_domain_score(self.environment_score)
+                },
+                'balance': {
+                    'raw': self.balance_score,
+                    'interpretation': self._interpret_domain_score(self.balance_score)
+                }
+            },
+            'overall': {
+                'score': self.overall_score,
+                'weighted_average': self.weighted_average,
+                'interpretation': self.interpretation
+            },
+            'context': {
+                'type': self.context_type,
+                'occupation': self.occupation,
+                'tenure_months': self.tenure_months
+            },
+            'recommendations': self.recommendations or [],
+            'insights': self.insights,
+            'timestamps': {
+                'assessment_date': self.assessment_date,
+                'created_at': self.created_at,
+                'updated_at': self.updated_at
+            }
+        }
+    
+    def _interpret_domain_score(self, score: int) -> str:
+        """Interpret individual domain scores (1-5 scale)"""
+        interpretations = {
+            1: "Very Low - Significant concerns",
+            2: "Low - Needs improvement",
+            3: "Moderate - Room for growth",
+            4: "High - Generally positive",
+            5: "Very High - Excellent"
+        }
+        return interpretations.get(score, "Unknown")
+    
+    def calculate_overall_score(self):
+        """Calculate overall satisfaction score (0-100 scale)"""
+        weights = {
+            'motivation': 0.3,
+            'engagement': 0.25,
+            'progress': 0.2,
+            'environment': 0.15,
+            'balance': 0.1
+        }
+        
+        weighted_sum = (
+            self.motivation_score * weights['motivation'] +
+            self.engagement_score * weights['engagement'] +
+            self.progress_score * weights['progress'] +
+            self.environment_score * weights['environment'] +
+            self.balance_score * weights['balance']
+        )
+        
+        # Convert from 1-5 weighted average to 0-100 scale
+        self.weighted_average = weighted_sum
+        self.overall_score = round(weighted_sum * 20, 1)  # (1-5) * 20 = (0-100)
+        
+        return self.overall_score
+    
+    def generate_interpretation(self):
+        """Generate interpretation based on overall score"""
+        if self.overall_score >= 80:
+            self.interpretation = "High Satisfaction"
+        elif self.overall_score >= 60:
+            self.interpretation = "Moderate Satisfaction"
+        elif self.overall_score >= 40:
+            self.interpretation = "Low Satisfaction"
+        else:
+            self.interpretation = "Critical Dissatisfaction"
+
+# ==================== SATISFACTION TREND ANALYSIS ====================
+
+class SatisfactionTrend(Base):
+    __tablename__ = 'satisfaction_trends'
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False, index=True)
+    
+    # Trend metrics
+    period_start = Column(String, nullable=False)  # e.g., "2024-01-01"
+    period_end = Column(String, nullable=False)    # e.g., "2024-01-31"
+    period_type = Column(String, nullable=False)   # "weekly", "monthly", "quarterly"
+    
+    # Averages for the period
+    avg_motivation = Column(Float)
+    avg_engagement = Column(Float)
+    avg_progress = Column(Float)
+    avg_environment = Column(Float)
+    avg_balance = Column(Float)
+    avg_overall = Column(Float)
+    
+    # Trend indicators
+    trend_direction = Column(String)  # "improving", "declining", "stable"
+    trend_magnitude = Column(Float)   # Percentage change
+    
+    # Calculated fields
+    calculated_at = Column(String, default=lambda: datetime.utcnow().isoformat())
+    
+    # Indexes
+    __table_args__ = (
+        Index('idx_trend_user_period', 'user_id', 'period_start', 'period_end'),
+        Index('idx_trend_direction', 'trend_direction', 'avg_overall'),
+    )
+    
+    user = relationship("User")
+
+# ==================== SATISFACTION BENCHMARKS ====================
+
+class SatisfactionBenchmark(Base):
+    __tablename__ = 'satisfaction_benchmarks'
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    
+    # Benchmark grouping
+    industry_sector = Column(String, index=True)  # e.g., "technology", "education", "healthcare"
+    role_type = Column(String, index=True)        # e.g., "student", "professional", "manager"
+    experience_level = Column(String, index=True) # e.g., "entry", "mid", "senior"
+    
+    # Benchmark scores (50th percentile)
+    benchmark_motivation = Column(Float)
+    benchmark_engagement = Column(Float)
+    benchmark_progress = Column(Float)
+    benchmark_environment = Column(Float)
+    benchmark_balance = Column(Float)
+    benchmark_overall = Column(Float)
+    
+    # Statistical data
+    sample_size = Column(Integer)
+    std_dev = Column(Float)
+    
+    # Metadata
+    last_updated = Column(String, default=lambda: datetime.utcnow().isoformat())
+    data_source = Column(String)  # e.g., "internal", "external_study"
+    
+    __table_args__ = (
+        Index('idx_benchmark_sector_role', 'industry_sector', 'role_type'),
+    )
 
 # Simple function to get session (from upstream)
 def get_session():
@@ -226,6 +434,20 @@ def create_performance_indexes(engine):
             ON question_bank(is_active, id, question_text)
         """))
         
+        # Create satisfaction-specific indexes
+        conn.execute(text("""
+            CREATE INDEX IF NOT EXISTS idx_satisfaction_overall_trend 
+            ON work_study_satisfaction(user_id, overall_score, assessment_date)
+        """))
+        
+        conn.execute(text("""
+            CREATE INDEX IF NOT EXISTS idx_satisfaction_domain_analysis 
+            ON work_study_satisfaction(
+                motivation_score, engagement_score, progress_score, 
+                environment_score, balance_score
+            )
+        """))
+        
         # Optimize the database
         conn.execute(text('PRAGMA optimize'))
         
@@ -256,11 +478,21 @@ def preload_frequent_data(session):
             Question.is_active == 1
         ).scalar() or 0
         
+        # Cache satisfaction statistics if table exists
+        try:
+            satisfaction_avg = session.query(func.avg(WorkStudySatisfaction.overall_score)).scalar() or 0
+            satisfaction_count = session.query(func.count(WorkStudySatisfaction.id)).scalar() or 0
+        except:
+            satisfaction_avg = 0
+            satisfaction_count = 0
+        
         stats = [
             ('avg_score_global', avg_score, datetime.utcnow().isoformat()),
             ('question_count', question_count, datetime.utcnow().isoformat()),
             ('active_users', session.query(func.count(User.id)).scalar() or 0, 
-             datetime.utcnow().isoformat())
+             datetime.utcnow().isoformat()),
+            ('satisfaction_avg', satisfaction_avg, datetime.utcnow().isoformat()),
+            ('satisfaction_count', satisfaction_count, datetime.utcnow().isoformat())
         ]
         
         for stat_name, stat_value, calculated_at in stats:
@@ -321,6 +553,14 @@ def get_user_scores_optimized(session, username, limit=50):
         Score.username == username
     ).order_by(
         Score.timestamp.desc()
+    ).limit(limit).all()
+
+def get_satisfaction_history_optimized(session, user_id, limit=20):
+    """Optimized query for user's satisfaction history"""
+    return session.query(WorkStudySatisfaction).filter(
+        WorkStudySatisfaction.user_id == user_id
+    ).order_by(
+        WorkStudySatisfaction.assessment_date.desc()
     ).limit(limit).all()
 
 # Initialize logger

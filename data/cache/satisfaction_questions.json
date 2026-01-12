@@ -2,76 +2,6 @@
   "timestamp": "2026-01-12T00:13:39.724709",
   "questions": [
     [
-      1,
-      "I recognize my emotions as I experience them.",
-      null,
-      0,
-      120
-    ],
-    [
-      2,
-      "I lose my temper when I get frustrated.",
-      null,
-      0,
-      120
-    ],
-    [
-      3,
-      "I know when others are feeling sad or down.",
-      null,
-      0,
-      120
-    ],
-    [
-      4,
-      "I can resolve conflicts effectively.",
-      null,
-      0,
-      120
-    ],
-    [
-      5,
-      "I stay calm under pressure.",
-      null,
-      0,
-      120
-    ],
-    [
-      6,
-      "I understand how my behavior affects others.",
-      null,
-      0,
-      120
-    ],
-    [
-      7,
-      "I listen effectively to others.",
-      null,
-      0,
-      120
-    ],
-    [
-      8,
-      "I help others manage their emotions.",
-      null,
-      0,
-      120
-    ],
-    [
-      9,
-      "I am aware of my strengths and weaknesses.",
-      null,
-      0,
-      120
-    ],
-    [
-      10,
-      "I find it difficult to handle change.",
-      null,
-      0,
-      120
-    ],
-    [
       101,
       "How motivated are you to engage in your work/studies?",
       "Satisfaction with my motivation and drive",
@@ -142,26 +72,30 @@
       120
     ]
   ],
-  "question_categories": {
-    "1-10": "emotional_intelligence",
-    "101-110": "work_study_satisfaction"
+  "categories": {
+    "101": "motivation",
+    "102": "engagement",
+    "103": "progress",
+    "104": "environment",
+    "105": "balance",
+    "106": "meaning",
+    "107": "support",
+    "108": "clarity",
+    "109": "autonomy",
+    "110": "overall"
   },
-  "satisfaction_questions": {
-    "core": [101, 102, 103, 104, 105],
-    "extended": [106, 107, 108, 109, 110],
-    "weights": {
-      "101": 0.3,
-      "102": 0.25,
-      "103": 0.2,
-      "104": 0.15,
-      "105": 0.1,
-      "106": 0.05,
-      "107": 0.05,
-      "108": 0.05,
-      "109": 0.05,
-      "110": 0.05
-    }
+  "scale_explanation": {
+    "min": 1,
+    "max": 5,
+    "labels": {
+      "1": "Very Low / Very Dissatisfied",
+      "2": "Low / Dissatisfied",
+      "3": "Moderate / Neutral",
+      "4": "High / Satisfied",
+      "5": "Very High / Very Satisfied"
+    },
+    "interpretation": "5-point Likert scale measuring satisfaction levels"
   },
-  "age_filter": null,
-  "count": 20
+  "question_types": "work_study_satisfaction",
+  "count": 10
 }
