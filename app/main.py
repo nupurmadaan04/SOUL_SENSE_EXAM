@@ -277,7 +277,30 @@ class SoulSenseApp:
         self.age_group = None
         self.profession = None
         
+        self.profile_view = None # Singleton reference
+        
         self.create_welcome_screen()
+
+    # ... (other methods) ...
+
+    def open_profile_flow(self):
+        """Open User Profile (Medical + Settings)"""
+        if not self.username:
+             messagebox.showwarning("Login Required", "Please enter your name first.")
+             return
+
+        # Check existing window
+        if self.profile_view and self.profile_view.window.winfo_exists():
+            self.profile_view.window.lift()
+            self.profile_view.window.focus_force()
+            return
+
+        try:
+            from app.ui.profile import UserProfileView
+            self.profile_view = UserProfileView(self.root, self)
+        except Exception as e:
+            logging.error(f"Failed to open profile: {e}")
+            messagebox.showerror("Error", f"Profile module could not be loaded: {e}")
 
     def load_user_settings(self, user_id):
         """Load and apply settings for specific user"""
@@ -539,19 +562,6 @@ class SoulSenseApp:
     def show_settings(self):
         """Show settings configuration window"""
         self.settings_manager.show_settings()
-
-    def open_profile_flow(self):
-        """Open User Profile (Medical + Settings)"""
-        if not self.username:
-             messagebox.showwarning("Login Required", "Please enter your name first.")
-             return
-
-        try:
-            from app.ui.profile import UserProfileView
-            UserProfileView(self.root, self)
-        except Exception as e:
-            logging.error(f"Failed to open profile: {e}")
-            messagebox.showerror("Error", f"Profile module could not be loaded: {e}")
 
     # ---------- ORIGINAL SCREENS (Modified) ----------
     def create_username_screen(self, callback=None):

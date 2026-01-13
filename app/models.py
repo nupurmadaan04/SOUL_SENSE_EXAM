@@ -28,6 +28,7 @@ class User(Base):
     responses = relationship("Response", back_populates="user", cascade="all, delete-orphan")
     settings = relationship("UserSettings", uselist=False, back_populates="user", cascade="all, delete-orphan")
     medical_profile = relationship("MedicalProfile", uselist=False, back_populates="user", cascade="all, delete-orphan")
+    personal_profile = relationship("PersonalProfile", uselist=False, back_populates="user", cascade="all, delete-orphan")
 
 class UserSettings(Base):
     __tablename__ = 'user_settings'
@@ -60,6 +61,24 @@ class MedicalProfile(Base):
     last_updated = Column(String, default=lambda: datetime.utcnow().isoformat())
 
     user = relationship("User", back_populates="medical_profile")
+
+class PersonalProfile(Base):
+    __tablename__ = 'personal_profiles'
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id'), unique=True, index=True, nullable=False)
+    
+    occupation = Column(String, nullable=True)
+    education = Column(String, nullable=True)
+    marital_status = Column(String, nullable=True)
+    hobbies = Column(Text, nullable=True)     # Store as JSON string or comma-separated
+    bio = Column(Text, nullable=True)
+    life_events = Column(Text, nullable=True) # JSON: [{date, title, description, impact}]
+    avatar_path = Column(String, nullable=True) # Path to local image file
+    
+    last_updated = Column(String, default=lambda: datetime.utcnow().isoformat())
+
+    user = relationship("User", back_populates="personal_profile")
 
 class Score(Base):
     __tablename__ = 'scores'

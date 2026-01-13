@@ -32,14 +32,13 @@ class SidebarNav(tk.Frame):
         header.pack(fill="x", padx=20, pady=30)
         
         # Avatar Placeholder (Circle)
-        avatar_canvas = tk.Canvas(header, width=60, height=60, bg=self.app.colors.get("sidebar_bg"), highlightthickness=0)
-        avatar_canvas.pack(side="left")
+        self.avatar_canvas = tk.Canvas(header, width=60, height=60, bg=self.app.colors.get("sidebar_bg"), highlightthickness=0, cursor="hand2")
+        self.avatar_canvas.pack(side="left")
         
-        # Draw circle
-        avatar_canvas.create_oval(5, 5, 55, 55, fill="white", outline=self.app.colors.get("sidebar_divider"))
-        # Initials
-        initial = self.app.username[0].upper() if self.app.username else "?"
-        avatar_canvas.create_text(30, 30, text=initial, font=("Segoe UI", 20, "bold"), fill=self.app.colors.get("sidebar_bg"))
+        # Load existing avatar if available
+        self._load_avatar()
+        
+        self.avatar_canvas.bind("<Button-1>", self._upload_avatar)
         
         # Name Info
         info_frame = tk.Frame(header, bg=self.app.colors.get("sidebar_bg"))
@@ -56,12 +55,83 @@ class SidebarNav(tk.Frame):
         
         tk.Label(
             info_frame, 
-            text="User Profile",
-            font=("Segoe UI", 9),
+            text="Edit Profile Picture", 
+            font=("Segoe UI", 8),
             bg=self.app.colors.get("sidebar_bg"),
             fg=self.app.colors.get("sidebar_divider"),
-            anchor="w"
+            anchor="w",
+            cursor="hand2"
         ).pack(fill="x")
+        
+    def _load_avatar(self):
+        import os
+        from PIL import Image, ImageTk, ImageDraw
+        
+        avatar_path = os.path.join("app_data", "avatars", f"{self.app.username}_avatar.png")
+        
+        self.avatar_canvas.delete("all")
+        
+        if os.path.exists(avatar_path):
+            try:
+                # Load and Resize for display (60x60)
+                img = Image.open(avatar_path)
+                img = img.resize((56, 56), Image.Resampling.LANCZOS)
+                
+                # Circular Mask (Safety check)
+                # Ensure the saved image is proper, but for display we can just blit it inside a circle?
+                # Actually, ImageCropper saves a transparent circular PNG.
+                # Just displaying it is enough.
+                
+                self.tk_avatar = ImageTk.PhotoImage(img) # Keep ref
+                
+                # Draw white border circle
+                self.avatar_canvas.create_oval(2, 2, 58, 58, fill="white", outline=self.app.colors.get("sidebar_divider"))
+                # Place image center
+                self.avatar_canvas.create_image(30, 30, image=self.tk_avatar, anchor="center")
+                
+            except Exception as e:
+                print(f"Error loading avatar: {e}")
+                self._draw_initials_avatar()
+        else:
+            self._draw_initials_avatar()
+
+    def _draw_initials_avatar(self):
+        self.avatar_canvas.delete("all")
+        self.avatar_canvas.create_oval(5, 5, 55, 55, fill="white", outline=self.app.colors.get("sidebar_divider"))
+        initial = self.app.username[0].upper() if self.app.username else "?"
+        self.avatar_canvas.create_text(30, 30, text=initial, font=("Segoe UI", 20, "bold"), fill=self.app.colors.get("sidebar_bg"))
+
+    def _upload_avatar(self, event=None):
+        from tkinter import filedialog, messagebox
+        import os
+        from app.ui.components.image_cropper import AvatarCropper
+        
+        file_path = filedialog.askopenfilename(
+            title="Select Profile Picture",
+            filetypes=[("Image files", "*.png;*.jpg;*.jpeg")]
+        )
+        
+        if file_path:
+            # Audit Check: File Size < 5MB
+            if os.path.getsize(file_path) > 5 * 1024 * 1024:
+                messagebox.showwarning("File too large", "Please select an image smaller than 5MB.")
+                return
+            
+            try:
+                # Create app_data/avatars directory
+                avatar_dir = os.path.join("app_data", "avatars")
+                os.makedirs(avatar_dir, exist_ok=True)
+                dest_path = os.path.join(avatar_dir, f"{self.app.username}_avatar.png") 
+                
+                # Open Cropper Dialog
+                AvatarCropper(self, file_path, dest_path, on_complete=self._on_crop_complete)
+                
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to open cropper: {e}")
+
+    def _on_crop_complete(self):
+        # Refresh the avatar immediately
+        self._load_avatar()
 
     def _render_items(self):
         self.nav_frame = tk.Frame(self, bg=self.app.colors.get("sidebar_bg"))
