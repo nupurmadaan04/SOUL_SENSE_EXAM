@@ -56,6 +56,12 @@ logs/
 db/*.db
 *.sqlite
 *.sqlite3
+soulsense_db
+
+# =========================
+# Cache / Runtime files
+# =========================
+cache/
 
 # =========================
 # Jupyter
