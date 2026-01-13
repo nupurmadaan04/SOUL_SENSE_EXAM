@@ -29,6 +29,7 @@ class User(Base):
     settings = relationship("UserSettings", uselist=False, back_populates="user", cascade="all, delete-orphan")
     medical_profile = relationship("MedicalProfile", uselist=False, back_populates="user", cascade="all, delete-orphan")
     personal_profile = relationship("PersonalProfile", uselist=False, back_populates="user", cascade="all, delete-orphan")
+    strengths = relationship("UserStrengths", uselist=False, back_populates="user", cascade="all, delete-orphan")
 
 class UserSettings(Base):
     __tablename__ = 'user_settings'
@@ -79,6 +80,28 @@ class PersonalProfile(Base):
     last_updated = Column(String, default=lambda: datetime.utcnow().isoformat())
 
     user = relationship("User", back_populates="personal_profile")
+
+class UserStrengths(Base):
+    __tablename__ = 'user_strengths'
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id'), unique=True, index=True, nullable=False)
+    
+    # JSON Lists for Tags
+    top_strengths = Column(Text, default="[]") # e.g. ["Creativity", "Empathy"]
+    areas_for_improvement = Column(Text, default="[]") # e.g. ["Public Speaking"]
+    
+    # Preferences
+    learning_style = Column(String, nullable=True) # Visual, Auditory, etc.
+    communication_preference = Column(String, nullable=True) # Direct, Supportive
+    
+    # Boundaries & Goals
+    sharing_boundaries = Column(Text, default="[]") # JSON List
+    goals = Column(Text, nullable=True)
+    
+    last_updated = Column(String, default=lambda: datetime.utcnow().isoformat())
+
+    user = relationship("User", back_populates="strengths")
 
 class Score(Base):
     __tablename__ = 'scores'

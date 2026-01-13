@@ -45,10 +45,24 @@ class LifeTimeline(tk.Frame):
         self.canvas.configure(yscrollcommand=self.scrollbar.set)
         
         self.canvas.pack(side="left", fill="both", expand=True)
-        self.scrollbar.pack(side="right", fill="y")
+        # self.scrollbar.pack(side="right", fill="y") # HIDDEN as requested
         
-        # Bind mousewheel
-        self.canvas.bind_all("<MouseWheel>", self._on_mousewheel)
+        # Smart Scroll: Bind only when hovering
+        def _on_mousewheel_local(event):
+            try:
+                if self.canvas.winfo_exists():
+                    self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+            except Exception: pass
+
+        def _bind_mouse(event):
+            self.canvas.bind_all("<MouseWheel>", _on_mousewheel_local)
+            
+        def _unbind_mouse(event):
+            try: self.canvas.unbind_all("<MouseWheel>")
+            except: pass
+
+        self.canvas.bind("<Enter>", _bind_mouse)
+        self.canvas.bind("<Leave>", _unbind_mouse)
         
         self._render_events()
 
@@ -167,6 +181,3 @@ class LifeTimeline(tk.Frame):
         self.events = events
         self._sort_events()
         self._render_events()
-        
-    def _on_mousewheel(self, event):
-        self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")

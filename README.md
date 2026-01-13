@@ -207,6 +207,11 @@ The application is grounded in established emotional intelligence theory (Salove
   - User authentication data
 - Backward-compatible database schema migrations
 - Pytest-based test suite with isolated temporary databases
+- **Enhanced User Profile (NEW!)**
+  - **Medical Profile**: Track allergies, conditions, and emergency contacts
+  - **Personal History**: Visual timeline of life events
+  - **Strengths & Goals**: Track personal strengths, learning styles, and aspirations
+  - **Avatar Customization**: Upload and crop profile pictures
 - Daily emotional journal with AI sentiment analysis
 - Emotional pattern tracking and insights
 - View past journal entries and emotional journey
@@ -453,7 +458,15 @@ Ensure your database schema is up to date:
 python -m alembic upgrade head
 ```
 
-### 2. Start the Application
+### 2. Seed Initial Data
+
+Populate the database with default questions and categories:
+
+```bash
+python -m scripts.seed_db
+```
+
+### 3. Start the Application
 
 Launch the SoulSense interface:
 

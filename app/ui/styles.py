@@ -260,31 +260,67 @@ class UIStyles:
         """Configure ttk styles for modern look"""
         style = ttk.Style()
         
+        # PROACTIVE FIX: Force 'clam' theme to respect custom background colors
+        # Standard Windows themes (vista/xpnative) often ignore custom fieldbackgrounds.
+        try:
+            style.theme_use('clam')
+        except tk.TclError:
+            pass # Fallback if clam unavailable
+        
+        # General background fix for clam
+        style.configure(".", background=self.app.colors["bg"], foreground=self.app.colors["fg"])
+
         # Progress bar style
         style.configure(
             "Premium.Horizontal.TProgressbar",
             troughcolor=self.app.colors["bg_secondary"],
             background=self.app.colors["primary"],
-            thickness=8
+            thickness=8,
+            borderwidth=0
         )
         
         # Notebook (Tab) style
         style.configure(
             "Premium.TNotebook",
             background=self.app.colors["bg"],
-            borderwidth=0
+            borderwidth=0,
+            tabmargins=[0, 0, 0, 0]
         )
         style.configure(
             "Premium.TNotebook.Tab",
             background=self.app.colors["surface"],
             foreground=self.app.colors["text_secondary"],
             padding=[16, 8],
-            font=self.get_font("md")
+            font=self.get_font("md"),
+            borderwidth=0
         )
         style.map(
             "Premium.TNotebook.Tab",
             background=[("selected", self.app.colors["primary"])],
             foreground=[("selected", self.app.colors["text_inverse"])]
+        )
+        
+        # Combobox Style
+        # Clam theme uses fieldbackground for the input area
+        style.configure(
+            "TCombobox",
+            fieldbackground=self.app.colors["entry_bg"],
+            background=self.app.colors["bg_secondary"], # Arrow area
+            foreground=self.app.colors["text_primary"],
+            arrowcolor=self.app.colors["text_primary"],
+            selectbackground=self.app.colors["primary"],
+            selectforeground=self.app.colors["text_inverse"],
+            borderwidth=1,
+            relief="flat"
+        )
+        
+        # We need to being very specific for Clam
+        style.map(
+            "TCombobox",
+            fieldbackground=[("readonly", self.app.colors["entry_bg"]), ("disabled", self.app.colors["bg_tertiary"])],
+            selectbackground=[("readonly", self.app.colors["entry_bg"]), ("!focus", self.app.colors["entry_bg"])],
+            selectforeground=[("readonly", self.app.colors["text_primary"]), ("!focus", self.app.colors["text_primary"])],
+            foreground=[("readonly", self.app.colors["text_primary"]), ("disabled", self.app.colors["text_secondary"])]
         )
 
     def create_widget(self, widget_type, *args, **kwargs):

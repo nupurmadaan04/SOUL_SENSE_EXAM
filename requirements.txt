@@ -7,7 +7,15 @@
 # - datetime (date/time handling)
 # - re (regular expressions)
 # - collections (Counter for analytics)
+# - datetime (date/time handling)
+# - re (regular expressions)
+# - collections (Counter for analytics)
 # - hashlib (password hashing for authentication)
+
+# UI Enhancements
+tkcalendar==1.6.1
+Pillow==10.2.0
+sqlalchemy==2.0.25
 
 # External packages (REQUIRED for Graphs):
 matplotlib==3.10.0

@@ -3,10 +3,13 @@ from tkinter import ttk, messagebox, simpledialog
 import logging
 import json
 from datetime import datetime
-from app.models import get_session, MedicalProfile, User, PersonalProfile
+from app.models import get_session, MedicalProfile, User, PersonalProfile, UserStrengths
 # from app.ui.styles import ApplyTheme # Not needed
 from app.ui.sidebar import SidebarNav
+from app.models import get_session, MedicalProfile, User, PersonalProfile, UserStrengths
+from app.ui.sidebar import SidebarNav
 from app.ui.components.timeline import LifeTimeline
+from app.ui.components.tag_input import TagInput
 from tkcalendar import DateEntry
 
 class UserProfileView:
@@ -35,8 +38,9 @@ class UserProfileView:
             self.app,
             items=[
                 {"id": "medical", "icon": "🏥", "label": self.i18n.get("profile.tab_medical")},
-                {"id": "history", "icon": "📜", "label": "Personal History"}, # New Tab
-                {"id": "settings", "icon": "⚙️", "label": "Settings"}, # Placeholder
+                {"id": "history", "icon": "📜", "label": "Personal History"},
+                {"id": "strengths", "icon": "💪", "label": "Strengths & Goals"}, # New Tab
+                {"id": "settings", "icon": "⚙️", "label": "Settings"},
             ],
             on_change=self.on_nav_change
         )
@@ -56,9 +60,55 @@ class UserProfileView:
         )
         self.header_label.pack(anchor="w", pady=(0, 20))
         
-        # Content dynamic frame
-        self.view_container = tk.Frame(self.content_area, bg=self.colors.get("bg_secondary"))
-        self.view_container.pack(fill="both", expand=True)
+        # Content Dynamic Frame with Scrollbar
+        container_frame = tk.Frame(self.content_area, bg=self.colors.get("bg_secondary"))
+        container_frame.pack(fill="both", expand=True)
+
+        self.canvas = tk.Canvas(container_frame, bg=self.colors.get("bg_secondary"), highlightthickness=0)
+        
+        # User requested hidden scrollbars but functional scrolling
+        self.scrollbar = ttk.Scrollbar(container_frame, orient="vertical", command=self.canvas.yview)
+        # self.scrollbar.pack(side="right", fill="y") # HIDDEN as requested
+        
+        self.view_container = tk.Frame(self.canvas, bg=self.colors.get("bg_secondary"))
+        
+        self.canvas_window = self.canvas.create_window((0, 0), window=self.view_container, anchor="nw")
+        
+        self.canvas.configure(yscrollcommand=self.scrollbar.set)
+        self.canvas.pack(side="left", fill="both", expand=True)
+        
+        # Ensure inner frame expands to fill width AND minimal height
+        def _on_canvas_configure(event):
+            current_width = event.width
+            # Force height to be at least the canvas height (fill screen)
+            # effectively mimicking expand=True behavior for the inner frame
+            min_height = max(event.height, self.view_container.winfo_reqheight())
+            self.canvas.itemconfig(self.canvas_window, width=current_width, height=min_height)
+            
+        self.canvas.bind("<Configure>", _on_canvas_configure)
+        
+        # Also update height when content changes
+        self.view_container.bind(
+            "<Configure>",
+            lambda e: self.canvas.itemconfig(self.canvas_window, height=max(self.canvas.winfo_height(), e.height)) or self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+        )
+        
+        # Smart Scroll: Bind only when hovering
+        def _on_mousewheel(event):
+             if self.canvas.winfo_exists():
+                # Check if we should scroll (if content is larger than viewport)
+                if self.canvas.bbox("all")[3] > self.canvas.winfo_height():
+                    self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+
+        def _bind_mouse(event):
+            self.canvas.bind_all("<MouseWheel>", _on_mousewheel)
+            
+        def _unbind_mouse(event):
+            try: self.canvas.unbind_all("<MouseWheel>")
+            except: pass
+
+        self.canvas.bind("<Enter>", _bind_mouse)
+        self.canvas.bind("<Leave>", _unbind_mouse)
         
         # Views Cache
         self.views = {}
@@ -79,12 +129,18 @@ class UserProfileView:
         for widget in self.view_container.winfo_children():
             widget.destroy()
             
+        # FORCE SCROLL RESET: Reset to top
+        self.canvas.yview_moveto(0)
+            
         if view_id == "medical":
             self.header_label.configure(text=self.i18n.get("profile.header", name=self.app.username))
             self._render_medical_view()
         elif view_id == "history":
             self.header_label.configure(text="Personal History")
             self._render_history_view()
+        elif view_id == "strengths":
+            self.header_label.configure(text="Strengths & Goals")
+            self._render_strengths_view()
         elif view_id == "settings":
             self.header_label.configure(text="Account Settings")
             self._render_settings_view()
@@ -473,3 +529,159 @@ class UserProfileView:
         except Exception as e:
             logging.error(f"Error saving medical profile: {e}")
             messagebox.showerror(self.i18n.get("profile.error_title"), self.i18n.get("profile.error_msg"), parent=self.window)
+
+    # ==========================
+    # 3. STRENGTHS VIEW
+    # ==========================
+    def _render_strengths_view(self):
+        # Card Container (no fixed frame, use PanedWindow wrapper)
+        # Using a vertical frame first to hold footer
+        main_layout = tk.Frame(self.view_container, bg=self.colors.get("bg_secondary"))
+        main_layout.pack(fill="both", expand=True)
+        
+        # Responsive PanedWindow
+        paned = tk.PanedWindow(main_layout, orient=tk.HORIZONTAL, bg=self.colors.get("bg_secondary"), sashwidth=4, sashrelief="flat")
+        paned.pack(fill="both", expand=True)
+
+        # --- LEFT COLUMN: Tags ---
+        left_wrapper = tk.Frame(paned, bg=self.colors.get("bg_secondary"))
+        paned.add(left_wrapper, minsize=350, sticky="nsew", padx=5) # Tuple padding (0,5) causes TclError
+        
+        left_card = tk.Frame(left_wrapper, bg=self.colors.get("card_bg"), highlightbackground=self.colors.get("card_border"), highlightthickness=1)
+        left_card.pack(fill="both", expand=True) # Removed inner spacing here, relying on wrapper padx
+        
+        left_col = tk.Frame(left_card, bg=self.colors.get("card_bg"))
+        left_col.pack(fill="both", expand=True, padx=20, pady=20)
+        
+        self._create_section_label(left_col, "Self-Perception")
+        
+        # Top Strengths
+        self._create_field_label(left_col, "Top Strengths")
+        tk.Label(left_col, text="(Type & Enter)", font=("Segoe UI", 9), bg=self.colors.get("card_bg"), fg="gray").pack(anchor="w")
+        suggested_strengths = ["Empathy", "Creativity", "Problem Solving", "Resilience", "Leadership", "Coding"]
+        self.strengths_input = TagInput(left_col, max_tags=5, colors=self.colors, suggestion_list=suggested_strengths)
+        self.strengths_input.pack(fill="x", pady=(5, 20))
+        
+        # Improvements
+        self._create_field_label(left_col, "Areas for Improvement")
+        suggested_improvements = ["Public Speaking", "Time Management", "Delegation", "Patience", "Networking"]
+        self.improvements_input = TagInput(left_col, max_tags=5, colors=self.colors, suggestion_list=suggested_improvements)
+        self.improvements_input.pack(fill="x", pady=(0, 20))
+        
+        # Goals
+        self._create_section_label(left_col, "Aspirations")
+        self._create_field_label(left_col, "Current Goals")
+        self.goals_text = self._create_text_area(left_col)
+        
+        # --- RIGHT COLUMN: Preferences ---
+        right_wrapper = tk.Frame(paned, bg=self.colors.get("bg_secondary"))
+        paned.add(right_wrapper, minsize=350, sticky="nsew", padx=5) # Tuple padding causes error
+        
+        right_card = tk.Frame(right_wrapper, bg=self.colors.get("card_bg"), highlightbackground=self.colors.get("card_border"), highlightthickness=1)
+        right_card.pack(fill="both", expand=True)
+
+        right_col = tk.Frame(right_card, bg=self.colors.get("card_bg"))
+        right_col.pack(fill="both", expand=True, padx=20, pady=20)
+        
+        self._create_section_label(right_col, "Learning & Style")
+        
+        # Learning Style
+        self._create_field_label(right_col, "Learning Style")
+        
+        # Suggestion Helper (Future: AI based)
+        ls_frame = tk.Frame(right_col, bg=self.colors.get("card_bg"))
+        ls_frame.pack(fill="x")
+        
+        learn_styles = ["Visual (Images)", "Auditory (Listening)", "Kinesthetic (Doing)", "Reading/Writing"]
+        self.learn_style_var = tk.StringVar()
+        self.learn_style_combo = ttk.Combobox(ls_frame, textvariable=self.learn_style_var, values=learn_styles, state="readonly", font=("Segoe UI", 12))
+        self.learn_style_combo.pack(side="left", fill="x", expand=True, pady=(0, 20))
+        
+        # Suggestion Button
+        def show_ls_hint():
+            messagebox.showinfo("Suggestion", "Based on your general profile, 'Visual' or 'Kinesthetic' might fit best.\n(Full AI analysis coming soon!)")
+            
+        tk.Button(ls_frame, text="💡 Suggest", command=show_ls_hint, bg="#F59E0B", fg="white", font=("Segoe UI", 8), relief="flat", padx=10).pack(side="right", padx=(10, 0), pady=(0, 20))
+        
+        # Communication
+        self._create_field_label(right_col, "Preferred Communication Tone")
+        comm_styles = ["Direct & Concise", "Supportive & Gentle", "Data-Driven", "Storytelling"]
+        self.comm_style_var = tk.StringVar()
+        self.comm_style_combo = ttk.Combobox(right_col, textvariable=self.comm_style_var, values=comm_styles, state="readonly", font=("Segoe UI", 12))
+        self.comm_style_combo.pack(fill="x", pady=(0, 20))
+        
+        # Boundaries
+        self._create_section_label(right_col, "Privacy Boundaries")
+        self._create_field_label(right_col, "Topics to Avoid")
+        suggested_boundaries = ["Politics", "Religion", "Finances", "Family Matters", "Past Trauma"]
+        self.boundaries_input = TagInput(right_col, max_tags=5, colors=self.colors, suggestion_list=suggested_boundaries)
+        self.boundaries_input.pack(fill="x", pady=(0, 20))
+
+        # Footer Actions (Overlay or Bottom of Main Layout)
+        footer = tk.Frame(main_layout, bg=self.colors.get("bg_secondary"), height=60)
+        footer.pack(fill="x", side="bottom", padx=0, pady=10)
+        
+        save_btn = tk.Button(
+            footer, text="Save Preferences", command=self.save_strengths_data,
+            font=("Segoe UI", 12, "bold"), bg=self.colors.get("success", "#10B981"), fg="white",
+            relief="flat", cursor="hand2", width=20, pady=10
+        )
+        save_btn.pack(side="right", padx=20)
+        
+        self.load_strengths_data()
+
+    def load_strengths_data(self):
+        try:
+            session = get_session()
+            user = session.query(User).filter_by(username=self.app.username).first()
+            
+            if user and user.strengths:
+                s = user.strengths
+                
+                # Load JSONs safely
+                try: self.strengths_input.tags = json.loads(s.top_strengths)
+                except: self.strengths_input.tags = []
+                self.strengths_input._render_tags()
+                
+                try: self.improvements_input.tags = json.loads(s.areas_for_improvement)
+                except: self.improvements_input.tags = []
+                self.improvements_input._render_tags()
+                
+                try: self.boundaries_input.tags = json.loads(s.sharing_boundaries)
+                except: self.boundaries_input.tags = []
+                self.boundaries_input._render_tags()
+                
+                self.learn_style_var.set(s.learning_style or "")
+                self.comm_style_var.set(s.communication_preference or "")
+                self.goals_text.insert("1.0", s.goals or "")
+                
+            session.close()
+        except Exception as e:
+            logging.error(f"Error loading strengths: {e}")
+
+    def save_strengths_data(self):
+        try:
+            session = get_session()
+            user = session.query(User).filter_by(username=self.app.username).first()
+            
+            if not user.strengths:
+                strengths = UserStrengths(user_id=user.id)
+                user.strengths = strengths
+            else:
+                strengths = user.strengths
+            
+            # Update fields
+            strengths.top_strengths = json.dumps(self.strengths_input.get_tags())
+            strengths.areas_for_improvement = json.dumps(self.improvements_input.get_tags())
+            strengths.sharing_boundaries = json.dumps(self.boundaries_input.get_tags())
+            
+            strengths.learning_style = self.learn_style_var.get()
+            strengths.communication_preference = self.comm_style_var.get()
+            strengths.goals = self.goals_text.get("1.0", tk.END).strip()
+            
+            session.commit()
+            session.close()
+            messagebox.showinfo("Success", "Preferences saved successfully!")
+        except Exception as e:
+            logging.error(f"Error saving strengths: {e}")
+            messagebox.showerror("Error", "Failed to save preferences.")
