@@ -404,11 +404,11 @@ class JournalFeature:
         entries_window = tk.Toplevel(self.journal_window)
         entries_window.title(self.i18n.get("journal.past_entries_title"))
         entries_window.geometry("700x500")
-        entries_window.configure(bg=self.colors["bg_primary"])
+        entries_window.configure(bg=self.colors.get("bg", "#f0f0f0"))
         
         tk.Label(entries_window, text=self.i18n.get("journal.emotional_journey"), 
-                font=("Arial", 16, "bold"), bg=self.colors["bg_primary"],
-                fg=self.colors["text_primary"]).pack(pady=10)
+                font=("Arial", 16, "bold"), bg=self.colors.get("bg", "#f0f0f0"),
+                fg=self.colors.get("text_primary", "#000")).pack(pady=10)
 
         def open_history_view():
             """Open daily history view with lazy import"""
@@ -583,7 +583,7 @@ class JournalFeature:
             colors = getattr(self.app, 'colors', self.colors)
             theme = self.app.settings.get("theme", "light") if self.app else "light"
             dashboard = AnalyticsDashboard(self.journal_window, self.username, colors=colors, theme=theme)
-            dashboard.open_dashboard()
+            dashboard.render_dashboard()
         except ImportError as e:
             logging.error(f"Failed to import AnalyticsDashboard: {e}")
             messagebox.showerror("Error", "Dashboard feature not available")
