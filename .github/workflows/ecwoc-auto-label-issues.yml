@@ -1,4 +1,4 @@
-name: Auto Apply ECWoC Label to Issues
+name: Apply ECWoC Label to All Issues
 
 on:
   issues:
@@ -6,41 +6,70 @@ on:
       - opened
       - closed
 
+  # Manual trigger to label ALL previous issues
+  workflow_dispatch:
+
 permissions:
   issues: write
 
 jobs:
-  add-ecwoc-label:
+  label-issues:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Add ECWoC label to issue
+      - name: Add ECWoC label
         uses: actions/github-script@v6
         with:
           script: |
-            const issueNumber = context.issue.number;
             const owner = context.repo.owner;
             const repo = context.repo.repo;
             const labelName = "ECWoC";
 
-            // Get existing labels on the issue
-            const { data: labels } = await github.rest.issues.listLabelsOnIssue({
-              owner,
-              repo,
-              issue_number: issueNumber,
-            });
+            // Function to label a single issue
+            async function labelIssue(issue) {
+              const labels = issue.labels.map(l => l.name);
+              if (!labels.includes(labelName)) {
+                await github.rest.issues.addLabels({
+                  owner,
+                  repo,
+                  issue_number: issue.number,
+                  labels: [labelName],
+                });
+                console.log(`✅ Labeled issue #${issue.number}`);
+              } else {
+                console.log(`ℹ️ Issue #${issue.number} already labeled`);
+              }
+            }
 
-            const hasLabel = labels.some(label => label.name === labelName);
+            // If triggered by issue event (opened/closed)
+            if (context.eventName === "issues") {
+              await labelIssue(context.payload.issue);
+              return;
+            }
 
-            if (!hasLabel) {
-              await github.rest.issues.addLabels({
+            // If triggered manually → label ALL issues (open + closed)
+            let page = 1;
+            const per_page = 100;
+
+            while (true) {
+              const { data: issues } = await github.rest.issues.listForRepo({
                 owner,
                 repo,
-                issue_number: issueNumber,
-                labels: [labelName],
+                state: "all",
+                per_page,
+                page,
               });
 
-              console.log(`✅ Added '${labelName}' label to issue #${issueNumber}`);
-            } else {
-              console.log(`ℹ️ Issue #${issueNumber} already has '${labelName}' label`);
+              if (issues.length === 0) break;
+
+              for (const issue of issues) {
+                // Skip PRs
+                if (!issue.pull_request) {
+                  await labelIssue(issue);
+                }
+              }
+
+              page++;
             }
+
+            console.log("🎉 Finished labeling all issues");
