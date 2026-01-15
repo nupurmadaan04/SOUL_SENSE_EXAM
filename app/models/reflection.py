@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, Text, Float, ForeignKey, DateTime
 from sqlalchemy.sql import func
-from app.db import Base
+from app.models import Base
+
 
 class UserReflection(Base):
     __tablename__ = "user_reflections"
