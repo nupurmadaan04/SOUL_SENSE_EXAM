@@ -1,6 +1,4 @@
-
-
-def analyze_sentiment(text: str | None) -> float | None:
+def analyze_sentiment(text):
     """
     Analyze sentiment of input text.
 
@@ -8,7 +6,7 @@ def analyze_sentiment(text: str | None) -> float | None:
         float between -1.0 and 1.0 (rough sentiment score)
         or None if input is empty
     """
-    if not text:
+    if not text or not isinstance(text, str):
         return None
 
     text = text.lower()
