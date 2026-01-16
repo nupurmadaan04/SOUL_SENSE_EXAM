@@ -38,8 +38,8 @@ class SoulSenseApp:
         }
         
         # State
-        self.username = None # Set after login
-        self.current_user_id = None
+        self.username: Optional[str] = None # Set after login
+        self.current_user_id: Optional[int] = None
         self.age = 25
         self.age_group = "adult"
         self.i18n = get_i18n()
