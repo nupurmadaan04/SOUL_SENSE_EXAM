@@ -3,14 +3,19 @@ from tkinter import ttk, messagebox, simpledialog
 import logging
 import json
 from datetime import datetime
-from app.models import get_session, MedicalProfile, User, PersonalProfile, UserStrengths
+
 # from app.ui.styles import ApplyTheme # Not needed
 from app.ui.sidebar import SidebarNav
-from app.models import get_session, MedicalProfile, User, PersonalProfile, UserStrengths
+from app.db import get_session
+from app.models import MedicalProfile, User, PersonalProfile, UserStrengths
 from app.ui.sidebar import SidebarNav
 from app.ui.components.timeline import LifeTimeline
 from app.ui.components.tag_input import TagInput
-from tkcalendar import DateEntry
+try:
+    from tkcalendar import DateEntry
+except ImportError:
+    DateEntry = None  # Allows tests to run without GUI deps
+
 from app.ui.settings import SettingsManager
 
 class UserProfileView:

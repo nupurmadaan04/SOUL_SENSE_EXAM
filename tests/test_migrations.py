@@ -17,10 +17,14 @@ def temp_db_url():
     clean_path = path.replace('\\', '/')
     url = f"sqlite:///{clean_path}"
     yield url
-    
-    # Cleanup
+
+    from sqlalchemy import create_engine
+    engine = create_engine(url)
+    engine.dispose()   # ✅ RELEASE FILE HANDLE
+
     if os.path.exists(path):
-        os.remove(path)
+       os.remove(path)
+
 
 def test_migrations_apply_successfully(temp_db_url):
     """

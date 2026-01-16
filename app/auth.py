@@ -9,12 +9,10 @@ class AuthManager:
         self.current_user = None
     
     def hash_password(self, password):
-        """Hash password using bcrypt with configurable rounds (default: 12)."""
         salt = bcrypt.gensalt(rounds=12)
         return bcrypt.hashpw(password.encode(), salt).decode()
     
     def verify_password(self, password, password_hash):
-        """Verify password against bcrypt hash."""
         try:
             return bcrypt.checkpw(password.encode(), password_hash.encode())
         except Exception as e:
@@ -41,6 +39,7 @@ class AuthManager:
             )
             session.add(new_user)
             session.commit()
+            session.refresh(new_user)  # ensures ID is set
             return True, "Registration successful"
         
         except Exception as e:
@@ -58,7 +57,7 @@ class AuthManager:
             if user and self.verify_password(password, user.password_hash):
                 user.last_login = datetime.utcnow().isoformat()
                 session.commit()
-                self.current_user = username
+                self.current_user = user  # store user object
                 return True, "Login successful"
             else:
                 return False, "Invalid username or password"

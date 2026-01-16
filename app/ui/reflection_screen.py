@@ -1,5 +1,5 @@
 import tkinter as tk
-from app.i18n import t  # your i18n manager
+from app.i18n_manager import t # your i18n manager
 
 
 class ReflectionScreen(tk.Frame):
