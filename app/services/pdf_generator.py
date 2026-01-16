@@ -17,7 +17,7 @@ class PDFReportGenerator:
     def __init__(self, filename):
         self.filename = filename
         self.styles = getSampleStyleSheet()
-        self.elements = []
+        self.elements: List[Any] = []
         
         # Custom styles
         self.styles.add(ParagraphStyle(

@@ -25,7 +25,7 @@ class SoulSenseApp:
         
         # Initialize Styles
         self.ui_styles = UIStyles(self)
-        self.colors = {} # Will be populated by apply_theme
+        self.colors: Dict[str, str] = {} # Will be populated by apply_theme
         self.ui_styles.apply_theme("dark") # Default theme
         
         # Fonts
@@ -45,7 +45,7 @@ class SoulSenseApp:
         self.i18n = get_i18n()
         self.questions = []
         self.auth = AuthManager()
-        self.settings = {} 
+        self.settings: Dict[str, Any] = {} 
         
         # Load Questions
         try:
@@ -169,7 +169,7 @@ class SoulSenseApp:
             session = get_session()
             user_obj = session.query(User).filter_by(username=username).first()
             if user_obj:
-                self.current_user_id = user_obj.id
+                self.current_user_id = int(user_obj.id)
                 if user_obj.settings:
                     self.settings = {
                         "theme": user_obj.settings.theme,

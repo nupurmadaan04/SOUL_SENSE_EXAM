@@ -199,7 +199,7 @@ def update_user_settings(user_id, **kwargs):
         # dynamic update
         for key, value in kwargs.items():
             if hasattr(settings, key):
-                setattr(settings, key, value)
+                setattr(settings, key, value) # type: ignore
         
         settings.updated_at = datetime.utcnow().isoformat()
         session.commit()

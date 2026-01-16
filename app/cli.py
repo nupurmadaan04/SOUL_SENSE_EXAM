@@ -158,7 +158,7 @@ class SoulSenseCLI:
                 else:
                     print("User profile found.")
                 
-                user_id = user.id
+                user_id = int(user.id)
             
             # Load User Settings
             if user_id:
