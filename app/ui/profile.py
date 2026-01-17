@@ -13,6 +13,11 @@ from app.ui.components.timeline import LifeTimeline
 from app.ui.components.tag_input import TagInput
 from tkcalendar import DateEntry
 from app.ui.settings import SettingsManager
+from app.validation import (
+    sanitize_text, validate_email, validate_phone, 
+    validate_length, validate_required, validate_dob,
+    MAX_TEXT_LENGTH, MAX_ENTRY_LENGTH
+)
 
 class UserProfileView:
     def __init__(self, parent_root: tk.Widget, app_instance: Any) -> None:
@@ -1060,11 +1065,18 @@ class UserProfileView:
             
         def save():
             date_str = date_entry.get_date().strftime("%Y-%m-%d")
-            title = title_var.get().strip()
-            desc = desc_text.get("1.0", tk.END).strip()
+            title = sanitize_text(title_var.get())
+            desc = sanitize_text(desc_text.get("1.0", tk.END))
             
-            if not title:
-                messagebox.showwarning("Incomplete", "Title is required.")
+            # Validation
+            valid_title, msg_title = validate_required(title, "Title")
+            if not valid_title:
+                messagebox.showwarning("Incomplete", msg_title)
+                return
+                
+            valid_len, msg_len = validate_length(desc, MAX_TEXT_LENGTH, "Description")
+            if not valid_len:
+                messagebox.showwarning("Incomplete", msg_len)
                 return
             
             new_data = {
@@ -1162,35 +1174,58 @@ class UserProfileView:
              else:
                  profile = user.personal_profile
                  
-             profile.occupation = self.occ_var.get()
-             profile.education = self.edu_var.get()
-             profile.marital_status = self.status_var.get()
-             profile.bio = self.bio_text.get("1.0", tk.END).strip()
-
-             # Phase 53: Save contact info
-             email = self.email_var.get().strip()
-             phone = self.phone_var.get().strip()
+             # Sanitize
+             occupation = sanitize_text(self.occ_var.get())
+             education = sanitize_text(self.edu_var.get())
+             bio = sanitize_text(self.bio_text.get("1.0", tk.END))
+             email = sanitize_text(self.email_var.get())
+             phone = sanitize_text(self.phone_var.get())
+             dob_str = self.dob_entry.get_date().strftime("%Y-%m-%d")
+             address = sanitize_text(self.address_text.get("1.0", tk.END))
              
-             # Validation (Phase 2.5 of Plan)
-             import re
-             if email and not re.match(r"[^@]+@[^@]+\.[^@]+", email):
-                 messagebox.showwarning("Validation Error", "Invalid email format.")
+             society = sanitize_text(self.society_text.get("1.0", tk.END))
+             life_pov = sanitize_text(self.life_pov_text.get("1.0", tk.END))
+             pressure = sanitize_text(self.high_pressure_text.get("1.0", tk.END))
+
+             # Validation
+             valid_email, msg_email = validate_email(email)
+             if not valid_email:
+                 messagebox.showwarning("Validation Error", msg_email)
                  return
                  
-             if phone and not re.match(r"^\+?[\d\s-]{10,}$", phone):
-                 messagebox.showwarning("Validation Error", "Invalid phone number format (min 10 digits).")
+             valid_phone, msg_phone = validate_phone(phone)
+             if not valid_phone:
+                 messagebox.showwarning("Validation Error", msg_phone)
+                 return
+
+             valid_dob, msg_dob = validate_dob(dob_str)
+             if not valid_dob:
+                 messagebox.showwarning("Validation Error", msg_dob)
                  return
              
+             # Max Lengths
+             for label, txt in [("Bio", bio), ("Address", address), ("Perspective", life_pov), 
+                               ("Society", society), ("Pressure Events", pressure)]:
+                valid, msg = validate_length(txt, MAX_TEXT_LENGTH, label)
+                if not valid:
+                    messagebox.showwarning("Validation Error", msg)
+                    return
+
+             profile.occupation = occupation
+             profile.education = education
+             profile.marital_status = self.status_var.get()
+             profile.bio = bio
+
              profile.email = email
              profile.phone = phone
-             profile.date_of_birth = self.dob_entry.get_date().strftime("%Y-%m-%d")
+             profile.date_of_birth = dob_str
              profile.gender = self.gender_var.get()
-             profile.address = self.address_text.get("1.0", tk.END).strip()
+             profile.address = address
 
              # PR #5 Save
-             profile.society_contribution = self.society_text.get("1.0", tk.END).strip()
-             profile.life_pov = self.life_pov_text.get("1.0", tk.END).strip()
-             profile.high_pressure_events = self.high_pressure_text.get("1.0", tk.END).strip()
+             profile.society_contribution = society
+             profile.life_pov = life_pov
+             profile.high_pressure_events = pressure
              
              session.commit()
              session.close()
@@ -1380,14 +1415,40 @@ class UserProfileView:
         except Exception as e:
             logging.error(f"Error loading medical profile: {e}")
 
+    # ==========================
+    # 2. MEDICAL VIEW
+    # ==========================
+    # ... (skipping render code) ...
+    
     def save_medical_data(self):
         try:
             # --- VALIDATION ---
-            contact_phone = self.ec_phone_var.get().strip()
-            if contact_phone:
-                if not any(char.isdigit() for char in contact_phone):
-                     messagebox.showwarning("Validation Error", self.i18n.get("profile.validation_phone"), parent=self.window)
-                     return
+            contact_name = sanitize_text(self.ec_name_var.get())
+            contact_phone = sanitize_text(self.ec_phone_var.get())
+            
+            # Validate Phone
+            valid_phone, msg_phone = validate_phone(contact_phone)
+            if not valid_phone:
+                 messagebox.showwarning("Validation Error", msg_phone, parent=self.window)
+                 return
+            
+            # Sanitize and Validate Text Areas
+            allergies = sanitize_text(self.allergies_text.get("1.0", tk.END))
+            medications = sanitize_text(self.medications_text.get("1.0", tk.END))
+            conditions = sanitize_text(self.conditions_text.get("1.0", tk.END))
+            # PR #5
+            surgeries = sanitize_text(self.surgeries_text.get("1.0", tk.END))
+            therapy = sanitize_text(self.therapy_text.get("1.0", tk.END))
+            health_issues = sanitize_text(self.health_issues_text.get("1.0", tk.END))
+            
+            # Check Max Lengths
+            for label, txt in [("Allergies", allergies), ("Medications", medications), 
+                              ("Conditions", conditions), ("Surgeries", surgeries),
+                              ("Therapy", therapy), ("Health Issues", health_issues)]:
+                valid, msg = validate_length(txt, MAX_TEXT_LENGTH, label)
+                if not valid:
+                    messagebox.showwarning("Validation Error", msg, parent=self.window)
+                    return
 
             session = get_session()
             user = session.query(User).filter_by(username=self.app.username).first()
@@ -1404,17 +1465,17 @@ class UserProfileView:
                 
             # Update fields
             profile.blood_type = self.blood_type_var.get()
-            profile.emergency_contact_name = self.ec_name_var.get()
+            profile.emergency_contact_name = contact_name
             profile.emergency_contact_phone = contact_phone
             
-            profile.allergies = self.allergies_text.get("1.0", tk.END).strip()
-            profile.medications = self.medications_text.get("1.0", tk.END).strip()
-            profile.medical_conditions = self.conditions_text.get("1.0", tk.END).strip()
+            profile.allergies = allergies
+            profile.medications = medications
+            profile.medical_conditions = conditions
             
             # PR #5 Save
-            profile.surgeries = self.surgeries_text.get("1.0", tk.END).strip()
-            profile.therapy_history = self.therapy_text.get("1.0", tk.END).strip()
-            profile.ongoing_health_issues = self.health_issues_text.get("1.0", tk.END).strip()
+            profile.surgeries = surgeries
+            profile.therapy_history = therapy
+            profile.ongoing_health_issues = health_issues
             
             session.commit()
             session.close()
@@ -1553,8 +1614,6 @@ class UserProfileView:
                 
                 self.learn_style_var.set(s.learning_style or "")
                 self.comm_style_var.set(s.communication_preference or "")
-                self.learn_style_var.set(s.learning_style or "")
-                self.comm_style_var.set(s.communication_preference or "")
                 self.goals_text.insert("1.0", s.goals or "")
 
                 # PR #5 Load
@@ -1575,6 +1634,17 @@ class UserProfileView:
             else:
                 strengths = user.strengths
             
+            # Sanitize Long Text
+            goals = sanitize_text(self.goals_text.get("1.0", tk.END))
+            comm_style = sanitize_text(self.comm_style_text.get("1.0", tk.END))
+            
+            # Validate Length
+            for label, txt in [("Goals", goals), ("Comm Style", comm_style)]:
+                 valid, msg = validate_length(txt, MAX_TEXT_LENGTH, label)
+                 if not valid:
+                     messagebox.showwarning("Validation Error", msg)
+                     return
+
             # Update fields
             strengths.top_strengths = json.dumps(self.strengths_input.get_tags())
             strengths.areas_for_improvement = json.dumps(self.improvements_input.get_tags())
@@ -1582,12 +1652,10 @@ class UserProfileView:
             
             strengths.learning_style = self.learn_style_var.get()
             strengths.communication_preference = self.comm_style_var.get()
-            strengths.learning_style = self.learn_style_var.get()
-            strengths.communication_preference = self.comm_style_var.get()
-            strengths.goals = self.goals_text.get("1.0", tk.END).strip()
+            strengths.goals = goals
             
             # PR #5 Save
-            strengths.comm_style = self.comm_style_text.get("1.0", tk.END).strip()
+            strengths.comm_style = comm_style
             
             session.commit()
             session.close()

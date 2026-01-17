@@ -12,7 +12,10 @@ from sqlalchemy import desc, text
 
 from app.i18n_manager import get_i18n
 from app.models import JournalEntry
+from app.models import JournalEntry
 from app.db import get_session
+from app.validation import validate_required, validate_length, validate_range, sanitize_text, RANGES
+from app.validation import MAX_TEXT_LENGTH
 
 # Lazy imports to avoid circular dependencies
 # These will be imported only when needed
@@ -266,17 +269,35 @@ class JournalFeature:
     
     def save_and_analyze(self):
         """Save journal entry and perform AI analysis"""
-        content = self.text_area.get("1.0", tk.END).strip()
+        content = sanitize_text(self.text_area.get("1.0", tk.END))
         
-        if not content:
-            messagebox.showwarning(self.i18n.get("journal.empty_entry"), 
-                                  self.i18n.get("journal.empty_warning"))
+        # Validation checks
+        valid_req, msg_req = validate_required(content, "Journal content")
+        if not valid_req:
+            messagebox.showwarning(self.i18n.get("journal.empty_entry"), msg_req)
             return
         
-        if len(content) < 10:
-            messagebox.showwarning(self.i18n.get("journal.too_short"), 
-                                  self.i18n.get("journal.short_warning"))
+        valid_len, msg_len = validate_length(content, MAX_TEXT_LENGTH, "Content", min_len=10)
+        if not valid_len:
+            messagebox.showwarning("Validation Error", msg_len)
             return
+
+        # Numeric Range Validation (Defensive programming)
+        # Even though sliders enforce it, external calls or future UI changes might not
+        ranges_check = [
+            (self.sleep_hours_var.get(), *RANGES['sleep'], "Sleep Hours"),
+            (self.sleep_quality_var.get(), *RANGES['stress'], "Sleep Quality"), # reusing 1-10 range
+            (self.energy_level_var.get(), *RANGES['energy'], "Energy Level"),
+            # (self.work_hours_var.get(), *RANGES['work'], "Work Hours"), # Use default logic: work range 0-24
+            (self.stress_level_var.get(), *RANGES['stress'], "Stress Level"),
+        ]
+        
+        for val, min_v, max_v, lbl in ranges_check:
+             if not validate_range(val, min_v, max_v, lbl)[0]:
+                 # Log valid ranges error but maybe don't block user if sliders are just buggy? 
+                 # Better to block to prevent DB corruption
+                 messagebox.showwarning("Validation Error", f"Invalid value for {lbl}")
+                 return
         
         # Perform analysis
         sentiment_score = self.analyze_sentiment(content)
@@ -300,8 +321,8 @@ class JournalFeature:
                 # PR #6 Expansion
                 screen_time_mins=self.screen_time_var.get(),
                 stress_level=self.stress_level_var.get(),
-                daily_schedule=self.schedule_text.get("1.0", tk.END).strip(),
-                stress_triggers=self.triggers_text.get("1.0", tk.END).strip()
+                daily_schedule=sanitize_text(self.schedule_text.get("1.0", tk.END)),
+                stress_triggers=sanitize_text(self.triggers_text.get("1.0", tk.END))
             )
             session.add(entry)
             session.commit()

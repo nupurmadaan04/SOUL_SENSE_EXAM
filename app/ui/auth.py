@@ -425,30 +425,27 @@ class AuthManager:
 
     def submit_user_info(self) -> None:
         """Validate and submit user info"""
-        from tkinter import messagebox
         from app.utils import compute_age_group
+        from tkinter import messagebox
+        from app.validation import validate_required, validate_age, sanitize_text
         
-        username = self.username_entry.get().strip()
-        age_str = self.age_entry.get().strip()
-        profession = self.profession_entry.get().strip()
+        # Sanitize entries
+        username = sanitize_text(self.username_entry.get())
+        age_str = sanitize_text(self.age_entry.get())
+        profession = sanitize_text(self.profession_entry.get())
         
         # Validation
-        if not username:
-            messagebox.showwarning("Missing Information", "Please enter your name.")
+        valid_name, msg_name = validate_required(username, "Name")
+        if not valid_name:
+            messagebox.showwarning("Missing Information", msg_name)
+            return
+
+        valid_age, msg_age = validate_age(age_str)
+        if not valid_age:
+            messagebox.showwarning("Invalid Age", msg_age)
             return
         
-        if not age_str:
-            messagebox.showwarning("Missing Information", "Please enter your age.")
-            return
-        
-        try:
-            age = int(age_str)
-            if age < 10 or age > 100:
-                messagebox.showwarning("Invalid Age", "Please enter a valid age between 10 and 100.")
-                return
-        except ValueError:
-            messagebox.showwarning("Invalid Age", "Please enter a valid number for age.")
-            return
+        age = int(age_str) # Safe now
         
         # Store user info
         self.app.username = username
