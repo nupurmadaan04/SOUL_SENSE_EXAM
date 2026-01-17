@@ -327,8 +327,17 @@ class SettingsManager:
     
     def _apply_settings(self):
         """Apply and save settings"""
+        from app.validation import validate_range
+        
+        # Validation
+        q_count = self.qcount_var.get()
+        valid_q, msg_q = validate_range(q_count, 5, 50, "Question Count")
+        if not valid_q:
+            messagebox.showwarning("Invalid Settings", msg_q)
+            return
+
         new_settings = {
-            "question_count": self.qcount_var.get(),
+            "question_count": q_count,
             "theme": self.theme_var.get(),
             "sound_effects": self.sound_var.get()
         }

@@ -127,24 +127,26 @@ class SoulSenseCLI:
         """Get user details with validation and load settings"""
         self.print_header()
         
+        from app.validation import validate_required, validate_age, AGE_MIN, AGE_MAX
+        
         # Username
         while True:
             name = self.get_input("Enter your name: ")
-            if name:
+            valid, msg = validate_required(name, "Name")
+            if valid:
                 self.username = name
                 break
-            print("Name cannot be empty.")
+            print(msg)
             
         # Age
         while True:
-            age_str = self.get_input("Enter your age (10-100): ")
-            if age_str.isdigit():
-                age = int(age_str)
-                if 10 <= age <= 100:
-                    self.age = age
-                    self.age_group = compute_age_group(age)
-                    break
-            print("Invalid age. Please enter a number between 10 and 100.")
+            age_str = self.get_input(f"Enter your age ({AGE_MIN}-{AGE_MAX}): ")
+            valid, msg = validate_age(age_str)
+            if valid:
+                self.age = int(age_str)
+                self.age_group = compute_age_group(self.age)
+                break
+            print(msg)
             
         print(f"\nWelcome, {self.username} ({self.age_group}).")
         

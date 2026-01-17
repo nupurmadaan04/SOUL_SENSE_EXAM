@@ -9,7 +9,6 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from admin_interface import QuestionDatabase
-import hashlib
 
 def test_admin_interface():
     """Test the admin interface functionality"""

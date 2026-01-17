@@ -243,7 +243,7 @@ The application is grounded in established emotional intelligence theory (Salove
   - Simple framework for adding more languages
 - **User Authentication System**
   - Secure user registration and login
-  - Password hashing with SHA-256
+  - Password hashing with bcrypt (12 rounds)
   - Session management with logout functionality
   - User-specific data tracking
 - **Outlier Detection & Data Quality**
@@ -570,7 +570,8 @@ python -m app.main
 
 **Security Features:**
 
-- Passwords are hashed using SHA-256 encryption
+- Passwords are hashed using bcrypt with 12 rounds
+- Legacy SHA-256 passwords are automatically upgraded on login
 - User sessions are managed securely
 - Each user's data is isolated and protected
 
