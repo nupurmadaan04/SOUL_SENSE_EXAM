@@ -147,6 +147,24 @@ Run the full test suite to verify your environment:
 python -m pytest tests/
 ```
 
+To run the startup integrity specific tests:
+```bash
+python -m pytest tests/test_startup_checks.py -v
+```
+
+### 5. Git Workflow Commands
+
+If you are contributing to the project, use these common Git commands:
+
+```bash
+git status                # Check which files have changed
+git add .                 # Stage all changes for commit
+git commit -m "feat: description"  # Commit your changes
+git push origin main      # Push changes to your fork/branch
+git fetch origin          # Get latest changes from remote
+git pull origin main      # Update your local branch
+```
+
 <hr>
 <h3>Contributor FAQs</h3>
 
@@ -271,6 +289,10 @@ The application is grounded in established emotional intelligence theory (Salove
 - Daily emotional journal with AI sentiment analysis
 - Emotional pattern tracking and insights
 - View past journal entries and emotional journey
+- **Startup Integrity Checks (NEW!)**
+  - Validates database schema and required files at startup
+  - Auto-recovery for missing directories or corrupted config
+  - User-friendly diagnostic alerts
 
 ---
 
@@ -379,6 +401,30 @@ Based on sentiment ranges:
    - Top influencing factors
    - Personalized recommendations based on both EQ and sentiment
 3. **Journal Analytics**: Tracks sentiment trends over time (when using Daily Journal)
+
+---
+
+## 🛡️ Startup Integrity Checks
+
+SoulSense includes a self-diagnostic system that runs every time the application starts to ensure a stable environment.
+
+### What it Validates
+
+| Check | Description | Auto-Recovery |
+|-------|-------------|---------------|
+| **Config Integrity** | Validates `config.json` structure and keys. | Restores defaults if missing or corrupt. |
+| **Required Files** | Ensures `data/`, `logs/`, and `models/` exist. | Auto-creates missing directories. |
+| **Database Schema** | Verifies all required tables and columns. | Re-initializes schema if tables are missing. |
+
+### How it Works
+
+The system categorizes issues into:
+- **Warnings**: Non-critical issues that were auto-recovered. The app notifies the user and proceeds.
+- **Failures**: Critical issues that prevent the app from starting safely. The app shows a detailed error and exits gracefully.
+
+This prevents common "ModuleNotFoundError" or "DatabaseError" crashes that users might encounter due to filesystem issues.
+
+---
 
 ---
 

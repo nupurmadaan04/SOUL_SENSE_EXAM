@@ -107,6 +107,12 @@ class AuthenticationError(SoulSenseError):
 
 class APIConnectionError(SoulSenseError):
     """Raised when external API connection fails."""
+    pass
+
+class IntegrityError(SoulSenseError):
+    """Raised when startup integrity checks fail."""
+    pass
+
     default_code = ErrorCodes.API_CONNECTION_FAILED
 
 

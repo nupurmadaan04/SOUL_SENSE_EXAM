@@ -2,8 +2,8 @@
 import tkinter as tk
 from tkinter import messagebox, ttk
 import logging
-import sys
-
+import signal
+import atexit
 from app.ui.sidebar import SidebarNav
 from app.ui.styles import UIStyles
 from app.ui.dashboard import AnalyticsDashboard
@@ -14,6 +14,8 @@ from app.auth import AuthManager
 from app.i18n_manager import get_i18n
 from app.questions import load_questions
 from app.ui.assessments import AssessmentHub
+from app.startup_checks import run_all_checks, get_check_summary, CheckStatus
+from app.exceptions import IntegrityError
 from app.logger import get_logger, setup_logging
 from app.error_handler import (
     get_error_handler,
@@ -423,6 +425,28 @@ class SoulSenseApp:
         # Render Profile into content_area
         UserProfileView(self.content_area, self)
 
+    def graceful_shutdown(self) -> None:
+        """Perform graceful shutdown operations"""
+        self.logger.info("Initiating graceful application shutdown...")
+
+        try:
+            # Commit any pending database operations
+            from app.db import get_session
+            session = get_session()
+            if session:
+                session.commit()
+                session.close()
+                self.logger.info("Database session committed and closed successfully")
+        except Exception as e:
+            self.logger.error(f"Error during database shutdown: {e}")
+
+        # Log shutdown
+        self.logger.info("Application shutdown complete")
+
+        # Destroy the root window to exit
+        if hasattr(self, 'root') and self.root:
+            self.root.destroy()
+
 # --- Global Error Handlers ---
 
 def show_error(title, message, exception=None):
@@ -451,6 +475,40 @@ if __name__ == "__main__":
     setup_global_exception_handlers()
     
     try:
+        # Run startup integrity checks before initializing the app
+        logging.basicConfig(level=logging.INFO)
+        logger = logging.getLogger(__name__)
+        
+        try:
+            results = run_all_checks(raise_on_critical=True)
+            summary = get_check_summary(results)
+            logger.info(summary)
+            
+            # Show warning dialog if there were any warnings
+            warnings = [r for r in results if r.status == CheckStatus.WARNING]
+            if warnings:
+                # Create a temporary root for the warning dialog
+                temp_root = tk.Tk()
+                temp_root.withdraw()
+                warning_msg = "\n".join([f"• {r.name}: {r.message}" for r in warnings])
+                messagebox.showwarning(
+                    "Startup Warnings",
+                    f"The application started with the following warnings:\n\n{warning_msg}\n\nThe application will continue with default settings."
+                )
+                temp_root.destroy()
+                
+        except IntegrityError as e:
+            # Critical failure - show error and exit
+            temp_root = tk.Tk()
+            temp_root.withdraw()
+            messagebox.showerror(
+                "Startup Failed",
+                f"Critical integrity check failed:\n\n{str(e)}\n\nThe application cannot start."
+            )
+            temp_root.destroy()
+            raise SystemExit(1)
+        
+        # All checks passed, start the application
         root = tk.Tk()
         
         # Register tkinter-specific exception handler
@@ -469,7 +527,25 @@ if __name__ == "__main__":
         root.report_callback_exception = tk_report_callback_exception
         
         app = SoulSenseApp(root)
+
+        # Set up graceful shutdown handlers
+        root.protocol("WM_DELETE_WINDOW", app.graceful_shutdown)
+
+        # Signal handlers for SIGINT (Ctrl+C) and SIGTERM
+        def signal_handler(signum, frame):
+            app.logger.info(f"Received signal {signum}, initiating shutdown")
+            app.graceful_shutdown()
+
+        signal.signal(signal.SIGINT, signal_handler)
+        signal.signal(signal.SIGTERM, signal_handler)
+
+        # Register atexit handler as backup
+        atexit.register(app.graceful_shutdown)
+
         root.mainloop()
+        
+    except SystemExit:
+        pass  # Clean exit from integrity failure
     except Exception as e:
         import traceback
         handler = get_error_handler()
