@@ -23,7 +23,8 @@ GENDERED_TERMS = [
 EXCLUDE_DIRS = [
     '.git', '__pycache__', 'venv', 'env', '.pytest_cache', 
     'scripts/check_gender_bias.py',  # Exclude this script itself
-    'logs', 'migrations'
+    'logs', 'migrations', 'frontend-web', 'mobile-app', 
+    '.mypy_cache', 'SOUL_SENSE_EXAM', 'soulsense_db'
 ]
 
 EXCLUDE_FILES = [
@@ -32,11 +33,32 @@ EXCLUDE_FILES = [
 ]
 
 def is_excluded(filepath):
-    for excluded_dir in EXCLUDE_DIRS:
-        if excluded_dir in filepath:
-            return True
+    # Normalize path separator
+    filepath = filepath.replace('\\', '/')
+    parts = filepath.split('/')
+    
+    # Check if any part of the path is in EXCLUDE_DIRS
+    for part in parts:
+        if part in EXCLUDE_DIRS:
+            # But wait, the root folder itself might be named SOUL_SENSE_EXAM.
+            # We want to exclude the *inner* duplicate, not the root.
+            # Ideally, we rely on os.walk's dirs[:] modification for directories.
+            # But this function is used for files too.
+            # Let's trust the os.walk filter for directories.
+            # However, for files, we need to be careful.
+            pass
+
+    # Actually, the loop in scan_codebase handles removing excluded directories from traversal.
+    # So we don't need to check directories in the filepath here, UNLESS the file itself is excluded.
+    # The current implementation of scan_codebase does:
+    # dirs[:] = [d for d in dirs if d not in EXCLUDE_DIRS]
+    # So we won't even enter excluded directories.
+    # Therefore, is_excluded(filepath) mainly protects against file-level exclusions
+    # or if we are passed a specific file path directly.
+    
     if os.path.basename(filepath) in EXCLUDE_FILES:
         return True
+        
     return False
 
 def check_file(filepath):

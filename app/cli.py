@@ -4,30 +4,29 @@ import sys
 import logging
 import time
 import math
-import math
-from typing import Optional, Dict, Any, Tuple
-from app.services.exam_service import ExamSession
+from typing import Optional, Dict, Any, Tuple, List
 
-# Ensure app is in path
-sys.path.append(os.getcwd())
+# --- Refactor: Imports moved inside methods or guarded where possible ---
+# But we need types for class definition. 
+# We assume the environment is set up correctly by the runner (or main block)
+# instead of hacking path at module level.
 
-from app.services.exam_service import ExamSession
-from app.questions import load_questions, get_random_questions_by_age
-from app.utils import compute_age_group
-from app.logger import setup_logging
+# Simple logging config for CLI 
+logging.basicConfig(level=logging.ERROR) 
 
-# Optional NLTK
+# Lazy load NLTK inside class or setup method to avoid import time cost/errors
+SENTIMENT_AVAILABLE = False
 try:
     import nltk
     from nltk.sentiment import SentimentIntensityAnalyzer
     SENTIMENT_AVAILABLE = True
 except ImportError:
-    SENTIMENT_AVAILABLE = False
-    SentimentIntensityAnalyzer = None
+    pass
 
-# Simple logging config for CLI (avoid file spam if just testing)
-# But respect main logger if needed.
-logging.basicConfig(level=logging.ERROR) 
+from app.services.exam_service import ExamSession
+from app.questions import load_questions, get_random_questions_by_age
+from app.utils import compute_age_group
+# from app.logger import setup_logging # Not used in snippet, but good practice
 
 # ANSI Color Codes
 class Colors:
@@ -70,26 +69,42 @@ def colorize(text: str, color: str) -> str:
     return text
 
 class SoulSenseCLI:
-    def __init__(self) -> None:
+    def __init__(self, auth_manager: Any = None, session_manager: Any = None) -> None:
+        """
+        Initialize CLI environment.
+        dependency injection supported for testing.
+        """
         self.username = ""
         self.age = 0
         self.age_group = ""
         self.session: Optional[ExamSession] = None
         
-        # Load SHARED settings (same source as GUI)
-        from app.utils import load_settings, save_settings
+        # Dependency Injection / Lazy Load
+        self._auth_manager = auth_manager
+        self._session_manager = session_manager
+        
+        # Load SHARED settings
+        from app.utils import load_settings
         self.settings = load_settings()
         self.num_questions = self.settings.get("question_count", 10)
         
-        # Download NLTK if needed (quietly)
-        if SENTIMENT_AVAILABLE:
+        # Setup Environment
+        self._setup_nltk()
+
+    def _setup_nltk(self):
+        """Lazy load/download NLTK data"""
+        if not SENTIMENT_AVAILABLE:
+            return
+            
+        try:
+            nltk.data.find('sentiment/vader_lexicon.zip')
+        except LookupError:
             try:
-                nltk.data.find('sentiment/vader_lexicon.zip')
-            except LookupError:
-                try:
-                    nltk.download('vader_lexicon', quiet=True)
-                except Exception:
-                    pass
+                print("Downloading NLTK data (vader_lexicon)...")
+                nltk.download('vader_lexicon', quiet=True)
+            except Exception as e:
+                # Log but continue, sentiment will just be unavailable
+                logging.warning(f"Failed to download NLTK data: {e}")
 
     def clear_screen(self) -> None:
         os.system('cls' if os.name == 'nt' else 'clear')
@@ -158,7 +173,7 @@ class SoulSenseCLI:
                 else:
                     print("User profile found.")
                 
-                user_id = user.id
+                user_id = int(user.id)
             
             # Load User Settings
             if user_id:
@@ -201,6 +216,9 @@ class SoulSenseCLI:
 
     def run_exam_loop(self) -> None:
         """Main Exam Loop"""
+        if not self.session:
+            return
+
         while not self.session.is_finished():
             self.clear_screen()
             
@@ -251,6 +269,9 @@ class SoulSenseCLI:
 
     def run_reflection(self) -> None:
         """Reflection Phase"""
+        if not self.session:
+            return
+
         self.clear_screen()
         print("="*60)
         print("      F I N A L   R E F L E C T I O N")
@@ -314,6 +335,9 @@ class SoulSenseCLI:
 
     def show_results(self) -> None:
         """Display Enhanced Final Results"""
+        if not self.session:
+            return
+
         success = self.session.finish_exam()
         if not success:
             print("Error saving results.")
@@ -749,7 +773,7 @@ class SoulSenseCLI:
                 print("No data yet.")
             else:
                 # Analyze by hour
-                hour_scores = {}
+                hour_scores: Dict[int, List[float]] = {}
                 for row in rows:
                     try:
                         ts = datetime.fromisoformat(row[0])

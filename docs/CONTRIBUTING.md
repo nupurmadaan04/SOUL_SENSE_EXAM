@@ -27,6 +27,7 @@ cd SOUL_SENSE_EXAM
 ```
 
 Add the original repository as an upstream remote:
+
 ```bash
 git remote add upstream https://github.com/nupurmadaan04/SOUL_SENSE_EXAM.git
 ```
@@ -34,7 +35,9 @@ git remote add upstream https://github.com/nupurmadaan04/SOUL_SENSE_EXAM.git
 ---
 
 ### 3. Create a New Branch
+
 Always create a new branch for your changes:
+
 ```bash
 git checkout -b feature/your-branch-name
 ```
@@ -48,9 +51,55 @@ git checkout -b feature/your-branch-name
 - Add comments where necessary
 - Test your changes before committing
 
+### 5. Run Quality Checks Locally
+
+Before committing, please ensure your code passes all quality checks to avoid CI failures:
+
+#### 1. Type Checking
+
+We use **mypy** for static type checking. Your code must pass with **0 errors**.
+
+```bash
+python -m mypy app/
+```
+
+#### 2. Gender Bias Check
+
+Ensure your code uses inclusive language.
+
+```bash
+python scripts/check_gender_bias.py
+```
+
+_Note: This script scans the entire codebase (excluding generated files)._
+
+#### 3. Run Tests
+
+We use `pytest` for testing. Run all tests with:
+
+```bash
+python -m pytest tests/
+```
+
+To run tests with coverage report:
+
+```bash
+python -m coverage run --source=app -m pytest tests/
+python -m coverage report -m
+```
+
+The suite includes:
+
+- **Unit Tests**: `tests/test_exam_service.py`, `tests/test_cli_refactored.py`, `tests/test_cli_extended.py`
+- **Integration Tests**: `tests/test_profile_integration.py`
+- **Logic Tests**: `tests/test_questions_logic.py`
+
+Please ensure all tests pass (or known failures are marked `xfail`) before submitting a PR.
+
 ---
 
 ### 5. Commit Your Changes
+
 Write clear and meaningful commit messages.
 
 #### Commit message guidelines:
@@ -60,6 +109,7 @@ Write clear and meaningful commit messages.
 - Reference issues if applicable
 
 Example:
+
 ```bash
 git commit -m "Add input validation for login form"
 ```
@@ -67,6 +117,7 @@ git commit -m "Add input validation for login form"
 ---
 
 ### 6. Push Changes to Your Fork
+
 ```bash
 git push origin feature/your-branch-name
 ```

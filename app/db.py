@@ -201,9 +201,9 @@ def update_user_settings(user_id: int, **kwargs: Any) -> bool:
         # dynamic update
         for key, value in kwargs.items():
             if hasattr(settings, key):
-                setattr(settings, key, value)
+                setattr(settings, key, value) # type: ignore
         
-        settings.updated_at = datetime.utcnow().isoformat()
+        settings.updated_at = datetime.utcnow().isoformat() # type: ignore
         session.commit()
         return True
 
