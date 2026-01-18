@@ -476,8 +476,6 @@ class UserProfileView:
                             age = (datetime.now() - dob).days // 365
                             data["age"] = f"{age}y"
                         except:
-                            data["age"] = f"{age}y"
-                        except:
                             data["age"] = "--"
                     
                     # Issue #260: Load Life Perspective (POV)
