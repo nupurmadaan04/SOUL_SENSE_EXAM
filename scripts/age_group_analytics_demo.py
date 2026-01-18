@@ -62,17 +62,16 @@ def analyze_emotional_trends():
     print("EMOTIONAL TRENDS BY AGE GROUP")
     print("="*70)
     
-    # Check which databases exist
-    db_paths = ["soulsense_db", "db/soulsense.db", "db/soulsense_db"]
-    available_dbs = [db for db in db_paths if os.path.exists(db)]
+    # Get database path from config
+    from app.config import DB_PATH
     
-    if not available_dbs:
+    if not os.path.exists(DB_PATH):
         print("\n⚠ No database found. Please run the application first to generate data.")
         return
     
-    print(f"\nAnalyzing database: {available_dbs[0]}")
+    print(f"\nAnalyzing database: {DB_PATH}")
     
-    with EDAExporter(available_dbs[0]) as exporter:
+    with EDAExporter(DB_PATH) as exporter:
         # First, ensure all records have detailed age groups
         print("\n1. Ensuring data integrity...")
         results = exporter.backfill_detailed_age_groups()
@@ -141,16 +140,15 @@ def demonstrate_data_export():
     print("DATA EXPORT FOR EDA")
     print("="*70)
     
-    db_paths = ["soulsense_db", "db/soulsense.db", "db/soulsense_db"]
-    available_dbs = [db for db in db_paths if os.path.exists(db)]
+    from app.config import DB_PATH
     
-    if not available_dbs:
+    if not os.path.exists(DB_PATH):
         print("\n⚠ No database found.")
         return
     
-    print(f"\nUsing database: {available_dbs[0]}")
+    print(f"\nUsing database: {DB_PATH}")
     
-    with EDAExporter(available_dbs[0]) as exporter:
+    with EDAExporter(DB_PATH) as exporter:
         dataset = exporter.get_eda_dataset()
         
         if dataset:

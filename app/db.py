@@ -9,7 +9,7 @@ from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import SQLAlchemyError
 
-from app.config import DATABASE_URL, DB_PATH
+from app.config import DATABASE_URL, DB_PATH, BASE_DIR
 from app.exceptions import DatabaseError
 
 # Configure logger

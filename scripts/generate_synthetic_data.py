@@ -42,8 +42,9 @@ class SyntheticDataGenerator:
         self.start_date = datetime.strptime(start_date, '%Y-%m-%d')
         self.end_date = datetime.strptime(end_date, '%Y-%m-%d')
         
-        # Database path
-        self.db_path = Path(__file__).parent.parent / 'db' / 'soulsense.db'
+        # Database path from centralized config
+        from app.config import DB_PATH
+        self.db_path = Path(DB_PATH)
         print(f"USING DB: {self.db_path}")
         
         # Emotional patterns for realistic data generation

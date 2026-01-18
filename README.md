@@ -459,6 +459,39 @@ This prevents common "ModuleNotFoundError" or "DatabaseError" crashes that users
 
 ---
 
+## ⚙️ Environment Configuration
+
+SoulSense supports configuration via environment variables with the `SOULSENSE_*` prefix.
+
+### Quick Setup
+
+1. **Copy the example file:**
+   ```bash
+   copy .env.example .env
+   ```
+
+2. **Edit `.env`** to customize settings (optional)
+
+### Supported Variables
+
+| Variable | Type | Default | Description |
+|----------|------|---------|-------------|
+| `SOULSENSE_ENV` | string | `development` | Environment mode (development/production/test) |
+| `SOULSENSE_DEBUG` | bool | `false` | Enable debug logging |
+| `SOULSENSE_LOG_LEVEL` | string | `INFO` | Log level (DEBUG/INFO/WARNING/ERROR) |
+| `SOULSENSE_DB_PATH` | string | `data/soulsense.db` | Custom database file path |
+| `SOULSENSE_ENABLE_JOURNAL` | bool | `true` | Enable/disable journal feature |
+| `SOULSENSE_ENABLE_ANALYTICS` | bool | `true` | Enable/disable analytics feature |
+
+### Configuration Priority
+
+1. **Environment variables** (highest priority)
+2. **`.env` file** (loaded automatically if present)
+3. **`config.json`** file
+4. **Built-in defaults** (lowest priority)
+
+> **Note:** No configuration is required for normal usage. The application works out-of-the-box with sensible defaults.
+
 ---
 
 ## 🛠 Technologies Used

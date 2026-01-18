@@ -2,11 +2,61 @@ import os
 import json
 import logging
 import copy
-from typing import Dict, Any, Union
+from typing import Dict, Any, Union, Optional
+
+# Load environment variables from .env file if present
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # python-dotenv not installed, skip .env loading
+
 from app.exceptions import ConfigurationError
 
 BASE_DIR: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CONFIG_PATH: str = os.path.join(BASE_DIR, "config.json")
+
+
+def get_env_var(name: str, default: Optional[str] = None, 
+                var_type: type = str) -> Optional[Any]:
+    """
+    Get an environment variable with SOULSENSE_ prefix.
+    
+    Args:
+        name: Variable name without prefix (e.g., 'DEBUG' for SOULSENSE_DEBUG)
+        default: Default value if not set
+        var_type: Type to convert to (str, bool, int, float)
+    
+    Returns:
+        The environment variable value converted to the specified type
+    """
+    full_name = f"SOULSENSE_{name}"
+    value = os.environ.get(full_name)
+    
+    if value is None:
+        return default
+    
+    # Type conversion
+    if var_type == bool:
+        return value.lower() in ('true', '1', 'yes', 'on')
+    elif var_type == int:
+        try:
+            return int(value)
+        except ValueError:
+            return default
+    elif var_type == float:
+        try:
+            return float(value)
+        except ValueError:
+            return default
+    
+    return value
+
+
+# Environment settings
+ENV: str = get_env_var("ENV", "development")
+DEBUG: bool = get_env_var("DEBUG", False, bool)
+LOG_LEVEL: str = get_env_var("LOG_LEVEL", "INFO")
 
 # Default Configuration
 DEFAULT_CONFIG: Dict[str, Dict[str, Any]] = {
@@ -79,13 +129,20 @@ for directory in [DATA_DIR, LOG_DIR, MODELS_DIR]:
             pass
 
 # Calculated Paths
-# If DB_DIR_NAME is just a name (e.g. "db"), put it in DATA_DIR?
-# Or keep existing logic but default to Data?
-# Let's map "db" to DATA_DIR for simplicity if it matches default.
-if DB_DIR_NAME == "db":
-    DB_PATH: str = os.path.join(DATA_DIR, DB_FILENAME)
+# Environment variable takes precedence, then config.json, then defaults
+_env_db_path = get_env_var("DB_PATH")
+
+if _env_db_path:
+    # Environment variable override - can be absolute or relative to BASE_DIR
+    if os.path.isabs(_env_db_path):
+        DB_PATH: str = _env_db_path
+    else:
+        DB_PATH = os.path.join(BASE_DIR, _env_db_path)
+elif DB_DIR_NAME == "db":
+    # Default: put it in DATA_DIR
+    DB_PATH = os.path.join(DATA_DIR, DB_FILENAME)
 else:
-    # Allow custom path relative to BASE_DIR if specified in config.json
+    # Custom path relative to BASE_DIR if specified in config.json
     DB_PATH = os.path.join(BASE_DIR, DB_DIR_NAME, DB_FILENAME)
 
 DATABASE_URL: str = f"sqlite:///{DB_PATH}"
@@ -103,8 +160,11 @@ if not os.path.exists(os.path.dirname(DB_PATH)):
 # UI Settings
 THEME: str = _config["ui"]["theme"]
 
-# Feature Toggles
-ENABLE_JOURNAL: bool = _config["features"]["enable_journal"]
-ENABLE_ANALYTICS: bool = _config["features"]["enable_analytics"]
+# Feature Toggles (env vars take precedence over config file)
+_cfg_journal = _config["features"]["enable_journal"]
+_cfg_analytics = _config["features"]["enable_analytics"]
+
+ENABLE_JOURNAL: bool = get_env_var("ENABLE_JOURNAL", _cfg_journal, bool)
+ENABLE_ANALYTICS: bool = get_env_var("ENABLE_ANALYTICS", _cfg_analytics, bool)
 
 APP_CONFIG: Dict[str, Any] = _config

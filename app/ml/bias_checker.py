@@ -9,8 +9,9 @@ import os
 from datetime import datetime
 
 class SimpleBiasChecker:
-    def __init__(self, db_path="db/soulsense.db"):
-        self.db_path = db_path
+    def __init__(self, db_path=None):
+        from app.config import DB_PATH
+        self.db_path = db_path if db_path is not None else DB_PATH
     
     def check_age_bias(self):
         """Simple check: Are scores different across age groups?"""
