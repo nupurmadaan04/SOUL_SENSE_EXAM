@@ -617,23 +617,42 @@ class SoulSenseCLI:
             print(f"\nDefault directory: {default_dir}")
             custom_dir = self.get_input("Enter directory path (or press Enter for default): ").strip()
             
-            if custom_dir:
-                export_dir = os.path.abspath(custom_dir)
-            else:
-                export_dir = default_dir
-            
-            # Create directory if it doesn't exist
             try:
+                from app.utils.file_validation import validate_file_path, sanitize_filename, ValidationError
+                
+                if custom_dir:
+                    # User provided a directory. We validate it exists or can be created.
+                    # Note: We don't strictly enforce base_dir here for CLI as power users might want 
+                    # to export to Desktop/etc., but we DO ensure it treats '..' safely via realpath
+                    # For strict mode we could enforce base_dir=default_dir
+                    export_dir = os.path.realpath(os.path.abspath(custom_dir))
+                else:
+                    export_dir = default_dir
+                
                 os.makedirs(export_dir, exist_ok=True)
+                
             except Exception as e:
-                print(f"\n{colorize('❌ Error:', Colors.RED)} Cannot create directory: {e}")
+                print(f"\n{colorize('❌ Error:', Colors.RED)} Invalid directory: {e}")
                 self.get_input("\nPress Enter to continue...")
                 return
             
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             ext = "json" if choice == '1' else "csv"
-            filename = f"{self.username}_{timestamp}.{ext}"
-            filepath = os.path.join(export_dir, filename)
+            
+            # Sanitize username for filename
+            safe_username = sanitize_filename(self.username)
+            filename = f"{safe_username}_{timestamp}.{ext}"
+            
+            # Final validation before writing
+            try:
+                filepath = validate_file_path(
+                    os.path.join(export_dir, filename), 
+                    allowed_extensions=[f".{ext}"]
+                )
+            except ValidationError as ve:
+                print(f"\n{colorize('❌ Security Error:', Colors.RED)} {ve}")
+                self.get_input("\nPress Enter to continue...")
+                return
             
             if choice == '1':
                 # JSON Export

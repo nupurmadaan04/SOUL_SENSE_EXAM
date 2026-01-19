@@ -267,9 +267,12 @@ class ResultsManager:
             return
 
         try:
+            from app.utils.file_validation import validate_file_path, sanitize_filename, ValidationError
+            
             # Generate default filename
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            default_name = f"EQ_Report_{self.app.username}_{timestamp}.pdf"
+            safe_username = sanitize_filename(self.app.username)
+            default_name = f"EQ_Report_{safe_username}_{timestamp}.pdf"
             
             # Ask user for location
             from tkinter import filedialog
@@ -282,6 +285,14 @@ class ResultsManager:
             
             if not filename:
                 return # User cancelled
+
+            # Validate the user-selected path
+            try:
+                # We don't enforce base_dir here as users can save anywhere via GUI dialog
+                filename = validate_file_path(filename, allowed_extensions=[".pdf"])
+            except ValidationError as ve:
+                messagebox.showerror("Security Error", str(ve))
+                return
 
             # Prepare data for report
             result_path = generate_pdf_report(

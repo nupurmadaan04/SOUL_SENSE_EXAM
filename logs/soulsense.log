@@ -350,3 +350,370 @@ AttributeError: 'SoulSenseApp' object has no attribute 'center_window'
 2026-01-19 00:40:00 - __main__ - INFO - [main.py:430] - Initiating graceful application shutdown...
 2026-01-19 00:40:00 - __main__ - INFO - [main.py:439] - Database session committed and closed successfully
 2026-01-19 00:40:00 - __main__ - INFO - [main.py:444] - Application shutdown complete
+2026-01-19 15:15:51 - root - INFO - [logger.py:85] - Logging initialized.
+2026-01-19 15:15:51 - app.startup_checks - INFO - [startup_checks.py:298] - Running startup integrity checks...
+2026-01-19 15:15:51 - app.startup_checks - INFO - [startup_checks.py:268] - Config integrity check passed
+2026-01-19 15:15:51 - app.startup_checks - INFO - [startup_checks.py:316] - ✓ config_integrity: Configuration is valid
+2026-01-19 15:15:51 - app.startup_checks - INFO - [startup_checks.py:195] - Required files check passed
+2026-01-19 15:15:51 - app.startup_checks - INFO - [startup_checks.py:316] - ✓ required_files: All required files and directories present
+2026-01-19 15:15:51 - app.startup_checks - INFO - [startup_checks.py:121] - Database schema check passed
+2026-01-19 15:15:51 - app.questions - INFO - [questions.py:52] - Loaded 100 active questions into memory.
+2026-01-19 15:15:51 - app.startup_checks - INFO - [startup_checks.py:316] - ✓ database_schema: All required tables present
+2026-01-19 15:15:51 - app.startup_checks - INFO - [startup_checks.py:341] - Integrity checks complete: 3 passed, 0 warnings, 0 failed
+2026-01-19 15:15:51 - __main__ - INFO - [main.py:485] - Startup Integrity Check Results:
+========================================
+✓ config_integrity: Configuration is valid
+✓ required_files: All required files and directories present
+✓ database_schema: All required tables present
+========================================
+2026-01-19 15:15:51 - __main__ - INFO - [main.py:515] - Preloading questions into memory...
+2026-01-19 15:15:51 - app.questions - INFO - [questions.py:52] - Loaded 100 active questions into memory.
+2026-01-19 15:18:25 - root - INFO - [logger.py:85] - Logging initialized.
+2026-01-19 15:18:25 - app.startup_checks - INFO - [startup_checks.py:298] - Running startup integrity checks...
+2026-01-19 15:18:25 - app.startup_checks - INFO - [startup_checks.py:268] - Config integrity check passed
+2026-01-19 15:18:25 - app.startup_checks - INFO - [startup_checks.py:316] - ✓ config_integrity: Configuration is valid
+2026-01-19 15:18:25 - app.startup_checks - INFO - [startup_checks.py:195] - Required files check passed
+2026-01-19 15:18:25 - app.startup_checks - INFO - [startup_checks.py:316] - ✓ required_files: All required files and directories present
+2026-01-19 15:18:25 - app.startup_checks - INFO - [startup_checks.py:121] - Database schema check passed
+2026-01-19 15:18:25 - app.startup_checks - INFO - [startup_checks.py:316] - ✓ database_schema: All required tables present
+2026-01-19 15:18:25 - app.startup_checks - INFO - [startup_checks.py:341] - Integrity checks complete: 3 passed, 0 warnings, 0 failed
+2026-01-19 15:18:25 - __main__ - INFO - [main.py:485] - Startup Integrity Check Results:
+========================================
+✓ config_integrity: Configuration is valid
+✓ required_files: All required files and directories present
+✓ database_schema: All required tables present
+========================================
+2026-01-19 15:18:25 - app.questions - INFO - [questions.py:52] - Loaded 100 active questions into memory.
+2026-01-19 15:18:25 - __main__ - INFO - [main.py:515] - Preloading questions into memory...
+2026-01-19 15:18:25 - app.questions - INFO - [questions.py:52] - Loaded 100 active questions into memory.
+2026-01-19 15:18:31 - app.services.exam_service - INFO - [exam_service.py:55] - Exam session started for user: rohan1
+2026-01-19 15:18:34 - app.ml.clustering - INFO - [clustering.py:617] - Model loaded from B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\ml\models\clustering\emotional_profile_model.pkl
+2026-01-19 15:18:50 - app.error_handler - ERROR - [error_handler.py:134] - [HIGH] tkinter.callback: AttributeError - 'UserProfileView' object has no attribute '_render_export_view'
+Traceback (most recent call last):
+  File "C:\Python314\Lib\tkinter\__init__.py", line 2088, in __call__
+    return self.func(*args)
+           ~~~~~~~~~^^^^^^^
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\ui\sidebar.py", line 191, in <lambda>
+    widget.bind("<Button-1>", lambda e, i=item_id: self.select_item(i))
+                                                   ~~~~~~~~~~~~~~~~^^^
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\ui\sidebar.py", line 221, in select_item
+    self.on_change(item_id)
+    ~~~~~~~~~~~~~~^^^^^^^^^
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\ui\profile.py", line 171, in on_nav_change
+    self.header_label.configure(text="Data Export")
+    ^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'UserProfileView' object has no attribute '_render_export_view'. Did you mean: '_render_history_view'?
+2026-01-19 15:18:50 - root - ERROR - [main.py:455] - Interface Error: An unexpected error occurred. Please try again. - 'UserProfileView' object has no attribute '_render_export_view'
+2026-01-19 15:19:15 - __main__ - INFO - [main.py:430] - Initiating graceful application shutdown...
+2026-01-19 15:19:15 - __main__ - INFO - [main.py:439] - Database session committed and closed successfully
+2026-01-19 15:19:15 - __main__ - INFO - [main.py:444] - Application shutdown complete
+2026-01-19 15:19:18 - __main__ - INFO - [main.py:430] - Initiating graceful application shutdown...
+2026-01-19 15:19:18 - __main__ - INFO - [main.py:439] - Database session committed and closed successfully
+2026-01-19 15:19:18 - __main__ - INFO - [main.py:444] - Application shutdown complete
+2026-01-19 15:19:18 - __main__ - INFO - [main.py:430] - Initiating graceful application shutdown...
+2026-01-19 15:19:18 - __main__ - INFO - [main.py:439] - Database session committed and closed successfully
+2026-01-19 15:19:18 - __main__ - INFO - [main.py:444] - Application shutdown complete
+2026-01-19 15:22:20 - root - INFO - [logger.py:85] - Logging initialized.
+2026-01-19 15:22:20 - app.startup_checks - INFO - [startup_checks.py:298] - Running startup integrity checks...
+2026-01-19 15:22:20 - app.startup_checks - INFO - [startup_checks.py:268] - Config integrity check passed
+2026-01-19 15:22:20 - app.startup_checks - INFO - [startup_checks.py:316] - ✓ config_integrity: Configuration is valid
+2026-01-19 15:22:20 - app.startup_checks - INFO - [startup_checks.py:195] - Required files check passed
+2026-01-19 15:22:20 - app.startup_checks - INFO - [startup_checks.py:316] - ✓ required_files: All required files and directories present
+2026-01-19 15:22:20 - app.questions - INFO - [questions.py:52] - Loaded 100 active questions into memory.
+2026-01-19 15:22:20 - app.startup_checks - INFO - [startup_checks.py:121] - Database schema check passed
+2026-01-19 15:22:20 - app.startup_checks - INFO - [startup_checks.py:316] - ✓ database_schema: All required tables present
+2026-01-19 15:22:20 - app.startup_checks - INFO - [startup_checks.py:341] - Integrity checks complete: 3 passed, 0 warnings, 0 failed
+2026-01-19 15:22:20 - __main__ - INFO - [main.py:485] - Startup Integrity Check Results:
+========================================
+✓ config_integrity: Configuration is valid
+✓ required_files: All required files and directories present
+✓ database_schema: All required tables present
+========================================
+2026-01-19 15:22:20 - __main__ - INFO - [main.py:515] - Preloading questions into memory...
+2026-01-19 15:22:20 - app.questions - INFO - [questions.py:52] - Loaded 100 active questions into memory.
+2026-01-19 15:24:01 - app.services.exam_service - INFO - [exam_service.py:55] - Exam session started for user: rohan1
+2026-01-19 15:24:02 - app.ml.clustering - INFO - [clustering.py:617] - Model loaded from B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\ml\models\clustering\emotional_profile_model.pkl
+2026-01-19 15:24:05 - app.error_handler - ERROR - [error_handler.py:134] - [HIGH] tkinter.callback: AttributeError - 'UserProfileView' object has no attribute 'styles'
+Traceback (most recent call last):
+  File "C:\Python314\Lib\tkinter\__init__.py", line 2088, in __call__
+    return self.func(*args)
+           ~~~~~~~~~^^^^^^^
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\ui\sidebar.py", line 70, in <lambda>
+    widget.bind("<Button-1>", lambda e: self.select_item("profile"))
+                                        ~~~~~~~~~~~~~~~~^^^^^^^^^^^
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\ui\sidebar.py", line 221, in select_item
+    self.on_change(item_id)
+    ~~~~~~~~~~~~~~^^^^^^^^^
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\main.py", line 259, in switch_view
+    self.show_profile()
+    ~~~~~~~~~~~~~~~~~^^
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\main.py", line 426, in show_profile
+    UserProfileView(self.content_area, self)
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\ui\profile.py", line 65, in __init__
+    font=self.styles.get_font("xl", "bold"),
+         ^^^^^^^^^^^
+AttributeError: 'UserProfileView' object has no attribute 'styles'
+2026-01-19 15:24:05 - root - ERROR - [main.py:455] - Interface Error: An unexpected error occurred. Please try again. - 'UserProfileView' object has no attribute 'styles'
+2026-01-19 15:24:08 - app.error_handler - ERROR - [error_handler.py:134] - [HIGH] tkinter.callback: AttributeError - 'UserProfileView' object has no attribute 'view_container'
+Traceback (most recent call last):
+  File "C:\Python314\Lib\tkinter\__init__.py", line 2088, in __call__
+    return self.func(*args)
+           ~~~~~~~~~^^^^^^^
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\ui\sidebar.py", line 191, in <lambda>
+    widget.bind("<Button-1>", lambda e, i=item_id: self.select_item(i))
+                                                   ~~~~~~~~~~~~~~~~^^^
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\ui\sidebar.py", line 221, in select_item
+    self.on_change(item_id)
+    ~~~~~~~~~~~~~~^^^^^^^^^
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\ui\profile.py", line 148, in on_nav_change
+    for widget in self.view_container.winfo_children():
+                  ^^^^^^^^^^^^^^^^^^^
+AttributeError: 'UserProfileView' object has no attribute 'view_container'. Did you mean: 'main_container'?
+2026-01-19 15:24:08 - root - ERROR - [main.py:455] - Interface Error: An unexpected error occurred. Please try again. - 'UserProfileView' object has no attribute 'view_container'
+2026-01-19 15:24:10 - app.error_handler - ERROR - [error_handler.py:134] - [HIGH] tkinter.callback: AttributeError - 'UserProfileView' object has no attribute 'view_container'
+Traceback (most recent call last):
+  File "C:\Python314\Lib\tkinter\__init__.py", line 2088, in __call__
+    return self.func(*args)
+           ~~~~~~~~~^^^^^^^
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\ui\sidebar.py", line 191, in <lambda>
+    widget.bind("<Button-1>", lambda e, i=item_id: self.select_item(i))
+                                                   ~~~~~~~~~~~~~~~~^^^
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\ui\sidebar.py", line 221, in select_item
+    self.on_change(item_id)
+    ~~~~~~~~~~~~~~^^^^^^^^^
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\ui\profile.py", line 148, in on_nav_change
+    for widget in self.view_container.winfo_children():
+                  ^^^^^^^^^^^^^^^^^^^
+AttributeError: 'UserProfileView' object has no attribute 'view_container'. Did you mean: 'main_container'?
+2026-01-19 15:24:10 - root - ERROR - [main.py:455] - Interface Error: An unexpected error occurred. Please try again. - 'UserProfileView' object has no attribute 'view_container'
+2026-01-19 15:24:15 - __main__ - INFO - [main.py:430] - Initiating graceful application shutdown...
+2026-01-19 15:24:15 - __main__ - INFO - [main.py:439] - Database session committed and closed successfully
+2026-01-19 15:24:15 - __main__ - INFO - [main.py:444] - Application shutdown complete
+2026-01-19 15:24:15 - __main__ - INFO - [main.py:430] - Initiating graceful application shutdown...
+2026-01-19 15:24:15 - __main__ - INFO - [main.py:439] - Database session committed and closed successfully
+2026-01-19 15:24:15 - __main__ - INFO - [main.py:444] - Application shutdown complete
+2026-01-19 15:26:55 - root - INFO - [logger.py:85] - Logging initialized.
+2026-01-19 15:26:56 - app.startup_checks - INFO - [startup_checks.py:298] - Running startup integrity checks...
+2026-01-19 15:26:56 - app.startup_checks - INFO - [startup_checks.py:268] - Config integrity check passed
+2026-01-19 15:26:56 - app.startup_checks - INFO - [startup_checks.py:316] - ✓ config_integrity: Configuration is valid
+2026-01-19 15:26:56 - app.startup_checks - INFO - [startup_checks.py:195] - Required files check passed
+2026-01-19 15:26:56 - app.startup_checks - INFO - [startup_checks.py:316] - ✓ required_files: All required files and directories present
+2026-01-19 15:26:56 - app.questions - INFO - [questions.py:52] - Loaded 100 active questions into memory.
+2026-01-19 15:26:56 - app.startup_checks - INFO - [startup_checks.py:121] - Database schema check passed
+2026-01-19 15:26:56 - app.startup_checks - INFO - [startup_checks.py:316] - ✓ database_schema: All required tables present
+2026-01-19 15:26:56 - app.startup_checks - INFO - [startup_checks.py:341] - Integrity checks complete: 3 passed, 0 warnings, 0 failed
+2026-01-19 15:26:56 - __main__ - INFO - [main.py:485] - Startup Integrity Check Results:
+========================================
+✓ config_integrity: Configuration is valid
+✓ required_files: All required files and directories present
+✓ database_schema: All required tables present
+========================================
+2026-01-19 15:26:56 - __main__ - INFO - [main.py:515] - Preloading questions into memory...
+2026-01-19 15:26:56 - app.questions - INFO - [questions.py:52] - Loaded 100 active questions into memory.
+2026-01-19 15:27:13 - __main__ - INFO - [main.py:543] - Received signal 2, initiating shutdown
+2026-01-19 15:27:13 - __main__ - INFO - [main.py:430] - Initiating graceful application shutdown...
+2026-01-19 15:27:13 - __main__ - INFO - [main.py:439] - Database session committed and closed successfully
+2026-01-19 15:27:13 - __main__ - INFO - [main.py:444] - Application shutdown complete
+2026-01-19 15:27:14 - __main__ - INFO - [main.py:430] - Initiating graceful application shutdown...
+2026-01-19 15:27:14 - __main__ - INFO - [main.py:439] - Database session committed and closed successfully
+2026-01-19 15:27:14 - __main__ - INFO - [main.py:444] - Application shutdown complete
+2026-01-19 16:08:16 - root - INFO - [logger.py:85] - Logging initialized.
+2026-01-19 16:08:16 - app.startup_checks - INFO - [startup_checks.py:298] - Running startup integrity checks...
+2026-01-19 16:08:16 - app.startup_checks - INFO - [startup_checks.py:268] - Config integrity check passed
+2026-01-19 16:08:16 - app.startup_checks - INFO - [startup_checks.py:316] - ✓ config_integrity: Configuration is valid
+2026-01-19 16:08:16 - app.startup_checks - INFO - [startup_checks.py:195] - Required files check passed
+2026-01-19 16:08:16 - app.startup_checks - INFO - [startup_checks.py:316] - ✓ required_files: All required files and directories present
+2026-01-19 16:08:16 - app.questions - INFO - [questions.py:52] - Loaded 100 active questions into memory.
+2026-01-19 16:08:16 - app.startup_checks - INFO - [startup_checks.py:121] - Database schema check passed
+2026-01-19 16:08:16 - app.startup_checks - INFO - [startup_checks.py:316] - ✓ database_schema: All required tables present
+2026-01-19 16:08:16 - app.startup_checks - INFO - [startup_checks.py:341] - Integrity checks complete: 3 passed, 0 warnings, 0 failed
+2026-01-19 16:08:16 - __main__ - INFO - [main.py:485] - Startup Integrity Check Results:
+========================================
+✓ config_integrity: Configuration is valid
+✓ required_files: All required files and directories present
+✓ database_schema: All required tables present
+========================================
+2026-01-19 16:08:16 - __main__ - INFO - [main.py:515] - Preloading questions into memory...
+2026-01-19 16:08:16 - app.questions - INFO - [questions.py:52] - Loaded 100 active questions into memory.
+2026-01-19 16:08:47 - app.error_handler - ERROR - [error_handler.py:134] - [HIGH] tkinter.callback: AttributeError - 'UserProfileView' object has no attribute 'styles'
+Traceback (most recent call last):
+  File "C:\Python314\Lib\tkinter\__init__.py", line 2088, in __call__
+    return self.func(*args)
+           ~~~~~~~~~^^^^^^^
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\ui\sidebar.py", line 70, in <lambda>
+    widget.bind("<Button-1>", lambda e: self.select_item("profile"))
+                                        ~~~~~~~~~~~~~~~~^^^^^^^^^^^
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\ui\sidebar.py", line 221, in select_item
+    self.on_change(item_id)
+    ~~~~~~~~~~~~~~^^^^^^^^^
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\main.py", line 259, in switch_view
+    self.show_profile()
+    ~~~~~~~~~~~~~~~~~^^
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\main.py", line 426, in show_profile
+    UserProfileView(self.content_area, self)
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\ui\profile.py", line 65, in __init__
+    font=self.styles.get_font("xl", "bold"),
+         ^^^^^^^^^^^
+AttributeError: 'UserProfileView' object has no attribute 'styles'
+2026-01-19 16:08:47 - root - ERROR - [main.py:455] - Interface Error: An unexpected error occurred. Please try again. - 'UserProfileView' object has no attribute 'styles'
+2026-01-19 16:09:51 - root - INFO - [logger.py:85] - Logging initialized.
+2026-01-19 16:09:51 - app.startup_checks - INFO - [startup_checks.py:298] - Running startup integrity checks...
+2026-01-19 16:09:51 - app.startup_checks - INFO - [startup_checks.py:268] - Config integrity check passed
+2026-01-19 16:09:51 - app.startup_checks - INFO - [startup_checks.py:316] - ✓ config_integrity: Configuration is valid
+2026-01-19 16:09:51 - app.startup_checks - INFO - [startup_checks.py:195] - Required files check passed
+2026-01-19 16:09:51 - app.questions - INFO - [questions.py:52] - Loaded 100 active questions into memory.
+2026-01-19 16:09:51 - app.startup_checks - INFO - [startup_checks.py:316] - ✓ required_files: All required files and directories present
+2026-01-19 16:09:51 - app.startup_checks - INFO - [startup_checks.py:121] - Database schema check passed
+2026-01-19 16:09:51 - app.startup_checks - INFO - [startup_checks.py:316] - ✓ database_schema: All required tables present
+2026-01-19 16:09:51 - app.startup_checks - INFO - [startup_checks.py:341] - Integrity checks complete: 3 passed, 0 warnings, 0 failed
+2026-01-19 16:09:51 - __main__ - INFO - [main.py:485] - Startup Integrity Check Results:
+========================================
+✓ config_integrity: Configuration is valid
+✓ required_files: All required files and directories present
+✓ database_schema: All required tables present
+========================================
+2026-01-19 16:09:51 - __main__ - INFO - [main.py:515] - Preloading questions into memory...
+2026-01-19 16:09:51 - app.questions - INFO - [questions.py:52] - Loaded 100 active questions into memory.
+2026-01-19 16:09:56 - __main__ - INFO - [main.py:543] - Received signal 2, initiating shutdown
+2026-01-19 16:09:56 - __main__ - INFO - [main.py:430] - Initiating graceful application shutdown...
+2026-01-19 16:09:56 - __main__ - INFO - [main.py:439] - Database session committed and closed successfully
+2026-01-19 16:09:56 - __main__ - INFO - [main.py:444] - Application shutdown complete
+2026-01-19 16:09:56 - __main__ - INFO - [main.py:430] - Initiating graceful application shutdown...
+2026-01-19 16:09:56 - __main__ - INFO - [main.py:439] - Database session committed and closed successfully
+2026-01-19 16:09:56 - __main__ - INFO - [main.py:444] - Application shutdown complete
+2026-01-19 16:13:13 - __main__ - INFO - [main.py:430] - Initiating graceful application shutdown...
+2026-01-19 16:13:13 - __main__ - INFO - [main.py:439] - Database session committed and closed successfully
+2026-01-19 16:13:13 - __main__ - INFO - [main.py:444] - Application shutdown complete
+2026-01-19 16:13:13 - __main__ - INFO - [main.py:430] - Initiating graceful application shutdown...
+2026-01-19 16:13:13 - __main__ - INFO - [main.py:439] - Database session committed and closed successfully
+2026-01-19 16:13:13 - __main__ - INFO - [main.py:444] - Application shutdown complete
+2026-01-19 16:13:42 - root - INFO - [logger.py:85] - Logging initialized.
+2026-01-19 16:13:42 - app.startup_checks - INFO - [startup_checks.py:298] - Running startup integrity checks...
+2026-01-19 16:13:42 - app.startup_checks - INFO - [startup_checks.py:268] - Config integrity check passed
+2026-01-19 16:13:42 - app.startup_checks - INFO - [startup_checks.py:316] - ✓ config_integrity: Configuration is valid
+2026-01-19 16:13:42 - app.startup_checks - INFO - [startup_checks.py:195] - Required files check passed
+2026-01-19 16:13:42 - app.startup_checks - INFO - [startup_checks.py:316] - ✓ required_files: All required files and directories present
+2026-01-19 16:13:42 - app.startup_checks - INFO - [startup_checks.py:121] - Database schema check passed
+2026-01-19 16:13:42 - app.startup_checks - INFO - [startup_checks.py:316] - ✓ database_schema: All required tables present
+2026-01-19 16:13:42 - app.questions - INFO - [questions.py:52] - Loaded 100 active questions into memory.
+2026-01-19 16:13:42 - app.startup_checks - INFO - [startup_checks.py:341] - Integrity checks complete: 3 passed, 0 warnings, 0 failed
+2026-01-19 16:13:42 - __main__ - INFO - [main.py:485] - Startup Integrity Check Results:
+========================================
+✓ config_integrity: Configuration is valid
+✓ required_files: All required files and directories present
+✓ database_schema: All required tables present
+========================================
+2026-01-19 16:13:42 - __main__ - INFO - [main.py:515] - Preloading questions into memory...
+2026-01-19 16:13:42 - app.questions - INFO - [questions.py:52] - Loaded 100 active questions into memory.
+2026-01-19 16:14:19 - app.error_handler - ERROR - [error_handler.py:134] - [HIGH] tkinter.callback: AttributeError - 'UserProfileView' object has no attribute '_render_export_view'
+Traceback (most recent call last):
+  File "C:\Python314\Lib\tkinter\__init__.py", line 2088, in __call__
+    return self.func(*args)
+           ~~~~~~~~~^^^^^^^
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\ui\sidebar.py", line 191, in <lambda>
+    widget.bind("<Button-1>", lambda e, i=item_id: self.select_item(i))
+                                                   ~~~~~~~~~~~~~~~~^^^
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\ui\sidebar.py", line 221, in select_item
+    self.on_change(item_id)
+    ~~~~~~~~~~~~~~^^^^^^^^^
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\ui\profile.py", line 173, in on_nav_change
+    self._render_export_view()
+    ^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'UserProfileView' object has no attribute '_render_export_view'. Did you mean: '_render_history_view'?
+2026-01-19 16:14:19 - root - ERROR - [main.py:455] - Interface Error: An unexpected error occurred. Please try again. - 'UserProfileView' object has no attribute '_render_export_view'
+2026-01-19 16:14:37 - __main__ - INFO - [main.py:430] - Initiating graceful application shutdown...
+2026-01-19 16:14:37 - __main__ - INFO - [main.py:439] - Database session committed and closed successfully
+2026-01-19 16:14:37 - __main__ - INFO - [main.py:444] - Application shutdown complete
+2026-01-19 16:14:38 - __main__ - INFO - [main.py:430] - Initiating graceful application shutdown...
+2026-01-19 16:14:38 - __main__ - INFO - [main.py:439] - Database session committed and closed successfully
+2026-01-19 16:14:38 - __main__ - INFO - [main.py:444] - Application shutdown complete
+2026-01-19 16:29:00 - root - INFO - [logger.py:85] - Logging initialized.
+2026-01-19 16:29:00 - app.startup_checks - INFO - [startup_checks.py:298] - Running startup integrity checks...
+2026-01-19 16:29:00 - app.startup_checks - INFO - [startup_checks.py:268] - Config integrity check passed
+2026-01-19 16:29:00 - app.startup_checks - INFO - [startup_checks.py:316] - ✓ config_integrity: Configuration is valid
+2026-01-19 16:29:00 - app.startup_checks - INFO - [startup_checks.py:195] - Required files check passed
+2026-01-19 16:29:00 - app.startup_checks - INFO - [startup_checks.py:316] - ✓ required_files: All required files and directories present
+2026-01-19 16:29:00 - app.questions - INFO - [questions.py:52] - Loaded 100 active questions into memory.
+2026-01-19 16:29:00 - app.startup_checks - INFO - [startup_checks.py:121] - Database schema check passed
+2026-01-19 16:29:00 - app.startup_checks - INFO - [startup_checks.py:316] - ✓ database_schema: All required tables present
+2026-01-19 16:29:00 - app.startup_checks - INFO - [startup_checks.py:341] - Integrity checks complete: 3 passed, 0 warnings, 0 failed
+2026-01-19 16:29:00 - __main__ - INFO - [main.py:485] - Startup Integrity Check Results:
+========================================
+✓ config_integrity: Configuration is valid
+✓ required_files: All required files and directories present
+✓ database_schema: All required tables present
+========================================
+2026-01-19 16:29:00 - __main__ - INFO - [main.py:515] - Preloading questions into memory...
+2026-01-19 16:29:00 - app.questions - INFO - [questions.py:52] - Loaded 100 active questions into memory.
+2026-01-19 16:30:24 - __main__ - INFO - [main.py:430] - Initiating graceful application shutdown...
+2026-01-19 16:30:25 - __main__ - INFO - [main.py:439] - Database session committed and closed successfully
+2026-01-19 16:30:25 - __main__ - INFO - [main.py:444] - Application shutdown complete
+2026-01-19 16:30:25 - __main__ - INFO - [main.py:430] - Initiating graceful application shutdown...
+2026-01-19 16:30:25 - __main__ - INFO - [main.py:439] - Database session committed and closed successfully
+2026-01-19 16:30:25 - __main__ - INFO - [main.py:444] - Application shutdown complete
+2026-01-19 16:46:54 - root - INFO - [logger.py:85] - Logging initialized.
+2026-01-19 16:46:54 - app.startup_checks - INFO - [startup_checks.py:298] - Running startup integrity checks...
+2026-01-19 16:46:54 - app.startup_checks - INFO - [startup_checks.py:268] - Config integrity check passed
+2026-01-19 16:46:54 - app.startup_checks - INFO - [startup_checks.py:316] - ✓ config_integrity: Configuration is valid
+2026-01-19 16:46:54 - app.startup_checks - INFO - [startup_checks.py:195] - Required files check passed
+2026-01-19 16:46:54 - app.startup_checks - INFO - [startup_checks.py:316] - ✓ required_files: All required files and directories present
+2026-01-19 16:46:54 - app.questions - INFO - [questions.py:52] - Loaded 100 active questions into memory.
+2026-01-19 16:46:54 - app.startup_checks - INFO - [startup_checks.py:121] - Database schema check passed
+2026-01-19 16:46:54 - app.startup_checks - INFO - [startup_checks.py:316] - ✓ database_schema: All required tables present
+2026-01-19 16:46:54 - app.startup_checks - INFO - [startup_checks.py:341] - Integrity checks complete: 3 passed, 0 warnings, 0 failed
+2026-01-19 16:46:54 - __main__ - INFO - [main.py:485] - Startup Integrity Check Results:
+========================================
+✓ config_integrity: Configuration is valid
+✓ required_files: All required files and directories present
+✓ database_schema: All required tables present
+========================================
+2026-01-19 16:46:54 - __main__ - INFO - [main.py:515] - Preloading questions into memory...
+2026-01-19 16:46:54 - app.questions - INFO - [questions.py:52] - Loaded 100 active questions into memory.
+2026-01-19 16:47:29 - app.services.exam_service - INFO - [exam_service.py:55] - Exam session started for user: rohan1
+2026-01-19 16:47:31 - app.ml.clustering - INFO - [clustering.py:617] - Model loaded from B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\ml\models\clustering\emotional_profile_model.pkl
+2026-01-19 16:47:33 - app.ml.clustering - INFO - [clustering.py:617] - Model loaded from B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\ml\models\clustering\emotional_profile_model.pkl
+2026-01-19 16:47:48 - app.error_handler - ERROR - [error_handler.py:134] - [HIGH] tkinter.callback: AttributeError - 'UserProfileView' object has no attribute '_render_export_view'
+Traceback (most recent call last):
+  File "C:\Python314\Lib\tkinter\__init__.py", line 2088, in __call__
+    return self.func(*args)
+           ~~~~~~~~~^^^^^^^
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\ui\sidebar.py", line 191, in <lambda>
+    widget.bind("<Button-1>", lambda e, i=item_id: self.select_item(i))
+                                                   ~~~~~~~~~~~~~~~~^^^
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\ui\sidebar.py", line 221, in select_item
+    self.on_change(item_id)
+    ~~~~~~~~~~~~~~^^^^^^^^^
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\ui\profile.py", line 173, in on_nav_change
+    self._render_export_view()
+    ^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'UserProfileView' object has no attribute '_render_export_view'. Did you mean: '_render_history_view'?
+2026-01-19 16:47:48 - root - ERROR - [main.py:455] - Interface Error: An unexpected error occurred. Please try again. - 'UserProfileView' object has no attribute '_render_export_view'
+2026-01-19 16:47:57 - __main__ - INFO - [main.py:430] - Initiating graceful application shutdown...
+2026-01-19 16:47:57 - __main__ - INFO - [main.py:439] - Database session committed and closed successfully
+2026-01-19 16:47:57 - __main__ - INFO - [main.py:444] - Application shutdown complete
+2026-01-19 16:47:58 - __main__ - INFO - [main.py:430] - Initiating graceful application shutdown...
+2026-01-19 16:47:58 - __main__ - INFO - [main.py:439] - Database session committed and closed successfully
+2026-01-19 16:47:58 - __main__ - INFO - [main.py:444] - Application shutdown complete
+2026-01-19 17:17:18 - root - INFO - [logger.py:85] - Logging initialized.
+2026-01-19 17:17:18 - app.startup_checks - INFO - [startup_checks.py:298] - Running startup integrity checks...
+2026-01-19 17:17:18 - app.startup_checks - INFO - [startup_checks.py:268] - Config integrity check passed
+2026-01-19 17:17:18 - app.startup_checks - INFO - [startup_checks.py:316] - ✓ config_integrity: Configuration is valid
+2026-01-19 17:17:18 - app.startup_checks - INFO - [startup_checks.py:195] - Required files check passed
+2026-01-19 17:17:18 - app.startup_checks - INFO - [startup_checks.py:316] - ✓ required_files: All required files and directories present
+2026-01-19 17:17:18 - app.startup_checks - INFO - [startup_checks.py:121] - Database schema check passed
+2026-01-19 17:17:18 - app.startup_checks - INFO - [startup_checks.py:316] - ✓ database_schema: All required tables present
+2026-01-19 17:17:18 - app.startup_checks - INFO - [startup_checks.py:341] - Integrity checks complete: 3 passed, 0 warnings, 0 failed
+2026-01-19 17:17:18 - __main__ - INFO - [main.py:485] - Startup Integrity Check Results:
+========================================
+✓ config_integrity: Configuration is valid
+✓ required_files: All required files and directories present
+✓ database_schema: All required tables present
+========================================
+2026-01-19 17:17:18 - __main__ - INFO - [main.py:515] - Preloading questions into memory...
+2026-01-19 17:17:18 - app.questions - INFO - [questions.py:52] - Loaded 100 active questions into memory.
+2026-01-19 17:17:30 - app.services.exam_service - INFO - [exam_service.py:55] - Exam session started for user: rohan1
+2026-01-19 17:17:31 - app.ml.clustering - INFO - [clustering.py:617] - Model loaded from B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\ml\models\clustering\emotional_profile_model.pkl
+2026-01-19 17:19:30 - app.services.exam_service - INFO - [exam_service.py:55] - Exam session started for user: rohan1
+2026-01-19 17:19:42 - app.services.exam_service - INFO - [exam_service.py:220] - Exam saved. Score: 15, Sentiment: -54.230000000000004, UserID: 1

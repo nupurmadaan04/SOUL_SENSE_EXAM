@@ -84,6 +84,11 @@ def test_config_recovery_logic():
     """
     Edge Case: Test recovery from a corrupt config file.
     """
+    # Windows fix: os.rename fails if dst exists. Cleanup potential leftovers first.
+    backup_path = CONFIG_PATH + ".corrupt.bak"
+    if os.path.exists(backup_path):
+        os.remove(backup_path)
+
     # Create a backup of the real config if it exists
     real_config_content = None
     if os.path.exists(CONFIG_PATH):
@@ -98,7 +103,7 @@ def test_config_recovery_logic():
         result = check_config_integrity()
         
         # Should return WARNING (recovered), not FAILED
-        assert result.status == CheckStatus.WARNING
+        assert result.status == CheckStatus.WARNING, f"Config check failed: {result.message} Details: {result.details}"
         assert "restored to defaults" in result.message
 
         # Verify default config is now present and valid
@@ -111,6 +116,9 @@ def test_config_recovery_logic():
         if real_config_content:
             with open(CONFIG_PATH, 'w') as f:
                 f.write(real_config_content)
+        # Cleanup backup again
+        if os.path.exists(backup_path):
+            os.remove(backup_path)
 
 def test_question_initialization_concurrency():
     """
@@ -120,17 +128,30 @@ def test_question_initialization_concurrency():
     import app.questions
     app.questions._ALL_QUESTIONS = []
     
-    def run_init():
-        initialize_questions()
+    # Mock safe_db_context to avoid DB hits and return dummy questions
+    with patch("app.questions.safe_db_context") as mock_ctx:
+        mock_session = MagicMock()
+        mock_ctx.return_value.__enter__.return_value = mock_session
+        
+        # Setup query chain: session.query(...).filter(...).order_by(...).all()
+        # Returns list of objects with required attributes
+        q1 = MagicMock(id=1, question_text="Q1", tooltip="T1", min_age=10, max_age=99)
+        q2 = MagicMock(id=2, question_text="Q2", tooltip="T2", min_age=10, max_age=99)
+        
+        mock_session.query.return_value.filter.return_value.order_by.return_value.all.return_value = [q1, q2]
+        
+        def run_init():
+            initialize_questions()
 
-    threads = []
-    for _ in range(5):
-        t = threading.Thread(target=run_init)
-        threads.append(t)
-        t.start()
-    
-    for t in threads:
-        t.join()
-    
-    # Check if loaded correctly and strictly once (if logic allows) or at least valid
-    assert len(app.questions._ALL_QUESTIONS) > 0
+        threads = []
+        for _ in range(5):
+            t = threading.Thread(target=run_init)
+            threads.append(t)
+            t.start()
+        
+        for t in threads:
+            t.join()
+        
+        # Check if loaded correctly
+        assert len(app.questions._ALL_QUESTIONS) == 2
+        assert app.questions._ALL_QUESTIONS[0][1] == "Q1"

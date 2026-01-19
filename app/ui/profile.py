@@ -1426,6 +1426,129 @@ class UserProfileView:
             logging.error(f"Error saving events: {e}")
             messagebox.showerror("Error", "Failed to save events.")
 
+
+    # ==========================
+    # 4. EXPORT VIEW
+    # ==========================
+    def _render_export_view(self):
+        # Container
+        content = tk.Frame(self.view_container, bg=self.colors.get("bg"))
+        content.pack(fill="both", expand=True, padx=40, pady=40)
+        
+        card = tk.Frame(content, bg=self.colors.get("card_bg"), highlightbackground=self.colors.get("card_border"), highlightthickness=1)
+        card.pack(fill="both", expand=True) # Full size card
+        
+        inner = tk.Frame(card, bg=self.colors.get("card_bg"))
+        inner.pack(fill="both", expand=True, padx=40, pady=40)
+        
+        # Header
+        self._create_section_label(inner, "Export Your Data")
+        
+        tk.Label(
+            inner, 
+            text="Download a complete copy of your personal data, including your profile, medical history, life events, and preferences.",
+            font=self.styles.get_font("sm"), 
+            bg=self.colors.get("card_bg"), 
+            fg="gray",
+            wraplength=600,
+            justify="left"
+        ).pack(anchor="w", pady=(0, 30))
+        
+        # Export Actions
+        btn_frame = tk.Frame(inner, bg=self.colors.get("card_bg"))
+        btn_frame.pack(anchor="w")
+        
+        def do_export_json():
+            try:
+                from app.utils.file_validation import validate_file_path, sanitize_filename, ValidationError
+                from tkinter import filedialog
+                import json
+                
+                # 1. Prepare Data
+                session = get_session()
+                user = session.query(User).filter_by(username=self.app.username).first()
+                if not user:
+                    session.close()
+                    messagebox.showerror("Error", "User not found.")
+                    return
+                
+                export_data = {
+                    "username": user.username,
+                    "exported_at": datetime.now().isoformat(),
+                    "profile": {},
+                    "medical": {},
+                    "strengths": {},
+                    "emotional_patterns": {}
+                }
+                
+                if user.personal_profile:
+                    p = user.personal_profile
+                    export_data["profile"] = {
+                        "bio": p.bio, "occupation": p.occupation, "email": p.email,
+                        "life_events": json.loads(p.life_events) if p.life_events else []
+                    }
+                    
+                if user.medical_profile:
+                    m = user.medical_profile
+                    export_data["medical"] = {
+                        "allergies": m.allergies, "medications": m.medications,
+                        "conditions": m.medical_conditions, "blood_type": m.blood_type
+                    }
+                    
+                if user.strengths:
+                    s = user.strengths
+                    export_data["strengths"] = {
+                        "top": json.loads(s.top_strengths) if s.top_strengths else [],
+                        "goals": s.goals
+                    }
+
+                session.close()
+
+                # 2. Sanitize Filename
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                safe_username = sanitize_filename(self.app.username)
+                default_name = f"SoulSense_Export_{safe_username}_{timestamp}.json"
+                
+                # 3. Ask for Save Location
+                filename = filedialog.asksaveasfilename(
+                    title="Export Data",
+                    initialfile=default_name,
+                    defaultextension=".json",
+                    filetypes=[("JSON Data", "*.json")]
+                )
+                
+                if not filename:
+                    return
+
+                # 4. Validate Path
+                try:
+                    filename = validate_file_path(filename, allowed_extensions=[".json"])
+                except ValidationError as ve:
+                    messagebox.showerror("Security Error", str(ve))
+                    return
+                
+                # 5. Write File
+                with open(filename, 'w', encoding='utf-8') as f:
+                    json.dump(export_data, f, indent=2, ensure_ascii=False)
+                    
+                messagebox.showinfo("Export Success", f"Data exported successfully to:\n{filename}")
+                
+            except Exception as e:
+                logging.error(f"Export failed: {e}")
+                messagebox.showerror("Export Error", f"Failed to export data: {e}")
+
+        tk.Button(
+            btn_frame,
+            text="📄 Export as JSON",
+            command=do_export_json,
+            font=self.styles.get_font("md", "bold"),
+            bg=self.colors.get("primary"),
+            fg="white",
+            relief="flat",
+            padx=20, pady=10,
+            cursor="hand2"
+        ).pack(side="left")
+
     def _render_settings_view(self, parent):
         """Render embedded settings view"""
         # Header
