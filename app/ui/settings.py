@@ -22,14 +22,14 @@ class SettingsManager:
         # Create modal window
         self.settings_win = tk.Toplevel(self.root)
         self.settings_win.title("Settings")
-        self.settings_win.geometry("480x580")
+        self.settings_win.geometry("480x750")
         self.settings_win.resizable(False, False)
         self.settings_win.configure(bg=colors["bg"])
         
         # Center window on parent
         self.settings_win.update_idletasks()
         x = self.root.winfo_x() + (self.root.winfo_width() - 480) // 2
-        y = self.root.winfo_y() + (self.root.winfo_height() - 580) // 2
+        y = self.root.winfo_y() + (self.root.winfo_height() - 750) // 2
         self.settings_win.geometry(f"+{x}+{y}")
         
         # Make modal
@@ -62,6 +62,7 @@ class SettingsManager:
         self._create_question_count_section(content_frame, colors)
         self._create_theme_section(content_frame, colors)
         self._create_sound_section(content_frame, colors)
+        self._create_experimental_section(content_frame, colors)
         
         # Action Buttons
         self._create_action_buttons(content_frame, colors)
@@ -257,6 +258,112 @@ class SettingsManager:
             font=("Segoe UI", 14)
         )
         toggle.pack(side="right")
+    
+    def _create_experimental_section(self, parent, colors):
+        """Create experimental features section showing feature flags"""
+        try:
+            from app.feature_flags import feature_flags
+        except ImportError:
+            return  # Feature flags not available
+        
+        section = tk.Frame(
+            parent,
+            bg=colors.get("surface", "#FFFFFF"),
+            highlightbackground=colors.get("warning", "#F59E0B"),
+            highlightthickness=2
+        )
+        section.pack(fill="x", pady=8)
+        
+        inner = tk.Frame(section, bg=colors.get("surface", "#FFFFFF"))
+        inner.pack(fill="x", padx=15, pady=12)
+        
+        # Header with experimental badge
+        header_frame = tk.Frame(inner, bg=colors.get("surface", "#FFFFFF"))
+        header_frame.pack(anchor="w", fill="x")
+        
+        label = tk.Label(
+            header_frame,
+            text="🧪 Experimental Features",
+            font=("Segoe UI", 12, "bold"),
+            bg=colors.get("surface", "#FFFFFF"),
+            fg=colors.get("warning", "#F59E0B")
+        )
+        label.pack(side="left")
+        
+        badge = tk.Label(
+            header_frame,
+            text="BETA",
+            font=("Segoe UI", 8, "bold"),
+            bg=colors.get("warning", "#F59E0B"),
+            fg="#FFFFFF",
+            padx=6,
+            pady=2
+        )
+        badge.pack(side="left", padx=8)
+        
+        desc = tk.Label(
+            inner,
+            text="Enable cutting-edge features (may be unstable)",
+            font=("Segoe UI", 10),
+            bg=colors.get("surface", "#FFFFFF"),
+            fg=colors.get("text_secondary", "#475569")
+        )
+        desc.pack(anchor="w", pady=(2, 8))
+        
+        # Feature flags toggles
+        self.flag_vars = {}
+        flags_frame = tk.Frame(inner, bg=colors.get("surface", "#FFFFFF"))
+        flags_frame.pack(anchor="w", fill="x")
+        
+        # Get all flags and their status
+        for flag_name, flag in feature_flags.get_all_flags().items():
+            is_enabled = feature_flags.is_enabled(flag_name)
+            
+            flag_row = tk.Frame(flags_frame, bg=colors.get("surface", "#FFFFFF"))
+            flag_row.pack(anchor="w", fill="x", pady=2)
+            
+            # Status indicator
+            status_color = colors.get("success", "#10B981") if is_enabled else colors.get("text_secondary", "#94A3B8")
+            status_text = "●" if is_enabled else "○"
+            
+            status_label = tk.Label(
+                flag_row,
+                text=status_text,
+                font=("Segoe UI", 12),
+                bg=colors.get("surface", "#FFFFFF"),
+                fg=status_color
+            )
+            status_label.pack(side="left")
+            
+            # Flag name
+            name_label = tk.Label(
+                flag_row,
+                text=flag_name.replace("_", " ").title(),
+                font=("Segoe UI", 10),
+                bg=colors.get("surface", "#FFFFFF"),
+                fg=colors.get("text_primary", "#0F172A")
+            )
+            name_label.pack(side="left", padx=(5, 10))
+            
+            # Status text
+            status_text_label = tk.Label(
+                flag_row,
+                text="ON" if is_enabled else "OFF",
+                font=("Segoe UI", 9, "bold"),
+                bg=colors.get("surface", "#FFFFFF"),
+                fg=status_color
+            )
+            status_text_label.pack(side="right")
+        
+        # Info note
+        note = tk.Label(
+            inner,
+            text="💡 Set SOULSENSE_FF_* env vars or edit config.json to enable",
+            font=("Segoe UI", 9, "italic"),
+            bg=colors.get("surface", "#FFFFFF"),
+            fg=colors.get("text_secondary", "#94A3B8")
+        )
+        note.pack(anchor="w", pady=(8, 0))
     
     def _create_action_buttons(self, parent, colors):
         """Create action buttons section"""

@@ -494,6 +494,72 @@ SoulSense supports configuration via environment variables with the `SOULSENSE_*
 
 ---
 
+## 🧪 Experimental Feature Flags
+
+SoulSense includes a feature flag system for controlling experimental and beta features. This allows you to enable cutting-edge functionality before it becomes generally available.
+
+### Available Flags
+
+| Flag | Environment Variable | Description |
+|------|---------------------|-------------|
+| `ai_journal_suggestions` | `SOULSENSE_FF_AI_JOURNAL_SUGGESTIONS` | AI-powered suggestions in the journal |
+| `advanced_analytics` | `SOULSENSE_FF_ADVANCED_ANALYTICS` | Predictive insights in analytics dashboard |
+| `beta_ui_components` | `SOULSENSE_FF_BETA_UI_COMPONENTS` | Experimental UI layouts and components |
+| `ml_emotion_detection` | `SOULSENSE_FF_ML_EMOTION_DETECTION` | ML-based emotion detection from text |
+| `data_export_v2` | `SOULSENSE_FF_DATA_EXPORT_V2` | New export formats (PDF, enhanced CSV) |
+
+### Enabling a Feature
+
+**Option 1: Environment Variable** (recommended for testing)
+```bash
+set SOULSENSE_FF_AI_JOURNAL_SUGGESTIONS=true
+python -m app.main
+```
+
+**Option 2: `.env` File**
+```bash
+SOULSENSE_FF_AI_JOURNAL_SUGGESTIONS=true
+```
+
+**Option 3: `config.json`**
+```json
+{
+    "experimental": {
+        "ai_journal_suggestions": true
+    }
+}
+```
+
+**Option 3:  `Direct`**
+```bash
+Turn on
+$env:SOULSENSE_FF_AI_JOURNAL_SUGGESTIONS = "true"
+Turn Off
+$env:SOULSENSE_FF_AI_JOURNAL_SUGGESTIONS = "false"
+python -m app.main
+```
+
+### Python API for Developers
+
+```python
+from app.feature_flags import feature_flags, feature_gated
+
+# Check if a flag is enabled
+if feature_flags.is_enabled("ai_journal_suggestions"):
+    # Use experimental feature
+    pass
+
+# Use decorator to gate entire functions
+@feature_gated("ml_emotion_detection")
+def detect_emotions(text):
+    # Only runs if flag is enabled
+    return model.predict(text)
+```
+
+> **Warning:** Experimental features may change or be removed without notice.
+
+---
+
 ## 🛠 Technologies Used
 
 - Python 3.11+

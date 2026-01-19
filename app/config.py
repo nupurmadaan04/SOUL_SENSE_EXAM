@@ -177,3 +177,11 @@ ENABLE_JOURNAL: bool = get_env_var("ENABLE_JOURNAL", _cfg_journal, bool)
 ENABLE_ANALYTICS: bool = get_env_var("ENABLE_ANALYTICS", _cfg_analytics, bool)
 
 APP_CONFIG: Dict[str, Any] = _config
+
+# Feature Flags Manager
+# Import here to avoid circular imports since feature_flags may import from config
+try:
+    from app.feature_flags import feature_flags as FEATURE_FLAGS
+except ImportError:
+    FEATURE_FLAGS = None  # type: ignore
+

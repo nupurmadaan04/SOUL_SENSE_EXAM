@@ -13,5 +13,12 @@
     },
     "exam": {
         "num_questions": 5
+    },
+    "experimental": {
+        "ai_journal_suggestions": false,
+        "advanced_analytics": false,
+        "beta_ui_components": false,
+        "ml_emotion_detection": false,
+        "data_export_v2": false
     }
 }

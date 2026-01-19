@@ -1509,6 +1509,11 @@ class UserProfileView:
         warning_label = tk.Label(parent, text=warning_text, font=("Segoe UI", 9),
                                 bg=colors.get("card_bg"), fg="#DC2626", wraplength=400, justify="left")
         warning_label.pack(anchor="w", pady=(0, 20))
+        
+        # ==================
+        # Experimental Features Section
+        # ==================
+        self._render_experimental_flags_section(parent)
 
     def _save_settings(self):
         """Save settings to DB"""
@@ -1528,6 +1533,107 @@ class UserProfileView:
                 tk.messagebox.showinfo("Success", "Settings saved!")
              except Exception as e:
                 tk.messagebox.showerror("Error", f"Failed to save: {e}")
+    
+    def _render_experimental_flags_section(self, parent):
+        """Render the experimental feature flags section in settings."""
+        try:
+            from app.feature_flags import feature_flags
+        except ImportError:
+            return  # Feature flags not available
+        
+        colors = self.colors
+        
+        # Section header with warning color
+        header_frame = tk.Frame(parent, bg=colors.get("bg"))
+        header_frame.pack(fill="x", pady=(20, 10), anchor="w")
+        
+        tk.Label(
+            header_frame,
+            text="🧪 Experimental Features",
+            font=("Segoe UI", 14, "bold"),
+            bg=colors.get("bg"),
+            fg="#F59E0B"  # Warning orange
+        ).pack(side="left")
+        
+        tk.Label(
+            header_frame,
+            text="BETA",
+            font=("Segoe UI", 8, "bold"),
+            bg="#F59E0B",
+            fg="white",
+            padx=6,
+            pady=2
+        ).pack(side="left", padx=10)
+        
+        # Description
+        tk.Label(
+            parent,
+            text="Enable cutting-edge features via environment variables or config.json",
+            font=("Segoe UI", 10),
+            bg=colors.get("bg"),
+            fg=colors.get("text_secondary", "gray")
+        ).pack(anchor="w", pady=(0, 15))
+        
+        # Feature flags container with border
+        flags_card = tk.Frame(
+            parent,
+            bg=colors.get("card_bg", "white"),
+            highlightbackground="#F59E0B",
+            highlightthickness=2
+        )
+        flags_card.pack(fill="x", pady=(0, 10))
+        
+        flags_inner = tk.Frame(flags_card, bg=colors.get("card_bg", "white"))
+        flags_inner.pack(fill="x", padx=15, pady=15)
+        
+        # Show each flag with status
+        for flag_name, flag in feature_flags.get_all_flags().items():
+            is_enabled = feature_flags.is_enabled(flag_name)
+            
+            flag_row = tk.Frame(flags_inner, bg=colors.get("card_bg", "white"))
+            flag_row.pack(fill="x", pady=4)
+            
+            # Status indicator (green dot = ON, gray circle = OFF)
+            status_color = "#10B981" if is_enabled else "#94A3B8"
+            status_icon = "●" if is_enabled else "○"
+            
+            tk.Label(
+                flag_row,
+                text=status_icon,
+                font=("Segoe UI", 14),
+                bg=colors.get("card_bg", "white"),
+                fg=status_color
+            ).pack(side="left")
+            
+            # Flag name (formatted nicely)
+            display_name = flag_name.replace("_", " ").title()
+            tk.Label(
+                flag_row,
+                text=display_name,
+                font=("Segoe UI", 11),
+                bg=colors.get("card_bg", "white"),
+                fg=colors.get("text_primary", "black")
+            ).pack(side="left", padx=(8, 15))
+            
+            # Status text
+            status_text = "ON" if is_enabled else "OFF"
+            tk.Label(
+                flag_row,
+                text=status_text,
+                font=("Segoe UI", 10, "bold"),
+                bg=colors.get("card_bg", "white"),
+                fg=status_color
+            ).pack(side="right")
+        
+        # Help text
+        tk.Label(
+            parent,
+            text="💡 To enable: Set SOULSENSE_FF_<FLAG_NAME>=true in environment\n   or add to config.json under 'experimental' section",
+            font=("Segoe UI", 9),
+            bg=colors.get("bg"),
+            fg=colors.get("text_secondary", "gray"),
+            justify="left"
+        ).pack(anchor="w", pady=(10, 0))
 
     # --- UI Helpers ---
     def _create_section_label(self, parent, text):
