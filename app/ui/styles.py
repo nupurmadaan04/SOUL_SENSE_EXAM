@@ -7,27 +7,36 @@ import tkinter as tk
 from tkinter import ttk
 
 
+from app.constants import (
+    FONT_FAMILY_PRIMARY, FONT_FAMILY_SECONDARY, FONT_FAMILY_FALLBACK,
+    FONT_SIZE_XS, FONT_SIZE_SM, FONT_SIZE_MD, FONT_SIZE_LG, 
+    FONT_SIZE_XL, FONT_SIZE_XXL, FONT_SIZE_HERO,
+    PADDING_XS, PADDING_SM, PADDING_MD, PADDING_LG, PADDING_XL, PADDING_XXL,
+    ANIM_FAST_MS, ANIM_NORMAL_MS, ANIM_SLOW_MS
+)
+
+
 class DesignTokens:
     """Centralized design tokens for consistent styling"""
     
-    # Typography
-    FONT_FAMILY = "Segoe UI"
-    FONT_FAMILY_FALLBACK = "Arial"
+    # Typography (Mapped to Constants)
+    FONT_FAMILY = FONT_FAMILY_PRIMARY
+    FONT_FAMILY_FALLBACK = FONT_FAMILY_FALLBACK
     
-    FONT_SIZE_XS = 10
-    FONT_SIZE_SM = 12
-    FONT_SIZE_MD = 14
-    FONT_SIZE_LG = 18
-    FONT_SIZE_XL = 24
-    FONT_SIZE_XXL = 32
-    FONT_SIZE_HERO = 48
+    FONT_SIZE_XS = FONT_SIZE_XS
+    FONT_SIZE_SM = FONT_SIZE_SM
+    FONT_SIZE_MD = FONT_SIZE_MD
+    FONT_SIZE_LG = FONT_SIZE_LG
+    FONT_SIZE_XL = FONT_SIZE_XL
+    FONT_SIZE_XXL = FONT_SIZE_XXL
+    FONT_SIZE_HERO = FONT_SIZE_HERO
     
-    # Spacing
-    SPACING_XS = 4
-    SPACING_SM = 8
-    SPACING_MD = 16
+    # Spacing (Mapped to Constants, with fallback/alias if needed)
+    SPACING_XS = PADDING_XS
+    SPACING_SM = PADDING_SM
+    SPACING_MD = 16 # Not in standard constants yet, keeping hardcoded or need update
     SPACING_LG = 24
-    SPACING_XL = 32
+    SPACING_XL = 40
     SPACING_XXL = 48
     
     # Border Radius (for canvas-based rounded elements)
@@ -40,9 +49,9 @@ class DesignTokens:
     SHADOW_COLOR = "#00000020"
     
     # Animation durations (ms)
-    ANIM_FAST = 150
-    ANIM_NORMAL = 300
-    ANIM_SLOW = 500
+    ANIM_FAST = ANIM_FAST_MS
+    ANIM_NORMAL = ANIM_NORMAL_MS
+    ANIM_SLOW = 500 # Keep custom if not in constants
 
 
 class ColorSchemes:
@@ -235,7 +244,6 @@ class UIStyles:
         font_size = sizes.get(size, self.tokens.FONT_SIZE_MD)
         font_weight = "bold" if weight == "bold" else ""
         return (self.tokens.FONT_FAMILY, font_size, font_weight) if font_weight else (self.tokens.FONT_FAMILY, font_size)
-
     def apply_theme(self, theme_name):
         """Apply the selected theme to the application"""
         self.app.current_theme = theme_name

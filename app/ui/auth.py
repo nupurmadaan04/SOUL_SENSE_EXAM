@@ -8,6 +8,10 @@ from tkinter import ttk
 import logging
 import random
 from typing import Any, Optional, Callable
+from app.constants import (
+    FONT_FAMILY_PRIMARY, FONT_SIZE_XS, FONT_SIZE_SM, FONT_SIZE_MD, 
+    FONT_SIZE_LG, FONT_SIZE_XL, FONT_SIZE_XXL, FONT_SIZE_HERO
+)
 
 
 class AuthManager:
@@ -16,6 +20,7 @@ class AuthManager:
     def __init__(self, app: Any) -> None:
         self.app = app
         self.root = app.root
+        self.styles = app.ui_styles
 
     def create_welcome_screen(self) -> None:
         """Create premium welcome screen with hero section and cards"""
@@ -40,7 +45,7 @@ class AuthManager:
         title_label = tk.Label(
             hero_frame,
             text="Soul Sense",
-            font=("Segoe UI", 36, "bold"),
+            font=self.styles.get_font("hero", "bold"),
             bg=colors.get("primary", "#3B82F6"),
             fg=colors.get("text_inverse", "#FFFFFF")
         )
@@ -50,7 +55,7 @@ class AuthManager:
         subtitle_label = tk.Label(
             hero_frame,
             text="Emotional Intelligence Assessment",
-            font=("Segoe UI", 14),
+            font=self.styles.get_font("md"),
             bg=colors.get("primary", "#3B82F6"),
             fg=colors.get("text_inverse", "#FFFFFF")
         )
@@ -81,7 +86,7 @@ class AuthManager:
         intro_label = tk.Label(
             card_inner,
             text=intro_text,
-            font=("Segoe UI", 12),
+            font=self.styles.get_font("sm"),
             bg=colors.get("surface", "#FFFFFF"),
             fg=colors.get("text_secondary", "#475569"),
             wraplength=500,
@@ -105,7 +110,7 @@ class AuthManager:
             tip_label = tk.Label(
                 tip_inner,
                 text=f"💡 {random.choice(self.app.tips)}",
-                font=("Segoe UI", 11, "italic"),
+                font=self.styles.get_font("sm", "italic"),
                 bg=colors.get("primary_light", "#DBEAFE"),
                 fg=colors.get("text_primary", "#0F172A"),
                 wraplength=480
@@ -121,7 +126,7 @@ class AuthManager:
             buttons_frame,
             text="\u25b6  Start Assessment",
             command=self.app.on_start_test_click,
-            font=("Segoe UI", 14, "bold"),
+            font=self.styles.get_font("md", "bold"),
             bg=colors.get("primary", "#3B82F6"),
             fg=colors.get("text_inverse", "#FFFFFF"),
             activebackground=colors.get("primary_hover", "#2563EB"),
@@ -145,7 +150,7 @@ class AuthManager:
             secondary_frame,
             text="\U0001f4d6 Journal",
             command=self.app.open_journal_flow,
-            font=("Segoe UI", 11),
+            font=self.styles.get_font("sm"),
             bg=colors.get("success", "#10B981"),
             fg=colors.get("text_inverse", "#FFFFFF"),
             activebackground=colors.get("success_hover", "#059669"),
@@ -165,7 +170,7 @@ class AuthManager:
             secondary_frame,
             text="\U0001f4ca Dashboard",
             command=self.app.open_dashboard_flow,
-            font=("Segoe UI", 11),
+            font=self.styles.get_font("sm"),
             bg=colors.get("secondary", "#8B5CF6"),
             fg=colors.get("text_inverse", "#FFFFFF"),
             activebackground=colors.get("secondary_hover", "#7C3AED"),
@@ -184,7 +189,7 @@ class AuthManager:
             secondary_frame,
             text="👤 Profile",
             command=self.app.open_profile_flow,
-            font=("Segoe UI", 11),
+            font=self.styles.get_font("sm"),
             bg=colors.get("primary", "#3B82F6"),
             fg=colors.get("text_inverse", "#FFFFFF"),
             activebackground=colors.get("primary_hover", "#2563EB"),
@@ -208,7 +213,7 @@ class AuthManager:
             tertiary_frame,
             text="History",
             command=self.app.show_history_screen,
-            font=("Segoe UI", 10),
+            font=self.styles.get_font("xs"),
             bg=colors.get("surface", "#FFFFFF"),
             fg=colors.get("text_secondary", "#475569"),
             activebackground=colors.get("surface_hover", "#F8FAFC"),
@@ -229,7 +234,7 @@ class AuthManager:
             tertiary_frame,
             text="\u2699 Settings",
             command=self.app.show_settings,
-            font=("Segoe UI", 10),
+            font=self.styles.get_font("xs"),
             bg=colors.get("surface", "#FFFFFF"),
             fg=colors.get("text_secondary", "#475569"),
             activebackground=colors.get("surface_hover", "#F8FAFC"),
@@ -250,7 +255,7 @@ class AuthManager:
             tertiary_frame,
             text="Exit",
             command=self.app.force_exit,
-            font=("Segoe UI", 10),
+            font=self.styles.get_font("xs"),
             bg=colors.get("surface", "#FFFFFF"),
             fg=colors.get("error", "#EF4444"),
             activebackground=colors.get("error_light", "#FEE2E2"),
@@ -285,7 +290,7 @@ class AuthManager:
         header_label = tk.Label(
             header_frame,
             text="Let's Get Started",
-            font=("Segoe UI", 24, "bold"),
+            font=self.styles.get_font("xl", "bold"),
             bg=colors.get("primary", "#3B82F6"),
             fg=colors.get("text_inverse", "#FFFFFF")
         )
@@ -311,7 +316,7 @@ class AuthManager:
         username_label = tk.Label(
             form_inner,
             text="Your Name",
-            font=("Segoe UI", 12, "bold"),
+            font=self.styles.get_font("sm", "bold"),
             bg=colors.get("surface", "#FFFFFF"),
             fg=colors.get("text_primary", "#0F172A")
         )
@@ -319,7 +324,7 @@ class AuthManager:
         
         self.username_entry = tk.Entry(
             form_inner,
-            font=("Segoe UI", 14),
+            font=self.styles.get_font("md"),
             bg=colors.get("entry_bg", "#FFFFFF"),
             fg=colors.get("entry_fg", "#0F172A"),
             insertbackground=colors.get("text_primary", "#0F172A"),
@@ -334,7 +339,7 @@ class AuthManager:
         age_label = tk.Label(
             form_inner,
             text="Your Age",
-            font=("Segoe UI", 12, "bold"),
+            font=self.styles.get_font("sm", "bold"),
             bg=colors.get("surface", "#FFFFFF"),
             fg=colors.get("text_primary", "#0F172A")
         )
@@ -342,7 +347,7 @@ class AuthManager:
         
         self.age_entry = tk.Entry(
             form_inner,
-            font=("Segoe UI", 14),
+            font=self.styles.get_font("md"),
             bg=colors.get("entry_bg", "#FFFFFF"),
             fg=colors.get("entry_fg", "#0F172A"),
             insertbackground=colors.get("text_primary", "#0F172A"),
@@ -357,7 +362,7 @@ class AuthManager:
         profession_label = tk.Label(
             form_inner,
             text="Profession (Optional)",
-            font=("Segoe UI", 12, "bold"),
+            font=self.styles.get_font("sm", "bold"),
             bg=colors.get("surface", "#FFFFFF"),
             fg=colors.get("text_primary", "#0F172A")
         )
@@ -368,7 +373,7 @@ class AuthManager:
         self.profession_entry = ttk.Combobox(
             form_inner,
             values=professions,
-            font=("Segoe UI", 12),
+            font=self.styles.get_font("sm"),
             state="readonly"
         )
         self.profession_entry.pack(fill="x", pady=(0, 20), ipady=4)
@@ -384,7 +389,7 @@ class AuthManager:
             buttons_frame,
             text=action_text,
             command=self.submit_user_info,
-            font=("Segoe UI", 13, "bold"),
+            font=self.styles.get_font("md", "bold"),
             bg=colors.get("primary", "#3B82F6"),
             fg=colors.get("text_inverse", "#FFFFFF"),
             activebackground=colors.get("primary_hover", "#2563EB"),
@@ -404,7 +409,7 @@ class AuthManager:
             buttons_frame,
             text="← Back",
             command=self.app.create_welcome_screen,
-            font=("Segoe UI", 12),
+            font=self.styles.get_font("sm"),
             bg=colors.get("surface", "#FFFFFF"),
             fg=colors.get("text_secondary", "#475569"),
             activebackground=colors.get("surface_hover", "#F8FAFC"),

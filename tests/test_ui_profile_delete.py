@@ -14,8 +14,12 @@ def test_delete_user_data_ui_success(mock_app, temp_db, mocker):
 
     # Mock app attributes
     mock_app.username = "testuser"
+    mock_app.ui_styles = MagicMock()
+    mock_app.ui_styles.get_font.return_value = ("Segoe UI", 10)
     mock_app.current_user_id = user_id
     mock_app.switch_view = MagicMock()
+    mock_app.ui_styles = MagicMock()
+    mock_app.ui_styles.get_font.return_value = ("Segoe UI", 10)
 
     # Create profile view
     parent = MagicMock()
@@ -32,12 +36,14 @@ def test_delete_user_data_ui_success(mock_app, temp_db, mocker):
     # Verify dialogs were shown
     assert mock_msgbox.askyesno.call_count == 2
     assert mock_msgbox.showinfo.called
-    assert mock_app.switch_view.called_with("login")
+    mock_app.switch_view.assert_called_with("login")
 
 def test_delete_user_data_ui_cancel_first(mock_app, temp_db, mocker):
     """Test cancellation at first confirmation dialog."""
     # Mock app attributes
     mock_app.username = "testuser"
+    mock_app.ui_styles = MagicMock()
+    mock_app.ui_styles.get_font.return_value = ("Segoe UI", 10)
 
     # Create profile view
     parent = MagicMock()
@@ -58,6 +64,8 @@ def test_delete_user_data_ui_cancel_second(mock_app, temp_db, mocker):
     """Test cancellation at second confirmation dialog."""
     # Mock app attributes
     mock_app.username = "testuser"
+    mock_app.ui_styles = MagicMock()
+    mock_app.ui_styles.get_font.return_value = ("Segoe UI", 10)
 
     # Create profile view
     parent = MagicMock()
@@ -85,6 +93,8 @@ def test_delete_user_data_ui_deletion_failure(mock_app, temp_db, mocker):
 
     # Mock app attributes
     mock_app.username = "testuser"
+    mock_app.ui_styles = MagicMock()
+    mock_app.ui_styles.get_font.return_value = ("Segoe UI", 10)
     mock_app.current_user_id = user_id
 
     # Create profile view
@@ -108,6 +118,8 @@ def test_delete_user_data_ui_user_not_found(mock_app, mocker):
     """Test handling when user is not found."""
     # Mock app attributes
     mock_app.username = "nonexistent"
+    mock_app.ui_styles = MagicMock()
+    mock_app.ui_styles.get_font.return_value = ("Segoe UI", 10)
 
     # Create profile view
     parent = MagicMock()

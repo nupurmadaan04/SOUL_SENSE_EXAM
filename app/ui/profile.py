@@ -18,6 +18,7 @@ from app.validation import (
     validate_length, validate_required, validate_dob,
     MAX_TEXT_LENGTH, MAX_ENTRY_LENGTH
 )
+from app.constants import FONT_FAMILY_SECONDARY
 from app.ui.validation_ui import setup_entry_limit, setup_text_limit
 
 class UserProfileView:
@@ -26,6 +27,7 @@ class UserProfileView:
         self.app = app_instance
         self.i18n = app_instance.i18n
         self.colors = app_instance.colors
+        self.styles = app_instance.ui_styles
         
         # Embedded View Setup
         # self.window was Toplevel, now we use parent_root (which is content_area)
@@ -61,7 +63,7 @@ class UserProfileView:
         self.header_label = tk.Label(
             self.content_area,
             text="Profile",
-            font=("Segoe UI", 24, "bold"),
+            font=self.styles.get_font("xl", "bold"),
             bg=self.colors.get("bg"),
             fg=self.colors.get("text_primary")
         )
@@ -269,7 +271,7 @@ class UserProfileView:
             initial = user_data.get("username", "?")[0].upper()
             avatar_canvas.create_text(
                 avatar_size//2, avatar_size//2,
-                text=initial, font=("Segoe UI", 42, "bold"),
+                text=initial, font=self.styles.get_font("hero", "bold"),
                 fill="white", anchor="center"
             )
         
@@ -279,7 +281,7 @@ class UserProfileView:
         avatar_canvas.create_oval(cam_x - cam_size//2, cam_y - cam_size//2, 
                                   cam_x + cam_size//2, cam_y + cam_size//2,
                                   fill="white", outline="#E0E0E0", width=1)
-        avatar_canvas.create_text(cam_x, cam_y, text="📷", font=("Segoe UI", 10), anchor="center")
+        avatar_canvas.create_text(cam_x, cam_y, text="📷", font=self.styles.get_font("xs"), anchor="center")
         
         # Bind click on entire canvas to upload
         avatar_canvas.bind("<Button-1>", lambda e: self._upload_profile_photo())
@@ -287,7 +289,7 @@ class UserProfileView:
         # Name
         tk.Label(
             left_profile, text=user_data.get("username", "User"),
-            font=("Segoe UI", 22, "bold"),
+            font=self.styles.get_font("xl", "bold"),
             bg=self.colors.get("card_bg"), fg=self.colors.get("text_primary")
         ).pack(anchor="w")
         
@@ -295,7 +297,7 @@ class UserProfileView:
         subtitle = user_data.get("occupation") or "Soul Sense Member"
         tk.Label(
             left_profile, text=subtitle,
-            font=("Segoe UI", 11), bg=self.colors.get("card_bg"), fg=ACCENT
+            font=self.styles.get_font("sm"), bg=self.colors.get("card_bg"), fg=ACCENT
         ).pack(anchor="w", pady=(0, 15))
         
         # Info Grid (DOB, Age, Gender in 2x2)
@@ -311,7 +313,7 @@ class UserProfileView:
         edit_btn = tk.Button(
             left_profile, text="✏️ EDIT PROFILE",
             command=lambda: self.sidebar.select_item("history"),
-            font=("Segoe UI", 10, "bold"), bg=ACCENT,
+            font=self.styles.get_font("xs", "bold"), bg=ACCENT,
             fg="white", relief="flat", cursor="hand2", padx=20, pady=8
         )
         edit_btn.pack(anchor="w", pady=(20, 0))
@@ -342,7 +344,7 @@ class UserProfileView:
         if user_data.get("conditions"):
             self._create_pill_item(medical_content, f"Conditions: {user_data.get('conditions', 'None')[:30]}...")
         if not any([user_data.get("blood_type"), user_data.get("allergies"), user_data.get("conditions")]):
-            tk.Label(medical_content, text="No medical info set", font=("Segoe UI", 10), 
+            tk.Label(medical_content, text="No medical info set", font=self.styles.get_font("xs"), 
                     bg=self.colors.get("card_bg"), fg="gray").pack(anchor="w")
         
         # --- Quick Stats Card (renamed from EQ Vitals) ---
@@ -377,7 +379,7 @@ class UserProfileView:
         # Notes header
         notes_header = tk.Frame(notes_card, bg=self.colors.get("card_bg"))
         notes_header.pack(fill="x", padx=20, pady=(15, 10))
-        tk.Label(notes_header, text="📝 Notes & Journal", font=("Segoe UI", 14, "bold"),
+        tk.Label(notes_header, text="📝 Notes & Journal", font=self.styles.get_font("md", "bold"),
                 bg=self.colors.get("card_bg"), fg=self.colors.get("text_primary")).pack(side="left")
         
         notes_content = tk.Frame(notes_card, bg=self.colors.get("card_bg"))
@@ -389,7 +391,7 @@ class UserProfileView:
                 self._create_note_entry(notes_content, entry["date"], entry["content"])
         else:
             tk.Label(notes_content, text="No journal entries yet.\nStart journaling to see your notes here!",
-                    font=("Segoe UI", 11), bg=self.colors.get("card_bg"), fg="gray", justify="left").pack(anchor="w")
+                    font=self.styles.get_font("sm"), bg=self.colors.get("card_bg"), fg="gray", justify="left").pack(anchor="w")
         
         # =====================
         # RIGHT COLUMN - ROW 1: RECENT RESULTS
@@ -402,7 +404,7 @@ class UserProfileView:
             for score in user_data.get("recent_scores", [])[:4]:
                 self._create_result_row(results_content, f"EQ Test - Score: {score['score']}", score["date"])
         else:
-            tk.Label(results_content, text="No test results yet.", font=("Segoe UI", 10),
+            tk.Label(results_content, text="No test results yet.", font=self.styles.get_font("xs"),
                     bg=self.colors.get("card_bg"), fg="gray").pack(anchor="w")
 
         # =====================
@@ -425,7 +427,7 @@ class UserProfileView:
         man_header.pack(fill="x", padx=20, pady=(15, 5))
         
         tk.Label(man_header, text="🌟 My Manifesto (Perspective on Life)", 
-                font=("Segoe UI", 14, "bold"), bg=card_bg, fg=accent).pack(side="left")
+                font=self.styles.get_font("md", "bold"), bg=card_bg, fg=accent).pack(side="left")
         
         # Content
         man_content = tk.Frame(manifesto_card, bg=card_bg)
@@ -435,7 +437,7 @@ class UserProfileView:
         if pov_text:
             # Increased font size and clarity
             lbl = tk.Label(man_content, text=f'"{pov_text}"', 
-                     font=("Georgia", 15, "italic"), bg=card_bg, fg=text_primary, 
+                     font=(FONT_FAMILY_SECONDARY, 15, "italic"), bg=card_bg, fg=text_primary, 
                      wraplength=700, justify="center")
             lbl.pack()
         else:
@@ -477,10 +479,10 @@ class UserProfileView:
         dialog.configure(bg=bg)
         
         tk.Label(dialog, text="Define your core perspective on life:", 
-                font=("Segoe UI", 12, "bold"), bg=bg, fg=fg).pack(pady=(20, 10))
+                font=self.styles.get_font("sm", "bold"), bg=bg, fg=fg).pack(pady=(20, 10))
                 
         # Text Area
-        text_area = tk.Text(dialog, font=("Georgia", 14), height=8, width=50, 
+        text_area = tk.Text(dialog, font=(FONT_FAMILY_SECONDARY, 14), height=8, width=50, 
                            bg=self.colors.get("bg", "#f5f5f5"), fg=fg, relief="flat", padx=10, pady=10)
         text_area.pack(padx=20, pady=10, fill="both", expand=True)
         text_area.insert("1.0", current_text)
@@ -516,10 +518,10 @@ class UserProfileView:
         btn_frame.pack(fill="x", pady=20, padx=20)
         
         tk.Button(btn_frame, text="Cancel", command=dialog.destroy, 
-                 font=("Segoe UI", 10), bg="#e0e0e0", fg="black", relief="flat", padx=15).pack(side="right", padx=5)
+                 font=self.styles.get_font("xs"), bg="#e0e0e0", fg="black", relief="flat", padx=15).pack(side="right", padx=5)
                  
         tk.Button(btn_frame, text="Save Manifesto", command=save,
-                 font=("Segoe UI", 10, "bold"), bg=accent, fg="white", relief="flat", padx=15).pack(side="right", padx=5)
+                 font=self.styles.get_font("xs", "bold"), bg=accent, fg="white", relief="flat", padx=15).pack(side="right", padx=5)
 
     
     def _load_user_overview_data(self):
@@ -686,7 +688,7 @@ class UserProfileView:
         # Instructions
         tk.Label(
             dialog, text="Drag to position, scroll to resize",
-            font=("Segoe UI", 11), bg=self.colors.get("card_bg"), fg="gray"
+            font=self.styles.get_font("sm"), bg=self.colors.get("card_bg"), fg="gray"
         ).pack(pady=(15, 10))
         
         # Calculate display size (max 400px)
@@ -807,12 +809,12 @@ class UserProfileView:
         
         tk.Button(
             btn_frame, text="Cancel", command=dialog.destroy,
-            font=("Segoe UI", 10), bg="#E0E0E0", fg="black", relief="flat", padx=20, pady=8
+            font=self.styles.get_font("xs"), bg="#E0E0E0", fg="black", relief="flat", padx=20, pady=8
         ).pack(side="left")
         
         tk.Button(
             btn_frame, text="✓ Save Photo", command=save_crop,
-            font=("Segoe UI", 10, "bold"), bg="#009688", fg="white", relief="flat", padx=20, pady=8
+            font=self.styles.get_font("xs", "bold"), bg="#009688", fg="white", relief="flat", padx=20, pady=8
         ).pack(side="right")
     
     def _create_overview_card(self, parent, title):
@@ -821,7 +823,7 @@ class UserProfileView:
                        highlightbackground=self.colors.get("card_border", "#E0E0E0"), highlightthickness=1)
         card.pack(fill="x", pady=(0, 10))
         
-        tk.Label(card, text=title, font=("Segoe UI", 13, "bold"),
+        tk.Label(card, text=title, font=self.styles.get_font("md", "bold"),
                 bg=self.colors.get("card_bg"), fg=self.colors.get("text_primary")).pack(anchor="w", padx=15, pady=(12, 8))
         return card
     
@@ -831,7 +833,7 @@ class UserProfileView:
                        highlightbackground=self.colors.get("card_border", "#E0E0E0"), highlightthickness=1)
         card.grid(row=row, column=col, sticky="nsew", pady=(0, 0))
         
-        tk.Label(card, text=title, font=("Segoe UI", 13, "bold"),
+        tk.Label(card, text=title, font=self.styles.get_font("md", "bold"),
                 bg=self.colors.get("card_bg"), fg=self.colors.get("text_primary")).pack(anchor="w", padx=15, pady=(12, 8))
         return card
     
@@ -840,8 +842,8 @@ class UserProfileView:
         box = tk.Frame(parent, bg=self.colors.get("card_bg"))
         box.grid(row=row, column=col, sticky="w", padx=(0, 30), pady=3)
         
-        tk.Label(box, text=label, font=("Segoe UI", 9), bg=self.colors.get("card_bg"), fg="gray").pack(anchor="w")
-        tk.Label(box, text=value, font=("Segoe UI", 12, "bold"), bg=self.colors.get("card_bg"), 
+        tk.Label(box, text=label, font=self.styles.get_font("xs"), bg=self.colors.get("card_bg"), fg="gray").pack(anchor="w")
+        tk.Label(box, text=value, font=self.styles.get_font("sm", "bold"), bg=self.colors.get("card_bg"), 
                 fg=self.colors.get("text_primary")).pack(anchor="w")
     
     def _create_contact_row(self, parent, label, value):
@@ -849,7 +851,7 @@ class UserProfileView:
         row = tk.Frame(parent, bg=self.colors.get("card_bg"))
         row.pack(fill="x", pady=8)
         
-        tk.Label(row, text=label, font=("Segoe UI", 9), bg=self.colors.get("card_bg"), fg="gray").pack(anchor="w")
+        tk.Label(row, text=label, font=self.styles.get_font("xs"), bg=self.colors.get("card_bg"), fg="gray").pack(anchor="w")
         tk.Label(row, text=value, font=("Segoe UI", 11, "bold"), bg=self.colors.get("card_bg"),
                 fg=self.colors.get("text_primary"), wraplength=200, justify="left").pack(anchor="w")
     
@@ -858,8 +860,8 @@ class UserProfileView:
         row = tk.Frame(parent, bg=self.colors.get("card_bg"))
         row.pack(fill="x", pady=3)
         
-        tk.Label(row, text="💊", font=("Segoe UI", 10), bg=self.colors.get("card_bg")).pack(side="left")
-        tk.Label(row, text=text, font=("Segoe UI", 10), bg=self.colors.get("card_bg"),
+        tk.Label(row, text="💊", font=self.styles.get_font("xs"), bg=self.colors.get("card_bg")).pack(side="left")
+        tk.Label(row, text=text, font=self.styles.get_font("xs"), bg=self.colors.get("card_bg"),
                 fg=self.colors.get("text_primary")).pack(side="left", padx=5)
     
     def _create_vital_display(self, parent, icon, label, value, color, col):
@@ -869,17 +871,17 @@ class UserProfileView:
         parent.columnconfigure(col, weight=1)
         
         tk.Label(box, text=icon, font=("Segoe UI", 24), bg=self.colors.get("card_bg")).pack()
-        tk.Label(box, text=label, font=("Segoe UI", 9), bg=self.colors.get("card_bg"), fg="gray").pack()
-        tk.Label(box, text=value, font=("Segoe UI", 18, "bold"), bg=self.colors.get("card_bg"), fg=color).pack()
+        tk.Label(box, text=label, font=self.styles.get_font("xs"), bg=self.colors.get("card_bg"), fg="gray").pack()
+        tk.Label(box, text=value, font=self.styles.get_font("lg", "bold"), bg=self.colors.get("card_bg"), fg=color).pack()
     
     def _create_note_entry(self, parent, date, content):
         """Create a note/journal entry display."""
         entry_frame = tk.Frame(parent, bg=self.colors.get("card_bg"))
         entry_frame.pack(fill="x", pady=8)
         
-        tk.Label(entry_frame, text=date, font=("Segoe UI", 9, "bold"), 
+        tk.Label(entry_frame, text=date, font=self.styles.get_font("xs", "bold"), 
                 bg=self.colors.get("card_bg"), fg="#009688").pack(anchor="w")
-        tk.Label(entry_frame, text=content if content else "No notes", font=("Segoe UI", 10),
+        tk.Label(entry_frame, text=content if content else "No notes", font=self.styles.get_font("xs"),
                 bg=self.colors.get("card_bg"), fg=self.colors.get("text_primary"), wraplength=350, justify="left").pack(anchor="w")
     
     def _create_result_row(self, parent, text, date):
@@ -887,10 +889,10 @@ class UserProfileView:
         row = tk.Frame(parent, bg=self.colors.get("card_bg"))
         row.pack(fill="x", pady=4)
         
-        tk.Label(row, text="📄", font=("Segoe UI", 10), bg=self.colors.get("card_bg")).pack(side="left")
-        tk.Label(row, text=text, font=("Segoe UI", 10), bg=self.colors.get("card_bg"),
+        tk.Label(row, text="📄", font=self.styles.get_font("xs"), bg=self.colors.get("card_bg")).pack(side="left")
+        tk.Label(row, text=text, font=self.styles.get_font("xs"), bg=self.colors.get("card_bg"),
                 fg=self.colors.get("text_primary")).pack(side="left", padx=5)
-        tk.Label(row, text=date, font=("Segoe UI", 9), bg=self.colors.get("card_bg"), fg="gray").pack(side="right")
+        tk.Label(row, text=date, font=self.styles.get_font("xs"), bg=self.colors.get("card_bg"), fg="gray").pack(side="right")
     
     def _create_dashboard_card(self, parent, title):
         """Create a styled card container with optional title."""
@@ -903,7 +905,7 @@ class UserProfileView:
         
         if title:
             tk.Label(
-                card, text=title, font=("Segoe UI", 14, "bold"),
+                card, text=title, font=self.styles.get_font("md", "bold"),
                 bg=self.colors.get("card_bg"), fg=self.colors.get("text_primary")
             ).pack(anchor="w", padx=20, pady=(15, 10))
         
@@ -915,12 +917,12 @@ class UserProfileView:
         row.pack(fill="x", pady=5)
         
         tk.Label(
-            row, text=label, font=("Segoe UI", 11), width=12, anchor="w",
+            row, text=label, font=self.styles.get_font("sm"), width=12, anchor="w",
             bg=self.colors.get("card_bg"), fg="gray"
         ).pack(side="left")
         
         tk.Label(
-            row, text=value, font=("Segoe UI", 11),
+            row, text=value, font=self.styles.get_font("sm"),
             bg=self.colors.get("card_bg"), fg=self.colors.get("text_primary")
         ).pack(side="left", padx=10)
     
@@ -932,13 +934,13 @@ class UserProfileView:
         
         # Value (large)
         tk.Label(
-            box, text=value, font=("Segoe UI", 24, "bold"),
+            box, text=value, font=self.styles.get_font("xl", "bold"),
             bg=self.colors.get("card_bg"), fg=color
         ).pack(anchor="w")
         
         # Label (small)
         tk.Label(
-            box, text=label, font=("Segoe UI", 10),
+            box, text=label, font=self.styles.get_font("xs"),
             bg=self.colors.get("card_bg"), fg="gray"
         ).pack(anchor="w")
     
@@ -948,12 +950,12 @@ class UserProfileView:
         row.pack(fill="x", pady=3)
         
         tk.Label(
-            row, text=icon, font=("Segoe UI", 12),
+            row, text=icon, font=self.styles.get_font("sm"),
             bg=self.colors.get("card_bg")
         ).pack(side="left")
         
         tk.Label(
-            row, text=text, font=("Segoe UI", 11),
+            row, text=text, font=self.styles.get_font("sm"),
             bg=self.colors.get("card_bg"), fg=self.colors.get("text_primary")
         ).pack(side="left", padx=(5, 10))
         
@@ -976,7 +978,7 @@ class UserProfileView:
                 time_str = str(timestamp)[:10] if timestamp else ""
         
         tk.Label(
-            row, text=time_str, font=("Segoe UI", 9),
+            row, text=time_str, font=self.styles.get_font("xs"),
             bg=self.colors.get("card_bg"), fg="gray"
         ).pack(side="right")
 
@@ -1053,13 +1055,13 @@ class UserProfileView:
         footer = tk.Frame(card, bg=self.colors.get("card_bg"), height=80)
         footer.pack(fill="x", side="bottom", padx=40, pady=30)
         
-        tk.Label(footer, text=self.i18n.get("profile.privacy_note"), font=("Segoe UI", 9, "italic"), bg=self.colors.get("card_bg"), fg="gray").pack(side="left")
+        tk.Label(footer, text=self.i18n.get("profile.privacy_note"), font=self.styles.get_font("xs", "italic"), bg=self.colors.get("card_bg"), fg="gray").pack(side="left")
         
         save_btn = tk.Button(
             footer,
             text=self.i18n.get("profile.save"),
             command=self.save_medical_data,
-            font=("Segoe UI", 12, "bold"),
+            font=self.styles.get_font("sm", "bold"),
             bg=self.colors.get("success", "#10B981"),
             fg="white",
             activebackground=self.colors.get("success_hover", "#059669"),
@@ -1133,9 +1135,9 @@ class UserProfileView:
         
         dob_col = tk.Frame(dob_gender_frame, bg=self.colors.get("card_bg"))
         dob_col.pack(side="left", fill="x", expand=True, padx=(0, 10))
-        tk.Label(dob_col, text="Date of Birth", font=("Segoe UI", 10, "bold"), bg=self.colors.get("card_bg"), fg="gray").pack(anchor="w")
+        tk.Label(dob_col, text="Date of Birth", font=self.styles.get_font("xs", "bold"), bg=self.colors.get("card_bg"), fg="gray").pack(anchor="w")
         self.dob_entry = DateEntry(
-            dob_col, date_pattern="yyyy-mm-dd", font=("Segoe UI", 11),
+            dob_col, date_pattern="yyyy-mm-dd", font=self.styles.get_font("sm"),
             background=self.colors.get("primary"), foreground="white"
         )
         self.dob_entry.pack(fill="x", pady=5)
@@ -1209,7 +1211,7 @@ class UserProfileView:
 
         # Date Field with DateEntry
         tk.Label(dialog, text="Date", font=("Segoe UI", 10, "bold"), bg=self.colors.get("card_bg"), fg="gray").pack(anchor="w", padx=20, pady=(10, 5))
-        date_entry = DateEntry(dialog, width=12, background='darkblue', foreground='white', borderwidth=2, font=("Segoe UI", 11), date_pattern='yyyy-mm-dd')
+        date_entry = DateEntry(dialog, width=12, background='darkblue', foreground='white', borderwidth=2, font=self.styles.get_font("sm"), date_pattern='yyyy-mm-dd')
         date_entry.pack(fill="x", padx=20)
         
         if is_edit:
@@ -1506,7 +1508,7 @@ class UserProfileView:
         warning_text = ("This action will permanently delete all your personal data, "
                        "including profiles, test results, journals, and settings. "
                        "This cannot be undone.")
-        warning_label = tk.Label(parent, text=warning_text, font=("Segoe UI", 9),
+        warning_label = tk.Label(parent, text=warning_text, font=self.styles.get_font("xs"),
                                 bg=colors.get("card_bg"), fg="#DC2626", wraplength=400, justify="left")
         warning_label.pack(anchor="w", pady=(0, 20))
         
@@ -1637,14 +1639,14 @@ class UserProfileView:
 
     # --- UI Helpers ---
     def _create_section_label(self, parent, text):
-        tk.Label(parent, text=text, font=("Segoe UI", 16, "bold"), bg=self.colors.get("card_bg"), fg=self.colors.get("text_primary")).pack(anchor="w", pady=(0, 15))
+        tk.Label(parent, text=text, font=self.styles.get_font("md", "bold"), bg=self.colors.get("card_bg"), fg=self.colors.get("text_primary")).pack(anchor="w", pady=(0, 15))
         
     def _create_field_label(self, parent, text):
         tk.Label(parent, text=text, font=("Segoe UI", 10, "bold"), bg=self.colors.get("card_bg"), fg="gray").pack(anchor="w", pady=(10, 5))
         
     def _create_entry(self, parent, variable, max_length=50):
         entry = tk.Entry(
-            parent, textvariable=variable, font=("Segoe UI", 11), relief="flat", 
+            parent, textvariable=variable, font=self.styles.get_font("sm"), relief="flat", 
             highlightthickness=1, highlightbackground=self.colors.get("card_border"),
             bg=self.colors.get("input_bg", "white"), fg=self.colors.get("input_fg", "black"),
             insertbackground=self.colors.get("input_fg", "black") # Caret color
@@ -1655,7 +1657,7 @@ class UserProfileView:
         
     def _create_text_area(self, parent, max_length=1000):
         txt = tk.Text(
-            parent, height=4, font=("Segoe UI", 11), relief="flat", 
+            parent, height=4, font=self.styles.get_font("sm"), relief="flat", 
             highlightthickness=1, highlightbackground=self.colors.get("card_border"),
             bg=self.colors.get("input_bg", "white"), fg=self.colors.get("input_fg", "black"),
             insertbackground=self.colors.get("input_fg", "black")
@@ -1789,7 +1791,7 @@ class UserProfileView:
         
         # Top Strengths
         self._create_field_label(left_col, "Top Strengths")
-        tk.Label(left_col, text="(Type & Enter)", font=("Segoe UI", 9), bg=self.colors.get("card_bg"), fg="gray").pack(anchor="w")
+        tk.Label(left_col, text="(Type & Enter)", font=self.styles.get_font("xs"), bg=self.colors.get("card_bg"), fg="gray").pack(anchor="w")
         suggested_strengths = ["Empathy", "Creativity", "Problem Solving", "Resilience", "Leadership", "Coding"]
         self.strengths_input = TagInput(left_col, max_tags=5, colors=self.colors, suggestion_list=suggested_strengths)
         self.strengths_input.pack(fill="x", pady=(5, 20))
@@ -1802,7 +1804,7 @@ class UserProfileView:
 
         # Issue #271: Current Challenges
         self._create_field_label(left_col, "Current Challenges")
-        tk.Label(left_col, text="(Obstacles you are facing)", font=("Segoe UI", 9), bg=self.colors.get("card_bg"), fg="gray").pack(anchor="w")
+        tk.Label(left_col, text="(Obstacles you are facing)", font=self.styles.get_font("xs"), bg=self.colors.get("card_bg"), fg="gray").pack(anchor="w")
         suggested_challenges = ["Burnout", "Procrastination", "Anxiety", "Work-Life Balance", "Sleep Issues", "Motivation", "Focus"]
         self.challenges_input = TagInput(left_col, max_tags=6, max_char=40, colors=self.colors, suggestion_list=suggested_challenges)
         self.challenges_input.pack(fill="x", pady=(0, 20))
@@ -1840,7 +1842,7 @@ class UserProfileView:
         def show_ls_hint():
             messagebox.showinfo("Suggestion", "Based on your general profile, 'Visual' or 'Kinesthetic' might fit best.\n(Full AI analysis coming soon!)")
             
-        tk.Button(ls_frame, text="💡 Suggest", command=show_ls_hint, bg="#F59E0B", fg="white", font=("Segoe UI", 8), relief="flat", padx=10).pack(side="right", padx=(10, 0), pady=(0, 20))
+        tk.Button(ls_frame, text="💡 Suggest", command=show_ls_hint, bg="#F59E0B", fg="white", font=self.styles.get_font("xs"), relief="flat", padx=10).pack(side="right", padx=(10, 0), pady=(0, 20))
         
         # Communication
         self._create_field_label(right_col, "Preferred Communication Tone")
@@ -1868,7 +1870,7 @@ class UserProfileView:
         
         # Common Emotional States
         self._create_field_label(right_col, "Common Emotional States")
-        tk.Label(right_col, text="(Emotions you often experience)", font=("Segoe UI", 9), 
+        tk.Label(right_col, text="(Emotions you often experience)", font=self.styles.get_font("xs"), 
                 bg=self.colors.get("card_bg"), fg="gray").pack(anchor="w")
         suggested_emotions = ["Anxiety", "Calmness", "Overthinking", "Sadness", "Excitement", 
                               "Frustration", "Contentment", "Overwhelm", "Joy", "Stress"]

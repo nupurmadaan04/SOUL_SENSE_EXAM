@@ -1,18 +1,14 @@
 import re
 from typing import Tuple, Union, Optional
 from datetime import datetime
+from app.constants import (
+    MAX_TEXT_LENGTH, MAX_ENTRY_LENGTH, MAX_USERNAME_LENGTH,
+    MAX_AGE_LENGTH, AGE_MIN, AGE_MAX
+)
 
 # Constants
 EMAIL_REGEX = r"[^@]+@[^@]+\.[^@]+"
 PHONE_REGEX = r"^\+?[\d\s-]{10,}$"
-# Limits
-MAX_TEXT_LENGTH = 1000  # Bio, Notes
-MAX_ENTRY_LENGTH = 50   # Name, Occupation
-MAX_USERNAME_LENGTH = 30
-MAX_AGE_LENGTH = 3
-# Age Limits
-AGE_MIN = 10
-AGE_MAX = 120
 
 # Standard Ranges
 RANGES = {

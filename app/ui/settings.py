@@ -48,7 +48,7 @@ class SettingsManager:
         header_label = tk.Label(
             header_frame,
             text="⚙ Settings",
-            font=("Segoe UI", 22, "bold"),
+            font=self.app.ui_styles.get_font("xl", "bold"),
             bg=colors.get("primary", "#3B82F6"),
             fg=colors.get("text_inverse", "#FFFFFF")
         )
@@ -84,7 +84,7 @@ class SettingsManager:
         label = tk.Label(
             inner,
             text="Number of Questions",
-            font=("Segoe UI", 12, "bold"),
+            font=self.app.ui_styles.get_font("sm", "bold"),
             bg=colors.get("surface", "#FFFFFF"),
             fg=colors.get("text_primary", "#0F172A")
         )
@@ -93,7 +93,7 @@ class SettingsManager:
         desc = tk.Label(
             inner,
             text="How many questions to include in each assessment",
-            font=("Segoe UI", 10),
+            font=self.app.ui_styles.get_font("xs"),
             bg=colors.get("surface", "#FFFFFF"),
             fg=colors.get("text_secondary", "#475569")
         )
@@ -114,7 +114,7 @@ class SettingsManager:
             from_=5,
             to=max_questions,
             textvariable=self.qcount_var,
-            font=("Segoe UI", 12),
+            font=self.app.ui_styles.get_font("sm"),
             width=8,
             bg=colors.get("entry_bg", "#FFFFFF"),
             fg=colors.get("entry_fg", "#0F172A"),
@@ -129,7 +129,7 @@ class SettingsManager:
         questions_label = tk.Label(
             spin_frame,
             text="questions",
-            font=("Segoe UI", 11),
+            font=self.app.ui_styles.get_font("sm"),
             bg=colors.get("surface", "#FFFFFF"),
             fg=colors.get("text_secondary", "#475569")
         )
@@ -152,7 +152,7 @@ class SettingsManager:
         label = tk.Label(
             inner,
             text="Theme",
-            font=("Segoe UI", 12, "bold"),
+            font=self.app.ui_styles.get_font("sm", "bold"),
             bg=colors.get("surface", "#FFFFFF"),
             fg=colors.get("text_primary", "#0F172A")
         )
@@ -161,7 +161,7 @@ class SettingsManager:
         desc = tk.Label(
             inner,
             text="Choose your preferred color scheme",
-            font=("Segoe UI", 10),
+            font=self.app.ui_styles.get_font("xs"),
             bg=colors.get("surface", "#FFFFFF"),
             fg=colors.get("text_secondary", "#475569")
         )
@@ -179,7 +179,7 @@ class SettingsManager:
             text="☀ Light",
             variable=self.theme_var,
             value="light",
-            font=("Segoe UI", 11),
+            font=self.app.ui_styles.get_font("sm"),
             bg=colors.get("surface", "#FFFFFF"),
             fg=colors.get("text_primary", "#0F172A"),
             selectcolor=colors.get("primary_light", "#DBEAFE"),
@@ -196,7 +196,7 @@ class SettingsManager:
             text="🌙 Dark",
             variable=self.theme_var,
             value="dark",
-            font=("Segoe UI", 11),
+            font=self.app.ui_styles.get_font("sm"),
             bg=colors.get("surface", "#FFFFFF"),
             fg=colors.get("text_primary", "#0F172A"),
             selectcolor=colors.get("primary_light", "#DBEAFE"),
@@ -227,7 +227,7 @@ class SettingsManager:
         label = tk.Label(
             left_frame,
             text="Sound Effects",
-            font=("Segoe UI", 12, "bold"),
+            font=self.app.ui_styles.get_font("sm", "bold"),
             bg=colors.get("surface", "#FFFFFF"),
             fg=colors.get("text_primary", "#0F172A")
         )
@@ -236,7 +236,7 @@ class SettingsManager:
         desc = tk.Label(
             left_frame,
             text="Enable audio feedback",
-            font=("Segoe UI", 10),
+            font=self.app.ui_styles.get_font("xs"),
             bg=colors.get("surface", "#FFFFFF"),
             fg=colors.get("text_secondary", "#475569")
         )
@@ -255,7 +255,7 @@ class SettingsManager:
             activebackground=colors.get("surface", "#FFFFFF"),
             activeforeground=colors.get("primary", "#3B82F6"),
             indicatoron=True,
-            font=("Segoe UI", 14)
+            font=self.app.ui_styles.get_font("md"),
         )
         toggle.pack(side="right")
     
@@ -375,7 +375,7 @@ class SettingsManager:
             btn_frame,
             text="Apply Changes",
             command=self._apply_settings,
-            font=("Segoe UI", 12, "bold"),
+            font=self.app.ui_styles.get_font("sm", "bold"),
             bg=colors.get("primary", "#3B82F6"),
             fg=colors.get("text_inverse", "#FFFFFF"),
             activebackground=colors.get("primary_hover", "#2563EB"),
@@ -395,7 +395,7 @@ class SettingsManager:
             btn_frame,
             text="Reset",
             command=self._reset_defaults,
-            font=("Segoe UI", 11),
+            font=self.app.ui_styles.get_font("sm"),
             bg=colors.get("surface", "#FFFFFF"),
             fg=colors.get("text_secondary", "#475569"),
             activebackground=colors.get("surface_hover", "#F8FAFC"),
@@ -416,7 +416,7 @@ class SettingsManager:
             btn_frame,
             text="Cancel",
             command=self.settings_win.destroy,
-            font=("Segoe UI", 11),
+            font=self.app.ui_styles.get_font("sm"),
             bg=colors.get("surface", "#FFFFFF"),
             fg=colors.get("error", "#EF4444"),
             activebackground=colors.get("error_light", "#FEE2E2"),
