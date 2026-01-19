@@ -20,7 +20,7 @@ class AssessmentHub:
         self.parent = parent # The content_frame from Dashboard/Main
         self.app = app_engine # The SoulSenseApp instance
         self.colors = self.app.colors
-        self.fonts = self.app.fonts
+        # self.fonts = self.app.fonts # Deprecated
         
     def render(self):
         # Clear parent
@@ -28,24 +28,24 @@ class AssessmentHub:
             widget.destroy()
             
         # Title
-        tk.Label(self.parent, text="Deep Dive Assessments", font=self.fonts["h1"], 
+        tk.Label(self.parent, text="Deep Dive Assessments", font=self.app.ui_styles.get_font("h1"), 
                  bg=self.colors["bg"], fg=self.colors["text_primary"]).pack(pady=(20, 10), anchor="w", padx=30)
                  
         tk.Label(self.parent, text="Explore specific areas of your life with focused assessments.", 
-                 font=self.fonts["body"], bg=self.colors["bg"], fg=self.colors["text_secondary"]).pack(anchor="w", padx=30)
+                 font=self.app.ui_styles.get_font("body"), bg=self.colors["bg"], fg=self.colors["text_secondary"]).pack(anchor="w", padx=30)
 
         # Settings Frame (Question Count)
         settings_frame = tk.Frame(self.parent, bg=self.colors["surface"], pady=10, padx=20)
         settings_frame.pack(fill="x", padx=30, pady=20)
         
-        tk.Label(settings_frame, text="Session Length:", font=self.fonts["h3"], 
+        tk.Label(settings_frame, text="Session Length:", font=self.app.ui_styles.get_font("h3"), 
                  bg=self.colors["surface"], fg=self.colors["text_primary"]).pack(side="left")
         
         self.length_var = tk.StringVar(value="10")
         
         # Style radio buttons
         style = ttk.Style()
-        style.configure("TRadiobutton", background=self.colors["surface"], foreground=self.colors["text_primary"], font=("Segoe UI", 10))
+        style.configure("TRadiobutton", background=self.colors["surface"], foreground=self.colors["text_primary"], font=self.app.ui_styles.get_font("xs"),)
         
         ttk.Radiobutton(settings_frame, text="Short (5)", variable=self.length_var, value="5", style="TRadiobutton").pack(side="left", padx=10)
         ttk.Radiobutton(settings_frame, text="Medium (10)", variable=self.length_var, value="10", style="TRadiobutton").pack(side="left", padx=10)
@@ -71,18 +71,18 @@ class AssessmentHub:
         header = tk.Frame(card, bg=self.colors["surface"])
         header.pack(fill="x")
         
-        tk.Label(header, text=icon, font=("Segoe UI", 24), bg=self.colors["surface"]).pack(side="left", padx=(0, 15))
+        tk.Label(header, text=icon, font=self.app.ui_styles.get_font("xl"), bg=self.colors["surface"]).pack(side="left", padx=(0, 15))
         
         info = tk.Frame(header, bg=self.colors["surface"])
         info.pack(side="left", fill="x", expand=True)
         
-        tk.Label(info, text=title, font=self.fonts["h3"], bg=self.colors["surface"], 
+        tk.Label(info, text=title, font=self.app.ui_styles.get_font("h3"), bg=self.colors["surface"], 
                  fg=self.colors["text_primary"]).pack(anchor="w")
-        tk.Label(info, text=desc, font=self.fonts["body"], bg=self.colors["surface"], 
+        tk.Label(info, text=desc, font=self.app.ui_styles.get_font("body"), bg=self.colors["surface"], 
                  fg=self.colors["text_secondary"], wraplength=500, justify="left").pack(anchor="w", pady=(5,0))
         
         # Action Button
-        btn = tk.Button(header, text="Start", font=("Segoe UI", 10, "bold"),
+        btn = tk.Button(header, text="Start", font=self.app.ui_styles.get_font("xs", "bold"),
                         bg=self.colors["primary"], fg="#fff", width=12,
                         command=lambda: self.start_assessment(key))
         btn.pack(side="right")
@@ -114,11 +114,11 @@ class RecommendationView:
             widget.destroy()
 
         # Header
-        tk.Label(self.parent, text="🔍 One More Thing...", font=("Segoe UI", 24, "bold"),
+        tk.Label(self.parent, text="🔍 One More Thing...", font=self.app.ui_styles.get_font("xl", "bold"),
                  bg=self.colors["bg"], fg=self.colors["text_primary"]).pack(pady=(40, 20))
                  
         tk.Label(self.parent, text="Based on your results, we recommend a deep dive:", 
-                 font=("Segoe UI", 14), bg=self.colors["bg"], fg=self.colors["text_secondary"]).pack()
+                 font=self.app.ui_styles.get_font("md"), bg=self.colors["bg"], fg=self.colors["text_secondary"]).pack()
                  
         # Content
         frame = tk.Frame(self.parent, bg=self.colors["bg"], pady=40)
@@ -136,12 +136,12 @@ class RecommendationView:
             self.selected_tests[rec] = var
             
             cb = tk.Checkbutton(frame, text=DISPLAY_NAMES.get(rec, rec), variable=var,
-                                font=("Segoe UI", 14), bg=self.colors["bg"], fg=self.colors["text_primary"],
+                                font=self.app.ui_styles.get_font("md"), bg=self.colors["bg"], fg=self.colors["text_primary"],
                                 selectcolor=self.colors["bg"], activebackground=self.colors["bg"])
             cb.pack(anchor="w", pady=10)
             
         # Other options (collapsed or smaller)
-        other_lbl = tk.Label(frame, text="Or choose another:", font=("Segoe UI", 12, "bold"), 
+        other_lbl = tk.Label(frame, text="Or choose another:", font=self.app.ui_styles.get_font("sm", "bold"), 
                  bg=self.colors["bg"], fg=self.colors["text_secondary"])
         other_lbl.pack(anchor="w", pady=(30, 10))
         
@@ -151,13 +151,13 @@ class RecommendationView:
                 var = tk.BooleanVar(value=False)
                 self.selected_tests[t] = var
                 tk.Checkbutton(frame, text=DISPLAY_NAMES.get(t, t).replace(" 🚀", "").replace(" 💼", "").replace(" 💪", ""), 
-                              variable=var, font=("Segoe UI", 12), bg=self.colors["bg"], fg=self.colors["text_secondary"],
+                              variable=var, font=self.app.ui_styles.get_font("sm"), bg=self.colors["bg"], fg=self.colors["text_secondary"],
                               selectcolor=self.colors["bg"]).pack(anchor="w")
 
         # Length Selector
         len_frame = tk.Frame(self.parent, bg=self.colors["bg"])
         len_frame.pack(fill="x", padx=80, pady=20)
-        tk.Label(len_frame, text="Length:", font=("Segoe UI", 12), bg=self.colors["bg"], fg=self.colors["text_secondary"]).pack(side="left")
+        tk.Label(len_frame, text="Length:", font=self.app.ui_styles.get_font("sm"), bg=self.colors["bg"], fg=self.colors["text_secondary"]).pack(side="left")
         self.count_var = tk.StringVar(value="5")
         
         ttk.Combobox(len_frame, textvariable=self.count_var, values=["5", "10", "20"], width=5, state="readonly").pack(side="left", padx=10)
@@ -168,12 +168,12 @@ class RecommendationView:
         
         # "No Thanks"
         tk.Button(btn_frame, text="Skip to Results", command=self.close, 
-                  font=("Segoe UI", 12), bg=self.colors["bg"], fg=self.colors["text_secondary"], 
+                  font=self.app.ui_styles.get_font("sm"), bg=self.colors["bg"], fg=self.colors["text_secondary"], 
                   relief="flat").pack(side="left", padx=80)
                   
         # "Start"
         tk.Button(btn_frame, text="Start Deep Dive", command=self.start,
-                  font=("Segoe UI", 14, "bold"), bg=self.colors["primary"], fg="#fff", width=20, pady=10).pack(side="right", padx=80)
+                  font=self.app.ui_styles.get_font("md", "bold"), bg=self.colors["primary"], fg="#fff", width=20, pady=10).pack(side="right", padx=80)
 
     def start(self):
         # Collect selected tests
@@ -228,11 +228,11 @@ class AssessmentRunnerView:
         self.q_frame = tk.Frame(self.parent, bg=self.colors["bg"], padx=60, pady=60)
         self.q_frame.pack(fill="both", expand=True)
         
-        self.lbl_counter = tk.Label(self.q_frame, text="", font=("Segoe UI", 12, "bold"), 
+        self.lbl_counter = tk.Label(self.q_frame, text="", font=self.app.ui_styles.get_font("sm", "bold"), 
                                    bg=self.colors["bg"], fg=self.colors["primary"])
         self.lbl_counter.pack(anchor="w")
         
-        self.lbl_q = tk.Label(self.q_frame, text="", font=("Segoe UI", 20), 
+        self.lbl_q = tk.Label(self.q_frame, text="", font=self.app.ui_styles.get_font("h2"), 
                              bg=self.colors["bg"], fg=self.colors["text_primary"], wraplength=700, justify="left")
         self.lbl_q.pack(pady=(30, 50), anchor="w")
         
@@ -256,7 +256,7 @@ class AssessmentRunnerView:
             row.bind("<Button-1>", lambda e, v=val: self.select_option(v))
             
             rb = tk.Radiobutton(row, text=text, variable=self.choice_var, value=val, 
-                                font=("Segoe UI", 14), bg=self.colors["surface"], fg=self.colors["text_primary"],
+                                font=self.app.ui_styles.get_font("md"), bg=self.colors["surface"], fg=self.colors["text_primary"],
                                 activebackground=self.colors["surface"], selectcolor=self.colors["surface"],
                                 command=lambda v=val: self.select_option(v),
                                 takefocus=1) # Enable focus
@@ -277,7 +277,7 @@ class AssessmentRunnerView:
         btn_frame.pack(fill="x")
         
         self.btn_next = tk.Button(btn_frame, text="Next", command=self.next_question,
-                                 font=("Segoe UI", 14, "bold"), bg=self.colors["primary"], fg="#fff", width=18, pady=10,
+                                 font=self.app.ui_styles.get_font("md", "bold"), bg=self.colors["primary"], fg="#fff", width=18, pady=10,
                                  takefocus=1) # Enable focus
         self.btn_next.pack()
         self.btn_next["state"] = "disabled" # Disable until selected

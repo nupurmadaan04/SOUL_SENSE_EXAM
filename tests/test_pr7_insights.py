@@ -16,11 +16,12 @@ class TestSmartInsights(unittest.TestCase):
         self.feature = JournalFeature(self.mock_root)
         self.feature.username = "test_user"
 
-    @patch('app.ui.journal.get_session')
-    def test_digital_overload_insight(self, mock_get_session):
+    @patch('app.ui.journal.safe_db_context')
+    def test_digital_overload_insight(self, mock_safe_db):
         # Setup mock entries
         mock_session = MagicMock()
-        mock_get_session.return_value = mock_session
+        mock_safe_db.return_value.__enter__ = MagicMock(return_value=mock_session)
+        mock_safe_db.return_value.__exit__ = MagicMock(return_value=False)
         
         entries = []
         for i in range(3):
@@ -49,11 +50,12 @@ class TestSmartInsights(unittest.TestCase):
         self.assertIn("Digital Overload", insight)
         self.assertIn("Reducing screen time", insight)
         
-    @patch('app.ui.journal.get_session')
-    def test_burnout_insight(self, mock_get_session):
+    @patch('app.ui.journal.safe_db_context')
+    def test_burnout_insight(self, mock_safe_db):
          # Setup mock entries
         mock_session = MagicMock()
-        mock_get_session.return_value = mock_session
+        mock_safe_db.return_value.__enter__ = MagicMock(return_value=mock_session)
+        mock_safe_db.return_value.__exit__ = MagicMock(return_value=False)
         
         entries = []
         for i in range(3):

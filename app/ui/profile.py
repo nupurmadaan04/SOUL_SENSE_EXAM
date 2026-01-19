@@ -4,15 +4,22 @@ from tkinter import ttk, messagebox, simpledialog
 import logging
 import json
 from datetime import datetime
-from app.models import get_session, MedicalProfile, User, PersonalProfile, UserStrengths
+from app.models import get_session, MedicalProfile, User, PersonalProfile, UserStrengths, UserEmotionalPatterns
 # from app.ui.styles import ApplyTheme # Not needed
 from app.ui.sidebar import SidebarNav
-from app.models import get_session, MedicalProfile, User, PersonalProfile, UserStrengths
+from app.models import get_session, MedicalProfile, User, PersonalProfile, UserStrengths, UserEmotionalPatterns
 from app.ui.sidebar import SidebarNav
 from app.ui.components.timeline import LifeTimeline
 from app.ui.components.tag_input import TagInput
 from tkcalendar import DateEntry
 from app.ui.settings import SettingsManager
+from app.validation import (
+    sanitize_text, validate_email, validate_phone, 
+    validate_length, validate_required, validate_dob,
+    MAX_TEXT_LENGTH, MAX_ENTRY_LENGTH
+)
+from app.constants import FONT_FAMILY_SECONDARY
+from app.ui.validation_ui import setup_entry_limit, setup_text_limit
 
 class UserProfileView:
     def __init__(self, parent_root: tk.Widget, app_instance: Any) -> None:
@@ -20,6 +27,7 @@ class UserProfileView:
         self.app = app_instance
         self.i18n = app_instance.i18n
         self.colors = app_instance.colors
+        self.styles = app_instance.ui_styles
         
         # Embedded View Setup
         # self.window was Toplevel, now we use parent_root (which is content_area)
@@ -40,6 +48,7 @@ class UserProfileView:
                 {"id": "medical", "icon": "🏥", "label": self.i18n.get("profile.tab_medical")},
                 {"id": "history", "icon": "📜", "label": "Personal History"},
                 {"id": "strengths", "icon": "💪", "label": "Strengths & Goals"},
+                {"id": "export", "icon": "📤", "label": "Data Export"},
                 {"id": "settings", "icon": "⚙️", "label": "Settings"},
             ],
             on_change=self.on_nav_change
@@ -54,7 +63,7 @@ class UserProfileView:
         self.header_label = tk.Label(
             self.content_area,
             text="Profile",
-            font=("Segoe UI", 24, "bold"),
+            font=self.styles.get_font("xl", "bold"),
             bg=self.colors.get("bg"),
             fg=self.colors.get("text_primary")
         )
@@ -159,6 +168,9 @@ class UserProfileView:
         elif view_id == "strengths":
             self.header_label.configure(text="Strengths & Goals")
             self._render_strengths_view()
+        elif view_id == "export":
+            self.header_label.configure(text="Data Export")
+            self._render_export_view()
         elif view_id == "settings":
             self.header_label.configure(text="Account Settings")
             self._render_settings_view(self.view_container)
@@ -259,7 +271,7 @@ class UserProfileView:
             initial = user_data.get("username", "?")[0].upper()
             avatar_canvas.create_text(
                 avatar_size//2, avatar_size//2,
-                text=initial, font=("Segoe UI", 42, "bold"),
+                text=initial, font=self.styles.get_font("hero", "bold"),
                 fill="white", anchor="center"
             )
         
@@ -269,7 +281,7 @@ class UserProfileView:
         avatar_canvas.create_oval(cam_x - cam_size//2, cam_y - cam_size//2, 
                                   cam_x + cam_size//2, cam_y + cam_size//2,
                                   fill="white", outline="#E0E0E0", width=1)
-        avatar_canvas.create_text(cam_x, cam_y, text="📷", font=("Segoe UI", 10), anchor="center")
+        avatar_canvas.create_text(cam_x, cam_y, text="📷", font=self.styles.get_font("xs"), anchor="center")
         
         # Bind click on entire canvas to upload
         avatar_canvas.bind("<Button-1>", lambda e: self._upload_profile_photo())
@@ -277,7 +289,7 @@ class UserProfileView:
         # Name
         tk.Label(
             left_profile, text=user_data.get("username", "User"),
-            font=("Segoe UI", 22, "bold"),
+            font=self.styles.get_font("xl", "bold"),
             bg=self.colors.get("card_bg"), fg=self.colors.get("text_primary")
         ).pack(anchor="w")
         
@@ -285,7 +297,7 @@ class UserProfileView:
         subtitle = user_data.get("occupation") or "Soul Sense Member"
         tk.Label(
             left_profile, text=subtitle,
-            font=("Segoe UI", 11), bg=self.colors.get("card_bg"), fg=ACCENT
+            font=self.styles.get_font("sm"), bg=self.colors.get("card_bg"), fg=ACCENT
         ).pack(anchor="w", pady=(0, 15))
         
         # Info Grid (DOB, Age, Gender in 2x2)
@@ -301,7 +313,7 @@ class UserProfileView:
         edit_btn = tk.Button(
             left_profile, text="✏️ EDIT PROFILE",
             command=lambda: self.sidebar.select_item("history"),
-            font=("Segoe UI", 10, "bold"), bg=ACCENT,
+            font=self.styles.get_font("xs", "bold"), bg=ACCENT,
             fg="white", relief="flat", cursor="hand2", padx=20, pady=8
         )
         edit_btn.pack(anchor="w", pady=(20, 0))
@@ -332,7 +344,7 @@ class UserProfileView:
         if user_data.get("conditions"):
             self._create_pill_item(medical_content, f"Conditions: {user_data.get('conditions', 'None')[:30]}...")
         if not any([user_data.get("blood_type"), user_data.get("allergies"), user_data.get("conditions")]):
-            tk.Label(medical_content, text="No medical info set", font=("Segoe UI", 10), 
+            tk.Label(medical_content, text="No medical info set", font=self.styles.get_font("xs"), 
                     bg=self.colors.get("card_bg"), fg="gray").pack(anchor="w")
         
         # --- Quick Stats Card (renamed from EQ Vitals) ---
@@ -367,7 +379,7 @@ class UserProfileView:
         # Notes header
         notes_header = tk.Frame(notes_card, bg=self.colors.get("card_bg"))
         notes_header.pack(fill="x", padx=20, pady=(15, 10))
-        tk.Label(notes_header, text="📝 Notes & Journal", font=("Segoe UI", 14, "bold"),
+        tk.Label(notes_header, text="📝 Notes & Journal", font=self.styles.get_font("md", "bold"),
                 bg=self.colors.get("card_bg"), fg=self.colors.get("text_primary")).pack(side="left")
         
         notes_content = tk.Frame(notes_card, bg=self.colors.get("card_bg"))
@@ -379,7 +391,7 @@ class UserProfileView:
                 self._create_note_entry(notes_content, entry["date"], entry["content"])
         else:
             tk.Label(notes_content, text="No journal entries yet.\nStart journaling to see your notes here!",
-                    font=("Segoe UI", 11), bg=self.colors.get("card_bg"), fg="gray", justify="left").pack(anchor="w")
+                    font=self.styles.get_font("sm"), bg=self.colors.get("card_bg"), fg="gray", justify="left").pack(anchor="w")
         
         # =====================
         # RIGHT COLUMN - ROW 1: RECENT RESULTS
@@ -392,8 +404,125 @@ class UserProfileView:
             for score in user_data.get("recent_scores", [])[:4]:
                 self._create_result_row(results_content, f"EQ Test - Score: {score['score']}", score["date"])
         else:
-            tk.Label(results_content, text="No test results yet.", font=("Segoe UI", 10),
+            tk.Label(results_content, text="No test results yet.", font=self.styles.get_font("xs"),
                     bg=self.colors.get("card_bg"), fg="gray").pack(anchor="w")
+
+        # =====================
+        # LEFT COLUMN - ROW 2: MANIFESTO (Issue #260)
+        # =====================
+        # Use theme colors instead of hardcoded light blue
+        card_bg = self.colors.get("card_bg")
+        text_primary = self.colors.get("text_primary")
+        accent = self.colors.get("primary", "#3B82F6")
+        
+        manifesto_card = tk.Frame(
+            main_frame, bg=card_bg,
+            highlightbackground=accent,
+            highlightthickness=1
+        )
+        manifesto_card.grid(row=2, column=0, columnspan=2, sticky="nsew", padx=(0, 0), pady=(15, 0))
+        
+        # Header
+        man_header = tk.Frame(manifesto_card, bg=card_bg)
+        man_header.pack(fill="x", padx=20, pady=(15, 5))
+        
+        tk.Label(man_header, text="🌟 My Manifesto (Perspective on Life)", 
+                font=self.styles.get_font("md", "bold"), bg=card_bg, fg=accent).pack(side="left")
+        
+        # Content
+        man_content = tk.Frame(manifesto_card, bg=card_bg)
+        man_content.pack(fill="both", expand=True, padx=25, pady=(0, 20))
+        
+        pov_text = user_data.get("life_pov")
+        if pov_text:
+            # Increased font size and clarity
+            lbl = tk.Label(man_content, text=f'"{pov_text}"', 
+                     font=(FONT_FAMILY_SECONDARY, 15, "italic"), bg=card_bg, fg=text_primary, 
+                     wraplength=700, justify="center")
+            lbl.pack()
+        else:
+            lbl = tk.Label(man_content, text="(Click to define your life philosophy...)", 
+                     font=("Segoe UI", 12, "italic"), bg=card_bg, fg="gray")
+            lbl.pack()
+            
+        # Make clickable to edit
+        for w in [manifesto_card, man_header, man_content, lbl]:
+            w.bind("<Button-1>", lambda e: self._edit_manifesto_custom(user_data.get("life_pov", "")))
+            w.config(cursor="hand2")
+    
+    
+    def _edit_manifesto_custom(self, current_text):
+        """Open custom dialog to edit life manifesto (POV)."""
+        from tkinter import messagebox
+        
+        # Custom Toplevel execution
+        dialog = tk.Toplevel(self.window)
+        dialog.title("My Manifesto")
+        dialog.geometry("600x400")
+        dialog.transient(self.window)
+        dialog.transient(self.window)
+        dialog.grab_set()
+        
+        # Center dialog (inline logic)
+        dialog.update_idletasks()
+        width = 600
+        height = 400
+        x = (self.window.winfo_screenwidth() // 2) - (width // 2)
+        y = (self.window.winfo_screenheight() // 2) - (height // 2)
+        dialog.geometry(f'{width}x{height}+{x}+{y}')
+        
+        # Theme colors
+        bg = self.colors.get("card_bg", "#ffffff")
+        fg = self.colors.get("text_primary", "#000000")
+        accent = self.colors.get("primary", "#3B82F6")
+        
+        dialog.configure(bg=bg)
+        
+        tk.Label(dialog, text="Define your core perspective on life:", 
+                font=self.styles.get_font("sm", "bold"), bg=bg, fg=fg).pack(pady=(20, 10))
+                
+        # Text Area
+        text_area = tk.Text(dialog, font=(FONT_FAMILY_SECONDARY, 14), height=8, width=50, 
+                           bg=self.colors.get("bg", "#f5f5f5"), fg=fg, relief="flat", padx=10, pady=10)
+        text_area.pack(padx=20, pady=10, fill="both", expand=True)
+        text_area.insert("1.0", current_text)
+        text_area.focus_set()
+        
+        def save():
+            new_text = text_area.get("1.0", "end-1c").strip()
+            
+            if len(new_text) > 700:
+                messagebox.showwarning("Too Long", "Please keep your manifesto under 700 characters.", parent=dialog)
+                return
+                
+            try:
+                from app.models import PersonalProfile, User
+                session = get_session()
+                user = session.query(User).filter_by(username=self.app.username).first()
+                if user:
+                    if not user.personal_profile:
+                        pp = PersonalProfile(user_id=user.id)
+                        user.personal_profile = pp
+                        session.add(pp)
+                    user.personal_profile.life_pov = new_text
+                    session.commit()
+                    self.on_nav_change("overview")
+                session.close()
+                dialog.destroy()
+            except Exception as e:
+                logging.error(f"Failed to save: {e}")
+                messagebox.showerror("Error", "Failed to save changes.", parent=dialog)
+
+        # Buttons
+        btn_frame = tk.Frame(dialog, bg=bg)
+        btn_frame.pack(fill="x", pady=20, padx=20)
+        
+        tk.Button(btn_frame, text="Cancel", command=dialog.destroy, 
+                 font=self.styles.get_font("xs"), bg="#e0e0e0", fg="black", relief="flat", padx=15).pack(side="right", padx=5)
+                 
+        tk.Button(btn_frame, text="Save Manifesto", command=save,
+                 font=self.styles.get_font("xs", "bold"), bg=accent, fg="white", relief="flat", padx=15).pack(side="right", padx=5)
+
     
     def _load_user_overview_data(self):
         """Load all user data for overview display."""
@@ -431,6 +560,9 @@ class UserProfileView:
                             data["age"] = f"{age}y"
                         except:
                             data["age"] = "--"
+                    
+                    # Issue #260: Load Life Perspective (POV)
+                    data["life_pov"] = pp.life_pov or ""
                 
                 # Medical Profile data
                 if user.medical_profile:
@@ -463,6 +595,49 @@ class UserProfileView:
             logging.error(f"Error loading overview data: {e}")
         
         return data
+    
+    def _edit_manifesto(self, current_text):
+        """Open dialog to edit life manifesto (POV)."""
+        from tkinter import simpledialog, messagebox
+        
+        # Open dialog
+        new_text = simpledialog.askstring(
+            "My Manifesto", 
+            "Define your core perspective on life:",
+            initialvalue=current_text,
+            parent=self.window
+        )
+        
+        if new_text is None:
+            return # Cancelled
+            
+        # Limit length (Edge Case)
+        if len(new_text) > 700:
+            messagebox.showwarning("Too Long", "Please keep your manifesto under 700 characters.")
+            return
+
+        try:
+            from app.models import PersonalProfile, User
+            session = get_session()
+            user = session.query(User).filter_by(username=self.app.username).first()
+            
+            if user:
+                if not user.personal_profile:
+                    # Create if missing (Edge Case)
+                    pp = PersonalProfile(user_id=user.id)
+                    user.personal_profile = pp
+                    session.add(pp)
+                
+                user.personal_profile.life_pov = new_text.strip()
+                session.commit()
+                
+                # Refresh UI
+                self.on_nav_change("overview")
+                
+            session.close()
+        except Exception as e:
+            logging.error(f"Failed to save manifesto: {e}")
+            messagebox.showerror("Error", "Failed to save changes.")
     
     def _upload_profile_photo(self):
         """Open file dialog to select and upload a profile photo."""
@@ -513,7 +688,7 @@ class UserProfileView:
         # Instructions
         tk.Label(
             dialog, text="Drag to position, scroll to resize",
-            font=("Segoe UI", 11), bg=self.colors.get("card_bg"), fg="gray"
+            font=self.styles.get_font("sm"), bg=self.colors.get("card_bg"), fg="gray"
         ).pack(pady=(15, 10))
         
         # Calculate display size (max 400px)
@@ -634,12 +809,12 @@ class UserProfileView:
         
         tk.Button(
             btn_frame, text="Cancel", command=dialog.destroy,
-            font=("Segoe UI", 10), bg="#E0E0E0", fg="black", relief="flat", padx=20, pady=8
+            font=self.styles.get_font("xs"), bg="#E0E0E0", fg="black", relief="flat", padx=20, pady=8
         ).pack(side="left")
         
         tk.Button(
             btn_frame, text="✓ Save Photo", command=save_crop,
-            font=("Segoe UI", 10, "bold"), bg="#009688", fg="white", relief="flat", padx=20, pady=8
+            font=self.styles.get_font("xs", "bold"), bg="#009688", fg="white", relief="flat", padx=20, pady=8
         ).pack(side="right")
     
     def _create_overview_card(self, parent, title):
@@ -648,7 +823,7 @@ class UserProfileView:
                        highlightbackground=self.colors.get("card_border", "#E0E0E0"), highlightthickness=1)
         card.pack(fill="x", pady=(0, 10))
         
-        tk.Label(card, text=title, font=("Segoe UI", 13, "bold"),
+        tk.Label(card, text=title, font=self.styles.get_font("md", "bold"),
                 bg=self.colors.get("card_bg"), fg=self.colors.get("text_primary")).pack(anchor="w", padx=15, pady=(12, 8))
         return card
     
@@ -658,7 +833,7 @@ class UserProfileView:
                        highlightbackground=self.colors.get("card_border", "#E0E0E0"), highlightthickness=1)
         card.grid(row=row, column=col, sticky="nsew", pady=(0, 0))
         
-        tk.Label(card, text=title, font=("Segoe UI", 13, "bold"),
+        tk.Label(card, text=title, font=self.styles.get_font("md", "bold"),
                 bg=self.colors.get("card_bg"), fg=self.colors.get("text_primary")).pack(anchor="w", padx=15, pady=(12, 8))
         return card
     
@@ -667,8 +842,8 @@ class UserProfileView:
         box = tk.Frame(parent, bg=self.colors.get("card_bg"))
         box.grid(row=row, column=col, sticky="w", padx=(0, 30), pady=3)
         
-        tk.Label(box, text=label, font=("Segoe UI", 9), bg=self.colors.get("card_bg"), fg="gray").pack(anchor="w")
-        tk.Label(box, text=value, font=("Segoe UI", 12, "bold"), bg=self.colors.get("card_bg"), 
+        tk.Label(box, text=label, font=self.styles.get_font("xs"), bg=self.colors.get("card_bg"), fg="gray").pack(anchor="w")
+        tk.Label(box, text=value, font=self.styles.get_font("sm", "bold"), bg=self.colors.get("card_bg"), 
                 fg=self.colors.get("text_primary")).pack(anchor="w")
     
     def _create_contact_row(self, parent, label, value):
@@ -676,7 +851,7 @@ class UserProfileView:
         row = tk.Frame(parent, bg=self.colors.get("card_bg"))
         row.pack(fill="x", pady=8)
         
-        tk.Label(row, text=label, font=("Segoe UI", 9), bg=self.colors.get("card_bg"), fg="gray").pack(anchor="w")
+        tk.Label(row, text=label, font=self.styles.get_font("xs"), bg=self.colors.get("card_bg"), fg="gray").pack(anchor="w")
         tk.Label(row, text=value, font=("Segoe UI", 11, "bold"), bg=self.colors.get("card_bg"),
                 fg=self.colors.get("text_primary"), wraplength=200, justify="left").pack(anchor="w")
     
@@ -685,8 +860,8 @@ class UserProfileView:
         row = tk.Frame(parent, bg=self.colors.get("card_bg"))
         row.pack(fill="x", pady=3)
         
-        tk.Label(row, text="💊", font=("Segoe UI", 10), bg=self.colors.get("card_bg")).pack(side="left")
-        tk.Label(row, text=text, font=("Segoe UI", 10), bg=self.colors.get("card_bg"),
+        tk.Label(row, text="💊", font=self.styles.get_font("xs"), bg=self.colors.get("card_bg")).pack(side="left")
+        tk.Label(row, text=text, font=self.styles.get_font("xs"), bg=self.colors.get("card_bg"),
                 fg=self.colors.get("text_primary")).pack(side="left", padx=5)
     
     def _create_vital_display(self, parent, icon, label, value, color, col):
@@ -696,17 +871,17 @@ class UserProfileView:
         parent.columnconfigure(col, weight=1)
         
         tk.Label(box, text=icon, font=("Segoe UI", 24), bg=self.colors.get("card_bg")).pack()
-        tk.Label(box, text=label, font=("Segoe UI", 9), bg=self.colors.get("card_bg"), fg="gray").pack()
-        tk.Label(box, text=value, font=("Segoe UI", 18, "bold"), bg=self.colors.get("card_bg"), fg=color).pack()
+        tk.Label(box, text=label, font=self.styles.get_font("xs"), bg=self.colors.get("card_bg"), fg="gray").pack()
+        tk.Label(box, text=value, font=self.styles.get_font("lg", "bold"), bg=self.colors.get("card_bg"), fg=color).pack()
     
     def _create_note_entry(self, parent, date, content):
         """Create a note/journal entry display."""
         entry_frame = tk.Frame(parent, bg=self.colors.get("card_bg"))
         entry_frame.pack(fill="x", pady=8)
         
-        tk.Label(entry_frame, text=date, font=("Segoe UI", 9, "bold"), 
+        tk.Label(entry_frame, text=date, font=self.styles.get_font("xs", "bold"), 
                 bg=self.colors.get("card_bg"), fg="#009688").pack(anchor="w")
-        tk.Label(entry_frame, text=content if content else "No notes", font=("Segoe UI", 10),
+        tk.Label(entry_frame, text=content if content else "No notes", font=self.styles.get_font("xs"),
                 bg=self.colors.get("card_bg"), fg=self.colors.get("text_primary"), wraplength=350, justify="left").pack(anchor="w")
     
     def _create_result_row(self, parent, text, date):
@@ -714,10 +889,10 @@ class UserProfileView:
         row = tk.Frame(parent, bg=self.colors.get("card_bg"))
         row.pack(fill="x", pady=4)
         
-        tk.Label(row, text="📄", font=("Segoe UI", 10), bg=self.colors.get("card_bg")).pack(side="left")
-        tk.Label(row, text=text, font=("Segoe UI", 10), bg=self.colors.get("card_bg"),
+        tk.Label(row, text="📄", font=self.styles.get_font("xs"), bg=self.colors.get("card_bg")).pack(side="left")
+        tk.Label(row, text=text, font=self.styles.get_font("xs"), bg=self.colors.get("card_bg"),
                 fg=self.colors.get("text_primary")).pack(side="left", padx=5)
-        tk.Label(row, text=date, font=("Segoe UI", 9), bg=self.colors.get("card_bg"), fg="gray").pack(side="right")
+        tk.Label(row, text=date, font=self.styles.get_font("xs"), bg=self.colors.get("card_bg"), fg="gray").pack(side="right")
     
     def _create_dashboard_card(self, parent, title):
         """Create a styled card container with optional title."""
@@ -730,7 +905,7 @@ class UserProfileView:
         
         if title:
             tk.Label(
-                card, text=title, font=("Segoe UI", 14, "bold"),
+                card, text=title, font=self.styles.get_font("md", "bold"),
                 bg=self.colors.get("card_bg"), fg=self.colors.get("text_primary")
             ).pack(anchor="w", padx=20, pady=(15, 10))
         
@@ -742,12 +917,12 @@ class UserProfileView:
         row.pack(fill="x", pady=5)
         
         tk.Label(
-            row, text=label, font=("Segoe UI", 11), width=12, anchor="w",
+            row, text=label, font=self.styles.get_font("sm"), width=12, anchor="w",
             bg=self.colors.get("card_bg"), fg="gray"
         ).pack(side="left")
         
         tk.Label(
-            row, text=value, font=("Segoe UI", 11),
+            row, text=value, font=self.styles.get_font("sm"),
             bg=self.colors.get("card_bg"), fg=self.colors.get("text_primary")
         ).pack(side="left", padx=10)
     
@@ -759,13 +934,13 @@ class UserProfileView:
         
         # Value (large)
         tk.Label(
-            box, text=value, font=("Segoe UI", 24, "bold"),
+            box, text=value, font=self.styles.get_font("xl", "bold"),
             bg=self.colors.get("card_bg"), fg=color
         ).pack(anchor="w")
         
         # Label (small)
         tk.Label(
-            box, text=label, font=("Segoe UI", 10),
+            box, text=label, font=self.styles.get_font("xs"),
             bg=self.colors.get("card_bg"), fg="gray"
         ).pack(anchor="w")
     
@@ -775,12 +950,12 @@ class UserProfileView:
         row.pack(fill="x", pady=3)
         
         tk.Label(
-            row, text=icon, font=("Segoe UI", 12),
+            row, text=icon, font=self.styles.get_font("sm"),
             bg=self.colors.get("card_bg")
         ).pack(side="left")
         
         tk.Label(
-            row, text=text, font=("Segoe UI", 11),
+            row, text=text, font=self.styles.get_font("sm"),
             bg=self.colors.get("card_bg"), fg=self.colors.get("text_primary")
         ).pack(side="left", padx=(5, 10))
         
@@ -803,7 +978,7 @@ class UserProfileView:
                 time_str = str(timestamp)[:10] if timestamp else ""
         
         tk.Label(
-            row, text=time_str, font=("Segoe UI", 9),
+            row, text=time_str, font=self.styles.get_font("xs"),
             bg=self.colors.get("card_bg"), fg="gray"
         ).pack(side="right")
 
@@ -880,13 +1055,13 @@ class UserProfileView:
         footer = tk.Frame(card, bg=self.colors.get("card_bg"), height=80)
         footer.pack(fill="x", side="bottom", padx=40, pady=30)
         
-        tk.Label(footer, text=self.i18n.get("profile.privacy_note"), font=("Segoe UI", 9, "italic"), bg=self.colors.get("card_bg"), fg="gray").pack(side="left")
+        tk.Label(footer, text=self.i18n.get("profile.privacy_note"), font=self.styles.get_font("xs", "italic"), bg=self.colors.get("card_bg"), fg="gray").pack(side="left")
         
         save_btn = tk.Button(
             footer,
             text=self.i18n.get("profile.save"),
             command=self.save_medical_data,
-            font=("Segoe UI", 12, "bold"),
+            font=self.styles.get_font("sm", "bold"),
             bg=self.colors.get("success", "#10B981"),
             fg="white",
             activebackground=self.colors.get("success_hover", "#059669"),
@@ -960,9 +1135,9 @@ class UserProfileView:
         
         dob_col = tk.Frame(dob_gender_frame, bg=self.colors.get("card_bg"))
         dob_col.pack(side="left", fill="x", expand=True, padx=(0, 10))
-        tk.Label(dob_col, text="Date of Birth", font=("Segoe UI", 10, "bold"), bg=self.colors.get("card_bg"), fg="gray").pack(anchor="w")
+        tk.Label(dob_col, text="Date of Birth", font=self.styles.get_font("xs", "bold"), bg=self.colors.get("card_bg"), fg="gray").pack(anchor="w")
         self.dob_entry = DateEntry(
-            dob_col, date_pattern="yyyy-mm-dd", font=("Segoe UI", 11),
+            dob_col, date_pattern="yyyy-mm-dd", font=self.styles.get_font("sm"),
             background=self.colors.get("primary"), foreground="white"
         )
         self.dob_entry.pack(fill="x", pady=5)
@@ -1036,7 +1211,7 @@ class UserProfileView:
 
         # Date Field with DateEntry
         tk.Label(dialog, text="Date", font=("Segoe UI", 10, "bold"), bg=self.colors.get("card_bg"), fg="gray").pack(anchor="w", padx=20, pady=(10, 5))
-        date_entry = DateEntry(dialog, width=12, background='darkblue', foreground='white', borderwidth=2, font=("Segoe UI", 11), date_pattern='yyyy-mm-dd')
+        date_entry = DateEntry(dialog, width=12, background='darkblue', foreground='white', borderwidth=2, font=self.styles.get_font("sm"), date_pattern='yyyy-mm-dd')
         date_entry.pack(fill="x", padx=20)
         
         if is_edit:
@@ -1048,23 +1223,33 @@ class UserProfileView:
         # Title Field
         title_var = tk.StringVar(value=event_to_edit['title']) if is_edit else tk.StringVar()
         tk.Label(dialog, text="Event Title", font=("Segoe UI", 10, "bold"), bg=self.colors.get("card_bg"), fg="gray").pack(anchor="w", padx=20, pady=(10, 5))
-        tk.Entry(dialog, textvariable=title_var, font=("Segoe UI", 11)).pack(fill="x", padx=20)
+        title_entry = tk.Entry(dialog, textvariable=title_var, font=("Segoe UI", 11))
+        title_entry.pack(fill="x", padx=20)
+        setup_entry_limit(title_entry, MAX_ENTRY_LENGTH)
         
         # Description Field
         tk.Label(dialog, text="Description", font=("Segoe UI", 10, "bold"), bg=self.colors.get("card_bg"), fg="gray").pack(anchor="w", padx=20, pady=(10, 5))
         desc_text = tk.Text(dialog, height=5, font=("Segoe UI", 11))
         desc_text.pack(fill="x", padx=20)
+        setup_text_limit(desc_text, MAX_TEXT_LENGTH)
         
         if is_edit:
             desc_text.insert("1.0", event_to_edit.get('description', ''))
             
         def save():
             date_str = date_entry.get_date().strftime("%Y-%m-%d")
-            title = title_var.get().strip()
-            desc = desc_text.get("1.0", tk.END).strip()
+            title = sanitize_text(title_var.get())
+            desc = sanitize_text(desc_text.get("1.0", tk.END))
             
-            if not title:
-                messagebox.showwarning("Incomplete", "Title is required.")
+            # Validation
+            valid_title, msg_title = validate_required(title, "Title")
+            if not valid_title:
+                messagebox.showwarning("Incomplete", msg_title)
+                return
+                
+            valid_len, msg_len = validate_length(desc, MAX_TEXT_LENGTH, "Description")
+            if not valid_len:
+                messagebox.showwarning("Incomplete", msg_len)
                 return
             
             new_data = {
@@ -1162,35 +1347,58 @@ class UserProfileView:
              else:
                  profile = user.personal_profile
                  
-             profile.occupation = self.occ_var.get()
-             profile.education = self.edu_var.get()
-             profile.marital_status = self.status_var.get()
-             profile.bio = self.bio_text.get("1.0", tk.END).strip()
-
-             # Phase 53: Save contact info
-             email = self.email_var.get().strip()
-             phone = self.phone_var.get().strip()
+             # Sanitize
+             occupation = sanitize_text(self.occ_var.get())
+             education = sanitize_text(self.edu_var.get())
+             bio = sanitize_text(self.bio_text.get("1.0", tk.END))
+             email = sanitize_text(self.email_var.get())
+             phone = sanitize_text(self.phone_var.get())
+             dob_str = self.dob_entry.get_date().strftime("%Y-%m-%d")
+             address = sanitize_text(self.address_text.get("1.0", tk.END))
              
-             # Validation (Phase 2.5 of Plan)
-             import re
-             if email and not re.match(r"[^@]+@[^@]+\.[^@]+", email):
-                 messagebox.showwarning("Validation Error", "Invalid email format.")
+             society = sanitize_text(self.society_text.get("1.0", tk.END))
+             life_pov = sanitize_text(self.life_pov_text.get("1.0", tk.END))
+             pressure = sanitize_text(self.high_pressure_text.get("1.0", tk.END))
+
+             # Validation
+             valid_email, msg_email = validate_email(email)
+             if not valid_email:
+                 messagebox.showwarning("Validation Error", msg_email)
                  return
                  
-             if phone and not re.match(r"^\+?[\d\s-]{10,}$", phone):
-                 messagebox.showwarning("Validation Error", "Invalid phone number format (min 10 digits).")
+             valid_phone, msg_phone = validate_phone(phone)
+             if not valid_phone:
+                 messagebox.showwarning("Validation Error", msg_phone)
+                 return
+
+             valid_dob, msg_dob = validate_dob(dob_str)
+             if not valid_dob:
+                 messagebox.showwarning("Validation Error", msg_dob)
                  return
              
+             # Max Lengths
+             for label, txt in [("Bio", bio), ("Address", address), ("Perspective", life_pov), 
+                               ("Society", society), ("Pressure Events", pressure)]:
+                valid, msg = validate_length(txt, MAX_TEXT_LENGTH, label)
+                if not valid:
+                    messagebox.showwarning("Validation Error", msg)
+                    return
+
+             profile.occupation = occupation
+             profile.education = education
+             profile.marital_status = self.status_var.get()
+             profile.bio = bio
+
              profile.email = email
              profile.phone = phone
-             profile.date_of_birth = self.dob_entry.get_date().strftime("%Y-%m-%d")
+             profile.date_of_birth = dob_str
              profile.gender = self.gender_var.get()
-             profile.address = self.address_text.get("1.0", tk.END).strip()
+             profile.address = address
 
              # PR #5 Save
-             profile.society_contribution = self.society_text.get("1.0", tk.END).strip()
-             profile.life_pov = self.life_pov_text.get("1.0", tk.END).strip()
-             profile.high_pressure_events = self.high_pressure_text.get("1.0", tk.END).strip()
+             profile.society_contribution = society
+             profile.life_pov = life_pov
+             profile.high_pressure_events = pressure
              
              session.commit()
              session.close()
@@ -1217,6 +1425,129 @@ class UserProfileView:
         except Exception as e:
             logging.error(f"Error saving events: {e}")
             messagebox.showerror("Error", "Failed to save events.")
+
+
+    # ==========================
+    # 4. EXPORT VIEW
+    # ==========================
+    def _render_export_view(self):
+        # Container
+        content = tk.Frame(self.view_container, bg=self.colors.get("bg"))
+        content.pack(fill="both", expand=True, padx=40, pady=40)
+        
+        card = tk.Frame(content, bg=self.colors.get("card_bg"), highlightbackground=self.colors.get("card_border"), highlightthickness=1)
+        card.pack(fill="both", expand=True) # Full size card
+        
+        inner = tk.Frame(card, bg=self.colors.get("card_bg"))
+        inner.pack(fill="both", expand=True, padx=40, pady=40)
+        
+        # Header
+        self._create_section_label(inner, "Export Your Data")
+        
+        tk.Label(
+            inner, 
+            text="Download a complete copy of your personal data, including your profile, medical history, life events, and preferences.",
+            font=self.styles.get_font("sm"), 
+            bg=self.colors.get("card_bg"), 
+            fg="gray",
+            wraplength=600,
+            justify="left"
+        ).pack(anchor="w", pady=(0, 30))
+        
+        # Export Actions
+        btn_frame = tk.Frame(inner, bg=self.colors.get("card_bg"))
+        btn_frame.pack(anchor="w")
+        
+        def do_export_json():
+            try:
+                from app.utils.file_validation import validate_file_path, sanitize_filename, ValidationError
+                from tkinter import filedialog
+                import json
+                
+                # 1. Prepare Data
+                session = get_session()
+                user = session.query(User).filter_by(username=self.app.username).first()
+                if not user:
+                    session.close()
+                    messagebox.showerror("Error", "User not found.")
+                    return
+                
+                export_data = {
+                    "username": user.username,
+                    "exported_at": datetime.now().isoformat(),
+                    "profile": {},
+                    "medical": {},
+                    "strengths": {},
+                    "emotional_patterns": {}
+                }
+                
+                if user.personal_profile:
+                    p = user.personal_profile
+                    export_data["profile"] = {
+                        "bio": p.bio, "occupation": p.occupation, "email": p.email,
+                        "life_events": json.loads(p.life_events) if p.life_events else []
+                    }
+                    
+                if user.medical_profile:
+                    m = user.medical_profile
+                    export_data["medical"] = {
+                        "allergies": m.allergies, "medications": m.medications,
+                        "conditions": m.medical_conditions, "blood_type": m.blood_type
+                    }
+                    
+                if user.strengths:
+                    s = user.strengths
+                    export_data["strengths"] = {
+                        "top": json.loads(s.top_strengths) if s.top_strengths else [],
+                        "goals": s.goals
+                    }
+
+                session.close()
+
+                # 2. Sanitize Filename
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                safe_username = sanitize_filename(self.app.username)
+                default_name = f"SoulSense_Export_{safe_username}_{timestamp}.json"
+                
+                # 3. Ask for Save Location
+                filename = filedialog.asksaveasfilename(
+                    title="Export Data",
+                    initialfile=default_name,
+                    defaultextension=".json",
+                    filetypes=[("JSON Data", "*.json")]
+                )
+                
+                if not filename:
+                    return
+
+                # 4. Validate Path
+                try:
+                    filename = validate_file_path(filename, allowed_extensions=[".json"])
+                except ValidationError as ve:
+                    messagebox.showerror("Security Error", str(ve))
+                    return
+                
+                # 5. Write File
+                with open(filename, 'w', encoding='utf-8') as f:
+                    json.dump(export_data, f, indent=2, ensure_ascii=False)
+                    
+                messagebox.showinfo("Export Success", f"Data exported successfully to:\n{filename}")
+                
+            except Exception as e:
+                logging.error(f"Export failed: {e}")
+                messagebox.showerror("Export Error", f"Failed to export data: {e}")
+
+        tk.Button(
+            btn_frame,
+            text="📄 Export as JSON",
+            command=do_export_json,
+            font=self.styles.get_font("md", "bold"),
+            bg=self.colors.get("primary"),
+            fg="white",
+            relief="flat",
+            padx=20, pady=10,
+            cursor="hand2"
+        ).pack(side="left")
 
     def _render_settings_view(self, parent):
         """Render embedded settings view"""
@@ -1282,9 +1613,32 @@ class UserProfileView:
         spinbox.pack(anchor="w", pady=5)
         
         # Save Button
-        tk.Button(parent, text="Save Preferences", 
+        tk.Button(parent, text="Save Preferences",
                  command=self._save_settings,
                  bg=colors.get("primary"), fg="white", font=("Segoe UI", 12), pady=5).pack(pady=20, anchor="w")
+
+        # Data Management Section
+        self._create_section_label(parent, "Data Management")
+
+        # Delete My Data Button
+        delete_btn = tk.Button(parent, text="🗑️ Delete My Data",
+                              command=self._delete_user_data,
+                              bg="#DC2626", fg="white", font=("Segoe UI", 12, "bold"),
+                              relief="flat", pady=10, padx=20)
+        delete_btn.pack(pady=(10, 20), anchor="w")
+
+        # Warning text
+        warning_text = ("This action will permanently delete all your personal data, "
+                       "including profiles, test results, journals, and settings. "
+                       "This cannot be undone.")
+        warning_label = tk.Label(parent, text=warning_text, font=self.styles.get_font("xs"),
+                                bg=colors.get("card_bg"), fg="#DC2626", wraplength=400, justify="left")
+        warning_label.pack(anchor="w", pady=(0, 20))
+        
+        # ==================
+        # Experimental Features Section
+        # ==================
+        self._render_experimental_flags_section(parent)
 
     def _save_settings(self):
         """Save settings to DB"""
@@ -1304,53 +1658,135 @@ class UserProfileView:
                 tk.messagebox.showinfo("Success", "Settings saved!")
              except Exception as e:
                 tk.messagebox.showerror("Error", f"Failed to save: {e}")
+    
+    def _render_experimental_flags_section(self, parent):
+        """Render the experimental feature flags section in settings."""
+        try:
+            from app.feature_flags import feature_flags
+        except ImportError:
+            return  # Feature flags not available
+        
+        colors = self.colors
+        
+        # Section header with warning color
+        header_frame = tk.Frame(parent, bg=colors.get("bg"))
+        header_frame.pack(fill="x", pady=(20, 10), anchor="w")
+        
+        tk.Label(
+            header_frame,
+            text="🧪 Experimental Features",
+            font=("Segoe UI", 14, "bold"),
+            bg=colors.get("bg"),
+            fg="#F59E0B"  # Warning orange
+        ).pack(side="left")
+        
+        tk.Label(
+            header_frame,
+            text="BETA",
+            font=("Segoe UI", 8, "bold"),
+            bg="#F59E0B",
+            fg="white",
+            padx=6,
+            pady=2
+        ).pack(side="left", padx=10)
+        
+        # Description
+        tk.Label(
+            parent,
+            text="Enable cutting-edge features via environment variables or config.json",
+            font=("Segoe UI", 10),
+            bg=colors.get("bg"),
+            fg=colors.get("text_secondary", "gray")
+        ).pack(anchor="w", pady=(0, 15))
+        
+        # Feature flags container with border
+        flags_card = tk.Frame(
+            parent,
+            bg=colors.get("card_bg", "white"),
+            highlightbackground="#F59E0B",
+            highlightthickness=2
+        )
+        flags_card.pack(fill="x", pady=(0, 10))
+        
+        flags_inner = tk.Frame(flags_card, bg=colors.get("card_bg", "white"))
+        flags_inner.pack(fill="x", padx=15, pady=15)
+        
+        # Show each flag with status
+        for flag_name, flag in feature_flags.get_all_flags().items():
+            is_enabled = feature_flags.is_enabled(flag_name)
+            
+            flag_row = tk.Frame(flags_inner, bg=colors.get("card_bg", "white"))
+            flag_row.pack(fill="x", pady=4)
+            
+            # Status indicator (green dot = ON, gray circle = OFF)
+            status_color = "#10B981" if is_enabled else "#94A3B8"
+            status_icon = "●" if is_enabled else "○"
+            
+            tk.Label(
+                flag_row,
+                text=status_icon,
+                font=("Segoe UI", 14),
+                bg=colors.get("card_bg", "white"),
+                fg=status_color
+            ).pack(side="left")
+            
+            # Flag name (formatted nicely)
+            display_name = flag_name.replace("_", " ").title()
+            tk.Label(
+                flag_row,
+                text=display_name,
+                font=("Segoe UI", 11),
+                bg=colors.get("card_bg", "white"),
+                fg=colors.get("text_primary", "black")
+            ).pack(side="left", padx=(8, 15))
+            
+            # Status text
+            status_text = "ON" if is_enabled else "OFF"
+            tk.Label(
+                flag_row,
+                text=status_text,
+                font=("Segoe UI", 10, "bold"),
+                bg=colors.get("card_bg", "white"),
+                fg=status_color
+            ).pack(side="right")
+        
+        # Help text
+        tk.Label(
+            parent,
+            text="💡 To enable: Set SOULSENSE_FF_<FLAG_NAME>=true in environment\n   or add to config.json under 'experimental' section",
+            font=("Segoe UI", 9),
+            bg=colors.get("bg"),
+            fg=colors.get("text_secondary", "gray"),
+            justify="left"
+        ).pack(anchor="w", pady=(10, 0))
 
     # --- UI Helpers ---
     def _create_section_label(self, parent, text):
-        tk.Label(parent, text=text, font=("Segoe UI", 16, "bold"), bg=self.colors.get("card_bg"), fg=self.colors.get("text_primary")).pack(anchor="w", pady=(0, 15))
+        tk.Label(parent, text=text, font=self.styles.get_font("md", "bold"), bg=self.colors.get("card_bg"), fg=self.colors.get("text_primary")).pack(anchor="w", pady=(0, 15))
         
     def _create_field_label(self, parent, text):
         tk.Label(parent, text=text, font=("Segoe UI", 10, "bold"), bg=self.colors.get("card_bg"), fg="gray").pack(anchor="w", pady=(10, 5))
         
     def _create_entry(self, parent, variable, max_length=50):
-        def validate(event):
-            val = variable.get()
-            if len(val) > max_length:
-                variable.set(val[:max_length])
-                
         entry = tk.Entry(
-            parent, textvariable=variable, font=("Segoe UI", 11), relief="flat", 
+            parent, textvariable=variable, font=self.styles.get_font("sm"), relief="flat", 
             highlightthickness=1, highlightbackground=self.colors.get("card_border"),
             bg=self.colors.get("input_bg", "white"), fg=self.colors.get("input_fg", "black"),
             insertbackground=self.colors.get("input_fg", "black") # Caret color
         )
         entry.pack(fill="x", ipady=8) # Taller input
-        entry.bind("<KeyRelease>", validate)
+        setup_entry_limit(entry, max_length)
         return entry
         
     def _create_text_area(self, parent, max_length=1000):
-        def validate(event):
-            val = txt.get("1.0", "end-1c")
-            if len(val) > max_length:
-                # Keep current position
-                # This is a basic truncator, for better UX we might want to block input
-                # But blocking paste is harder, so truncation on release is safest fallback
-                current_insert = txt.index(tk.INSERT)
-                txt.delete("1.0", tk.END)
-                txt.insert("1.0", val[:max_length])
-                try:
-                    txt.mark_set(tk.INSERT, current_insert)
-                except:
-                    pass
-                    
         txt = tk.Text(
-            parent, height=4, font=("Segoe UI", 11), relief="flat", 
+            parent, height=4, font=self.styles.get_font("sm"), relief="flat", 
             highlightthickness=1, highlightbackground=self.colors.get("card_border"),
             bg=self.colors.get("input_bg", "white"), fg=self.colors.get("input_fg", "black"),
             insertbackground=self.colors.get("input_fg", "black")
         )
         txt.pack(fill="x", pady=(0, 5))
-        txt.bind("<KeyRelease>", validate)
+        setup_text_limit(txt, max_length)
         return txt
 
     # --- Data Logic ---
@@ -1380,14 +1816,40 @@ class UserProfileView:
         except Exception as e:
             logging.error(f"Error loading medical profile: {e}")
 
+    # ==========================
+    # 2. MEDICAL VIEW
+    # ==========================
+    # ... (skipping render code) ...
+    
     def save_medical_data(self):
         try:
             # --- VALIDATION ---
-            contact_phone = self.ec_phone_var.get().strip()
-            if contact_phone:
-                if not any(char.isdigit() for char in contact_phone):
-                     messagebox.showwarning("Validation Error", self.i18n.get("profile.validation_phone"), parent=self.window)
-                     return
+            contact_name = sanitize_text(self.ec_name_var.get())
+            contact_phone = sanitize_text(self.ec_phone_var.get())
+            
+            # Validate Phone
+            valid_phone, msg_phone = validate_phone(contact_phone)
+            if not valid_phone:
+                 messagebox.showwarning("Validation Error", msg_phone, parent=self.window)
+                 return
+            
+            # Sanitize and Validate Text Areas
+            allergies = sanitize_text(self.allergies_text.get("1.0", tk.END))
+            medications = sanitize_text(self.medications_text.get("1.0", tk.END))
+            conditions = sanitize_text(self.conditions_text.get("1.0", tk.END))
+            # PR #5
+            surgeries = sanitize_text(self.surgeries_text.get("1.0", tk.END))
+            therapy = sanitize_text(self.therapy_text.get("1.0", tk.END))
+            health_issues = sanitize_text(self.health_issues_text.get("1.0", tk.END))
+            
+            # Check Max Lengths
+            for label, txt in [("Allergies", allergies), ("Medications", medications), 
+                              ("Conditions", conditions), ("Surgeries", surgeries),
+                              ("Therapy", therapy), ("Health Issues", health_issues)]:
+                valid, msg = validate_length(txt, MAX_TEXT_LENGTH, label)
+                if not valid:
+                    messagebox.showwarning("Validation Error", msg, parent=self.window)
+                    return
 
             session = get_session()
             user = session.query(User).filter_by(username=self.app.username).first()
@@ -1404,17 +1866,17 @@ class UserProfileView:
                 
             # Update fields
             profile.blood_type = self.blood_type_var.get()
-            profile.emergency_contact_name = self.ec_name_var.get()
+            profile.emergency_contact_name = contact_name
             profile.emergency_contact_phone = contact_phone
             
-            profile.allergies = self.allergies_text.get("1.0", tk.END).strip()
-            profile.medications = self.medications_text.get("1.0", tk.END).strip()
-            profile.medical_conditions = self.conditions_text.get("1.0", tk.END).strip()
+            profile.allergies = allergies
+            profile.medications = medications
+            profile.medical_conditions = conditions
             
             # PR #5 Save
-            profile.surgeries = self.surgeries_text.get("1.0", tk.END).strip()
-            profile.therapy_history = self.therapy_text.get("1.0", tk.END).strip()
-            profile.ongoing_health_issues = self.health_issues_text.get("1.0", tk.END).strip()
+            profile.surgeries = surgeries
+            profile.therapy_history = therapy
+            profile.ongoing_health_issues = health_issues
             
             session.commit()
             session.close()
@@ -1452,7 +1914,7 @@ class UserProfileView:
         
         # Top Strengths
         self._create_field_label(left_col, "Top Strengths")
-        tk.Label(left_col, text="(Type & Enter)", font=("Segoe UI", 9), bg=self.colors.get("card_bg"), fg="gray").pack(anchor="w")
+        tk.Label(left_col, text="(Type & Enter)", font=self.styles.get_font("xs"), bg=self.colors.get("card_bg"), fg="gray").pack(anchor="w")
         suggested_strengths = ["Empathy", "Creativity", "Problem Solving", "Resilience", "Leadership", "Coding"]
         self.strengths_input = TagInput(left_col, max_tags=5, colors=self.colors, suggestion_list=suggested_strengths)
         self.strengths_input.pack(fill="x", pady=(5, 20))
@@ -1462,6 +1924,13 @@ class UserProfileView:
         suggested_improvements = ["Public Speaking", "Time Management", "Delegation", "Patience", "Networking"]
         self.improvements_input = TagInput(left_col, max_tags=5, colors=self.colors, suggestion_list=suggested_improvements)
         self.improvements_input.pack(fill="x", pady=(0, 20))
+
+        # Issue #271: Current Challenges
+        self._create_field_label(left_col, "Current Challenges")
+        tk.Label(left_col, text="(Obstacles you are facing)", font=self.styles.get_font("xs"), bg=self.colors.get("card_bg"), fg="gray").pack(anchor="w")
+        suggested_challenges = ["Burnout", "Procrastination", "Anxiety", "Work-Life Balance", "Sleep Issues", "Motivation", "Focus"]
+        self.challenges_input = TagInput(left_col, max_tags=6, max_char=40, colors=self.colors, suggestion_list=suggested_challenges)
+        self.challenges_input.pack(fill="x", pady=(0, 20))
         
         # Goals
         self._create_section_label(left_col, "Aspirations")
@@ -1496,7 +1965,7 @@ class UserProfileView:
         def show_ls_hint():
             messagebox.showinfo("Suggestion", "Based on your general profile, 'Visual' or 'Kinesthetic' might fit best.\n(Full AI analysis coming soon!)")
             
-        tk.Button(ls_frame, text="💡 Suggest", command=show_ls_hint, bg="#F59E0B", fg="white", font=("Segoe UI", 8), relief="flat", padx=10).pack(side="right", padx=(10, 0), pady=(0, 20))
+        tk.Button(ls_frame, text="💡 Suggest", command=show_ls_hint, bg="#F59E0B", fg="white", font=self.styles.get_font("xs"), relief="flat", padx=10).pack(side="right", padx=(10, 0), pady=(0, 20))
         
         # Communication
         self._create_field_label(right_col, "Preferred Communication Tone")
@@ -1516,6 +1985,37 @@ class UserProfileView:
         suggested_boundaries = ["Politics", "Religion", "Finances", "Family Matters", "Past Trauma"]
         self.boundaries_input = TagInput(right_col, max_tags=5, colors=self.colors, suggestion_list=suggested_boundaries)
         self.boundaries_input.pack(fill="x", pady=(0, 20))
+
+        # ===================
+        # EMOTIONAL PROFILE SECTION (Issue #269)
+        # ===================
+        self._create_section_label(right_col, "Emotional Profile")
+        
+        # Common Emotional States
+        self._create_field_label(right_col, "Common Emotional States")
+        tk.Label(right_col, text="(Emotions you often experience)", font=self.styles.get_font("xs"), 
+                bg=self.colors.get("card_bg"), fg="gray").pack(anchor="w")
+        suggested_emotions = ["Anxiety", "Calmness", "Overthinking", "Sadness", "Excitement", 
+                              "Frustration", "Contentment", "Overwhelm", "Joy", "Stress"]
+        self.emotions_input = TagInput(right_col, max_tags=6, colors=self.colors, suggestion_list=suggested_emotions)
+        self.emotions_input.pack(fill="x", pady=(0, 15))
+        
+        # Emotional Triggers
+        self._create_field_label(right_col, "What Triggers These Emotions?")
+        self.triggers_text = self._create_text_area(right_col, max_length=500)
+        
+        # Coping Strategies
+        self._create_field_label(right_col, "Your Coping Strategies")
+        self.coping_text = self._create_text_area(right_col, max_length=500)
+        
+        # Preferred Support Style
+        self._create_field_label(right_col, "How Should AI Respond to You?")
+        support_styles = ["Encouraging & Motivating", "Problem-Solving & Practical", 
+                          "Just Listen & Validate", "Distraction & Positivity"]
+        self.support_style_var = tk.StringVar()
+        self.support_style_combo = ttk.Combobox(right_col, textvariable=self.support_style_var, 
+                                                 values=support_styles, state="readonly", font=("Segoe UI", 12))
+        self.support_style_combo.pack(fill="x", pady=(0, 20))
 
         # Footer Actions (Overlay or Bottom of Main Layout)
         footer = tk.Frame(main_layout, bg=self.colors.get("bg"), height=60)
@@ -1551,14 +2051,29 @@ class UserProfileView:
                 except: self.boundaries_input.tags = []
                 self.boundaries_input._render_tags()
                 
-                self.learn_style_var.set(s.learning_style or "")
-                self.comm_style_var.set(s.communication_preference or "")
+                # Issue #271 Load
+                try: self.challenges_input.tags = json.loads(s.current_challenges)
+                except: self.challenges_input.tags = []
+                self.challenges_input._render_tags()
+                
                 self.learn_style_var.set(s.learning_style or "")
                 self.comm_style_var.set(s.communication_preference or "")
                 self.goals_text.insert("1.0", s.goals or "")
 
                 # PR #5 Load
                 self.comm_style_text.insert("1.0", s.comm_style or "")
+            
+            # Load Emotional Patterns (Issue #269)
+            if user and user.emotional_patterns:
+                ep = user.emotional_patterns
+                
+                try: self.emotions_input.tags = json.loads(ep.common_emotions)
+                except: self.emotions_input.tags = []
+                self.emotions_input._render_tags()
+                
+                self.triggers_text.insert("1.0", ep.emotional_triggers or "")
+                self.coping_text.insert("1.0", ep.coping_strategies or "")
+                self.support_style_var.set(ep.preferred_support or "")
                 
             session.close()
         except Exception as e:
@@ -1568,30 +2083,130 @@ class UserProfileView:
         try:
             session = get_session()
             user = session.query(User).filter_by(username=self.app.username).first()
-            
+
             if not user.strengths:
                 strengths = UserStrengths(user_id=user.id)
                 user.strengths = strengths
             else:
                 strengths = user.strengths
-            
+
             # Update fields
             strengths.top_strengths = json.dumps(self.strengths_input.get_tags())
             strengths.areas_for_improvement = json.dumps(self.improvements_input.get_tags())
+            # Issue #271 Save
+            strengths.current_challenges = json.dumps(self.challenges_input.get_tags())
             strengths.sharing_boundaries = json.dumps(self.boundaries_input.get_tags())
-            
+
             strengths.learning_style = self.learn_style_var.get()
             strengths.communication_preference = self.comm_style_var.get()
             strengths.learning_style = self.learn_style_var.get()
             strengths.communication_preference = self.comm_style_var.get()
             strengths.goals = self.goals_text.get("1.0", tk.END).strip()
-            
+
             # PR #5 Save
             strengths.comm_style = self.comm_style_text.get("1.0", tk.END).strip()
+
+            # Save Emotional Patterns (Issue #269)
+            if not user.emotional_patterns:
+                ep = UserEmotionalPatterns(user_id=user.id)
+                user.emotional_patterns = ep
+            else:
+                ep = user.emotional_patterns
             
+            ep.common_emotions = json.dumps(self.emotions_input.get_tags())
+            ep.emotional_triggers = self.triggers_text.get("1.0", tk.END).strip()
+            ep.coping_strategies = self.coping_text.get("1.0", tk.END).strip()
+            ep.preferred_support = self.support_style_var.get()
+
             session.commit()
             session.close()
             messagebox.showinfo("Success", "Preferences saved successfully!")
         except Exception as e:
             logging.error(f"Error saving strengths: {e}")
             messagebox.showerror("Error", "Failed to save preferences.")
+
+    def _delete_user_data(self):
+        """Handle the delete user data action with confirmation."""
+        # First confirmation dialog
+        confirm1 = messagebox.askyesno(
+            "Delete My Data",
+            "Are you sure you want to delete all your personal data?\n\n"
+            "This includes:\n"
+            "• Profile information\n"
+            "• Test results and scores\n"
+            "• Journal entries\n"
+            "• Medical information\n"
+            "• Settings and preferences\n\n"
+            "This action cannot be undone.",
+            icon="warning",
+            parent=self.window
+        )
+
+        if not confirm1:
+            return
+
+        # Second confirmation dialog for extra safety
+        confirm2 = messagebox.askyesno(
+            "Final Confirmation",
+            f"Please confirm by typing your username: {self.app.username}\n\n"
+            "Type 'YES' below to permanently delete all data:",
+            icon="warning",
+            parent=self.window
+        )
+
+        if not confirm2:
+            return
+
+        # Get user ID
+        try:
+            from app.db import get_session
+            session = get_session()
+            user = session.query(User).filter_by(username=self.app.username).first()
+            session.close()
+
+            if not user:
+                messagebox.showerror("Error", "User not found.", parent=self.window)
+                return
+
+            user_id = user.id
+
+        except Exception as e:
+            logging.error(f"Error getting user ID: {e}")
+            messagebox.showerror("Error", "Failed to identify user.", parent=self.window)
+            return
+
+        # Perform deletion
+        try:
+            from app.db import delete_user_data
+            success = delete_user_data(user_id)
+
+            if success:
+                messagebox.showinfo(
+                    "Data Deleted",
+                    "All your personal data has been permanently deleted.\n\n"
+                    "You will now be logged out.",
+                    parent=self.window
+                )
+
+                # Log out the user by switching to login view
+                # Assuming the app has a switch_view method and "login" view
+                if hasattr(self.app, 'switch_view'):
+                    self.app.switch_view("login")
+                else:
+                    # Fallback: destroy current window and restart app
+                    self.window.quit()
+
+            else:
+                messagebox.showerror(
+                    "Deletion Failed",
+                    "Failed to delete your data. Please try again or contact support.",
+                    parent=self.window
+                )
+
+        except Exception as e:
+            logging.error(f"Error during data deletion: {e}")
+            messagebox.showerror(
+                "Error",
+                "An error occurred while deleting your data. Please contact support.",
+                parent=self.window
+            )

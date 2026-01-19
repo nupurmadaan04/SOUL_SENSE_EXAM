@@ -6,14 +6,12 @@
   "start_assessment": "Start Assessment",
   "open_journal": "📝 Open Journal",
   "view_dashboard": "📊 View Dashboard",
-
   "errors": {
     "empty_name": "Please enter your name",
     "invalid_age": "Please enter a valid age (numbers only)",
     "minimum_age": "Age must be at least 12",
     "select_option": "Please select an option"
   },
-
   "quiz": {
     "question_counter": "Question {current} of {total}",
     "strongly_disagree": "Strongly Disagree",
@@ -26,7 +24,6 @@
     "finish": "Finish ✓",
     "warning": "Warning"
   },
-
   "questions": [
     "You can recognize your emotions as they happen.",
     "You find it easy to understand why you feel a certain way.",
@@ -34,7 +31,6 @@
     "You reflect on your emotional reactions to situations.",
     "You are aware of how your emotions affect others."
   ],
-
   "results": {
     "completed": "Completed",
     "thank_you": "Thank you {username}!",
@@ -42,7 +38,6 @@
     "average": "Average: {average} per question",
     "view_dashboard_prompt": "View your dashboard?"
   },
-
   "journal": {
     "title": "Emotional Journal",
     "daily_reflection": "Daily Emotional Reflection",
@@ -76,7 +71,6 @@
     "work_hours": "Work/Study (Hours):",
     "entry_metrics": "Sleep: {sleep_h}h ({sleep_q}/10) | Energy: {energy}/10 | Work: {work}h"
   },
-
   "dashboard": {
     "title": "📊 Emotional Health Dashboard",
     "analytics": "📊 Emotional Health Analytics",
@@ -106,7 +100,6 @@
     "first_half": "First Half",
     "second_half": "Second Half"
   },
-
   "patterns": {
     "stress_indicators": "Stress indicators detected",
     "social_focus": "Social/relationship focus",
@@ -114,12 +107,10 @@
     "self_reflective": "Self-reflective content",
     "general_expression": "General emotional expression"
   },
-
   "settings": {
     "language": "Language",
     "select_language": "Select Language"
   },
-
   "profile": {
     "title": "Your Profile",
     "header": "{name}'s Profile",
@@ -139,6 +130,16 @@
     "success_msg": "Medical profile updated successfully!",
     "error_title": "Error",
     "error_msg": "Failed to save profile.",
-    "validation_phone": "Please enter a valid phone number (digits only)."
+    "validation_phone": "Please enter a valid phone number (digits only).",
+    "emotional_profile": "Emotional Profile",
+    "common_emotions": "Common Emotional States",
+    "common_emotions_hint": "Emotions you often experience",
+    "emotional_triggers": "What Triggers These Emotions?",
+    "coping_strategies": "Your Coping Strategies",
+    "preferred_support": "How Should AI Respond to You?",
+    "support_encouraging": "Encouraging & Motivating",
+    "support_problem_solving": "Problem-Solving & Practical",
+    "support_listening": "Just Listen & Validate",
+    "support_distraction": "Distraction & Positivity"
   }
 }

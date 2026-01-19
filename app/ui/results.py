@@ -267,9 +267,12 @@ class ResultsManager:
             return
 
         try:
+            from app.utils.file_validation import validate_file_path, sanitize_filename, ValidationError
+            
             # Generate default filename
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            default_name = f"EQ_Report_{self.app.username}_{timestamp}.pdf"
+            safe_username = sanitize_filename(self.app.username)
+            default_name = f"EQ_Report_{safe_username}_{timestamp}.pdf"
             
             # Ask user for location
             from tkinter import filedialog
@@ -282,6 +285,14 @@ class ResultsManager:
             
             if not filename:
                 return # User cancelled
+
+            # Validate the user-selected path
+            try:
+                # We don't enforce base_dir here as users can save anywhere via GUI dialog
+                filename = validate_file_path(filename, allowed_extensions=[".pdf"])
+            except ValidationError as ve:
+                messagebox.showerror("Security Error", str(ve))
+                return
 
             # Prepare data for report
             result_path = generate_pdf_report(
@@ -1160,8 +1171,10 @@ class ResultsManager:
 
         # Display each test result
         for idx, (test_id, score, age, timestamp) in enumerate(history):
-            # Calculate percentage (assuming 4 points per question)
-            max_score = len(self.app.questions) * 4
+            # Calculate percentage (stateless approximation based on current settings)
+            # Ideally max_score should be stored in DB, but falling back to settings for now
+            question_count = self.app.settings.get("question_count", 10)
+            max_score = question_count * 4
             percentage = (score / max_score) * 100 if max_score > 0 else 0
             
             test_frame = tk.Frame(scrollable_frame, bg=colors.get("surface", "#1E293B"), relief="groove", borderwidth=2)
@@ -1354,8 +1367,10 @@ class ResultsManager:
         # Prepare data for visualization
         test_numbers = list(range(1, len(all_tests) + 1))
         scores = [test[1] for test in all_tests]
-        max_score = len(self.app.questions) * 4
-        percentages = [(score / max_score) * 100 for score in scores]
+        # Use settings for consistency
+        question_count = self.app.settings.get("question_count", 10)
+        max_score = question_count * 4
+        percentages = [(score / max_score) * 100 if max_score > 0 else 0 for score in scores]
         
         # Create main comparison frame
         comparison_frame = tk.Frame(self.app.root, bg=colors.get("bg", "#0F172A"))

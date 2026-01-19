@@ -1,153 +1,121 @@
 import pytest
-import time
-from unittest.mock import MagicMock, patch, mock_open
-from app.questions import load_questions, _questions_cache, _cache_timestamps, _cache_lock
+from unittest.mock import MagicMock, patch
+from app.questions import load_questions, initialize_questions
 
 @pytest.fixture(autouse=True)
-def clean_cache():
-    """Clear cache before each test"""
-    from app.questions import _get_cached_questions_from_db
-    
-    # Force clear everything
-    with _cache_lock:
-        _questions_cache.clear()
-        _cache_timestamps.clear()
-    
-    # Clear internal function cache
-    _get_cached_questions_from_db.cache_clear()
+def reset_questions_state():
+    """Reset global question list before and after each test"""
+    import app.questions
+    # Save original state
+    original_list = app.questions._ALL_QUESTIONS
+    # Clear it
+    app.questions._ALL_QUESTIONS = []
     
     yield
-    with _cache_lock:
-        _questions_cache.clear()
-        _cache_timestamps.clear()
-    _get_cached_questions_from_db.cache_clear()
+    
+    # Restore or clear (clearing is safer for independence)
+    app.questions._ALL_QUESTIONS = []
 
-@pytest.fixture
-def mock_all_io():
-    """Mock File I/O and Threads to prevent side effects"""
-    with patch('app.questions.safe_thread_run') as mock_thread, \
-         patch('app.questions.get_session') as mock_session, \
-         patch('app.questions._load_from_disk_cache', return_value=None) as mock_disk:
-        yield {
-            'thread': mock_thread,
-            'session': mock_session,
-            'disk': mock_disk
-        }
-
-def test_load_from_memory_cache(mock_all_io):
-    from app.questions import _get_cache_key
+@patch('app.questions.safe_db_context')
+def test_initialize_questions(mock_ctx):
+    """Test that initialize_questions loads data from DB into global list"""
+    # Setup mock session
+    mock_session = MagicMock()
+    mock_ctx.return_value.__enter__.return_value = mock_session
     
-    # Setup cache
-    cache_key = _get_cache_key(None) # "questions_all"
-    test_data = [(1, "Q1", "Tooltip", 10, 100)]
+    # Configure mock query result
+    # We simulate the return of 5 columns as defined in the query
+    # Using namedtuple to simulate SQLAlchemy Row (attribute + index access)
+    from collections import namedtuple
+    Row = namedtuple('Row', ['id', 'question_text', 'tooltip', 'min_age', 'max_age'])
     
-    with _cache_lock:
-        _questions_cache[cache_key] = test_data
-        _cache_timestamps[cache_key] = time.time()
+    mock_data = [
+        Row(1, "Question 1", "Tooltip 1", 18, 100),
+        Row(2, "Question 2", None, 25, 60)
+    ]
     
-    # Run
-    # Should return immediately from memory
-    result = load_questions()
-    assert result == test_data
-    
-    # Verify disk/db were NOT called
-    mock_all_io['disk'].assert_not_called()
-    # Session shouldn't be used since we bypass steps 3 & 4
-    # But wait, step 3 (try_db_cache) gets session. 
-    # Logic: 1. check mem -> return.
-    mock_all_io['session'].assert_not_called()
-
-def test_load_from_db_fallback(mock_all_io):
-    # Memory miss (default)
-    # Disk miss (mocked in fixture)
-    mock_session = mock_all_io['session']
-    
-    # DB Cache miss: Mock _try_database_cache
-    with patch('app.questions._try_database_cache', return_value=None):
-        # Configure Mock Session to return valid Question objects
-        # Chain: session.query(Question).filter()...with_entities()...all()
-        
-        # Create a mock question object
-        mock_q = MagicMock()
-        mock_q.id = 1
-        mock_q.question_text = "Q_final"
-        mock_q.tooltip = "Tip"
-        mock_q.min_age = 18
-        mock_q.max_age = 99
-        
-        # Setup the query chain
-        # Query -> Filter -> Filter -> WithEntities -> OrderBy -> All
-        # We need to catch the chain regardless of exact calls
-        # A common pattern is to make everything return the same mock query object
-        mock_query = MagicMock()
-        mock_session.return_value.query.return_value = mock_query
-        mock_query.filter.return_value = mock_query
-        mock_query.with_entities.return_value = mock_query
-        mock_query.order_by.return_value = mock_query
-        mock_query.all.return_value = [mock_q]
-        
-        expected = [(1, "Q_final", "Tip", 18, 99)]
-        
-        result = load_questions(age=25)
-        
-        assert result == expected
-        
-        # Verify memory cache update
-        assert _questions_cache["questions_age_25"] == expected
-
-@pytest.mark.xfail(reason="Mocking SQLAlchemy with_entities return type is brittle")
-def test_return_structure_is_5_tuple(mock_all_io):
-    """Verify that even if internal DB returns valid rows, we get 5-tuples"""
-    from types import SimpleNamespace
-    mock_session = mock_all_io['session']
-    
-    # Mock row using SimpleNamespace to behave like an object/row
-    mock_q = SimpleNamespace(
-        id=10,
-        question_text="Text",
-        tooltip="Tip", # Explicit string
-        min_age=5,
-        max_age=10
-    )
-    
-    mock_query = MagicMock()
-    mock_session.return_value.query.return_value = mock_query
+    # Mock the query chain
+    mock_query = mock_session.query.return_value
     mock_query.filter.return_value = mock_query
-    mock_query.with_entities.return_value = mock_query
     mock_query.order_by.return_value = mock_query
-    mock_query.all.return_value = [mock_q]
+    mock_query.all.return_value = mock_data
+    
+    # Execute
+    success = initialize_questions()
+    
+    assert success is True
+    
+    # Verify global list is populated
+    from app.questions import _ALL_QUESTIONS
+    assert len(_ALL_QUESTIONS) == 2
+    assert _ALL_QUESTIONS[0] == mock_data[0]
+    assert _ALL_QUESTIONS[1] == mock_data[1]
 
-    # Force fallback to final DB load
-    with patch('app.questions._try_database_cache', return_value=None):
-         result = load_questions()
-         
-         assert len(result) == 1
-         item = result[0]
-         assert isinstance(item, tuple)
-         assert len(item) == 5
-         assert isinstance(item[0], int)
-         assert isinstance(item[1], str)
-         assert isinstance(item[2], (str, type(None)))
-         assert isinstance(item[3], int)
-         assert isinstance(item[4], int)
+def test_load_questions_lazy_loading():
+    """Test that load_questions triggers initialization if list is empty"""
+    import app.questions
+    
+    # Verify pre-condition
+    assert app.questions._ALL_QUESTIONS == []
+    
+    with patch('app.questions.initialize_questions') as mock_init:
+        # Mock init to succeed and populate list (simulate side effect)
+        def side_effect():
+             app.questions._ALL_QUESTIONS = [(1, "Q1", "T1", 18, 99)]
+             return True
+        mock_init.side_effect = side_effect
+        
+        # Call load_questions
+        result = load_questions()
+        
+        # Verify init was called
+        mock_init.assert_called_once()
+        assert len(result) == 1
+        assert result[0][1] == "Q1"
 
-@patch('app.questions.os.makedirs')
-@patch('app.questions.os.path.exists')
-@patch('app.questions.json.dump')
-@patch('builtins.open', new_callable=mock_open)
-def test_disk_cache_save(mock_file, mock_json_dump, mock_exists, mock_makedirs):
-    from app.questions import _save_to_disk_cache
+def test_load_questions_filtering():
+    """Test age filtering logic on in-memory list"""
+    import app.questions
     
-    mock_exists.return_value = True 
+    # Manually populate the global list
+    app.questions._ALL_QUESTIONS = [
+        (1, "General Q", "All ages", 18, 100),
+        (2, "Young Q", "Young only", 18, 25),
+        (3, "Mid Q", "Mid only", 30, 50),
+        (4, "Old Q", "Old only", 60, 100),
+    ]
     
-    data = [(1, "Q", "T", 1, 2)]
-    _save_to_disk_cache(data, age=20)
+    # Test 1: Age 20 (Should get 1 and 2)
+    res_20 = load_questions(age=20)
+    ids_20 = sorted([q[0] for q in res_20])
+    assert ids_20 == [1, 2]
     
-    # Check file write
-    mock_file.assert_called()
-    # Check name contains age (verify partial match safely)
-    args, _ = mock_file.call_args
-    filepath = args[0]
-    # Normalize slashes for comparison
-    filepath = filepath.replace('\\', '/')
-    assert "questions_age_20" in filepath or "questions_age_20.json" in filepath
+    # Test 2: Age 40 (Should get 1 and 3)
+    res_40 = load_questions(age=40)
+    ids_40 = sorted([q[0] for q in res_40])
+    assert ids_40 == [1, 3]
+    
+    # Test 3: Age 70 (Should get 1 and 4)
+    res_70 = load_questions(age=70)
+    ids_70 = sorted([q[0] for q in res_70])
+    assert ids_70 == [1, 4]
+    
+    # Test 4: No Age (Should get all)
+    res_all = load_questions(age=None)
+    assert len(res_all) == 4
+
+def test_get_question_count_optimized():
+    """Test the optimized get_question_count using in-memory list"""
+    from app.questions import get_question_count
+    import app.questions
+    
+    app.questions._ALL_QUESTIONS = [
+        (1, "Q1", "", 10, 20),
+        (2, "Q2", "", 10, 20),
+        (3, "Q3", "", 30, 40)
+    ]
+    
+    assert get_question_count() == 3
+    assert get_question_count(age=15) == 2
+    assert get_question_count(age=35) == 1
+    assert get_question_count(age=99) == 0

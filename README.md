@@ -147,6 +147,24 @@ Run the full test suite to verify your environment:
 python -m pytest tests/
 ```
 
+To run the startup integrity specific tests:
+```bash
+python -m pytest tests/test_startup_checks.py -v
+```
+
+### 5. Git Workflow Commands
+
+If you are contributing to the project, use these common Git commands:
+
+```bash
+git status                # Check which files have changed
+git add .                 # Stage all changes for commit
+git commit -m "feat: description"  # Commit your changes
+git push origin main      # Push changes to your fork/branch
+git fetch origin          # Get latest changes from remote
+git pull origin main      # Update your local branch
+```
+
 <hr>
 <h3>Contributor FAQs</h3>
 
@@ -243,7 +261,7 @@ The application is grounded in established emotional intelligence theory (Salove
   - Simple framework for adding more languages
 - **User Authentication System**
   - Secure user registration and login
-  - Password hashing with SHA-256
+  - Password hashing with bcrypt (12 rounds)
   - Session management with logout functionality
   - User-specific data tracking
 - **Outlier Detection & Data Quality**
@@ -270,7 +288,12 @@ The application is grounded in established emotional intelligence theory (Salove
   - **Avatar Customization**: Upload and crop profile pictures
 - Daily emotional journal with AI sentiment analysis
 - Emotional pattern tracking and insights
+- **Emotional Patterns Capture (NEW!)** - Define your common emotional states for personalized AI responses
 - View past journal entries and emotional journey
+- **Startup Integrity Checks (NEW!)**
+  - Validates database schema and required files at startup
+  - Auto-recovery for missing directories or corrupted config
+  - User-friendly diagnostic alerts
 
 ---
 
@@ -291,6 +314,38 @@ The journal feature allows users to:
 - **Emotional Tracking:** Monitors emotional trends over time
 
 The journal feature is informed by research on expressive writing and emotional processing (Pennebaker, 1997; Smyth, 1998), which demonstrates the therapeutic benefits of written emotional expression. The AI sentiment analysis uses natural language processing techniques validated in computational psychology research (Calvo & D'Mello, 2010).
+
+---
+
+## 💭 Emotional Patterns Feature (Issue #269)
+
+Allows users to describe their common emotional states, enabling more personalized and empathetic AI responses.
+
+### How to Use
+
+1. Navigate to **Profile → Strengths & Goals**
+2. Scroll to the **"Emotional Profile"** section
+3. Fill in your details:
+   - **Common Emotional States**: Select or type emotions you often experience (e.g., Anxiety, Stress, Calmness)
+   - **Emotional Triggers**: Describe what causes these emotions
+   - **Coping Strategies**: Your personal methods for managing emotions
+   - **Preferred AI Support Style**: How you want the AI to respond to you
+
+### AI Support Styles
+
+| Style | Response Approach |
+|-------|-------------------|
+| **Encouraging & Motivating** | "You've got this! You've handled tough days before." |
+| **Problem-Solving & Practical** | "Here's an action item to try today..." |
+| **Just Listen & Validate** | "It's okay to feel this way. Take your time." |
+| **Distraction & Positivity** | "Fun idea: Take a 5-min break and do something you enjoy!" |
+
+### Integration
+
+When you write journal entries, the AI will:
+- Detect if your current emotional state matches your defined patterns
+- Personalize responses based on your preferred support style
+- Provide relevant coping suggestions from your profile
 
 ---
 
@@ -379,6 +434,129 @@ Based on sentiment ranges:
    - Top influencing factors
    - Personalized recommendations based on both EQ and sentiment
 3. **Journal Analytics**: Tracks sentiment trends over time (when using Daily Journal)
+
+---
+
+## 🛡️ Startup Integrity Checks
+
+SoulSense includes a self-diagnostic system that runs every time the application starts to ensure a stable environment.
+
+### What it Validates
+
+| Check | Description | Auto-Recovery |
+|-------|-------------|---------------|
+| **Config Integrity** | Validates `config.json` structure and keys. | Restores defaults if missing or corrupt. |
+| **Required Files** | Ensures `data/`, `logs/`, and `models/` exist. | Auto-creates missing directories. |
+| **Database Schema** | Verifies all required tables and columns. | Re-initializes schema if tables are missing. |
+
+### How it Works
+
+The system categorizes issues into:
+- **Warnings**: Non-critical issues that were auto-recovered. The app notifies the user and proceeds.
+- **Failures**: Critical issues that prevent the app from starting safely. The app shows a detailed error and exits gracefully.
+
+This prevents common "ModuleNotFoundError" or "DatabaseError" crashes that users might encounter due to filesystem issues.
+
+---
+
+## ⚙️ Environment Configuration
+
+SoulSense supports configuration via environment variables with the `SOULSENSE_*` prefix.
+
+### Quick Setup
+
+1. **Copy the example file:**
+   ```bash
+   copy .env.example .env
+   ```
+
+2. **Edit `.env`** to customize settings (optional)
+
+### Supported Variables
+
+| Variable | Type | Default | Description |
+|----------|------|---------|-------------|
+| `SOULSENSE_ENV` | string | `development` | Environment mode (development/production/test) |
+| `SOULSENSE_DEBUG` | bool | `false` | Enable debug logging |
+| `SOULSENSE_LOG_LEVEL` | string | `INFO` | Log level (DEBUG/INFO/WARNING/ERROR) |
+| `SOULSENSE_DB_PATH` | string | `data/soulsense.db` | Custom database file path |
+| `SOULSENSE_ENABLE_JOURNAL` | bool | `true` | Enable/disable journal feature |
+| `SOULSENSE_ENABLE_ANALYTICS` | bool | `true` | Enable/disable analytics feature |
+
+### Configuration Priority
+
+1. **Environment variables** (highest priority)
+2. **`.env` file** (loaded automatically if present)
+3. **`config.json`** file
+4. **Built-in defaults** (lowest priority)
+
+> **Note:** No configuration is required for normal usage. The application works out-of-the-box with sensible defaults.
+
+---
+
+## 🧪 Experimental Feature Flags
+
+SoulSense includes a feature flag system for controlling experimental and beta features. This allows you to enable cutting-edge functionality before it becomes generally available.
+
+### Available Flags
+
+| Flag | Environment Variable | Description |
+|------|---------------------|-------------|
+| `ai_journal_suggestions` | `SOULSENSE_FF_AI_JOURNAL_SUGGESTIONS` | AI-powered suggestions in the journal |
+| `advanced_analytics` | `SOULSENSE_FF_ADVANCED_ANALYTICS` | Predictive insights in analytics dashboard |
+| `beta_ui_components` | `SOULSENSE_FF_BETA_UI_COMPONENTS` | Experimental UI layouts and components |
+| `ml_emotion_detection` | `SOULSENSE_FF_ML_EMOTION_DETECTION` | ML-based emotion detection from text |
+| `data_export_v2` | `SOULSENSE_FF_DATA_EXPORT_V2` | New export formats (PDF, enhanced CSV) |
+
+### Enabling a Feature
+
+**Option 1: Environment Variable** (recommended for testing)
+```bash
+set SOULSENSE_FF_AI_JOURNAL_SUGGESTIONS=true
+python -m app.main
+```
+
+**Option 2: `.env` File**
+```bash
+SOULSENSE_FF_AI_JOURNAL_SUGGESTIONS=true
+```
+
+**Option 3: `config.json`**
+```json
+{
+    "experimental": {
+        "ai_journal_suggestions": true
+    }
+}
+```
+
+**Option 3:  `Direct`**
+```bash
+Turn on
+$env:SOULSENSE_FF_AI_JOURNAL_SUGGESTIONS = "true"
+Turn Off
+$env:SOULSENSE_FF_AI_JOURNAL_SUGGESTIONS = "false"
+python -m app.main
+```
+
+### Python API for Developers
+
+```python
+from app.feature_flags import feature_flags, feature_gated
+
+# Check if a flag is enabled
+if feature_flags.is_enabled("ai_journal_suggestions"):
+    # Use experimental feature
+    pass
+
+# Use decorator to gate entire functions
+@feature_gated("ml_emotion_detection")
+def detect_emotions(text):
+    # Only runs if flag is enabled
+    return model.predict(text)
+```
+
+> **Warning:** Experimental features may change or be removed without notice.
 
 ---
 
@@ -570,7 +748,8 @@ python -m app.main
 
 **Security Features:**
 
-- Passwords are hashed using SHA-256 encryption
+- Passwords are hashed using bcrypt with 12 rounds
+- Legacy SHA-256 passwords are automatically upgraded on login
 - User sessions are managed securely
 - Each user's data is isolated and protected
 

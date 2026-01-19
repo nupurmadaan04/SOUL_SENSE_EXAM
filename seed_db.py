@@ -8,8 +8,7 @@ import sys
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from app.auth import AuthManager
-
-DB_PATH = os.path.join("db", "soulsense.db")
+from app.config import DB_PATH
 
 # Initialize AuthManager
 auth_manager = AuthManager()

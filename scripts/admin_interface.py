@@ -8,7 +8,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox, scrolledtext
 from datetime import datetime
 import json
-import hashlib
+import bcrypt
 
 # Safe import for Matplotlib
 try:
@@ -229,26 +229,70 @@ class QuestionDatabase:
         finally:
             conn.close()
     
+    def _hash_password(self, password):
+        """Hash password using bcrypt with configurable rounds (default: 12)."""
+        salt = bcrypt.gensalt(rounds=12)
+        return bcrypt.hashpw(password.encode(), salt).decode()
+    
+    def _verify_password(self, password, password_hash):
+        """Verify password against bcrypt hash. Also supports legacy SHA-256 hashes."""
+        # Check if it's a bcrypt hash (starts with $2)
+        if password_hash.startswith('$2'):
+            try:
+                return bcrypt.checkpw(password.encode(), password_hash.encode())
+            except Exception:
+                return False
+        else:
+            # Legacy SHA-256 hash support for backward compatibility
+            import hashlib
+            legacy_hash = hashlib.sha256(password.encode()).hexdigest()
+            return legacy_hash == password_hash
+    
+    def _upgrade_password_hash(self, username, password):
+        """Upgrade a legacy SHA-256 hash to bcrypt."""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        new_hash = self._hash_password(password)
+        try:
+            cursor.execute(
+                "UPDATE admin_users SET password_hash = ? WHERE username = ?",
+                (new_hash, username)
+            )
+            conn.commit()
+        finally:
+            conn.close()
+    
     def verify_admin(self, username, password):
         """Verify admin credentials"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         
-        password_hash = hashlib.sha256(password.encode()).hexdigest()
         cursor.execute("""
-        SELECT * FROM admin_users WHERE username = ? AND password_hash = ?
-        """, (username, password_hash))
+        SELECT password_hash FROM admin_users WHERE username = ?
+        """, (username,))
         
-        user = cursor.fetchone()
+        row = cursor.fetchone()
         conn.close()
-        return user is not None
+        
+        if row is None:
+            return False
+        
+        password_hash = row[0]
+        is_valid = self._verify_password(password, password_hash)
+        
+        # If valid and using legacy hash, upgrade to bcrypt
+        if is_valid and not password_hash.startswith('$2'):
+            self._upgrade_password_hash(username, password)
+        
+        return is_valid
     
     def create_admin(self, username, password):
-        """Create a new admin user"""
+        """Create a new admin user with bcrypt-hashed password"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         
-        password_hash = hashlib.sha256(password.encode()).hexdigest()
+        password_hash = self._hash_password(password)
         
         try:
             cursor.execute("""

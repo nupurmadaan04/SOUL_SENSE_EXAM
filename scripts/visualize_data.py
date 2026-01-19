@@ -7,7 +7,8 @@ import sys
 # Add parent dir to path to import app modules if needed
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-DB_PATH = os.path.join("db", "soulsense.db")
+from app.config import DB_PATH
+
 OUTPUT_DIR = os.path.join("docs", "images")
 OUTPUT_FILE = os.path.join(OUTPUT_DIR, "training_data_distribution.png")
 

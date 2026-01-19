@@ -256,17 +256,21 @@ class MLTrainingPipeline:
         
         return X, y
     
-    def load_data_from_db(self, db_path: str = "db/soulsense.db") -> Tuple[np.ndarray, np.ndarray]:
+    def load_data_from_db(self, db_path: str = None) -> Tuple[np.ndarray, np.ndarray]:
         """
         Load training data from the database.
         
         Args:
-            db_path: Path to the SQLite database
+            db_path: Path to the SQLite database (uses config default if None)
             
         Returns:
             Tuple of (features, labels) or None if insufficient data
         """
         import sqlite3
+        from app.config import DB_PATH as DEFAULT_DB_PATH
+        
+        if db_path is None:
+            db_path = DEFAULT_DB_PATH
         
         logger.info(f"Loading data from {db_path}...")
         

@@ -54,16 +54,16 @@ def test_submit_user_info_invalid_age(mock_app, mocker):
     auth.profession_entry = MagicMock()
     auth.profession_entry.get.return_value = "Engineer"
 
-    # Mock message box to intercept error
-    mock_msg = mocker.patch("tkinter.messagebox.showwarning")
-    
-    # Call method
-    auth.submit_user_info()
-    
-    # Verify error was shown
-    assert mock_msg.called
-    args, _ = mock_msg.call_args
-    assert args[0] == "Invalid Age" or "invalid number" in args[1]
+    # Mock message box module to intercept all calls
+    from unittest.mock import patch
+    with patch("tkinter.messagebox") as mock_mb:
+        # Call method
+        auth.submit_user_info()
+        
+        # Verify error was shown
+        assert mock_mb.showwarning.called
+        args, _ = mock_mb.showwarning.call_args
+        assert args[0] == "Invalid Age" or "invalid number" in args[1]
     
     # Verify flow did NOT proceed
     assert not mock_app.start_test.called

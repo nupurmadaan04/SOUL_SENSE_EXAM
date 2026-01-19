@@ -11,7 +11,7 @@ class RiskPredictor:
     def __init__(self, models_dir="models"):
         self.models_dir = models_dir
         self.model = None
-        self.load_latest_model()
+        self._model_loaded = False
         
     def load_latest_model(self):
         """Finds and loads the most recent model file."""
@@ -40,6 +40,11 @@ class RiskPredictor:
         Predicts risk level.
         Returns: 'High Risk', 'Medium Risk', 'Low Risk', or 'Unknown'
         """
+        # Lazy load model if not already loaded
+        if not self._model_loaded:
+            self.load_latest_model()
+            self._model_loaded = True
+
         # Fallback if no model
         if self.model is None:
             logging.info("ML Model not loaded. Using Rule-Based Fallback.")

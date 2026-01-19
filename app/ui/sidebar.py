@@ -47,7 +47,7 @@ class SidebarNav(tk.Frame):
         self.name_label = tk.Label(
             info_frame, 
             text=self.app.username or "Guest",
-            font=("Segoe UI", 12, "bold"),
+            font=self.app.ui_styles.get_font("sm", "bold"),
             bg=self.app.colors.get("sidebar_bg"),
             fg="white",
             anchor="w"
@@ -57,7 +57,7 @@ class SidebarNav(tk.Frame):
         self.edit_label = tk.Label(
             info_frame, 
             text="View Profile", 
-            font=("Segoe UI", 8),
+            font=self.app.ui_styles.get_font("xs"),
             bg=self.app.colors.get("sidebar_bg"),
             fg=self.app.colors.get("sidebar_divider"),
             anchor="w",
@@ -106,7 +106,7 @@ class SidebarNav(tk.Frame):
         self.avatar_canvas.delete("all")
         self.avatar_canvas.create_oval(5, 5, 55, 55, fill="white", outline=self.app.colors.get("sidebar_divider"))
         initial = self.app.username[0].upper() if self.app.username else "?"
-        self.avatar_canvas.create_text(30, 30, text=initial, font=("Segoe UI", 20, "bold"), fill=self.app.colors.get("sidebar_bg"))
+        self.avatar_canvas.create_text(30, 30, text=initial, font=self.app.ui_styles.get_font("h2", "bold"), fill=self.app.colors.get("sidebar_bg"))
 
     def _upload_avatar(self, event=None):
         from tkinter import filedialog, messagebox
@@ -162,7 +162,7 @@ class SidebarNav(tk.Frame):
         lbl_icon = tk.Label(
             btn_frame, 
             text=item.get("icon", "•"), 
-            font=("Segoe UI", 14),
+            font=self.app.ui_styles.get_font("md"),
             bg=self.app.colors.get("sidebar_bg"),
             fg=self.app.colors.get("sidebar_fg")
         )
@@ -172,7 +172,7 @@ class SidebarNav(tk.Frame):
         lbl_text = tk.Label(
             btn_frame, 
             text=item.get("label", item_id.title()), 
-            font=("Segoe UI", 11),
+            font=self.app.ui_styles.get_font("sm"),
             bg=self.app.colors.get("sidebar_bg"),
             fg=self.app.colors.get("sidebar_fg")
         )

@@ -19,7 +19,8 @@
 ### Security
 - **Risk**: Storing passwords locally.
 - **Mitigation**:
-  - Passwords are hashed using SHA-256 (via `hashlib`).
+  - Passwords are hashed using bcrypt (via `bcrypt` library with 12 rounds).
+  - Legacy SHA-256 hashes are automatically migrated to bcrypt on next login.
   - No plain text passwords stored.
   - **Note**: This is a desktop app; if the machine is compromised, local data is at risk.
 
