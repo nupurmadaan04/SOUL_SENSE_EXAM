@@ -285,6 +285,13 @@ class EDAExporter:
         if dataset:
             os.makedirs(os.path.dirname(output_path) or '.', exist_ok=True)
             
+            output_dir = os.path.dirname(output_path)
+
+            if output_dir and not os.path.exists(output_dir):
+                raise FileNotFoundError(
+                    f"Output directory does not exist: {output_dir}"
+                )
+
             with open(output_path, 'w', newline='', encoding='utf-8') as f:
                 writer = csv.DictWriter(f, fieldnames=dataset[0].keys())
                 writer.writeheader()
