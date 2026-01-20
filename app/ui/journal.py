@@ -311,7 +311,7 @@ class JournalFeature:
         if hasattr(self, 'save_btn'):
             self.save_btn.configure(state="disabled")
             
-        overlay = show_loading(self.root, "Analyzing Emotions...")
+        overlay = show_loading(self.parent_root, "Analyzing Emotions...")
 
         try:
             current_time = datetime.now()
