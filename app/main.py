@@ -326,49 +326,80 @@ class SoulSenseApp:
                  font=("Segoe UI", 14), 
                  bg=self.colors["primary"], fg=self.colors.get("primary_light", "#E0E7FF")).pack(anchor="w", padx=30)
 
+        # Journal Summary Section (Enhanced Journal Feature)
+        if self.username:
+            try:
+                from app.db import get_session
+                from app.models import JournalEntry
+                session = get_session()
+                recent_entries = session.query(JournalEntry)\
+                    .filter_by(username=self.username)\
+                    .order_by(JournalEntry.entry_date.desc())\
+                    .limit(3)\
+                    .all()
+                session.close()
+
+                if recent_entries:
+                    summary_frame = tk.Frame(self.content_area, bg=self.colors["bg"], pady=10)
+                    summary_frame.pack(fill="x", padx=30, pady=(10, 0))
+
+                    tk.Label(summary_frame, text="📝 Recent Journal Insights",
+                             font=("Segoe UI", 14, "bold"), bg=self.colors["bg"],
+                             fg=self.colors["text_primary"]).pack(anchor="w")
+
+                    # Calculate average mood
+                    avg_mood = sum(getattr(e, 'sentiment_score', 0) or 0 for e in recent_entries) / len(recent_entries)
+                    mood_text = "Positive" if avg_mood > 20 else "Neutral" if avg_mood > -20 else "Negative"
+                    mood_color = "#4CAF50" if avg_mood > 20 else "#FF9800" if avg_mood > -20 else "#F44336"
+
+                    tk.Label(summary_frame, text=f"Average mood over last {len(recent_entries)} entries: {mood_text}",
+                             font=("Segoe UI", 11), bg=self.colors["bg"], fg=mood_color).pack(anchor="w", pady=(5, 0))
+            except Exception as e:
+                self.logger.error(f"Failed to load journal summary: {e}")
+
         # 2. Quick Actions Grid
         grid_frame = tk.Frame(self.content_area, bg=self.colors["bg"])
         grid_frame.pack(fill="both", expand=True, padx=30)
-        
+
         # Card Helper
         def create_web_card(parent, title, desc, icon, color, cmd):
             card = tk.Frame(parent, bg=self.colors["surface"], padx=25, pady=25,
                            highlightbackground=self.colors.get("border", "#E2E8F0"), highlightthickness=1)
-            
+
             # Icon Circle
             icon_canvas = tk.Canvas(card, width=50, height=50, bg=self.colors["surface"], highlightthickness=0)
             icon_canvas.pack(anchor="w", pady=(0, 15))
             icon_canvas.create_oval(2, 2, 48, 48, fill=color, outline=color)
             icon_canvas.create_text(25, 25, text=icon, font=("Segoe UI", 20), fill="white")
-            
+
             # Text
-            tk.Label(card, text=title, font=("Segoe UI", 16, "bold"), 
+            tk.Label(card, text=title, font=("Segoe UI", 16, "bold"),
                      bg=self.colors["surface"], fg=self.colors["text_primary"]).pack(anchor="w")
-            
+
             tk.Label(card, text=desc, font=("Segoe UI", 11), wraplength=200, justify="left",
                      bg=self.colors["surface"], fg=self.colors["text_secondary"]).pack(anchor="w", pady=(5, 20))
-            
+
             # Pseudo-Button
             btn_lbl = tk.Label(card, text="Open →", font=("Segoe UI", 11, "bold"),
                               bg=self.colors["surface"], fg=self.colors["primary"], cursor="hand2")
             btn_lbl.pack(anchor="w")
-            
+
             # Bind Events
             card.bind("<Enter>", lambda e: card.configure(bg=self.colors.get("sidebar_hover", "#F1F5F9")))
             card.bind("<Leave>", lambda e: card.configure(bg=self.colors["surface"]))
             card.bind("<Button-1>", lambda e: cmd())
             btn_lbl.bind("<Button-1>", lambda e: cmd())
-            
+
             return card
 
         # Layout Cards
         # Grid: 3 columns
         card1 = create_web_card(grid_frame, "Assessment", "Track your mental growth with detailed quizzes.", "🧠", self.colors["primary"], lambda: self.sidebar.select_item("exam"))
         card1.grid(row=0, column=0, padx=15, pady=15, sticky="nsew")
-        
+
         card2 = create_web_card(grid_frame, "Daily Journal", "Record your thoughts and analyze patterns.", "📝", self.colors["success"], lambda: self.sidebar.select_item("journal"))
         card2.grid(row=0, column=1, padx=15, pady=15, sticky="nsew")
-        
+
         card3 = create_web_card(grid_frame, "Analytics", "Visualize your wellbeing trends over time.", "📊", self.colors["accent"], lambda: self.sidebar.select_item("dashboard"))
         card3.grid(row=0, column=2, padx=15, pady=15, sticky="nsew")
 

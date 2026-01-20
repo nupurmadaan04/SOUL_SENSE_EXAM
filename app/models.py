@@ -248,6 +248,9 @@ class JournalEntry(Base):
     stress_triggers = Column(Text, nullable=True)      # What triggered stress
     daily_schedule = Column(Text, nullable=True)       # Daily routine/schedule
 
+    # Enhanced Journal Extensions: Tagging system
+    tags = Column(Text, nullable=True)  # JSON list of tags like ["stress", "gratitude", "relationships"]
+
 class SatisfactionRecord(Base):
     __tablename__ = 'satisfaction_records'
     
