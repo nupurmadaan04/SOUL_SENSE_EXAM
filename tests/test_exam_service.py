@@ -37,7 +37,7 @@ def test_get_current_question(exam_session):
     assert q_text == "Question 1"
     assert q_tip == "Tip 1"
 
-@patch('app.services.exam_service.get_connection')
+@patch('app.db.get_connection')
 def test_submit_answer_valid(mock_conn, exam_session):
     exam_session.start_exam()
     
@@ -66,7 +66,7 @@ def test_submit_answer_invalid(exam_session):
     with pytest.raises(ValueError, match="Answer must be between 1 and 4"):
         exam_session.submit_answer(5)
 
-@patch('app.services.exam_service.get_connection')
+@patch('app.db.get_connection')
 def test_exam_completion_flow(mock_conn, exam_session):
     exam_session.start_exam()
     
@@ -97,7 +97,7 @@ def test_exam_completion_flow(mock_conn, exam_session):
     assert mock_cursor.execute.call_count >= 1
 
 def test_timing_tracking(exam_session):
-    with patch('app.services.exam_service.get_connection'):
+    with patch('app.db.get_connection'):
         exam_session.start_exam()
         time.sleep(0.1)
         exam_session.submit_answer(2)
@@ -106,7 +106,7 @@ def test_timing_tracking(exam_session):
         assert response_time >= 0.1
 
 def test_go_back_and_overwrite(exam_session):
-    with patch('app.services.exam_service.get_connection'):
+    with patch('app.db.get_connection'):
         exam_session.start_exam()
         
         # Answer Q1 with 2

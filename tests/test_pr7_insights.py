@@ -16,7 +16,7 @@ class TestSmartInsights(unittest.TestCase):
         self.feature = JournalFeature(self.mock_root)
         self.feature.username = "test_user"
 
-    @patch('app.ui.journal.safe_db_context')
+    @patch('app.db.safe_db_context')
     def test_digital_overload_insight(self, mock_safe_db):
         # Setup mock entries
         mock_session = MagicMock()
@@ -50,7 +50,7 @@ class TestSmartInsights(unittest.TestCase):
         self.assertIn("Digital Overload", insight)
         self.assertIn("Reducing screen time", insight)
         
-    @patch('app.ui.journal.safe_db_context')
+    @patch('app.db.safe_db_context')
     def test_burnout_insight(self, mock_safe_db):
          # Setup mock entries
         mock_session = MagicMock()
