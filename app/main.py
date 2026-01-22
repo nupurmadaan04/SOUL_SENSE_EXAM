@@ -500,7 +500,10 @@ class SoulSenseApp:
 
         # Destroy the root window to exit
         if hasattr(self, 'root') and self.root:
-            self.root.destroy()
+            try:
+                self.root.destroy()
+            except Exception:
+                pass  # Window already destroyed
 
 # --- Global Error Handlers ---
 

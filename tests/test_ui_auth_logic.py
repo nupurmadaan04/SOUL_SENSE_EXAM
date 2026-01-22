@@ -28,6 +28,9 @@ def test_submit_user_info_valid(mock_app, mocker):
     # It imports 'from app.utils import compute_age_group' locally
     mocker.patch("app.utils.compute_age_group", return_value="25-34")
     
+    # Mock the loading overlay to prevent Tkinter widget creation
+    mocker.patch("app.ui.components.loading_overlay.show_loading", return_value=MagicMock())
+    
     # Call the method
     auth.submit_user_info()
     

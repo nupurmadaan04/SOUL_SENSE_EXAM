@@ -1216,185 +1216,140 @@ class JournalFeature:
             
             if not entries:
                 return "Start tracking your sleep and energy to get personalized health insights!"
-                
-                # Data extraction
-                sleeps = []
-                qualities = []
-                energies = []
-                works = []
-                screens = []
-                stresses = []
-                
-                for entry in entries:
-                    sleeps.append(entry.sleep_hours)
-                    qualities.append(entry.sleep_quality)
-                    energies.append(entry.energy_level)
-                    works.append(entry.work_hours)
-                    screens.append(getattr(entry, 'screen_time_mins', None))
-                    stresses.append(getattr(entry, 'stress_level', None))
-                
-                # --- DEBUG LOGGING ---
-                print(f"DEBUG: Entries found: {len(entries)}")
-                print(f"DEBUG: Screens: {screens}")
-                print(f"DEBUG: Stresses: {stresses}")
-                print(f"DEBUG: Work: {works}")
-                print(f"DEBUG: Energy: {energies}")
-                print(f"DEBUG: Sleep: {sleeps}")
-                # ---------------------
-    
-                # --- ADVANCED ANALYSIS ENGINE ---
-                
-                risk_factors = []
-                advice_components = []
-                
-                # 1. Digital Overload Check
-                avg_screen = sum(s for s in screens if s)/len([s for s in screens if s]) if any(screens) else 0
-                avg_stress = sum(s for s in stresses if s)/len([s for s in stresses if s]) if any(stresses) else 0
-                
-                if avg_screen > 240 and avg_stress > 6:
-                    risk_factors.append("Digital Overload")
-                    advice_components.append("Reducing screen time by 1 hour could lower your stress levels.")
-    
-                # 2. Burnout Check
-                avg_work = sum(w for w in works if w)/len([w for w in works if w]) if any(works) else 0
-                avg_energy = sum(e for e in energies if e)/len([e for e in energies if e]) if any(energies) else 0
-                
-                if avg_work > 9 and avg_energy < 5:
-                    risk_factors.append("Early Burnout")
-                    advice_components.append("Your energy is low despite high work output. This is sustainable for only short periods.")
-    
-                # 3. Sleep Check
-                avg_sleep = sum(s for s in sleeps if s)/len([s for s in sleeps if s]) if any(sleeps) else 0
-                if avg_sleep < 6:
-                    risk_factors.append("Sleep Deprivation")
-                    advice_components.append("Recovery is your #1 priority right now. Aim for 7h tonight.")
-    
-                # 4. Contextual Triggers & Schedule
-                recent_triggers = [t for t in [getattr(e, 'stress_triggers', '') for e in entries] if t]
-                common_trigger = recent_triggers[0][:15] + "..." if recent_triggers else None
-                
-                schedules = [s for s in [getattr(e, 'daily_schedule', '') for e in entries] if s]
-                is_busy = schedules and len(schedules[0]) > 50
-    
-                # --- SYNTHESIS ---
-                
-                # Load user's emotional patterns (Issue #269)
-                user_emotions = []
-                preferred_support = None
-                try:
-                    session = get_session()
-                    user = session.query(User).filter_by(username=self.username).first()
-                    if user and user.emotional_patterns:
-                        ep = user.emotional_patterns
-                        import json
-                        try:
-                            user_emotions = json.loads(ep.common_emotions) if ep.common_emotions else []
-                        except:
-                            user_emotions = []
-                        preferred_support = ep.preferred_support
-                except Exception as e:
-                    logging.warning(f"Could not load emotional patterns: {e}")
-                
-                # Check if detected patterns match user-defined emotions
-                personalized_note = ""
-                for emotion in user_emotions:
-                    emotion_lower = emotion.lower()
-                    if emotion_lower in ["anxiety", "stress", "overwhelm"] and avg_stress > 5:
-                        personalized_note = f"💭 I notice you've identified **{emotion}** as something you often experience. This pattern seems active right now."
-                        break
-                    elif emotion_lower in ["sadness"] and any(e.sentiment_score and e.sentiment_score < -30 for e in entries):
-                        personalized_note = f"💭 Your journals show a low sentiment, and you've mentioned **{emotion}** as a common feeling."
-                        break
-                
-                # Personalize response based on support style
-                def style_message(base_msg):
-                    if not preferred_support:
-                        return base_msg
-                    if "Encouraging" in preferred_support:
-                        return f"💪 {base_msg}\n\n**Remember**: You've handled tough days before. You've got this!"
-                    elif "Problem-Solving" in preferred_support:
-                        return f"📋 {base_msg}\n\n**Action Item**: Pick one small thing to improve today."
-                    elif "Listen" in preferred_support:
-                        return f"🤗 {base_msg}\n\n**It's okay to feel this way.** Take your time."
-                    elif "Distraction" in preferred_support:
-                        return f"✨ {base_msg}\n\n**Fun idea**: Take a 5-min break and do something you enjoy!"
+            
+            # Data extraction
+            sleeps = []
+            qualities = []
+            energies = []
+            works = []
+            screens = []
+            stresses = []
+            
+            for entry in entries:
+                sleeps.append(entry.sleep_hours)
+                qualities.append(entry.sleep_quality)
+                energies.append(entry.energy_level)
+                works.append(entry.work_hours)
+                screens.append(getattr(entry, 'screen_time_mins', None))
+                stresses.append(getattr(entry, 'stress_level', None))
+            
+            # --- DEBUG LOGGING ---
+            print(f"DEBUG: Entries found: {len(entries)}")
+            print(f"DEBUG: Screens: {screens}")
+            print(f"DEBUG: Stresses: {stresses}")
+            print(f"DEBUG: Work: {works}")
+            print(f"DEBUG: Energy: {energies}")
+            print(f"DEBUG: Sleep: {sleeps}")
+            # ---------------------
+
+            # --- ADVANCED ANALYSIS ENGINE ---
+            
+            risk_factors = []
+            advice_components = []
+            
+            # 1. Digital Overload Check
+            avg_screen = sum(s for s in screens if s)/len([s for s in screens if s]) if any(screens) else 0
+            avg_stress = sum(s for s in stresses if s)/len([s for s in stresses if s]) if any(stresses) else 0
+            
+            if avg_screen > 240 and avg_stress > 6:
+                risk_factors.append("Digital Overload")
+                advice_components.append("Reducing screen time by 1 hour could lower your stress levels.")
+
+            # 2. Burnout Check
+            avg_work = sum(w for w in works if w)/len([w for w in works if w]) if any(works) else 0
+            avg_energy = sum(e for e in energies if e)/len([e for e in energies if e]) if any(energies) else 0
+            
+            if avg_work > 9 and avg_energy < 5:
+                risk_factors.append("Early Burnout")
+                advice_components.append("Your energy is low despite high work output. This is sustainable for only short periods.")
+
+            # 3. Sleep Check
+            avg_sleep = sum(s for s in sleeps if s)/len([s for s in sleeps if s]) if any(sleeps) else 0
+            if avg_sleep < 6:
+                risk_factors.append("Sleep Deprivation")
+                advice_components.append("Recovery is your #1 priority right now. Aim for 7h tonight.")
+
+            # 4. Contextual Triggers & Schedule
+            recent_triggers = [t for t in [getattr(e, 'stress_triggers', '') for e in entries] if t]
+            common_trigger = recent_triggers[0][:15] + "..." if recent_triggers else None
+            
+            schedules = [s for s in [getattr(e, 'daily_schedule', '') for e in entries] if s]
+            is_busy = schedules and len(schedules[0]) > 50
+
+            # --- SYNTHESIS ---
+            # Load user's emotional patterns (Issue #269)
+            user_emotions = []
+            preferred_support = None
+            try:
+                session = get_session()
+                user = session.query(User).filter_by(username=self.username).first()
+                if user and user.emotional_patterns:
+                    ep = user.emotional_patterns
+                    import json
+                    try:
+                        user_emotions = json.loads(ep.common_emotions) if ep.common_emotions else []
+                    except:
+                        user_emotions = []
+                    preferred_support = ep.preferred_support
+            except Exception as e:
+                logging.warning(f"Could not load emotional patterns: {e}")
+            
+            # Check if detected patterns match user-defined emotions
+            personalized_note = ""
+            for emotion in user_emotions:
+                emotion_lower = emotion.lower()
+                if emotion_lower in ["anxiety", "stress", "overwhelm"] and avg_stress > 5:
+                    personalized_note = f"💭 I notice you've identified **{emotion}** as something you often experience. This pattern seems active right now."
+                    break
+                elif emotion_lower in ["sadness"] and any(e.sentiment_score and e.sentiment_score < -30 for e in entries):
+                    personalized_note = f"💭 Your journals show a low sentiment, and you've mentioned **{emotion}** as a common feeling."
+                    break
+            
+            # Personalize response based on support style
+            def style_message(base_msg):
+                if not preferred_support:
                     return base_msg
+                if "Encouraging" in preferred_support:
+                    return f"💪 {base_msg}\n\n**Remember**: You've handled tough days before. You've got this!"
+                elif "Problem-Solving" in preferred_support:
+                    return f"📋 {base_msg}\n\n**Action Item**: Pick one small thing to improve today."
+                elif "Listen" in preferred_support:
+                    return f"🤗 {base_msg}\n\n**It's okay to feel this way.** Take your time."
+                elif "Distraction" in preferred_support:
+                    return f"✨ {base_msg}\n\n**Fun idea**: Take a 5-min break and do something you enjoy!"
+                return base_msg
+            
+            if not risk_factors:
+                return style_message("🌟 **Balanced State**: Your metrics look healthy! Keep maintaining this rhythm.")
+            
+            if len(risk_factors) == 1:
+                # Single issue
+                msg = f"⚠️ **Attention Needed**: I've detected signs of {risk_factors[0]}.\n"
+                msg += advice_components[0]
+                if common_trigger: msg += f"\n(Context: You mentioned '{common_trigger}' as a trigger)"
+                if personalized_note: msg += f"\n\n{personalized_note}"
+                return style_message(msg)
+            
+            else:
+                # Complex/Combined issue (Smart Synthesis)
+                combined = " + ".join(risk_factors)
+                msg = f"🛑 **Complex Alert**: You are facing a combination of {combined}.\n\n"
+                msg += "This compounding effect requires immediate action:\n"
                 
-                if not risk_factors:
-                    return style_message("🌟 **Balanced State**: Your metrics look healthy! Keep maintaining this rhythm.")
+                # Prioritize Sleep if present
+                if "Sleep Deprivation" in risk_factors:
+                    msg += "1. **Fix Sleep First**: Without rest, stress and burnout are 2x harder to manage.\n"
+                    msg += "2. **Secondary Step**: " + ("Cut screen time." if "Digital Overload" in risk_factors else "Limit work hours.")
+                elif "Digital Overload" in risk_factors and "Early Burnout" in risk_factors:
+                    msg += "1. **Disconnect**: Your high screen time is preventing mental recovery from work.\n"
+                    msg += "2. **Hard Stop**: Set a strict work cutoff time today."
                 
-                if len(risk_factors) == 1:
-                    # Single issue
-                    msg = f"⚠️ **Attention Needed**: I've detected signs of {risk_factors[0]}.\n"
-                    msg += advice_components[0]
-                    if common_trigger: msg += f"\n(Context: You mentioned '{common_trigger}' as a trigger)"
-                    if personalized_note: msg += f"\n\n{personalized_note}"
-                    return style_message(msg)
+                if is_busy:
+                    msg += "\n\n🗓️ **Note**: Your schedule looks packed. Clear 30 mins for 'do nothing' time."
                 
-                else:
-                    # Complex/Combined issue (Smart Synthesis)
-                    combined = " + ".join(risk_factors)
-                    msg = f"🛑 **Complex Alert**: You are facing a combination of {combined}.\n\n"
-                    msg += "This compounding effect requires immediate action:\n"
-                    
-                    # Prioritize Sleep if present
-                    if "Sleep Deprivation" in risk_factors:
-                        msg += "1. **Fix Sleep First**: Without rest, stress and burnout are 2x harder to manage.\n"
-                        msg += "2. **Secondary Step**: " + ("Cut screen time." if "Digital Overload" in risk_factors else "Limit work hours.")
-                    elif "Digital Overload" in risk_factors and "Early Burnout" in risk_factors:
-                        msg += "1. **Disconnect**: Your high screen time is preventing mental recovery from work.\n"
-                        msg += "2. **Hard Stop**: Set a strict work cutoff time today."
-                    
-                    if is_busy:
-                        msg += "\n\n🗓️ **Note**: Your schedule looks packed. Clear 30 mins for 'do nothing' time."
-                    
-                    if personalized_note: msg += f"\n\n{personalized_note}"
-                    return style_message(msg)
-                
-                # Calculate Averages
-                avg_sleep = sum(sleeps) / len(sleeps) if sleeps else 0
-                avg_quality = sum(qualities) / len(qualities) if qualities else 0
-                avg_energy = sum(energies) / len(energies) if energies else 0
-                avg_work = sum(works) / len(works) if works else 0
-                
-                insights = []
-                
-                # --- Logic Rule Engine ---
-                
-                # 1. Sleep Logic (Duration & Quality)
-                if avg_sleep < 6.0:
-                    insights.append("🌙 You've been averaging less than 6 hours of sleep.")
-                elif avg_sleep >= 7.5 and avg_quality >= 7:
-                    insights.append("🛌 You're getting great sleep quantity and quality!")
-                
-                # Quality specific
-                if qualities and avg_quality < 5:
-                    insights.append("📉 Your sleep quality is reported low. Ensure your room is cool and dark.")
-                elif sleeps and qualities and avg_sleep > 8 and avg_quality < 5:
-                    insights.append("🤔 You're sleeping long hours but quality is low. This might indicate restless sleep.")
-    
-                # 2. Energy Logic
-                if len(energies) >= 2 and all(e <= 4 for e in energies[:3]):
-                    insights.append("🔋 Warning: Consistent low energy detected. Prevent burnout by taking a break.")
-                elif avg_energy >= 8.0:
-                    insights.append("⚡ You're continuously reporting high energy!")
-                elif len(energies) >= 2 and energies[0] > energies[-1] + 2:
-                     insights.append("🚀 Energy trend: Improving compared to recent days.")
-    
-                # 3. Work Logic
-                if avg_work > 10:
-                     insights.append("💼 Heavy Workload Alert: Averaging >10h/day. Don't forget to disconnect.")
-                elif avg_work > 8:
-                     insights.append("👔 You're having a standard productive work week.")
-                elif avg_work < 2 and avg_energy > 5:
-                     insights.append("🧘 Low work hours + High energy = Great recovery period!")
-    
-                # Construct final message
-                if insights:
-                    insight_text = " ".join(insights)
-                else:
-                    insight_text = "Your health metrics are stable. Consistent tracking discovers hidden patterns!"
-                    
+                if personalized_note: msg += f"\n\n{personalized_note}"
+                return style_message(msg)
+            
         except Exception as e:
             logging.error(f"Insight generation failed: {e}")
             insight_text = "Could not generate insights at this moment."

@@ -1,0 +1,12 @@
+SoulSense ML Model Evaluation
+=============================
+
+               precision    recall  f1-score   support
+
+     Low Risk       0.99      1.00      0.99        87
+Moderate Risk       0.99      0.99      0.99        97
+    High Risk       1.00      0.94      0.97        16
+
+     accuracy                           0.99       200
+    macro avg       0.99      0.98      0.98       200
+ weighted avg       0.99      0.99      0.99       200

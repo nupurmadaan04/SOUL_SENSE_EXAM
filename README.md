@@ -99,7 +99,7 @@ You can raise an issue on the GitHub repository or contact the project maintaine
 
 ### 1. Prerequisites
 
-- Python 3.8+
+- Python 3.13+ (recommended) or Python 3.8+
 - [Git](https://git-scm.com/)
 
 ### 2. Installation
@@ -114,23 +114,53 @@ You can raise an issue on the GitHub repository or contact the project maintaine
 2.  **Set up a virtual environment (Recommended):**
 
     ```bash
-    python -m venv venv
-    # Windows
-    .\venv\Scripts\activate
+    python -m venv .venv
+    # Windows PowerShell
+    .\.venv\Scripts\Activate.ps1
+    # Windows Command Prompt
+    .\.venv\Scripts\activate.bat
     # Mac/Linux
-    source venv/bin/activate
+    source .venv/bin/activate
     ```
 
 3.  **Install dependencies:**
+
     ```bash
     pip install -r requirements.txt
     ```
 
+4.  **Initialize the database:**
+
+    ```bash
+    # Run database migrations
+    alembic upgrade head
+
+    # Seed the question bank
+    python -m scripts.seed_questions_v2
+    ```
+
 ### 3. Running the Application
+
+**Easy Launch (Recommended):**
+
+- **Windows PowerShell:**
+
+  ```bash
+  .\run.ps1
+  ```
+
+- **Windows Command Prompt:**
+  ```bash
+  run.bat
+  ```
+
+**Manual Launch:**
 
 - **Desktop GUI (Main App):**
 
   ```bash
+  # Make sure virtual environment is activated first
+  .\.venv\Scripts\Activate.ps1   # Windows PowerShell
   python -m app.main
   ```
 
@@ -148,11 +178,74 @@ python -m pytest tests/
 ```
 
 To run the startup integrity specific tests:
+
 ```bash
 python -m pytest tests/test_startup_checks.py -v
 ```
 
-### 5. Git Workflow Commands
+### 5. Troubleshooting
+
+<details>
+<summary><strong>ModuleNotFoundError: No module named 'tkcalendar' or 'sqlalchemy'</strong></summary>
+<br>
+
+**Issue:** Dependencies are not installed in the virtual environment.
+
+**Solution:**
+
+```bash
+# Activate your virtual environment first
+.\.venv\Scripts\Activate.ps1   # Windows PowerShell
+
+# Then install all dependencies
+pip install -r requirements.txt
+```
+
+</details>
+
+<details>
+<summary><strong>Database error: no such table: question_bank</strong></summary>
+<br>
+
+**Issue:** Database is not initialized.
+
+**Solution:**
+
+```bash
+# Run migrations to create all tables
+alembic upgrade head
+
+# Seed the questions
+python -m scripts.seed_questions_v2
+```
+
+</details>
+
+<details>
+<summary><strong>SQLAlchemy compatibility error with Python 3.13</strong></summary>
+<br>
+
+**Issue:** Old SQLAlchemy version incompatible with Python 3.13.
+
+**Solution:** The requirements.txt already specifies SQLAlchemy 2.0.36+ which is compatible. Just reinstall:
+
+```bash
+pip install -r requirements.txt --upgrade
+```
+
+</details>
+
+<details>
+<summary><strong>Application starts but immediately closes</strong></summary>
+<br>
+
+**Issue:** Database not initialized or missing questions.
+
+**Solution:** Follow step 4 in Installation to initialize the database and seed questions.
+
+</details>
+
+### 6. Git Workflow Commands
 
 If you are contributing to the project, use these common Git commands:
 
@@ -346,16 +439,17 @@ Allows users to describe their common emotional states, enabling more personaliz
 
 ### AI Support Styles
 
-| Style | Response Approach |
-|-------|-------------------|
-| **Encouraging & Motivating** | "You've got this! You've handled tough days before." |
-| **Problem-Solving & Practical** | "Here's an action item to try today..." |
-| **Just Listen & Validate** | "It's okay to feel this way. Take your time." |
-| **Distraction & Positivity** | "Fun idea: Take a 5-min break and do something you enjoy!" |
+| Style                           | Response Approach                                          |
+| ------------------------------- | ---------------------------------------------------------- |
+| **Encouraging & Motivating**    | "You've got this! You've handled tough days before."       |
+| **Problem-Solving & Practical** | "Here's an action item to try today..."                    |
+| **Just Listen & Validate**      | "It's okay to feel this way. Take your time."              |
+| **Distraction & Positivity**    | "Fun idea: Take a 5-min break and do something you enjoy!" |
 
 ### Integration
 
 When you write journal entries, the AI will:
+
 - Detect if your current emotional state matches your defined patterns
 - Personalize responses based on your preferred support style
 - Provide relevant coping suggestions from your profile
@@ -456,15 +550,16 @@ SoulSense includes a self-diagnostic system that runs every time the application
 
 ### What it Validates
 
-| Check | Description | Auto-Recovery |
-|-------|-------------|---------------|
-| **Config Integrity** | Validates `config.json` structure and keys. | Restores defaults if missing or corrupt. |
-| **Required Files** | Ensures `data/`, `logs/`, and `models/` exist. | Auto-creates missing directories. |
-| **Database Schema** | Verifies all required tables and columns. | Re-initializes schema if tables are missing. |
+| Check                | Description                                    | Auto-Recovery                                |
+| -------------------- | ---------------------------------------------- | -------------------------------------------- |
+| **Config Integrity** | Validates `config.json` structure and keys.    | Restores defaults if missing or corrupt.     |
+| **Required Files**   | Ensures `data/`, `logs/`, and `models/` exist. | Auto-creates missing directories.            |
+| **Database Schema**  | Verifies all required tables and columns.      | Re-initializes schema if tables are missing. |
 
 ### How it Works
 
 The system categorizes issues into:
+
 - **Warnings**: Non-critical issues that were auto-recovered. The app notifies the user and proceeds.
 - **Failures**: Critical issues that prevent the app from starting safely. The app shows a detailed error and exits gracefully.
 
@@ -493,6 +588,7 @@ SoulSense allows you to create and restore local backups of your data, protectin
 ### Backup Storage
 
 Backups are stored in `data/backups/` with timestamped filenames:
+
 ```
 soulsense_backup_20260120_001500_my_description.db
 ```
@@ -506,6 +602,7 @@ SoulSense supports configuration via environment variables with the `SOULSENSE_*
 ### Quick Setup
 
 1. **Copy the example file:**
+
    ```bash
    copy .env.example .env
    ```
@@ -514,14 +611,14 @@ SoulSense supports configuration via environment variables with the `SOULSENSE_*
 
 ### Supported Variables
 
-| Variable | Type | Default | Description |
-|----------|------|---------|-------------|
-| `SOULSENSE_ENV` | string | `development` | Environment mode (development/production/test) |
-| `SOULSENSE_DEBUG` | bool | `false` | Enable debug logging |
-| `SOULSENSE_LOG_LEVEL` | string | `INFO` | Log level (DEBUG/INFO/WARNING/ERROR) |
-| `SOULSENSE_DB_PATH` | string | `data/soulsense.db` | Custom database file path |
-| `SOULSENSE_ENABLE_JOURNAL` | bool | `true` | Enable/disable journal feature |
-| `SOULSENSE_ENABLE_ANALYTICS` | bool | `true` | Enable/disable analytics feature |
+| Variable                     | Type   | Default             | Description                                    |
+| ---------------------------- | ------ | ------------------- | ---------------------------------------------- |
+| `SOULSENSE_ENV`              | string | `development`       | Environment mode (development/production/test) |
+| `SOULSENSE_DEBUG`            | bool   | `false`             | Enable debug logging                           |
+| `SOULSENSE_LOG_LEVEL`        | string | `INFO`              | Log level (DEBUG/INFO/WARNING/ERROR)           |
+| `SOULSENSE_DB_PATH`          | string | `data/soulsense.db` | Custom database file path                      |
+| `SOULSENSE_ENABLE_JOURNAL`   | bool   | `true`              | Enable/disable journal feature                 |
+| `SOULSENSE_ENABLE_ANALYTICS` | bool   | `true`              | Enable/disable analytics feature               |
 
 ### Configuration Priority
 
@@ -540,37 +637,41 @@ SoulSense includes a feature flag system for controlling experimental and beta f
 
 ### Available Flags
 
-| Flag | Environment Variable | Description |
-|------|---------------------|-------------|
-| `ai_journal_suggestions` | `SOULSENSE_FF_AI_JOURNAL_SUGGESTIONS` | AI-powered suggestions in the journal |
-| `advanced_analytics` | `SOULSENSE_FF_ADVANCED_ANALYTICS` | Predictive insights in analytics dashboard |
-| `beta_ui_components` | `SOULSENSE_FF_BETA_UI_COMPONENTS` | Experimental UI layouts and components |
-| `ml_emotion_detection` | `SOULSENSE_FF_ML_EMOTION_DETECTION` | ML-based emotion detection from text |
-| `data_export_v2` | `SOULSENSE_FF_DATA_EXPORT_V2` | New export formats (PDF, enhanced CSV) |
+| Flag                     | Environment Variable                  | Description                                |
+| ------------------------ | ------------------------------------- | ------------------------------------------ |
+| `ai_journal_suggestions` | `SOULSENSE_FF_AI_JOURNAL_SUGGESTIONS` | AI-powered suggestions in the journal      |
+| `advanced_analytics`     | `SOULSENSE_FF_ADVANCED_ANALYTICS`     | Predictive insights in analytics dashboard |
+| `beta_ui_components`     | `SOULSENSE_FF_BETA_UI_COMPONENTS`     | Experimental UI layouts and components     |
+| `ml_emotion_detection`   | `SOULSENSE_FF_ML_EMOTION_DETECTION`   | ML-based emotion detection from text       |
+| `data_export_v2`         | `SOULSENSE_FF_DATA_EXPORT_V2`         | New export formats (PDF, enhanced CSV)     |
 
 ### Enabling a Feature
 
 **Option 1: Environment Variable** (recommended for testing)
+
 ```bash
 set SOULSENSE_FF_AI_JOURNAL_SUGGESTIONS=true
 python -m app.main
 ```
 
 **Option 2: `.env` File**
+
 ```bash
 SOULSENSE_FF_AI_JOURNAL_SUGGESTIONS=true
 ```
 
 **Option 3: `config.json`**
+
 ```json
 {
-    "experimental": {
-        "ai_journal_suggestions": true
-    }
+  "experimental": {
+    "ai_journal_suggestions": true
+  }
 }
 ```
 
-**Option 3:  `Direct`**
+**Option 3: `Direct`**
+
 ```bash
 Turn on
 $env:SOULSENSE_FF_AI_JOURNAL_SUGGESTIONS = "true"
@@ -745,7 +846,6 @@ python -m app.main
 ### Common Issues & Fixes
 
 1.  **"Failed to fetch questions from DB" / `KeyError: min_age`**
-
     - **Cause**: Database schema is outdated (missing columns in `QuestionCache`).
     - **Fix**: Run migration or reset database:
       ```bash
@@ -754,11 +854,9 @@ python -m app.main
       ```
 
 2.  **`ImportError: cannot import name 'get_session' from 'app.models'`**
-
     - **Fix**: This project strictly separates DB connection logic (`app.db`) from models (`app.models`). Ensure you import `get_session` from `app.db`.
 
 3.  **Application Freeze on Startup**
-
     - **Cause**: Matplotlib trying to use an interactive backend (TkAgg) conflicting with Tkinter main loop.
     - **Fix**: Ensure `matplotlib.use('Agg')` is called _before_ importing `pyplot`.
 
@@ -777,7 +875,6 @@ python -m app.main
 **Authentication Flow:**
 
 1. **First-time users:** Click "Sign Up" to create an account
-
    - Choose a username (minimum 3 characters)
    - Set a password (minimum 4 characters)
    - Confirm your password

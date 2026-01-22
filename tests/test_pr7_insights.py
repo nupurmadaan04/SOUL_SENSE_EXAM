@@ -16,13 +16,9 @@ class TestSmartInsights(unittest.TestCase):
         self.feature = JournalFeature(self.mock_root)
         self.feature.username = "test_user"
 
-    @patch('app.ui.journal.safe_db_context')
-    def test_digital_overload_insight(self, mock_safe_db):
+    @patch('app.services.journal_service.JournalService.get_recent_entries')
+    def test_digital_overload_insight(self, mock_get_entries):
         # Setup mock entries
-        mock_session = MagicMock()
-        mock_safe_db.return_value.__enter__ = MagicMock(return_value=mock_session)
-        mock_safe_db.return_value.__exit__ = MagicMock(return_value=False)
-        
         entries = []
         for i in range(3):
             entry = JournalEntry(
@@ -39,8 +35,8 @@ class TestSmartInsights(unittest.TestCase):
                 work_hours=8
             )
             entries.append(entry)
-            
-        mock_session.query.return_value.filter.return_value.filter.return_value.order_by.return_value.all.return_value = entries
+        
+        mock_get_entries.return_value = entries
         
         # Run logic
         insight = self.feature.generate_health_insights()
@@ -50,13 +46,9 @@ class TestSmartInsights(unittest.TestCase):
         self.assertIn("Digital Overload", insight)
         self.assertIn("Reducing screen time", insight)
         
-    @patch('app.ui.journal.safe_db_context')
-    def test_burnout_insight(self, mock_safe_db):
+    @patch('app.services.journal_service.JournalService.get_recent_entries')
+    def test_burnout_insight(self, mock_get_entries):
          # Setup mock entries
-        mock_session = MagicMock()
-        mock_safe_db.return_value.__enter__ = MagicMock(return_value=mock_session)
-        mock_safe_db.return_value.__exit__ = MagicMock(return_value=False)
-        
         entries = []
         for i in range(3):
             entry = JournalEntry(
@@ -71,8 +63,8 @@ class TestSmartInsights(unittest.TestCase):
                 work_hours=12
             )
             entries.append(entry)
-            
-        mock_session.query.return_value.filter.return_value.filter.return_value.order_by.return_value.all.return_value = entries
+        
+        mock_get_entries.return_value = entries
         
         # Run logic
         insight = self.feature.generate_health_insights()

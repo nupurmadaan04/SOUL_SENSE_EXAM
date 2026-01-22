@@ -15,7 +15,7 @@
 # UI Enhancements
 tkcalendar==1.6.1
 Pillow==10.2.0
-sqlalchemy==2.0.25
+sqlalchemy==2.0.36
 
 # External packages (REQUIRED for Graphs):
 matplotlib==3.10.0
