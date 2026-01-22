@@ -57,7 +57,7 @@ def run_migrations_online() -> None:
     
     # Hardcoded check for the default value in alembic.ini
     # This is safer than checking for 'pytest' in modules
-    DEFAULT_INI_URL = "sqlite:///db/soulsense.db"
+    DEFAULT_INI_URL = "sqlite:///data/soulsense.db"
     
     if ini_url != DEFAULT_INI_URL:
         # It's an override (Test)

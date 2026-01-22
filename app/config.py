@@ -3,8 +3,12 @@ import json
 import logging
 import copy
 from typing import Dict, Any, Union, Optional, TypeVar, Type, cast, overload
+from dotenv import load_dotenv
 
 from app.exceptions import ConfigurationError
+
+# Load environment variables from .env file
+load_dotenv()
 
 BASE_DIR: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CONFIG_PATH: str = os.path.join(BASE_DIR, "config.json")
@@ -155,17 +159,24 @@ else:
     # Custom path relative to BASE_DIR if specified in config.json
     DB_PATH = os.path.join(BASE_DIR, DB_DIR_NAME, DB_FILENAME)
 
-DATABASE_URL: str = f"sqlite:///{DB_PATH}"
+# Database Configuration
+DATABASE_TYPE: str = get_env_var("DATABASE_TYPE", "sqlite")
 
-
-
-# Ensure DB Directory Exists
-if not os.path.exists(os.path.dirname(DB_PATH)):
-
-    try:
-        os.makedirs(os.path.dirname(DB_PATH))
-    except OSError:
-        pass # Handle race condition or permission error
+if DATABASE_TYPE == "postgresql":
+    DB_HOST: str = get_env_var("DB_HOST", "localhost")
+    DB_PORT: int = get_env_var("DB_PORT", 5432, int)
+    DB_NAME: str = get_env_var("DB_NAME", "soulsense")
+    DB_USER: str = get_env_var("DB_USER", "postgres")
+    DB_PASSWORD: str = get_env_var("DB_PASSWORD", "password")
+    DATABASE_URL: str = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+else:
+    DATABASE_URL: str = f"sqlite:///{DB_PATH}"
+    # Ensure DB Directory Exists for SQLite
+    if not os.path.exists(os.path.dirname(DB_PATH)):
+        try:
+            os.makedirs(os.path.dirname(DB_PATH))
+        except OSError:
+            pass # Handle race condition or permission error
 
 # UI Settings
 THEME: str = _config["ui"]["theme"]

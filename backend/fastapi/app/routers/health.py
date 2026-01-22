@@ -1,6 +1,8 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends
 from ..models.schemas import HealthResponse
-from ..services.example_service import get_welcome
+from ..routers.auth import get_current_user
+from app.models import User
+from typing import Annotated
 
 router = APIRouter()
 
@@ -11,6 +13,5 @@ async def health() -> dict:
 
 
 @router.get("/welcome")
-async def welcome(request: Request) -> dict:
-    settings = getattr(request.app.state, "settings", None)
-    return {"message": get_welcome(settings)}
+async def welcome(current_user: Annotated[User, Depends(get_current_user)]) -> dict:
+    return {"message": f"Welcome {current_user.username}!", "user_id": current_user.id}
