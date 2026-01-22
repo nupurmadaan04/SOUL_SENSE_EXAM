@@ -1,3 +1,3 @@
-from . import auth, health
+from . import assessments, health
 
-__all__ = ["auth", "health"]
+__all__ = ["assessments", "health"]

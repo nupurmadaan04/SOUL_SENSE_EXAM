@@ -1,17 +1,12 @@
+from typing import List, Dict, Any
 
-import random
-from typing import List, Dict, Any, Optional
-from app.models import UserProfile
 
 class QuestionCurator:
-    """
-    Curates questions for specific Deep Dive assessments.
-    Supports: 'career_clarity', 'work_satisfaction', 'strengths'.
-    """
-    
-    # Hardcoded Question Banks for MVP
-    # In a real app, these would come from the database with category_id links.
-    QUESTION_BANKS = {
+    """Curates question banks for Deep Dive assessments with version metadata."""
+
+    DEFAULT_VERSION = "v1"
+
+    _BASE_BANKS: Dict[str, List[str]] = {
         "career_clarity": [
             "I have a clear 5-year career plan.",
             "I feel my current role utilizes my best skills.",
@@ -80,62 +75,89 @@ class QuestionCurator:
         ]
     }
 
+    QUESTION_BANKS: Dict[str, Dict[str, List[str]]] = {
+        key: {
+            "v1": values,
+            "v2": list(reversed(values))
+        }
+        for key, values in _BASE_BANKS.items()
+    }
+
+    VERSION_METADATA: Dict[str, Dict[str, Dict[str, str]]] = {
+        "career_clarity": {
+            "v1": {
+                "description": "Foundational exploration of planning, confidence, and clarity.",
+                "released_on": "2024-02-12"
+            },
+            "v2": {
+                "description": "Updated narrative focusing on values, pivots, and backup planning.",
+                "released_on": "2025-01-08"
+            }
+        },
+        "work_satisfaction": {
+            "v1": {
+                "description": "Baseline satisfaction check covering appreciation, workload, and trust.",
+                "released_on": "2024-05-23"
+            },
+            "v2": {
+                "description": "Reordered questions to highlight burnout signals and recovery practices.",
+                "released_on": "2025-03-14"
+            }
+        },
+        "strengths_deep_dive": {
+            "v1": {
+                "description": "Strengths awareness with focus on practice and feedback.",
+                "released_on": "2024-08-19"
+            },
+            "v2": {
+                "description": "Flips the story to emphasize leadership, impact, and legacy.",
+                "released_on": "2025-04-02"
+            }
+        }
+    }
+
     @staticmethod
-    def get_questions(assessment_type: str, count: int = 10) -> List[str]:
-        """
-        Returns a list of questions for the given type.
-        
-        Args:
-            assessment_type (str): 'career_clarity', 'work_satisfaction', 'strengths_deep_dive'
-            count (int): Number of questions to return (5, 10, or 20).
-        """
-        if assessment_type not in QuestionCurator.QUESTION_BANKS:
+    def get_questions(assessment_type: str, count: int = 10, version: str = DEFAULT_VERSION) -> List[str]:
+        versions = QuestionCurator.QUESTION_BANKS.get(assessment_type, {})
+        version_key = version.lower()
+        bank = versions.get(version_key) or versions.get(QuestionCurator.DEFAULT_VERSION, [])
+        if not bank:
             return []
-            
-        bank = QuestionCurator.QUESTION_BANKS[assessment_type]
-        
-        # Ensure we don't ask for more than we have
         actual_count = min(count, len(bank))
-        
-        # For consistency, return the first N questions (not random) so re-takes are stable-ish
-        # Or random if we want variety. Let's do first N for now for predictable 'Short'/'Long' versions.
         return bank[:actual_count]
 
     @staticmethod
+    def available_versions(assessment_type: str) -> List[str]:
+        versions = QuestionCurator.QUESTION_BANKS.get(assessment_type)
+        if not versions:
+            return []
+        return sorted(versions.keys())
+
+    @staticmethod
+    def version_metadata(assessment_type: str, version: str) -> Dict[str, str]:
+        type_metadata = QuestionCurator.VERSION_METADATA.get(assessment_type, {})
+        version_key = version.lower()
+        return type_metadata.get(version_key) or type_metadata.get(QuestionCurator.DEFAULT_VERSION, {})
+
+    @staticmethod
     def recommend_tests(user_profile: Any, score_data: Dict[str, Any]) -> List[str]:
-        """
-        Analyzes user data to recommend specific Deep Dives.
-        
-        Args:
-            user_profile: dict/object with age, occupation, etc.
-            score_data: dict with 'total_score', 'stress', 'energy' (if available)
-            
-        Returns:
-            list of recommended assessment_types
-        """
         recommendations = []
-        
-        # Safe extraction
         age = getattr(user_profile, 'age', 0) or 0
         stress = score_data.get('stress', 0)
         energy = score_data.get('energy', 0)
         total_eq = score_data.get('total_score', 0)
-        
-        # logic
-        # 1. Career Clarity
-        if 20 <= age <= 35: # Quarter-life crisis / Early career
+
+        if 20 <= age <= 35:
             recommendations.append("career_clarity")
-        elif total_eq > 80 and age > 40: # High EQ mid-career -> Focus on optimization
+        elif total_eq > 80 and age > 40:
             recommendations.append("career_clarity")
 
-        # 2. Work Satisfaction
-        if stress > 6 or energy < 4: # Signs of burnout
+        if stress > 6 or energy < 4:
             recommendations.append("work_satisfaction")
-            
-        # 3. Strengths
-        if total_eq < 50: # Low confidence? Build on strengths.
+
+        if total_eq < 50:
             recommendations.append("strengths_deep_dive")
-        elif len(recommendations) == 0: # Default if nothing else triggers
+        elif not recommendations:
             recommendations.append("strengths_deep_dive")
-            
-        return list(set(recommendations)) # Unique list
+
+        return list(set(recommendations))

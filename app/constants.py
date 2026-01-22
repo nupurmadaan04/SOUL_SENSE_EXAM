@@ -1,3 +1,7 @@
+# --- App Metadata ---
+VERSION = "1.0.0"
+APP_NAME = "Soul Sense EQ Test"
+
 # Based on EQ test norms (simulated data for demonstration)
 BENCHMARK_DATA = {
     "age_groups": {

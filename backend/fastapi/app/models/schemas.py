@@ -1,3 +1,5 @@
+from typing import Any, Dict, List, Optional
+
 from pydantic import BaseModel
 
 
@@ -5,27 +7,31 @@ class HealthResponse(BaseModel):
     status: str
 
 
-# Auth schemas
-class UserCreate(BaseModel):
-    username: str
-    password: str
+class AssessmentSummary(BaseModel):
+    assessment_type: str
+    total_responses: int
+    highest_score: Optional[int]
+    average_score: Optional[float]
+    latest_timestamp: Optional[str]
 
 
-class UserLogin(BaseModel):
-    username: str
-    password: str
-
-
-class Token(BaseModel):
-    access_token: str
-    token_type: str
-
-
-class TokenData(BaseModel):
-    username: str | None = None
-
-
-class UserResponse(BaseModel):
+class AssessmentEntry(BaseModel):
     id: int
-    username: str
-    created_at: str
+    total_score: int
+    details: Dict[str, Any]
+    timestamp: str
+
+
+class AssessmentDetail(BaseModel):
+    assessment_type: str
+    entries: List[AssessmentEntry]
+
+
+class QuestionSetResponse(BaseModel):
+    assessment_type: str
+    version: str
+    description: Optional[str]
+    released_on: Optional[str]
+    questions: List[str]
+    count: int
+    available_versions: List[str]

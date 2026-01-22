@@ -406,14 +406,15 @@ class SoulSenseCLI:
         print("  4. 📈 Dashboard")
         print("  5. 💾 Export Results")
         print("  6. ⚙️  Settings")
-        print("  7. 🚪 Exit")
+        print("  7. ℹ️  Version")
+        print("  8. 🚪 Exit")
         print("")
         
         while True:
-            choice = self.get_input("Select option (1-7): ")
-            if choice in ('1', '2', '3', '4', '5', '6', '7'):
+            choice = self.get_input("Select option (1-8): ")
+            if choice in ('1', '2', '3', '4', '5', '6', '7', '8'):
                 return int(choice)
-            print("Invalid choice. Please enter 1-7.")
+            print("Invalid choice. Please enter 1-8.")
 
     def show_history(self) -> None:
         """Display exam history with ASCII graph"""
@@ -1021,6 +1022,22 @@ class SoulSenseCLI:
             elif choice == '2':
                 return
 
+    def show_version(self) -> None:
+        """Display application version information"""
+        from app.constants import VERSION, APP_NAME
+        
+        self.clear_screen()
+        print("="*60)
+        print("      V E R S I O N   I N F O")
+        print("="*60 + "\n")
+        
+        print(f"  {colorize(APP_NAME, Colors.CYAN)} {colorize(f'v{VERSION}', Colors.GREEN)}")
+        print(f"\n  Build Date: January 2026")
+        print(f"  Python {sys.version.split()[0]}")
+        print("\n" + "="*60)
+        
+        self.get_input("\nPress Enter to continue...")
+
     def run_exam_flow(self):
         """Run complete exam flow"""
         self.initialize_session()
@@ -1052,6 +1069,8 @@ class SoulSenseCLI:
                 elif choice == 6:
                     self.show_settings()
                 elif choice == 7:
+                    self.show_version()
+                elif choice == 8:
                     print("\nGoodbye! 👋")
                     sys.exit(0)
                     
@@ -1065,6 +1084,11 @@ class SoulSenseCLI:
 if __name__ == "__main__":
     if '--help' in sys.argv:
         print("Soul Sense CLI - Run with 'python -m app.cli'")
+        sys.exit(0)
+    
+    if '--version' in sys.argv or '-v' in sys.argv:
+        from app.constants import VERSION, APP_NAME
+        print(f"{APP_NAME} v{VERSION}")
         sys.exit(0)
         
     cli = SoulSenseCLI()
