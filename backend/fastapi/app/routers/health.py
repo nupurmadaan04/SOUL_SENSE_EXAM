@@ -1,17 +1,20 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
 from ..models.schemas import HealthResponse
-from ..routers.auth import get_current_user
-from app.models import User
-from typing import Annotated
 
 router = APIRouter()
 
 
 @router.get("/health", response_model=HealthResponse)
 async def health() -> dict:
+    """Health check endpoint - returns API status"""
     return {"status": "ok"}
 
 
-@router.get("/welcome")
-async def welcome(current_user: Annotated[User, Depends(get_current_user)]) -> dict:
-    return {"message": f"Welcome {current_user.username}!", "user_id": current_user.id}
+@router.get("/")
+async def root() -> dict:
+    """Root endpoint with API information"""
+    return {
+        "message": "Soul Sense API",
+        "version": "1.0.0",
+        "status": "running"
+    }

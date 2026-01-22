@@ -6,26 +6,35 @@ from jose import JWTError, jwt
 
 from ..config import get_settings
 from ..models.schemas import UserCreate, Token, UserResponse
-from app.db import get_session
+from ..services.db_service import get_db
 from app.models import User
-from app.auth import AuthManager
+import bcrypt
 
 router = APIRouter()
 settings = get_settings()
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
-auth_manager = AuthManager()
+
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verify a password against its hash."""
+    return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
+
+
+def hash_password(password: str) -> str:
+    """Hash a password for storing."""
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
 
 
 def authenticate_user(username: str, password: str):
-    session = get_session()
+    db = next(get_db())
     try:
-        user = session.query(User).filter(User.username == username).first()
-        if user and auth_manager.verify_password(password, user.password_hash):
+        user = db.query(User).filter(User.username == username).first()
+        if user and verify_password(password, user.password_hash):
             return user
         return None
     finally:
-        session.close()
+        db.close()
 
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None):
@@ -34,6 +43,7 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     to_encode.update({"exp": expire, "sub": data.get("sub")})
     encoded_jwt = jwt.encode(to_encode, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
     return encoded_jwt
+
 
 
 async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
@@ -50,31 +60,37 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
     except JWTError:
         raise credentials_exception
 
-    session = get_session()
+    db = next(get_db())
     try:
-        user = session.query(User).filter(User.username == username).first()
+        user = db.query(User).filter(User.username == username).first()
         if user is None:
             raise credentials_exception
         return user
     finally:
-        session.close()
+        db.close()
 
 
 @router.post("/register", response_model=UserResponse)
 async def register(user: UserCreate):
-    session = get_session()
+    db = next(get_db())
     try:
-        if session.query(User).filter(User.username == user.username).first():
+        # Check if user already exists
+        if db.query(User).filter(User.username == user.username).first():
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username already registered")
 
-        success, message = auth_manager.register_user(user.username, user.password)
-        if not success:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=message)
-
-        db_user = session.query(User).filter(User.username == user.username).first()
-        return UserResponse(id=db_user.id, username=db_user.username, created_at=db_user.created_at)
+        # Create new user
+        hashed_pw = hash_password(user.password)
+        new_user = User(
+            username=user.username,
+            password_hash=hashed_pw
+        )
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+        
+        return UserResponse(id=new_user.id, username=new_user.username, created_at=new_user.created_at)
     finally:
-        session.close()
+        db.close()
 
 
 @router.post("/login", response_model=Token)

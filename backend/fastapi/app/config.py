@@ -1,5 +1,6 @@
 from pathlib import Path
 import sys
+import secrets
 
 from dotenv import load_dotenv
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -19,6 +20,15 @@ class Settings(BaseSettings):
     port: int = 8000
     debug: bool = True
     welcome_message: str = "Welcome to Soul Sense!"
+    
+    # Database configuration
+    database_type: str = "sqlite"
+    database_url: str = "sqlite:///../../data/soulsense.db"
+    
+    # JWT configuration for authentication
+    jwt_secret_key: str = secrets.token_urlsafe(32)
+    jwt_algorithm: str = "HS256"
+    jwt_expiration_hours: int = 24
 
     model_config = SettingsConfigDict(
         env_file=str(ENV_FILE),

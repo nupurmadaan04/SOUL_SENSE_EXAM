@@ -1,7 +1,8 @@
 from typing import Any, Dict, List, Optional
 from datetime import datetime
 
-from pydantic import BaseModel, EmailStr, Field, ConfigDict
+import json
+from pydantic import BaseModel, EmailStr, Field, ConfigDict, field_validator
 
 
 class HealthResponse(BaseModel):
@@ -42,6 +43,91 @@ class UserResponse(BaseModel):
     created_at: str
     last_login: Optional[str] = None
 
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ============================================================================
+# Assessment Schemas for API Router
+# ============================================================================
+
+class AssessmentResponse(BaseModel):
+    """Schema for a single assessment response."""
+    id: int
+    username: str
+    total_score: int
+    sentiment_score: float
+    age: Optional[int]
+    detailed_age_group: Optional[str]
+    timestamp: str
+    
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AssessmentListResponse(BaseModel):
+    """Schema for paginated assessment list."""
+    total: int
+    assessments: List[AssessmentResponse]
+    page: int
+    page_size: int
+
+
+class AssessmentDetailResponse(BaseModel):
+    """Schema for detailed assessment information."""
+    id: int
+    username: str
+    total_score: int
+    sentiment_score: float
+    reflection_text: Optional[str]
+    is_rushed: bool
+    is_inconsistent: bool
+    age: Optional[int]
+    detailed_age_group: Optional[str]
+    timestamp: str
+    responses_count: int
+
+
+class AssessmentStatsResponse(BaseModel):
+    """Schema for assessment statistics."""
+    total_assessments: int
+    average_score: float
+    highest_score: int
+    lowest_score: int
+    average_sentiment: float
+    age_group_distribution: Dict[str, int]
+
+
+# ============================================================================
+# Question Schemas for API Router
+# ============================================================================
+
+class QuestionResponse(BaseModel):
+    """Schema for a single question response."""
+    id: int
+    question_text: str
+    category_id: Optional[int] = None
+    difficulty: Optional[int] = None
+    is_active: Optional[int] = 1
+    min_age: Optional[int] = 0
+    max_age: Optional[int] = 120
+    weight: Optional[float] = 1.0
+    tooltip: Optional[str] = None
+    
+    model_config = ConfigDict(from_attributes=True)
+
+
+class QuestionListResponse(BaseModel):
+    """Schema for paginated question list."""
+    total: int
+    questions: List[QuestionResponse]
+    page: int
+    page_size: int
+
+
+class QuestionCategoryResponse(BaseModel):
+    """Schema for question category."""
+    id: int
+    name: str
+    
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -313,33 +399,10 @@ class CompleteProfileResponse(BaseModel):
     emotional_patterns: Optional[UserEmotionalPatternsResponse] = None
 
 
-class AssessmentSummary(BaseModel):
-    assessment_type: str
-    total_responses: int
-    highest_score: Optional[int]
-    average_score: Optional[float]
-    latest_timestamp: Optional[str]
+# ============================================================================
+# Analytics Schemas
+# ============================================================================
 
-
-class AssessmentEntry(BaseModel):
-    id: int
-    total_score: int
-    details: Dict[str, Any]
-    timestamp: str
-
-
-class AssessmentDetail(BaseModel):
-    assessment_type: str
-    entries: List[AssessmentEntry]
-
-
-class UserResponse(BaseModel):
-    id: int
-    username: str
-    created_at: str
-
-
-# Analytics schemas
 class AgeGroupStats(BaseModel):
     """Aggregated statistics by age group"""
     age_group: str
@@ -403,3 +466,138 @@ class PopulationInsights(BaseModel):
         default=None, 
         description="Percentage of started assessments that were completed"
     )
+
+
+# ============================================================================
+# Journal Schemas for API Router
+# ============================================================================
+
+class JournalCreate(BaseModel):
+    """Schema for creating a new journal entry."""
+    content: str = Field(
+        ..., 
+        min_length=10, 
+        max_length=50000,
+        description="Journal content (10-50,000 characters)"
+    )
+    tags: Optional[List[str]] = Field(
+        default=[],
+        max_length=20,
+        description="Tags for organizing entries (max 20)"
+    )
+    privacy_level: str = Field(
+        default="private",
+        pattern="^(private|shared|public)$",
+        description="Privacy level: private, shared, or public"
+    )
+    # Wellbeing metrics
+    sleep_hours: Optional[float] = Field(None, ge=0, le=24, description="Hours of sleep (0-24)")
+    sleep_quality: Optional[int] = Field(None, ge=1, le=10, description="Sleep quality (1-10)")
+    energy_level: Optional[int] = Field(None, ge=1, le=10, description="Energy level (1-10)")
+    work_hours: Optional[float] = Field(None, ge=0, le=24, description="Work hours (0-24)")
+    screen_time_mins: Optional[int] = Field(None, ge=0, le=1440, description="Screen time in minutes")
+    stress_level: Optional[int] = Field(None, ge=1, le=10, description="Stress level (1-10)")
+    stress_triggers: Optional[str] = Field(None, max_length=500, description="What triggered stress")
+    daily_schedule: Optional[str] = Field(None, max_length=1000, description="Daily routine/schedule")
+
+
+class JournalUpdate(BaseModel):
+    """Schema for updating a journal entry."""
+    content: Optional[str] = Field(
+        None, 
+        min_length=10, 
+        max_length=50000,
+        description="Updated content"
+    )
+    tags: Optional[List[str]] = Field(None, max_length=20)
+    privacy_level: Optional[str] = Field(None, pattern="^(private|shared|public)$")
+    # Wellbeing metrics
+    sleep_hours: Optional[float] = Field(None, ge=0, le=24)
+    sleep_quality: Optional[int] = Field(None, ge=1, le=10)
+    energy_level: Optional[int] = Field(None, ge=1, le=10)
+    work_hours: Optional[float] = Field(None, ge=0, le=24)
+    screen_time_mins: Optional[int] = Field(None, ge=0, le=1440)
+    stress_level: Optional[int] = Field(None, ge=1, le=10)
+    stress_triggers: Optional[str] = Field(None, max_length=500)
+    daily_schedule: Optional[str] = Field(None, max_length=1000)
+
+
+class JournalResponse(BaseModel):
+    """Schema for a single journal entry response."""
+    id: int
+    username: str
+    content: str
+    sentiment_score: Optional[float] = Field(None, description="AI sentiment score (0-100)")
+    emotional_patterns: Optional[str] = None
+    tags: Optional[List[str]] = []
+    entry_date: str
+    word_count: int = Field(default=0, description="Number of words in content")
+    reading_time_mins: Optional[float] = Field(None, description="Estimated reading time in minutes")
+    privacy_level: str = Field(default="private")
+    # Wellbeing metrics
+    sleep_hours: Optional[float] = None
+    sleep_quality: Optional[int] = None
+    energy_level: Optional[int] = None
+    work_hours: Optional[float] = None
+    screen_time_mins: Optional[int] = None
+    stress_level: Optional[int] = None
+    stress_triggers: Optional[str] = None
+    daily_schedule: Optional[str] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+    @field_validator('tags', mode='before')
+    @classmethod
+    def parse_tags(cls, v):
+        """Decode JSON string from DB to List[str] for API."""
+        if isinstance(v, str):
+            try:
+                import json
+                return json.loads(v)
+            except:
+                return []
+        return v
+
+
+class JournalListResponse(BaseModel):
+    """Schema for paginated journal entry list."""
+    total: int
+    entries: List[JournalResponse]
+    page: int
+    page_size: int
+
+
+class JournalAnalytics(BaseModel):
+    """Schema for journal analytics."""
+    total_entries: int
+    average_sentiment: float
+    sentiment_trend: str = Field(description="improving, declining, or stable")
+    most_common_tags: List[str]
+    average_stress_level: Optional[float] = None
+    average_sleep_quality: Optional[float] = None
+    entries_this_week: int
+    entries_this_month: int
+
+
+class JournalSearchParams(BaseModel):
+    """Schema for journal search parameters."""
+    query: Optional[str] = Field(None, max_length=200, description="Search query")
+    tags: Optional[List[str]] = Field(None, description="Filter by tags")
+    start_date: Optional[str] = Field(None, description="Start date (YYYY-MM-DD)")
+    end_date: Optional[str] = Field(None, description="End date (YYYY-MM-DD)")
+    min_sentiment: Optional[float] = Field(None, ge=0, le=100)
+    max_sentiment: Optional[float] = Field(None, ge=0, le=100)
+
+
+class JournalPrompt(BaseModel):
+    """Schema for AI journal prompt."""
+    id: int
+    category: str = Field(description="gratitude, reflection, goals, emotions, creativity")
+    prompt: str
+    description: Optional[str] = None
+
+
+class JournalPromptsResponse(BaseModel):
+    """Schema for list of journal prompts."""
+    prompts: List[JournalPrompt]
+    category: Optional[str] = None

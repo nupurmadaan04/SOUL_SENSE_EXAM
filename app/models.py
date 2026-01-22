@@ -231,6 +231,7 @@ class JournalEntry(Base):
     
     id = Column(Integer, primary_key=True, autoincrement=True)
     username = Column(String)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=True)
     entry_date = Column(String, default=lambda: datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"))
     content = Column(Text)
     sentiment_score = Column(Float)
@@ -250,6 +251,11 @@ class JournalEntry(Base):
 
     # Enhanced Journal Extensions: Tagging system
     tags = Column(Text, nullable=True)  # JSON list of tags like ["stress", "gratitude", "relationships"]
+    
+    # Soft delete and status (PR #8)
+    is_deleted = Column(Boolean, default=False)
+    privacy_level = Column(String, default="private") # private, shared, public
+    word_count = Column(Integer, default=0)
 
 class SatisfactionRecord(Base):
     __tablename__ = 'satisfaction_records'

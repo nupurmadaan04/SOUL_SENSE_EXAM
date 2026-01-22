@@ -36,7 +36,7 @@ from ..models.schemas import (
 )
 from ..services.profile_service import ProfileService
 from ..routers.auth import get_current_user
-from app.db import get_session
+from ..services.db_service import get_db
 from app.models import User
 
 router = APIRouter(prefix="/profiles", tags=["Profiles"])
@@ -44,11 +44,11 @@ router = APIRouter(prefix="/profiles", tags=["Profiles"])
 
 def get_profile_service():
     """Dependency to get ProfileService with database session."""
-    session = get_session()
+    db = next(get_db())
     try:
-        yield ProfileService(session)
+        yield ProfileService(db)
     finally:
-        session.close()
+        db.close()
 
 
 # ============================================================================

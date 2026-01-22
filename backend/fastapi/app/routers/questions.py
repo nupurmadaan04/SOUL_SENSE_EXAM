@@ -9,18 +9,20 @@ from pathlib import Path
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent.parent.parent
 sys.path.insert(0, str(ROOT_DIR))
 
-from app.constants import VERSION
+# Define VERSION locally since app.constants doesn't exist in backend
+VERSION = "1.0.0"
+
 from ..services.db_service import get_db, QuestionService
 from ..models.schemas import (
     QuestionResponse,
-    QuestionSetResponse,
+    QuestionListResponse,
     QuestionCategoryResponse
 )
 
 router = APIRouter()
 
 
-@router.get("/", response_model=QuestionSetResponse)
+@router.get("/", response_model=QuestionListResponse)
 async def get_questions(
     age: Optional[int] = Query(None, ge=10, le=120, description="Filter questions by user age"),
     category_id: Optional[int] = Query(None, description="Filter by category ID"),
@@ -30,7 +32,7 @@ async def get_questions(
     db: Session = Depends(get_db)
 ):
     """
-    Get a versioned set of questions.
+    Get a list of questions.
     
     - **age**: Optional age filter (returns questions appropriate for this age)
     - **category_id**: Optional category filter
@@ -38,7 +40,7 @@ async def get_questions(
     - **skip**: Number of questions to skip for pagination
     - **active_only**: Whether to return only active questions
     
-    Returns a versioned question set with metadata.
+    Returns a paginated question list.
     """
     if age is not None:
         # Get age-appropriate questions
@@ -48,7 +50,6 @@ async def get_questions(
             limit=limit
         )
         total = len(questions)
-        age_range = {"min": min(q.min_age for q in questions), "max": max(q.max_age for q in questions)} if questions else None
     else:
         # Get questions with filters
         questions, total = QuestionService.get_questions(
@@ -58,13 +59,12 @@ async def get_questions(
             category_id=category_id,
             active_only=active_only
         )
-        age_range = None
     
-    return QuestionSetResponse(
-        version=VERSION,
-        total_questions=total,
+    return QuestionListResponse(
+        total=total,
         questions=[QuestionResponse.model_validate(q) for q in questions],
-        age_range=age_range
+        page=skip // limit + 1 if limit > 0 else 1,
+        page_size=limit
     )
 
 
