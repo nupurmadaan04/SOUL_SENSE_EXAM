@@ -992,3 +992,53 @@ AttributeError: 'SoulSenseApp' object has no attribute '_setup_login_buttons'. D
 2026-01-24 02:07:28 - __main__ - INFO - [main.py:446] - Initiating graceful application shutdown...
 2026-01-24 02:07:28 - __main__ - INFO - [main.py:455] - Database session committed and removed successfully
 2026-01-24 02:07:28 - __main__ - INFO - [main.py:460] - Application shutdown complete
+2026-01-24 02:07:45 - root - INFO - [logger.py:85] - Logging initialized.
+2026-01-24 02:07:45 - app.startup_checks - INFO - [startup_checks.py:302] - Running startup integrity checks...
+2026-01-24 02:07:45 - app.startup_checks - INFO - [startup_checks.py:272] - Config integrity check passed
+2026-01-24 02:07:45 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ config_integrity: Configuration is valid
+2026-01-24 02:07:45 - app.startup_checks - INFO - [startup_checks.py:195] - Required files check passed
+2026-01-24 02:07:45 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ required_files: All required files and directories present
+2026-01-24 02:07:45 - app.startup_checks - INFO - [startup_checks.py:121] - Database schema check passed
+2026-01-24 02:07:45 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ database_schema: All required tables present
+2026-01-24 02:07:45 - app.startup_checks - INFO - [startup_checks.py:345] - Integrity checks complete: 3 passed, 0 warnings, 0 failed
+2026-01-24 02:07:45 - __main__ - INFO - [main.py:543] - Startup Integrity Check Results:
+========================================
+✓ config_integrity: Configuration is valid
+✓ required_files: All required files and directories present
+✓ database_schema: All required tables present
+========================================
+2026-01-24 02:07:45 - __main__ - INFO - [main.py:573] - Preloading questions into memory...
+2026-01-24 02:07:45 - app.questions - INFO - [questions.py:52] - Loaded 0 active questions into memory.
+2026-01-24 02:07:45 - app.questions - INFO - [questions.py:87] - Questions not initialized, loading now...
+2026-01-24 02:07:45 - app.questions - INFO - [questions.py:52] - Loaded 0 active questions into memory.
+2026-01-24 02:07:57 - app.error_handler - ERROR - [error_handler.py:134] - [HIGH] tkinter.callback: ImportError - cannot import name 'UIComponents' from 'app.ui.components' (c:\Users\ayaan shaikh\Documents\EWOC\SOUL-SENSE\app\ui\components\__init__.py)
+Traceback (most recent call last):
+  File "C:\Users\ayaan shaikh\AppData\Local\Programs\Python\Python314\Lib\tkinter\__init__.py", line 2082, in __call__
+    return self.func(*args)
+           ~~~~~~~~~^^^^^^^
+  File "c:\Users\ayaan shaikh\Documents\EWOC\SOUL-SENSE\app\main.py", line 157, in do_login
+    self._post_login_init()
+    ~~~~~~~~~~~~~~~~~~~~~^^
+  File "c:\Users\ayaan shaikh\Documents\EWOC\SOUL-SENSE\app\main.py", line 217, in _post_login_init
+    self.sidebar.select_item("home") # This triggers on_change -> switch_view, which is fine for init
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^
+  File "c:\Users\ayaan shaikh\Documents\EWOC\SOUL-SENSE\app\ui\sidebar.py", line 221, in select_item
+    self.on_change(item_id)
+    ~~~~~~~~~~~~~~^^^^^^^^^
+  File "c:\Users\ayaan shaikh\Documents\EWOC\SOUL-SENSE\app\main.py", line 266, in switch_view
+    self.show_home()
+    ~~~~~~~~~~~~~~^^
+  File "c:\Users\ayaan shaikh\Documents\EWOC\SOUL-SENSE\app\main.py", line 326, in show_home
+    self._create_hero_section()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "c:\Users\ayaan shaikh\Documents\EWOC\SOUL-SENSE\app\main.py", line 332, in _create_hero_section
+    from app.ui.components import UIComponents
+ImportError: cannot import name 'UIComponents' from 'app.ui.components' (c:\Users\ayaan shaikh\Documents\EWOC\SOUL-SENSE\app\ui\components\__init__.py)
+2026-01-24 02:07:57 - root - ERROR - [main.py:513] - Interface Error: An unexpected error occurred. Please try again. - cannot import name 'UIComponents' from 'app.ui.components' (c:\Users\ayaan shaikh\Documents\EWOC\SOUL-SENSE\app\ui\components\__init__.py)
+2026-01-24 02:07:59 - app.services.exam_service - INFO - [exam_service.py:180] - Exam session started for user: dadadadada
+2026-01-24 02:11:34 - __main__ - INFO - [main.py:485] - Initiating graceful application shutdown...
+2026-01-24 02:11:34 - __main__ - INFO - [main.py:494] - Database session committed and removed successfully
+2026-01-24 02:11:34 - __main__ - INFO - [main.py:499] - Application shutdown complete
+2026-01-24 02:11:34 - __main__ - INFO - [main.py:485] - Initiating graceful application shutdown...
+2026-01-24 02:11:34 - __main__ - INFO - [main.py:494] - Database session committed and removed successfully
+2026-01-24 02:11:34 - __main__ - INFO - [main.py:499] - Application shutdown complete

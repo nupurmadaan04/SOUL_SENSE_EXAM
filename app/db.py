@@ -16,7 +16,7 @@ from app.exceptions import DatabaseError
 # Configure logger
 logger = logging.getLogger(__name__)
 
-# Secure database connection with connection pooling
+# Secure database connection with optimized pooling
 engine = create_engine(
     DATABASE_URL, 
     echo=False,
@@ -26,7 +26,11 @@ engine = create_engine(
         "timeout": 20,
         "isolation_level": None
     },
-    pool_pre_ping=True
+    pool_pre_ping=True,
+    pool_size=10,
+    max_overflow=20,
+    pool_recycle=3600,  # Recycle connections every hour
+    pool_timeout=30
 )
 SessionLocal = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
 

@@ -183,16 +183,15 @@ class SoulSenseApp:
         ).pack()
 
     def _load_user_settings(self, username: str) -> None:
-        """Load settings from DB for user"""
+        """Load settings from DB for user with optimization"""
         from app.utils.error_handler import handle_db_error
+        from app.query_optimizer import get_query_optimizer
         
         @handle_db_error
         def load_settings():
-            from app.db import get_session
-            from app.models import User
+            optimizer = get_query_optimizer()
+            user_obj = optimizer.get_user_with_profiles(username)
             
-            session = get_session()
-            user_obj = session.query(User).filter_by(username=username).first()
             if user_obj:
                 self.current_user_id = int(user_obj.id)
                 if user_obj.settings:
@@ -203,7 +202,6 @@ class SoulSenseApp:
                     }
                     if self.settings.get("theme"):
                         self.apply_theme(self.settings["theme"])
-            session.close()
             return True
         
         load_settings()
@@ -311,8 +309,14 @@ class SoulSenseApp:
         rm.display_user_history(self.username)
 
     def clear_screen(self):
+        """Clear screen with memory cleanup"""
+        from app.memory_manager import cleanup_ui_memory
+        
         for widget in self.content_area.winfo_children():
             widget.destroy()
+        
+        # Force memory cleanup
+        cleanup_ui_memory()
 
     def show_assessments(self):
         """Show Assessment Selection Hub"""
@@ -481,29 +485,34 @@ class SoulSenseApp:
         self.show_login_screen()
 
     def graceful_shutdown(self) -> None:
-        """Perform graceful shutdown operations"""
+        """Perform graceful shutdown operations with cleanup"""
         self.logger.info("Initiating graceful application shutdown...")
 
         try:
-            # Commit any pending database operations from the scoped session
+            # Cleanup memory
+            from app.memory_manager import memory_manager
+            from app.file_manager import file_manager
+            
+            memory_manager.force_gc()
+            file_manager.shutdown()
+            
+            # Commit any pending database operations
             from app.db import SessionLocal
             session = SessionLocal()
             if session:
                 session.commit()
-                SessionLocal.remove()  # Remove the session from the scoped registry
+                SessionLocal.remove()
                 self.logger.info("Database session committed and removed successfully")
         except Exception as e:
-            self.logger.error(f"Error during database shutdown: {e}")
+            self.logger.error(f"Error during shutdown: {e}")
 
-        # Log shutdown
         self.logger.info("Application shutdown complete")
 
-        # Destroy the root window to exit
         if hasattr(self, 'root') and self.root:
             try:
                 self.root.destroy()
             except Exception:
-                pass  # Window already destroyed
+                pass
 
 # --- Global Error Handlers ---
 
