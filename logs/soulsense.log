@@ -830,3 +830,165 @@ AttributeError: 'UserProfileView' object has no attribute '_render_export_view'.
    → Recovery: Created tables: users, scores, responses, journal_entries, user_settings
 ========================================
 2026-01-24 01:55:51 - app.questions - ERROR - [questions.py:56] - Failed to initialize questions: [E1002] A database error occurred.
+2026-01-24 01:58:56 - root - INFO - [logger.py:85] - Logging initialized.
+2026-01-24 01:58:56 - app.startup_checks - INFO - [startup_checks.py:302] - Running startup integrity checks...
+2026-01-24 01:58:56 - app.startup_checks - INFO - [startup_checks.py:272] - Config integrity check passed
+2026-01-24 01:58:56 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ config_integrity: Configuration is valid
+2026-01-24 01:58:56 - app.startup_checks - INFO - [startup_checks.py:195] - Required files check passed
+2026-01-24 01:58:56 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ required_files: All required files and directories present
+2026-01-24 01:58:56 - app.questions - INFO - [questions.py:52] - Loaded 0 active questions into memory.
+2026-01-24 01:58:56 - app.startup_checks - INFO - [startup_checks.py:121] - Database schema check passed
+2026-01-24 01:58:56 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ database_schema: All required tables present
+2026-01-24 01:58:56 - app.startup_checks - INFO - [startup_checks.py:345] - Integrity checks complete: 3 passed, 0 warnings, 0 failed
+2026-01-24 01:58:56 - __main__ - INFO - [main.py:540] - Startup Integrity Check Results:
+========================================
+✓ config_integrity: Configuration is valid
+✓ required_files: All required files and directories present
+✓ database_schema: All required tables present
+========================================
+2026-01-24 01:58:56 - __main__ - INFO - [main.py:570] - Preloading questions into memory...
+2026-01-24 01:58:56 - app.questions - INFO - [questions.py:52] - Loaded 0 active questions into memory.
+2026-01-24 01:58:56 - app.questions - INFO - [questions.py:87] - Questions not initialized, loading now...
+2026-01-24 01:58:56 - app.questions - INFO - [questions.py:52] - Loaded 0 active questions into memory.
+2026-01-24 01:59:35 - app.services.exam_service - INFO - [exam_service.py:180] - Exam session started for user: a1221
+2026-01-24 02:00:24 - __main__ - INFO - [main.py:570] - Preloading questions into memory...
+2026-01-24 02:00:24 - app.questions - INFO - [questions.py:52] - Loaded 0 active questions into memory.
+2026-01-24 02:00:24 - app.questions - INFO - [questions.py:87] - Questions not initialized, loading now...
+2026-01-24 02:00:24 - app.questions - INFO - [questions.py:52] - Loaded 0 active questions into memory.
+2026-01-24 02:04:50 - root - INFO - [logger.py:85] - Logging initialized.
+2026-01-24 02:04:50 - app.startup_checks - INFO - [startup_checks.py:302] - Running startup integrity checks...
+2026-01-24 02:04:50 - app.startup_checks - INFO - [startup_checks.py:272] - Config integrity check passed
+2026-01-24 02:04:50 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ config_integrity: Configuration is valid
+2026-01-24 02:04:50 - app.startup_checks - INFO - [startup_checks.py:195] - Required files check passed
+2026-01-24 02:04:50 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ required_files: All required files and directories present
+2026-01-24 02:04:50 - app.questions - INFO - [questions.py:52] - Loaded 0 active questions into memory.
+2026-01-24 02:04:50 - app.startup_checks - INFO - [startup_checks.py:121] - Database schema check passed
+2026-01-24 02:04:50 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ database_schema: All required tables present
+2026-01-24 02:04:50 - app.startup_checks - INFO - [startup_checks.py:345] - Integrity checks complete: 3 passed, 0 warnings, 0 failed
+2026-01-24 02:04:50 - __main__ - INFO - [main.py:507] - Startup Integrity Check Results:
+========================================
+✓ config_integrity: Configuration is valid
+✓ required_files: All required files and directories present
+✓ database_schema: All required tables present
+========================================
+2026-01-24 02:04:50 - __main__ - INFO - [main.py:537] - Preloading questions into memory...
+2026-01-24 02:04:50 - app.questions - INFO - [questions.py:52] - Loaded 0 active questions into memory.
+2026-01-24 02:04:50 - app.questions - INFO - [questions.py:87] - Questions not initialized, loading now...
+2026-01-24 02:04:50 - app.questions - INFO - [questions.py:52] - Loaded 0 active questions into memory.
+2026-01-24 02:04:51 - app.error_handler - ERROR - [error_handler.py:134] - [HIGH] tkinter.callback: ImportError - cannot import name 'UIComponents' from 'app.ui.components' (c:\Users\ayaan shaikh\Documents\EWOC\SOUL-SENSE\app\ui\components\__init__.py)
+Traceback (most recent call last):
+  File "C:\Users\ayaan shaikh\AppData\Local\Programs\Python\Python314\Lib\tkinter\__init__.py", line 2082, in __call__
+    return self.func(*args)
+           ~~~~~~~~~^^^^^^^
+  File "C:\Users\ayaan shaikh\AppData\Local\Programs\Python\Python314\Lib\tkinter\__init__.py", line 876, in callit
+    func(*args, **kw)
+    ~~~~^^^^^^^^^^^^^
+  File "c:\Users\ayaan shaikh\Documents\EWOC\SOUL-SENSE\app\main.py", line 97, in show_login_screen
+    self._setup_login_form(login_win)
+    ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^
+  File "c:\Users\ayaan shaikh\Documents\EWOC\SOUL-SENSE\app\main.py", line 122, in _setup_login_form
+    from app.ui.components import UIComponents
+ImportError: cannot import name 'UIComponents' from 'app.ui.components' (c:\Users\ayaan shaikh\Documents\EWOC\SOUL-SENSE\app\ui\components\__init__.py)
+2026-01-24 02:04:51 - root - ERROR - [main.py:477] - Interface Error: An unexpected error occurred. Please try again. - cannot import name 'UIComponents' from 'app.ui.components' (c:\Users\ayaan shaikh\Documents\EWOC\SOUL-SENSE\app\ui\components\__init__.py)
+2026-01-24 02:04:54 - __main__ - INFO - [main.py:449] - Initiating graceful application shutdown...
+2026-01-24 02:04:54 - __main__ - INFO - [main.py:458] - Database session committed and removed successfully
+2026-01-24 02:04:54 - __main__ - INFO - [main.py:463] - Application shutdown complete
+2026-01-24 02:05:04 - __main__ - INFO - [main.py:482] - Initiating graceful application shutdown...
+2026-01-24 02:05:04 - __main__ - INFO - [main.py:491] - Database session committed and removed successfully
+2026-01-24 02:05:04 - __main__ - INFO - [main.py:496] - Application shutdown complete
+2026-01-24 02:05:04 - __main__ - INFO - [main.py:482] - Initiating graceful application shutdown...
+2026-01-24 02:05:04 - __main__ - INFO - [main.py:491] - Database session committed and removed successfully
+2026-01-24 02:05:04 - __main__ - INFO - [main.py:496] - Application shutdown complete
+2026-01-24 02:05:13 - __main__ - INFO - [main.py:482] - Initiating graceful application shutdown...
+2026-01-24 02:05:13 - __main__ - INFO - [main.py:491] - Database session committed and removed successfully
+2026-01-24 02:05:13 - __main__ - INFO - [main.py:496] - Application shutdown complete
+2026-01-24 02:06:41 - root - INFO - [logger.py:85] - Logging initialized.
+2026-01-24 02:06:41 - app.startup_checks - INFO - [startup_checks.py:302] - Running startup integrity checks...
+2026-01-24 02:06:41 - app.startup_checks - INFO - [startup_checks.py:272] - Config integrity check passed
+2026-01-24 02:06:41 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ config_integrity: Configuration is valid
+2026-01-24 02:06:41 - app.startup_checks - INFO - [startup_checks.py:195] - Required files check passed
+2026-01-24 02:06:41 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ required_files: All required files and directories present
+2026-01-24 02:06:41 - app.startup_checks - INFO - [startup_checks.py:121] - Database schema check passed
+2026-01-24 02:06:41 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ database_schema: All required tables present
+2026-01-24 02:06:41 - app.startup_checks - INFO - [startup_checks.py:345] - Integrity checks complete: 3 passed, 0 warnings, 0 failed
+2026-01-24 02:06:41 - __main__ - INFO - [main.py:504] - Startup Integrity Check Results:
+========================================
+✓ config_integrity: Configuration is valid
+✓ required_files: All required files and directories present
+✓ database_schema: All required tables present
+========================================
+2026-01-24 02:06:41 - __main__ - INFO - [main.py:534] - Preloading questions into memory...
+2026-01-24 02:06:41 - app.questions - INFO - [questions.py:52] - Loaded 0 active questions into memory.
+2026-01-24 02:06:41 - app.questions - INFO - [questions.py:87] - Questions not initialized, loading now...
+2026-01-24 02:06:41 - app.questions - INFO - [questions.py:52] - Loaded 0 active questions into memory.
+2026-01-24 02:06:42 - app.error_handler - ERROR - [error_handler.py:134] - [HIGH] tkinter.callback: ValueError - dictionary update sequence element #0 has length 1; 2 is required
+Traceback (most recent call last):
+  File "C:\Users\ayaan shaikh\AppData\Local\Programs\Python\Python314\Lib\tkinter\__init__.py", line 2082, in __call__
+    return self.func(*args)
+           ~~~~~~~~~^^^^^^^
+  File "C:\Users\ayaan shaikh\AppData\Local\Programs\Python\Python314\Lib\tkinter\__init__.py", line 876, in callit
+    func(*args, **kw)
+    ~~~~^^^^^^^^^^^^^
+  File "c:\Users\ayaan shaikh\Documents\EWOC\SOUL-SENSE\app\main.py", line 97, in show_login_screen
+    self._setup_login_form(login_win)
+    ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^
+  File "c:\Users\ayaan shaikh\Documents\EWOC\SOUL-SENSE\app\main.py", line 123, in _setup_login_form
+    tk.Label(
+    ~~~~~~~~^
+        login_win, "SoulSense AI",
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+        font=("Segoe UI", 24, "bold"), bg=self.colors["bg"], fg=self.colors["primary"]
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ).pack(pady=(40, 10))
+    ^
+  File "C:\Users\ayaan shaikh\AppData\Local\Programs\Python\Python314\Lib\tkinter\__init__.py", line 3377, in __init__
+    Widget.__init__(self, master, 'label', cnf, kw)
+    ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ayaan shaikh\AppData\Local\Programs\Python\Python314\Lib\tkinter\__init__.py", line 2780, in __init__
+    cnf = _cnfmerge((cnf, kw))
+  File "C:\Users\ayaan shaikh\AppData\Local\Programs\Python\Python314\Lib\tkinter\__init__.py", line 116, in _cnfmerge
+    cnf.update(c)
+    ~~~~~~~~~~^^^
+ValueError: dictionary update sequence element #0 has length 1; 2 is required
+2026-01-24 02:06:42 - root - ERROR - [main.py:474] - Interface Error: An unexpected error occurred. Please try again. - dictionary update sequence element #0 has length 1; 2 is required
+2026-01-24 02:06:48 - __main__ - INFO - [main.py:446] - Initiating graceful application shutdown...
+2026-01-24 02:06:48 - __main__ - INFO - [main.py:455] - Database session committed and removed successfully
+2026-01-24 02:06:48 - __main__ - INFO - [main.py:460] - Application shutdown complete
+2026-01-24 02:07:17 - root - INFO - [logger.py:85] - Logging initialized.
+2026-01-24 02:07:17 - app.startup_checks - INFO - [startup_checks.py:302] - Running startup integrity checks...
+2026-01-24 02:07:17 - app.startup_checks - INFO - [startup_checks.py:272] - Config integrity check passed
+2026-01-24 02:07:17 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ config_integrity: Configuration is valid
+2026-01-24 02:07:17 - app.startup_checks - INFO - [startup_checks.py:195] - Required files check passed
+2026-01-24 02:07:17 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ required_files: All required files and directories present
+2026-01-24 02:07:17 - app.startup_checks - INFO - [startup_checks.py:121] - Database schema check passed
+2026-01-24 02:07:17 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ database_schema: All required tables present
+2026-01-24 02:07:17 - app.startup_checks - INFO - [startup_checks.py:345] - Integrity checks complete: 3 passed, 0 warnings, 0 failed
+2026-01-24 02:07:17 - __main__ - INFO - [main.py:504] - Startup Integrity Check Results:
+========================================
+✓ config_integrity: Configuration is valid
+✓ required_files: All required files and directories present
+✓ database_schema: All required tables present
+========================================
+2026-01-24 02:07:17 - __main__ - INFO - [main.py:534] - Preloading questions into memory...
+2026-01-24 02:07:17 - app.questions - INFO - [questions.py:52] - Loaded 0 active questions into memory.
+2026-01-24 02:07:18 - app.questions - INFO - [questions.py:87] - Questions not initialized, loading now...
+2026-01-24 02:07:18 - app.questions - INFO - [questions.py:52] - Loaded 0 active questions into memory.
+2026-01-24 02:07:18 - app.error_handler - ERROR - [error_handler.py:134] - [HIGH] tkinter.callback: AttributeError - 'SoulSenseApp' object has no attribute '_setup_login_buttons'
+Traceback (most recent call last):
+  File "C:\Users\ayaan shaikh\AppData\Local\Programs\Python\Python314\Lib\tkinter\__init__.py", line 2082, in __call__
+    return self.func(*args)
+           ~~~~~~~~~^^^^^^^
+  File "C:\Users\ayaan shaikh\AppData\Local\Programs\Python\Python314\Lib\tkinter\__init__.py", line 876, in callit
+    func(*args, **kw)
+    ~~~~^^^^^^^^^^^^^
+  File "c:\Users\ayaan shaikh\Documents\EWOC\SOUL-SENSE\app\main.py", line 97, in show_login_screen
+    self._setup_login_form(login_win)
+    ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^
+  File "c:\Users\ayaan shaikh\Documents\EWOC\SOUL-SENSE\app\main.py", line 144, in _setup_login_form
+    self._setup_login_buttons(login_win, username_entry, password_entry)
+    ^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'SoulSenseApp' object has no attribute '_setup_login_buttons'. Did you mean: '_setup_login_form'?
+2026-01-24 02:07:18 - root - ERROR - [main.py:474] - Interface Error: An unexpected error occurred. Please try again. - 'SoulSenseApp' object has no attribute '_setup_login_buttons'
+2026-01-24 02:07:28 - __main__ - INFO - [main.py:446] - Initiating graceful application shutdown...
+2026-01-24 02:07:28 - __main__ - INFO - [main.py:455] - Database session committed and removed successfully
+2026-01-24 02:07:28 - __main__ - INFO - [main.py:460] - Application shutdown complete

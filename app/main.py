@@ -93,43 +93,54 @@ class SoulSenseApp:
 
     def show_login_screen(self) -> None:
         """Show login popup on startup"""
+        login_win = self._create_login_window()
+        self._setup_login_form(login_win)
+    
+    def _create_login_window(self) -> tk.Toplevel:
+        """Create and configure login window"""
         login_win = tk.Toplevel(self.root)
         login_win.title("SoulSense Login")
         login_win.geometry("400x500")
         login_win.configure(bg=self.colors["bg"])
         login_win.transient(self.root)
         login_win.grab_set()
-        
-        # Prevent closing without login
         login_win.protocol("WM_DELETE_WINDOW", lambda: self.root.destroy())
         
-        # Center
-        login_win.update_idletasks()
-        x = self.root.winfo_x() + (self.root.winfo_width() - 400) // 2
-        y = self.root.winfo_y() + (self.root.winfo_height() - 500) // 2
-        login_win.geometry(f"+{x}+{y}")
-
-        # Logo/Title
-        tk.Label(login_win, text="SoulSense AI", font=("Segoe UI", 24, "bold"), 
-                 bg=self.colors["bg"], fg=self.colors["primary"]).pack(pady=(40, 10))
+        # Center window
+        self._center_window(login_win, 400, 500)
+        return login_win
+    
+    def _center_window(self, window: tk.Toplevel, width: int, height: int) -> None:
+        """Center window on parent"""
+        window.update_idletasks()
+        x = self.root.winfo_x() + (self.root.winfo_width() - width) // 2
+        y = self.root.winfo_y() + (self.root.winfo_height() - height) // 2
+        window.geometry(f"+{x}+{y}")
+    
+    def _setup_login_form(self, login_win: tk.Toplevel) -> None:
+        """Setup login form elements"""
+        # Header
+        tk.Label(
+            login_win, text="SoulSense AI", 
+            font=("Segoe UI", 24, "bold"), bg=self.colors["bg"], fg=self.colors["primary"]
+        ).pack(pady=(40, 10))
         
-        tk.Label(login_win, text="Login to continue", font=("Segoe UI", 12), 
-                 bg=self.colors["bg"], fg=self.colors["text_secondary"]).pack(pady=(0, 30))
+        tk.Label(
+            login_win, text="Login to continue",
+            font=("Segoe UI", 12), bg=self.colors["bg"], fg=self.colors["text_secondary"]
+        ).pack(pady=(0, 30))
         
         # Form
         entry_frame = tk.Frame(login_win, bg=self.colors["bg"])
         entry_frame.pack(fill="x", padx=40)
         
-        tk.Label(entry_frame, text="Username", font=("Segoe UI", 10, "bold"), 
-                 bg=self.colors["bg"], fg=self.colors["text_primary"]).pack(anchor="w")
         username_entry = tk.Entry(entry_frame, font=("Segoe UI", 12))
         username_entry.pack(fill="x", pady=(5, 15))
         
-        tk.Label(entry_frame, text="Password", font=("Segoe UI", 10, "bold"), 
-                 bg=self.colors["bg"], fg=self.colors["text_primary"]).pack(anchor="w")
         password_entry = tk.Entry(entry_frame, font=("Segoe UI", 12), show="*")
         password_entry.pack(fill="x", pady=(5, 20))
         
+        # Buttons
         def do_login():
             user = username_entry.get().strip()
             pwd = password_entry.get().strip()
@@ -141,7 +152,6 @@ class SoulSenseApp:
             success, msg = self.auth.login_user(user, pwd)
             if success:
                 self.username = user
-                # Load User Settings from DB
                 self._load_user_settings(user)
                 login_win.destroy()
                 self._post_login_init()
@@ -162,18 +172,22 @@ class SoulSenseApp:
             else:
                 messagebox.showerror("Registration Failed", msg)
 
-        # Buttons
-        tk.Button(login_win, text="Login", command=do_login,
-                 font=("Segoe UI", 12, "bold"), bg=self.colors["primary"], fg="white",
-                 width=20).pack(pady=10)
+        tk.Button(
+            login_win, text="Login", command=do_login,
+            font=("Segoe UI", 12, "bold"), bg=self.colors["primary"], fg="white", width=20
+        ).pack(pady=10)
                  
-        tk.Button(login_win, text="Create Account", command=do_register,
-                 font=("Segoe UI", 10), bg=self.colors["bg"], fg=self.colors["primary"],
-                 bd=0, cursor="hand2").pack()
+        tk.Button(
+            login_win, text="Create Account", command=do_register,
+            font=("Segoe UI", 10), bg=self.colors["bg"], fg=self.colors["primary"], bd=0
+        ).pack()
 
     def _load_user_settings(self, username: str) -> None:
         """Load settings from DB for user"""
-        try:
+        from app.utils.error_handler import handle_db_error
+        
+        @handle_db_error
+        def load_settings():
             from app.db import get_session
             from app.models import User
             
@@ -187,12 +201,12 @@ class SoulSenseApp:
                         "question_count": user_obj.settings.question_count,
                         "sound_enabled": user_obj.settings.sound_enabled
                     }
-                    # Apply Theme immediately
                     if self.settings.get("theme"):
                         self.apply_theme(self.settings["theme"])
             session.close()
-        except Exception as e:
-            self.logger.error(f"Error loading settings: {e}")
+            return True
+        
+        load_settings()
 
     def _post_login_init(self) -> None:
         """Initialize UI after login"""
@@ -307,109 +321,93 @@ class SoulSenseApp:
         hub.render()
 
     def show_home(self):
-        # --- WEB-STYLE HERO DASHBOARD ---
+        """Show home dashboard"""
+        self.clear_screen()
+        self._create_hero_section()
+        self._create_journal_summary()
+        self._create_action_cards()
+    
+    def _create_hero_section(self) -> None:
+        """Create hero section with greeting"""
+        from app.ui.components import UIComponents
         
-        # Clear previous
-        for widget in self.content_area.winfo_children():
-            widget.destroy()
-            
-        # Main Scrollable Container (Optional, but good for web feel)
-        # For now, simple pack is cleaner for fixed size
-        
-        # 1. Hero Section (Greeting)
         hero_frame = tk.Frame(self.content_area, bg=self.colors["primary"], height=200)
         hero_frame.pack(fill="x", padx=30, pady=(30, 20))
-        hero_frame.pack_propagate(False) # Force height
+        hero_frame.pack_propagate(False)
         
-        # Hero Text
-        tk.Label(hero_frame, text=f"Welcome back, {self.username or 'Guest'}!", 
-                 font=("Segoe UI", 28, "bold"), 
-                 bg=self.colors["primary"], fg=self.colors["text_inverse"]).pack(anchor="w", padx=30, pady=(40, 5))
+        UIComponents.create_label(
+            hero_frame, f"Welcome back, {self.username or 'Guest'}!",
+            {"font": ("Segoe UI", 28, "bold"), "bg": self.colors["primary"], "fg": self.colors["text_inverse"]}
+        ).pack(anchor="w", padx=30, pady=(40, 5))
                  
-        tk.Label(hero_frame, text="Ready to continue your journey to better wellbeing?", 
-                 font=("Segoe UI", 14), 
-                 bg=self.colors["primary"], fg=self.colors.get("primary_light", "#E0E7FF")).pack(anchor="w", padx=30)
+        UIComponents.create_label(
+            hero_frame, "Ready to continue your journey to better wellbeing?",
+            {"font": ("Segoe UI", 14), "bg": self.colors["primary"], "fg": self.colors.get("primary_light", "#E0E7FF")}
+        ).pack(anchor="w", padx=30)
+    
+    def _create_journal_summary(self) -> None:
+        """Create journal insights summary"""
+        from app.utils.error_handler import safe_execute
+        
+        @safe_execute("journal_summary_load")
+        def load_journal_data():
+            if not self.username:
+                return None
+                
+            from app.db import get_session
+            from app.models import JournalEntry
+            session = get_session()
+            recent_entries = session.query(JournalEntry)\
+                .filter_by(username=self.username)\
+                .order_by(JournalEntry.entry_date.desc())\
+                .limit(3)\
+                .all()
+            session.close()
+            return recent_entries
+        
+        recent_entries = load_journal_data()
+        if recent_entries:
+            self._render_journal_insights(recent_entries)
+    
+    def _render_journal_insights(self, entries) -> None:
+        """Render journal insights section"""
+        from app.ui.components import UIComponents
+        
+        summary_frame = tk.Frame(self.content_area, bg=self.colors["bg"], pady=10)
+        summary_frame.pack(fill="x", padx=30, pady=(10, 0))
 
-        # Journal Summary Section (Enhanced Journal Feature)
-        if self.username:
-            try:
-                from app.db import get_session
-                from app.models import JournalEntry
-                session = get_session()
-                recent_entries = session.query(JournalEntry)\
-                    .filter_by(username=self.username)\
-                    .order_by(JournalEntry.entry_date.desc())\
-                    .limit(3)\
-                    .all()
-                session.close()
+        UIComponents.create_label(
+            summary_frame, "📝 Recent Journal Insights",
+            {"font": ("Segoe UI", 14, "bold"), "bg": self.colors["bg"], "fg": self.colors["text_primary"]}
+        ).pack(anchor="w")
 
-                if recent_entries:
-                    summary_frame = tk.Frame(self.content_area, bg=self.colors["bg"], pady=10)
-                    summary_frame.pack(fill="x", padx=30, pady=(10, 0))
+        # Calculate average mood
+        avg_mood = sum(getattr(e, 'sentiment_score', 0) or 0 for e in entries) / len(entries)
+        mood_text = "Positive" if avg_mood > 20 else "Neutral" if avg_mood > -20 else "Negative"
+        mood_color = "#4CAF50" if avg_mood > 20 else "#FF9800" if avg_mood > -20 else "#F44336"
 
-                    tk.Label(summary_frame, text="📝 Recent Journal Insights",
-                             font=("Segoe UI", 14, "bold"), bg=self.colors["bg"],
-                             fg=self.colors["text_primary"]).pack(anchor="w")
-
-                    # Calculate average mood
-                    avg_mood = sum(getattr(e, 'sentiment_score', 0) or 0 for e in recent_entries) / len(recent_entries)
-                    mood_text = "Positive" if avg_mood > 20 else "Neutral" if avg_mood > -20 else "Negative"
-                    mood_color = "#4CAF50" if avg_mood > 20 else "#FF9800" if avg_mood > -20 else "#F44336"
-
-                    tk.Label(summary_frame, text=f"Average mood over last {len(recent_entries)} entries: {mood_text}",
-                             font=("Segoe UI", 11), bg=self.colors["bg"], fg=mood_color).pack(anchor="w", pady=(5, 0))
-            except Exception as e:
-                self.logger.error(f"Failed to load journal summary: {e}")
-
-        # 2. Quick Actions Grid
+        UIComponents.create_label(
+            summary_frame, f"Average mood over last {len(entries)} entries: {mood_text}",
+            {"font": ("Segoe UI", 11), "bg": self.colors["bg"], "fg": mood_color}
+        ).pack(anchor="w", pady=(5, 0))
+    
+    def _create_action_cards(self) -> None:
+        """Create quick action cards grid"""
+        from app.ui.components import UIComponents
+        
         grid_frame = tk.Frame(self.content_area, bg=self.colors["bg"])
         grid_frame.pack(fill="both", expand=True, padx=30)
-
-        # Card Helper
-        def create_web_card(parent, title, desc, icon, color, cmd):
-            card = tk.Frame(parent, bg=self.colors["surface"], padx=25, pady=25,
-                           highlightbackground=self.colors.get("border", "#E2E8F0"), highlightthickness=1)
-
-            # Icon Circle
-            icon_canvas = tk.Canvas(card, width=50, height=50, bg=self.colors["surface"], highlightthickness=0)
-            icon_canvas.pack(anchor="w", pady=(0, 15))
-            icon_canvas.create_oval(2, 2, 48, 48, fill=color, outline=color)
-            icon_canvas.create_text(25, 25, text=icon, font=("Segoe UI", 20), fill="white")
-
-            # Text
-            tk.Label(card, text=title, font=("Segoe UI", 16, "bold"),
-                     bg=self.colors["surface"], fg=self.colors["text_primary"]).pack(anchor="w")
-
-            tk.Label(card, text=desc, font=("Segoe UI", 11), wraplength=200, justify="left",
-                     bg=self.colors["surface"], fg=self.colors["text_secondary"]).pack(anchor="w", pady=(5, 20))
-
-            # Pseudo-Button
-            btn_lbl = tk.Label(card, text="Open →", font=("Segoe UI", 11, "bold"),
-                              bg=self.colors["surface"], fg=self.colors["primary"], cursor="hand2")
-            btn_lbl.pack(anchor="w")
-
-            # Bind Events
-            card.bind("<Enter>", lambda e: card.configure(bg=self.colors.get("sidebar_hover", "#F1F5F9")))
-            card.bind("<Leave>", lambda e: card.configure(bg=self.colors["surface"]))
-            card.bind("<Button-1>", lambda e: cmd())
-            btn_lbl.bind("<Button-1>", lambda e: cmd())
-
-            return card
-
-        # Layout Cards
-        # Grid: 3 columns
-        card1 = create_web_card(grid_frame, "Assessment", "Track your mental growth with detailed quizzes.", "🧠", self.colors["primary"], lambda: self.sidebar.select_item("exam"))
-        card1.grid(row=0, column=0, padx=15, pady=15, sticky="nsew")
-
-        card2 = create_web_card(grid_frame, "Daily Journal", "Record your thoughts and analyze patterns.", "📝", self.colors["success"], lambda: self.sidebar.select_item("journal"))
-        card2.grid(row=0, column=1, padx=15, pady=15, sticky="nsew")
-
-        card3 = create_web_card(grid_frame, "Analytics", "Visualize your wellbeing trends over time.", "📊", self.colors["accent"], lambda: self.sidebar.select_item("dashboard"))
-        card3.grid(row=0, column=2, padx=15, pady=15, sticky="nsew")
-
-        grid_frame.grid_columnconfigure(0, weight=1)
-        grid_frame.grid_columnconfigure(1, weight=1)
-        grid_frame.grid_columnconfigure(2, weight=1)
+        
+        cards_data = [
+            ("Assessment", "Track your mental growth with detailed quizzes.", "🧠", self.colors["primary"], lambda: self.sidebar.select_item("exam")),
+            ("Daily Journal", "Record your thoughts and analyze patterns.", "📝", self.colors["success"], lambda: self.sidebar.select_item("journal")),
+            ("Analytics", "Visualize your wellbeing trends over time.", "📊", self.colors["accent"], lambda: self.sidebar.select_item("dashboard"))
+        ]
+        
+        for i, (title, desc, icon, color, cmd) in enumerate(cards_data):
+            card = self._create_web_card(grid_frame, title, desc, icon, color, cmd)
+            card.grid(row=0, column=i, padx=15, pady=15, sticky="nsew")
+            grid_frame.grid_columnconfigure(i, weight=1)
 
     def start_exam(self):
         # ExamManager expects 'app' with 'root'. 
@@ -435,25 +433,30 @@ class SoulSenseApp:
         self.exam_manager.start_test()
 
     def show_dashboard(self):
-        # Open Dashboard (Embedded)
-        try:
+        """Open Dashboard (Embedded)"""
+        from app.utils.error_handler import safe_execute
+        
+        @safe_execute("dashboard_render")
+        def render_dashboard():
             self.clear_screen()
             dashboard = AnalyticsDashboard(self.content_area, self.username, theme="dark", colors=self.colors)
             dashboard.render_dashboard()
-        except Exception as e:
-            self.logger.error(f"Dashboard error: {e}")
-            messagebox.showerror("Error", f"Failed to open dashboard: {e}")
+            return True
+        
+        render_dashboard()
 
     def show_journal(self):
-        # Open Journal Application
-        # New embedded mode:
-        self.clear_screen()
-        try:
+        """Open Journal Application"""
+        from app.utils.error_handler import safe_execute
+        
+        @safe_execute("journal_render")
+        def render_journal():
+            self.clear_screen()
             journal_feature = JournalFeature(self.root, app=self)
             journal_feature.render_journal_view(self.content_area, self.username or "Guest")
-        except Exception as e:
-            self.logger.error(f"Journal error: {e}")
-            messagebox.showerror("Error", f"Failed to open journal: {e}")
+            return True
+        
+        render_journal()
 
     def show_profile(self):
         from app.ui.profile import UserProfileView
@@ -620,3 +623,88 @@ if __name__ == "__main__":
         handler.log_error(e, module="main", operation="startup", severity=ErrorSeverity.CRITICAL)
         traceback.print_exc()
 
+    def _setup_login_buttons(self, login_win: tk.Toplevel, username_entry: tk.Entry, password_entry: tk.Entry) -> None:
+        """Setup login and register buttons"""
+        from app.ui.components import UIComponents
+        from app.utils.error_handler import safe_execute
+        
+        @safe_execute("login_attempt")
+        def do_login():
+            user = username_entry.get().strip()
+            pwd = password_entry.get().strip()
+            
+            if not user or not pwd:
+                messagebox.showerror("Error", "Please enter username and password")
+                return
+                
+            success, msg = self.auth.login_user(user, pwd)
+            if success:
+                self.username = user
+                self._load_user_settings(user)
+                login_win.destroy()
+                self._post_login_init()
+            else:
+                messagebox.showerror("Login Failed", msg)
+        
+        @safe_execute("register_attempt")
+        def do_register():
+            user = username_entry.get().strip()
+            pwd = password_entry.get().strip()
+             
+            if not user or not pwd:
+                 messagebox.showerror("Error", "Please enter username and password")
+                 return
+                 
+            success, msg = self.auth.register_user(user, pwd)
+            if success:
+                messagebox.showinfo("Success", "Account created! You can now login.")
+            else:
+                messagebox.showerror("Registration Failed", msg)
+
+        # Create buttons
+        UIComponents.create_button(
+            login_win, "Login", do_login,
+            {"font": ("Segoe UI", 12, "bold"), "bg": self.colors["primary"], "fg": "white", "width": 20}
+        ).pack(pady=10)
+                 
+        UIComponents.create_button(
+            login_win, "Create Account", do_register,
+            {"font": ("Segoe UI", 10), "bg": self.colors["bg"], "fg": self.colors["primary"], "bd": 0}
+        ).pack()
+    def _create_web_card(self, parent, title: str, desc: str, icon: str, color: str, cmd: Callable) -> tk.Frame:
+        """Create interactive web-style card"""
+        from app.ui.components import UIComponents
+        
+        card = UIComponents.create_card(parent, self.colors)
+        
+        # Icon Circle
+        icon_canvas = tk.Canvas(card, width=50, height=50, bg=self.colors["surface"], highlightthickness=0)
+        icon_canvas.pack(anchor="w", pady=(0, 15))
+        icon_canvas.create_oval(2, 2, 48, 48, fill=color, outline=color)
+        icon_canvas.create_text(25, 25, text=icon, font=("Segoe UI", 20), fill="white")
+
+        # Text
+        UIComponents.create_label(
+            card, title,
+            {"font": ("Segoe UI", 16, "bold"), "bg": self.colors["surface"], "fg": self.colors["text_primary"]}
+        ).pack(anchor="w")
+
+        UIComponents.create_label(
+            card, desc,
+            {"font": ("Segoe UI", 11), "wraplength": 200, "justify": "left", "bg": self.colors["surface"], "fg": self.colors["text_secondary"]}
+        ).pack(anchor="w", pady=(5, 20))
+
+        # Action button
+        btn_lbl = UIComponents.create_label(
+            card, "Open →",
+            {"font": ("Segoe UI", 11, "bold"), "bg": self.colors["surface"], "fg": self.colors["primary"], "cursor": "hand2"}
+        )
+        btn_lbl.pack(anchor="w")
+
+        # Bind Events
+        card.bind("<Enter>", lambda e: card.configure(bg=self.colors.get("sidebar_hover", "#F1F5F9")))
+        card.bind("<Leave>", lambda e: card.configure(bg=self.colors["surface"]))
+        card.bind("<Button-1>", lambda e: cmd())
+        btn_lbl.bind("<Button-1>", lambda e: cmd())
+
+        return card
