@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "f2a2468b-56d1-4235-9831-50794b62f433",
     "name": "SoulSense API v1",
-    "description": "Postman collection for SoulSense API v1 testing. Includes automated token management.",
+    "description": "Comprehensive Postman collection for SoulSense API v1 testing. Includes automated token management and full endpoint coverage.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -87,6 +87,186 @@
       ]
     },
     {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Get Current User",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/users/me",
+              "host": ["{{base_url}}"],
+              "path": ["users", "me"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Profiles",
+      "item": [
+        {
+          "name": "Settings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/profiles/settings",
+              "host": ["{{base_url}}"],
+              "path": ["profiles", "settings"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Medical",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/profiles/medical",
+              "host": ["{{base_url}}"],
+              "path": ["profiles", "medical"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Personal",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/profiles/personal",
+              "host": ["{{base_url}}"],
+              "path": ["profiles", "personal"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Strengths",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/profiles/strengths",
+              "host": ["{{base_url}}"],
+              "path": ["profiles", "strengths"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Emotional",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/profiles/emotional",
+              "host": ["{{base_url}}"],
+              "path": ["profiles", "emotional"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Questions",
+      "item": [
+        {
+          "name": "Get Questions (Paginated)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/questions/?limit=5",
+              "host": ["{{base_url}}"],
+              "path": ["questions", ""],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "5"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Categories",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/questions/categories",
+              "host": ["{{base_url}}"],
+              "path": ["questions", "categories"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Assessments",
+      "item": [
+        {
+          "name": "List Assessments",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/assessments/?limit=10",
+              "host": ["{{base_url}}"],
+              "path": ["assessments", ""],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Stats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/assessments/stats",
+              "host": ["{{base_url}}"],
+              "path": ["assessments", "stats"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Analytics",
+      "item": [
+        {
+          "name": "Global Summary",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/analytics/summary",
+              "host": ["{{base_url}}"],
+              "path": ["analytics", "summary"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
       "name": "Journal",
       "item": [
         {
@@ -131,7 +311,7 @@
           "response": []
         },
         {
-          "name": "Analytics",
+          "name": "Journal Analytics",
           "request": {
             "method": "GET",
             "header": [],
@@ -139,24 +319,6 @@
               "raw": "{{base_url}}/journal/analytics",
               "host": ["{{base_url}}"],
               "path": ["journal", "analytics"]
-            }
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "Profiles",
-      "item": [
-        {
-          "name": "Get User Profile",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{base_url}}/users/me",
-              "host": ["{{base_url}}"],
-              "path": ["users", "me"]
             }
           },
           "response": []
@@ -232,22 +394,6 @@
       }
     ]
   },
-  "event": [
-    {
-      "listen": "prerequest",
-      "script": {
-        "type": "text/javascript",
-        "exec": [""]
-      }
-    },
-    {
-      "listen": "test",
-      "script": {
-        "type": "text/javascript",
-        "exec": [""]
-      }
-    }
-  ],
   "variable": [
     {
       "key": "base_url",
