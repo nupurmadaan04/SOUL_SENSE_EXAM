@@ -10,9 +10,9 @@ permissions:
 jobs:
   auto-label-domain:
     runs-on: ubuntu-latest
-    if: github.actor != 'github-actions[bot]'
+    if: github.actor != 'github-actions[bot]' && !endsWith(github.actor, '[bot]')
     steps:
-      - name: Detect and Add Domain Labels
+      - name: Detect and Add Domain & Meta Labels
         uses: actions/github-script@v6
         with:
           script: |
@@ -20,21 +20,27 @@ jobs:
             const owner = context.repo.owner;
             const repo = context.repo.repo;
 
+            // Configuration
+            const MAX_TOTAL_LABELS = 6;
+            const MAX_DOMAIN_LABELS = 4;
+
             // Get issue text (title + body)
-            const text = (issue.title + ' ' + (issue.body || '')).toLowerCase();
+            const title = (issue.title || '').toLowerCase();
+            const body = (issue.body || '').toLowerCase();
+            const text = title + ' ' + body;
 
-            // Current labels
-            const currentLabels = issue.labels.map(function(l) { return l.name.toLowerCase(); });
+            // Current labels (lowercase for comparison)
+            const currentLabels = issue.labels.map(l => l.name.toLowerCase());
 
-            // Domain label definitions with keywords
-            // Requires 2+ keyword matches to add label (prevents false positives)
+            // ==================== DOMAIN LABELS ====================
+            // Requires 2+ keyword matches to add label
             const domainConfig = {
               'frontend': {
-                keywords: ['react', 'ui', 'css', 'html', 'tailwind', 'component', 'button', 'page', 'layout', 'style', 'responsive', 'navbar', 'sidebar', 'modal', 'form'],
+                keywords: ['react', 'ui', 'css', 'html', 'tailwind', 'component', 'button', 'page', 'layout', 'style', 'responsive', 'navbar', 'sidebar', 'modal', 'form', 'vue', 'angular'],
                 minMatches: 2
               },
               'backend': {
-                keywords: ['api', 'server', 'database', 'sql', 'endpoint', 'route', 'fastapi', 'flask', 'django', 'express', 'mongodb', 'postgres', 'mysql', 'rest', 'graphql'],
+                keywords: ['api', 'server', 'database', 'sql', 'endpoint', 'route', 'fastapi', 'flask', 'django', 'express', 'mongodb', 'postgres', 'mysql', 'rest', 'graphql', 'authentication'],
                 minMatches: 2
               },
               'mobile': {
@@ -53,59 +59,124 @@ jobs:
                 keywords: ['machine learning', 'model', 'train', 'predict', 'tensorflow', 'pytorch', 'sklearn', 'neural', 'dataset', 'ai', 'classification', 'regression'],
                 minMatches: 2
               },
-              'documentation': {
-                keywords: ['documentation', 'readme', 'docs', 'guide', 'tutorial', 'wiki', 'markdown', 'contributing', 'changelog'],
-                minMatches: 2
-              },
               'testing': {
-                keywords: ['test', 'unittest', 'pytest', 'jest', 'coverage', 'ci', 'integration test', 'e2e', 'mock'],
+                keywords: ['test', 'unittest', 'pytest', 'jest', 'coverage', 'ci', 'integration test', 'e2e', 'mock', 'spec'],
                 minMatches: 2
               },
               'devops': {
-                keywords: ['docker', 'kubernetes', 'ci/cd', 'github actions', 'workflow', 'deploy', 'nginx', 'aws', 'azure', 'gcp'],
+                keywords: ['docker', 'kubernetes', 'ci/cd', 'github actions', 'workflow', 'deploy', 'nginx', 'aws', 'azure', 'gcp', 'terraform'],
                 minMatches: 2
               }
             };
 
-            const labelsToAdd = [];
+            // ==================== META LABELS ====================
+            // Requires only 1 match (explicitly stated in issues)
+            const metaLabelConfig = {
+              'bug': {
+                keywords: ['bug', 'error', 'crash', 'fix', 'broken', 'fail', 'not working', 'exception', 'traceback', 'issue with'],
+                minMatches: 1
+              },
+              'enhancement': {
+                keywords: ['feature', 'improve', 'add', 'new', 'request', 'enhance', 'upgrade', 'would be nice', 'suggestion', 'could we'],
+                minMatches: 1
+              },
+              'good first issue': {
+                keywords: ['beginner', 'easy', 'starter', 'simple', 'first', 'quick', 'small', 'low-hanging', 'newbie', 'trivial', 'straightforward'],
+                minMatches: 1
+              },
+              'help wanted': {
+                keywords: ['help', 'stuck', 'need assistance', 'advice', 'guidance', 'blocked', 'support needed'],
+                minMatches: 1
+              },
+              'question': {
+                keywords: ['how do', 'why does', 'what is', 'question', 'ask', 'clarify', 'confused', 'unsure', 'explain', 'can someone'],
+                minMatches: 1
+              },
+              'documentation': {
+                keywords: ['docs', 'readme', 'typo', 'documentation', 'guide', 'wiki', 'tutorial', 'spelling', 'grammar'],
+                minMatches: 1
+              }
+            };
 
+            // ==================== SCORING LOGIC ====================
+            function calculateScore(text, title, keywords) {
+              let score = 0;
+              for (const keyword of keywords) {
+                // Title matches worth 2x (users summarize core problem in title)
+                if (title.includes(keyword)) score += 2;
+                // Body matches worth 1x
+                else if (text.includes(keyword)) score += 1;
+              }
+              return score;
+            }
+
+            // Score domain labels
+            const scoredDomains = [];
             for (const [domain, config] of Object.entries(domainConfig)) {
-              // Skip if label already exists
-              if (currentLabels.includes(domain)) {
-                console.log('Label already exists: ' + domain);
-                continue;
-              }
+              if (currentLabels.includes(domain)) continue;
               
-              // Count keyword matches
-              let matchCount = 0;
-              for (const keyword of config.keywords) {
-                if (text.includes(keyword)) {
-                  matchCount++;
-                }
-              }
-              
-              // Add label if enough matches
-              if (matchCount >= config.minMatches) {
-                labelsToAdd.push(domain);
-                console.log('Detected domain: ' + domain + ' (' + matchCount + ' matches)');
+              const score = calculateScore(text, title, config.keywords);
+              if (score >= config.minMatches) {
+                scoredDomains.push({ label: domain, score, type: 'domain' });
               }
             }
 
-            // Add detected labels
-            if (labelsToAdd.length > 0) {
-              await github.rest.issues.addLabels({
-                owner, repo,
-                issue_number: issue.number,
-                labels: labelsToAdd
-              });
-              console.log('Added labels: ' + labelsToAdd.join(', '));
+            // Sort by score descending and take top MAX_DOMAIN_LABELS
+            scoredDomains.sort((a, b) => b.score - a.score);
+            const topDomains = scoredDomains.slice(0, MAX_DOMAIN_LABELS);
+
+            // Score meta labels
+            const scoredMeta = [];
+            for (const [label, config] of Object.entries(metaLabelConfig)) {
+              if (currentLabels.includes(label)) continue;
               
-              // Add a comment explaining the auto-labels
-              await github.rest.issues.createComment({
-                owner, repo,
-                issue_number: issue.number,
-                body: '🏷️ **Auto-detected domain labels:** ' + labelsToAdd.map(function(l) { return '`' + l + '`'; }).join(', ') + '\n\n_These labels were added based on keywords in your issue. Maintainers may adjust them if needed._'
-              });
+              const score = calculateScore(text, title, config.keywords);
+              if (score >= config.minMatches) {
+                scoredMeta.push({ label, score, type: 'meta' });
+              }
+            }
+
+            // Sort meta labels by score descending
+            scoredMeta.sort((a, b) => b.score - a.score);
+
+            // ==================== COMBINE & LIMIT ====================
+            // Prioritize: meta labels first, then domains (users care more about type)
+            const allCandidates = [...scoredMeta, ...topDomains];
+            const labelsToAdd = allCandidates.slice(0, MAX_TOTAL_LABELS).map(c => c.label);
+
+            // ==================== APPLY LABELS ====================
+            if (labelsToAdd.length > 0) {
+              try {
+                await github.rest.issues.addLabels({
+                  owner, repo,
+                  issue_number: issue.number,
+                  labels: labelsToAdd
+                });
+                console.log('Added labels: ' + labelsToAdd.join(', '));
+
+                // Categorize for comment
+                const addedDomains = labelsToAdd.filter(l => Object.keys(domainConfig).includes(l));
+                const addedMeta = labelsToAdd.filter(l => Object.keys(metaLabelConfig).includes(l));
+
+                let commentBody = '🏷️ **Auto-detected labels:**\n\n';
+                if (addedMeta.length > 0) {
+                  commentBody += '**Type:** ' + addedMeta.map(l => '`' + l + '`').join(', ') + '\n';
+                }
+                if (addedDomains.length > 0) {
+                  commentBody += '**Domain:** ' + addedDomains.map(l => '`' + l + '`').join(', ') + '\n';
+                }
+                commentBody += '\n_Labels added based on issue content. Maintainers may adjust if needed._';
+
+                await github.rest.issues.createComment({
+                  owner, repo,
+                  issue_number: issue.number,
+                  body: commentBody
+                });
+              } catch (error) {
+                // Handle case where label doesn't exist in repo
+                console.log('Error adding labels: ' + error.message);
+                console.log('Some labels may not exist in the repository.');
+              }
             } else {
-              console.log('No domain labels detected (insufficient keyword matches)');
+              console.log('No labels detected (insufficient keyword matches)');
             }
