@@ -39,6 +39,26 @@ class User(Base):
     personal_profile = relationship("PersonalProfile", uselist=False, back_populates="user", cascade="all, delete-orphan")
     strengths = relationship("UserStrengths", uselist=False, back_populates="user", cascade="all, delete-orphan")
     emotional_patterns = relationship("UserEmotionalPatterns", uselist=False, back_populates="user", cascade="all, delete-orphan")
+    sync_settings = relationship("UserSyncSetting", back_populates="user", cascade="all, delete-orphan")
+
+
+class UserSyncSetting(Base):
+    """Store user-specific sync settings as key-value pairs with version control for conflict detection."""
+    __tablename__ = 'user_sync_settings'
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False, index=True)
+    key = Column(String(100), nullable=False)
+    value = Column(Text, nullable=True)  # JSON-serialized value
+    version = Column(Integer, default=1, nullable=False)  # For optimistic locking
+    created_at = Column(String, default=lambda: datetime.utcnow().isoformat())
+    updated_at = Column(String, default=lambda: datetime.utcnow().isoformat())
+    
+    user = relationship("User", back_populates="sync_settings")
+    
+    __table_args__ = (
+        Index('idx_sync_user_key', 'user_id', 'key', unique=True),
+    )
 
 class UserSettings(Base):
     __tablename__ = 'user_settings'

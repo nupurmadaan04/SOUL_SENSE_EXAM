@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .config import get_settings
-from .routers import health, assessments, auth, users, profiles, analytics, questions, journal
+from .routers import health, assessments, auth, users, profiles, analytics, questions, journal, settings_sync
 
 settings = get_settings()
 
@@ -33,6 +33,7 @@ def create_app() -> FastAPI:
     app.include_router(questions.router, prefix="/api/questions", tags=["questions"])
     app.include_router(analytics.router, prefix="/api/v1/analytics", tags=["analytics"])
     app.include_router(journal.router, prefix="/api", tags=["journal"])
+    app.include_router(settings_sync.router, prefix="/api/sync", tags=["settings-sync"])
 
     @app.on_event("startup")
     async def startup_event():
@@ -41,7 +42,7 @@ def create_app() -> FastAPI:
         print(f"🌐 Environment: {settings.app_env}")
         print(f"🔧 Debug mode: {settings.debug}")
         print(f"💾 Database: {settings.database_url}")
-        print(f"📋 Registered routers: health, auth, users, profiles, assessments, questions, analytics")
+        print(f"📋 Registered routers: health, auth, users, profiles, assessments, questions, analytics, settings-sync")
 
     return app
 
