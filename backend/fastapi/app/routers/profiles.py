@@ -39,7 +39,7 @@ from ..routers.auth import get_current_user
 from ..services.db_service import get_db
 from app.models import User
 
-router = APIRouter(prefix="/profiles", tags=["Profiles"])
+router = APIRouter(tags=["Profiles"])
 
 
 def get_profile_service():

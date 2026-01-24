@@ -28,7 +28,7 @@ def print_response(endpoint: str, response: requests.Response):
 
 def test_health():
     """Test health endpoint."""
-    response = requests.get(f"{BASE_URL}/health")
+    response = requests.get(f"{BASE_URL}/api/v1/health")
     print_response("GET /health", response)
     return response.status_code == 200
 

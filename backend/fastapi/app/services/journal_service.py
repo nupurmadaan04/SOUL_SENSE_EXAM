@@ -154,6 +154,7 @@ class JournalService:
             emotional_patterns=emotional_patterns,
             word_count=word_count,
             tags=self._parse_tags(tags),
+            privacy_level=privacy_level,
             entry_date=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
             sleep_hours=sleep_hours,
             sleep_quality=sleep_quality,

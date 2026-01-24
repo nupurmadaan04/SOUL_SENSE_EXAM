@@ -26,7 +26,7 @@ def make_request(path, method="GET", data=None, token=None):
     
     body = None
     if data:
-        if method == "POST" and path == "/auth/login":
+        if method == "POST" and "/auth/login" in path:
             # Auth/login uses form data
             body = urllib.parse.urlencode(data).encode("utf-8")
             headers["Content-Type"] = "application/x-www-form-urlencoded"
@@ -58,17 +58,17 @@ def run_tests():
     print("🚀 Starting Comprehensive API Verification...\n")
     
     # 1. Health
-    status, res = make_request("/")
-    log_result("/", "GET", status, res, status == 200)
+    status, res = make_request("/api/v1/health")
+    log_result("/api/v1/health", "GET", status, res, status == 200)
     
     # 2. Auth - Register
     user_data = {"username": f"testuser_{int(time.time())}", "password": "password123"}
-    status, res = make_request("/auth/register", "POST", user_data)
-    log_result("/auth/register", "POST", status, res, status in [200, 201])
+    status, res = make_request("/api/v1/auth/register", "POST", user_data)
+    log_result("/api/v1/auth/register", "POST", status, res, status in [200, 201])
     
     # 3. Auth - Login
-    status, login_res = make_request("/auth/login", "POST", user_data)
-    log_result("/auth/login", "POST", status, login_res, status == 200)
+    status, login_res = make_request("/api/v1/auth/login", "POST", user_data)
+    log_result("/api/v1/auth/login", "POST", status, login_res, status == 200)
     
     token = login_res.get("access_token") if isinstance(login_res, dict) else None
     if not token:
@@ -76,34 +76,34 @@ def run_tests():
         return
     
     # 4. Users
-    status, res = make_request("/auth/me", "GET", token=token)
-    log_result("/auth/me", "GET", status, res, status == 200)
+    status, res = make_request("/api/v1/users/me", "GET", token=token)
+    log_result("/api/v1/users/me", "GET", status, res, status == 200)
     
     # 5. Profiles
     profile_endpoints = [
-        "/api/profiles/settings",
-        "/api/profiles/medical",
-        "/api/profiles/personal",
-        "/api/profiles/strengths",
-        "/api/profiles/emotional"
+        "/api/v1/profiles/settings",
+        "/api/v1/profiles/medical",
+        "/api/v1/profiles/personal",
+        "/api/v1/profiles/strengths",
+        "/api/v1/profiles/emotional"
     ]
     for ep in profile_endpoints:
         status, res = make_request(ep, "GET", token=token)
         log_result(ep, "GET", status, res, status in [200, 404]) # 404 is ok if not created yet
     
     # 6. Questions
-    status, res = make_request("/api/questions/?limit=5", "GET")
-    log_result("/api/questions/", "GET", status, res, status == 200)
+    status, res = make_request("/api/v1/questions/?limit=5", "GET")
+    log_result("/api/v1/questions/", "GET", status, res, status == 200)
     
-    status, res = make_request("/api/questions/categories", "GET")
-    log_result("/api/questions/categories", "GET", status, res, status == 200)
+    status, res = make_request("/api/v1/questions/categories", "GET")
+    log_result("/api/v1/questions/categories", "GET", status, res, status == 200)
     
     # 7. Assessments
-    status, res = make_request("/api/assessments/?limit=5", "GET", token=token)
-    log_result("/api/assessments/", "GET", status, res, status == 200)
+    status, res = make_request("/api/v1/assessments/?limit=5", "GET", token=token)
+    log_result("/api/v1/assessments/", "GET", status, res, status == 200)
     
-    status, res = make_request("/api/assessments/stats", "GET", token=token)
-    log_result("/api/assessments/stats", "GET", status, res, status == 200)
+    status, res = make_request("/api/v1/assessments/stats", "GET", token=token)
+    log_result("/api/v1/assessments/stats", "GET", status, res, status == 200)
     
     # 8. Analytics
     status, res = make_request("/api/v1/analytics/summary", "GET", token=token)
