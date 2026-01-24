@@ -1,9 +1,18 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+
 from .config import get_settings
-from .routers import health, assessments, auth, users, profiles, analytics, questions, journal, settings_sync
+from .api.v1.router import api_router as api_v1_router
 
 settings = get_settings()
+
+
+class VersionHeaderMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        response.headers["X-API-Version"] = "1.0"
+        return response
 
 
 def create_app() -> FastAPI:
@@ -24,16 +33,22 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     
-    # Register all routers
-    app.include_router(health.router, tags=["health"])
-    app.include_router(auth.router, prefix="/auth", tags=["authentication"])
-    app.include_router(users.router, prefix="/api/users", tags=["users"])
-    app.include_router(profiles.router, prefix="/api/profiles", tags=["profiles"])
-    app.include_router(assessments.router, prefix="/api/assessments", tags=["assessments"])
-    app.include_router(questions.router, prefix="/api/questions", tags=["questions"])
-    app.include_router(analytics.router, prefix="/api/v1/analytics", tags=["analytics"])
-    app.include_router(journal.router, prefix="/api", tags=["journal"])
-    app.include_router(settings_sync.router, prefix="/api/sync", tags=["settings-sync"])
+    # Version header middleware
+    app.add_middleware(VersionHeaderMiddleware)
+    
+    # Register V1 API Router
+    app.include_router(api_v1_router, prefix="/api/v1")
+
+    # Root endpoint - version discovery
+    @app.get("/", tags=["Root"])
+    async def root():
+        return {
+            "name": "SoulSense API",
+            "versions": [
+                {"version": "v1", "status": "current", "path": "/api/v1"}
+            ],
+            "documentation": "/docs"
+        }
 
     @app.on_event("startup")
     async def startup_event():
@@ -42,7 +57,7 @@ def create_app() -> FastAPI:
         print(f"🌐 Environment: {settings.app_env}")
         print(f"🔧 Debug mode: {settings.debug}")
         print(f"💾 Database: {settings.database_url}")
-        print(f"📋 Registered routers: health, auth, users, profiles, assessments, questions, analytics, settings-sync")
+        print(f"📋 API available at /api/v1")
 
     return app
 

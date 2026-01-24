@@ -830,3 +830,78 @@ AttributeError: 'UserProfileView' object has no attribute '_render_export_view'.
    → Recovery: Created tables: users, scores, responses, journal_entries, user_settings
 ========================================
 2026-01-24 01:55:51 - app.questions - ERROR - [questions.py:56] - Failed to initialize questions: [E1002] A database error occurred.
+2026-01-24 19:05:11 - root - INFO - [logger.py:85] - Logging initialized.
+2026-01-24 19:05:11 - app.startup_checks - INFO - [startup_checks.py:302] - Running startup integrity checks...
+2026-01-24 19:05:11 - app.startup_checks - INFO - [startup_checks.py:272] - Config integrity check passed
+2026-01-24 19:05:11 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ config_integrity: Configuration is valid
+2026-01-24 19:05:11 - app.startup_checks - INFO - [startup_checks.py:195] - Required files check passed
+2026-01-24 19:05:11 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ required_files: All required files and directories present
+2026-01-24 19:05:11 - app.questions - INFO - [questions.py:52] - Loaded 0 active questions into memory.
+2026-01-24 19:05:11 - app.startup_checks - INFO - [startup_checks.py:121] - Database schema check passed
+2026-01-24 19:05:11 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ database_schema: All required tables present
+2026-01-24 19:05:11 - app.startup_checks - INFO - [startup_checks.py:345] - Integrity checks complete: 3 passed, 0 warnings, 0 failed
+2026-01-24 19:05:11 - __main__ - INFO - [main.py:540] - Startup Integrity Check Results:
+========================================
+✓ config_integrity: Configuration is valid
+✓ required_files: All required files and directories present
+✓ database_schema: All required tables present
+========================================
+2026-01-24 19:05:11 - __main__ - INFO - [main.py:570] - Preloading questions into memory...
+2026-01-24 19:05:11 - app.questions - INFO - [questions.py:52] - Loaded 0 active questions into memory.
+2026-01-24 19:05:12 - app.questions - INFO - [questions.py:87] - Questions not initialized, loading now...
+2026-01-24 19:05:12 - app.questions - INFO - [questions.py:52] - Loaded 0 active questions into memory.
+2026-01-24 19:06:29 - __main__ - INFO - [main.py:482] - Initiating graceful application shutdown...
+2026-01-24 19:06:29 - __main__ - INFO - [main.py:491] - Database session committed and removed successfully
+2026-01-24 19:06:29 - __main__ - INFO - [main.py:496] - Application shutdown complete
+2026-01-24 19:06:55 - root - INFO - [logger.py:85] - Logging initialized.
+2026-01-24 19:06:55 - app.questions - INFO - [questions.py:52] - Loaded 0 active questions into memory.
+2026-01-24 19:06:55 - app.startup_checks - INFO - [startup_checks.py:302] - Running startup integrity checks...
+2026-01-24 19:06:55 - app.startup_checks - INFO - [startup_checks.py:272] - Config integrity check passed
+2026-01-24 19:06:55 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ config_integrity: Configuration is valid
+2026-01-24 19:06:55 - app.startup_checks - INFO - [startup_checks.py:195] - Required files check passed
+2026-01-24 19:06:55 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ required_files: All required files and directories present
+2026-01-24 19:06:55 - app.startup_checks - INFO - [startup_checks.py:121] - Database schema check passed
+2026-01-24 19:06:55 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ database_schema: All required tables present
+2026-01-24 19:06:55 - app.startup_checks - INFO - [startup_checks.py:345] - Integrity checks complete: 3 passed, 0 warnings, 0 failed
+2026-01-24 19:06:55 - __main__ - INFO - [main.py:540] - Startup Integrity Check Results:
+========================================
+✓ config_integrity: Configuration is valid
+✓ required_files: All required files and directories present
+✓ database_schema: All required tables present
+========================================
+2026-01-24 19:06:55 - __main__ - INFO - [main.py:570] - Preloading questions into memory...
+2026-01-24 19:06:55 - app.questions - INFO - [questions.py:52] - Loaded 0 active questions into memory.
+2026-01-24 19:06:55 - app.questions - INFO - [questions.py:87] - Questions not initialized, loading now...
+2026-01-24 19:06:55 - app.questions - INFO - [questions.py:52] - Loaded 0 active questions into memory.
+2026-01-24 19:07:23 - app.services.exam_service - INFO - [exam_service.py:180] - Exam session started for user: rohan
+2026-01-24 19:07:24 - app.ml.clustering - INFO - [clustering.py:617] - Model loaded from B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\ml\models\clustering\emotional_profile_model.pkl
+2026-01-24 19:07:34 - root - ERROR - [profile.py:1344] - Error loading personal profile: 'UserProfileView' object has no attribute 'current_events'
+2026-01-24 19:09:04 - __main__ - INFO - [main.py:482] - Initiating graceful application shutdown...
+2026-01-24 19:09:05 - __main__ - INFO - [main.py:491] - Database session committed and removed successfully
+2026-01-24 19:09:05 - __main__ - INFO - [main.py:496] - Application shutdown complete
+2026-01-24 19:09:05 - __main__ - INFO - [main.py:482] - Initiating graceful application shutdown...
+2026-01-24 19:09:05 - __main__ - INFO - [main.py:491] - Database session committed and removed successfully
+2026-01-24 19:09:05 - __main__ - INFO - [main.py:496] - Application shutdown complete
+2026-01-24 19:19:35 - root - INFO - [logger.py:85] - Logging initialized.
+2026-01-24 19:19:35 - app.startup_checks - INFO - [startup_checks.py:302] - Running startup integrity checks...
+2026-01-24 19:19:35 - app.startup_checks - INFO - [startup_checks.py:272] - Config integrity check passed
+2026-01-24 19:19:35 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ config_integrity: Configuration is valid
+2026-01-24 19:19:35 - app.startup_checks - INFO - [startup_checks.py:195] - Required files check passed
+2026-01-24 19:19:35 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ required_files: All required files and directories present
+2026-01-24 19:19:35 - app.startup_checks - INFO - [startup_checks.py:121] - Database schema check passed
+2026-01-24 19:19:35 - app.questions - INFO - [questions.py:52] - Loaded 0 active questions into memory.
+2026-01-24 19:19:35 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ database_schema: All required tables present
+2026-01-24 19:19:35 - app.startup_checks - INFO - [startup_checks.py:345] - Integrity checks complete: 3 passed, 0 warnings, 0 failed
+2026-01-24 19:19:35 - __main__ - INFO - [main.py:540] - Startup Integrity Check Results:
+========================================
+✓ config_integrity: Configuration is valid
+✓ required_files: All required files and directories present
+✓ database_schema: All required tables present
+========================================
+2026-01-24 19:19:35 - __main__ - INFO - [main.py:570] - Preloading questions into memory...
+2026-01-24 19:19:35 - app.questions - INFO - [questions.py:52] - Loaded 0 active questions into memory.
+2026-01-24 19:19:35 - app.questions - INFO - [questions.py:87] - Questions not initialized, loading now...
+2026-01-24 19:19:35 - app.questions - INFO - [questions.py:52] - Loaded 0 active questions into memory.
+2026-01-24 19:19:48 - __main__ - INFO - [main.py:482] - Initiating graceful application shutdown...
+2026-01-24 19:19:48 - __main__ - INFO - [main.py:491] - Database session committed and removed successfully
+2026-01-24 19:19:48 - __main__ - INFO - [main.py:496] - Application shutdown complete

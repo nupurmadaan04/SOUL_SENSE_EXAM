@@ -84,29 +84,24 @@ The backend uses the main app's database models from `app/models.py`.
 
 ```
 backend/fastapi/
-├── app/
-│   ├── __init__.py
+├── app/                     # Application Source Code
 │   ├── main.py              # FastAPI app initialization
-│   ├── config.py            # Configuration settings
-│   ├── models/
-│   │   └── schemas.py       # Pydantic schemas
 │   ├── routers/             # API endpoints
-│   │   ├── health.py
-│   │   ├── auth.py
-│   │   ├── users.py
-│   │   ├── profiles.py
-│   │   ├── assessments.py
-│   │   ├── questions.py
-│   │   └── analytics.py
 │   └── services/            # Business logic
-│       ├── db_service.py    # Database access
-│       ├── user_service.py
-│       ├── profile_service.py
-│       └── journal_service.py
+├── docs/                    # Documentation Center
+│   ├── api/                 # API Specs, Versioning, Postman
+│   ├── guides/              # Quickstart, Troubleshooting
+│   ├── reports/             # Test Results, Implementation Summaries
+│   └── architecture/        # Deployment, Design Docs
+├── tests/                   # Test Suite
+│   ├── integration/         # full_api_test.py
+│   ├── unit/                # test_api.py, test_crud_api.py
+│   └── postman/             # Postman Collection & Environment
+├── scripts/                 # Developer & OPS Scripts
+│   ├── deployment/          # deploy-*.sh
+│   └── tools/               # patch_db.py, debug_auth.py
 ├── start_server.py          # Server startup script
-├── requirements.txt
-├── README.md
-└── TROUBLESHOOTING.md       # ⚠️ Read this if you encounter issues!
+└── requirements.txt         # Dependencies
 ```
 
 ## 🔐 Authentication
@@ -177,13 +172,13 @@ Use the interactive API documentation at http://127.0.0.1:8000/docs
 
 ```bash
 # Run API tests
-python test_api.py
+python tests/unit/test_api.py
 
 # Run CRUD tests
-python test_crud_api.py
+python tests/unit/test_crud_api.py
 
 # Run Full API Verification (Health, Auth, Questions, Journal)
-python full_api_test.py
+python tests/integration/full_api_test.py
 ```
 
 ### 🔄 Database Patching
@@ -192,12 +187,12 @@ If you are updating to incorporate the new Journaling and Questions improvements
 
 ```bash
 cd backend/fastapi
-python patch_db.py
+python scripts/tools/patch_db.py
 ```
 
 ## 🚨 Troubleshooting
 
-If you encounter any issues, **please read [TROUBLESHOOTING.md](./TROUBLESHOOTING.md)** first!
+If you encounter any issues, **please read [TROUBLESHOOTING.md](docs/guides/TROUBLESHOOTING.md)** first!
 
 Common issues:
 

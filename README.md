@@ -24,7 +24,7 @@ SoulSense now supports multiple languages with easy switching!
 
 ### For Contributors
 
-Want to add your language? See our [I18N Guide](I18N_GUIDE.md) for:
+Want to add your language? See our [I18N Guide](docs/I18N_GUIDE.md) for:
 
 - Step-by-step instructions
 - Translation template
@@ -136,7 +136,7 @@ You can raise an issue on the GitHub repository or contact the project maintaine
     alembic upgrade head
 
     # Seed the question bank
-    python -m scripts.seed_questions_v2
+    python scripts/setup/seed_questions_v2.py
     ```
 
 ### 3. Running the Application
@@ -216,7 +216,7 @@ pip install -r requirements.txt
 alembic upgrade head
 
 # Seed the questions
-python -m scripts.seed_questions_v2
+python scripts/setup/seed_questions_v2.py
 ```
 
 </details>
@@ -333,7 +333,7 @@ python admin_cli.py categories              # View statistics
 
 ### Documentation
 
-See [ADMIN_GUIDE.md](ADMIN_GUIDE.md) for comprehensive documentation.
+See [ADMIN_GUIDE.md](docs/ADMIN_GUIDE.md) for comprehensive documentation.
 
 ---
 
@@ -341,7 +341,7 @@ See [ADMIN_GUIDE.md](ADMIN_GUIDE.md) for comprehensive documentation.
 
 **🌍 Now available in multiple languages: English, Hindi (हिंदी), and Spanish (Español)!**
 
-The application is grounded in established emotional intelligence theory (Salovey & Mayer, 1990; Goleman, 1995) and incorporates evidence-based approaches for self-report EI assessment (Petrides & Furnham, 2001). For comprehensive academic references, see [RESEARCH_REFERENCES.md](RESEARCH_REFERENCES.md).
+The application is grounded in established emotional intelligence theory (Salovey & Mayer, 1990; Goleman, 1995) and incorporates evidence-based approaches for self-report EI assessment (Petrides & Furnham, 2001). For comprehensive academic references, see [RESEARCH_REFERENCES.md](docs/references/RESEARCH_REFERENCES.md).
 
 ---
 
@@ -405,7 +405,6 @@ The application is grounded in established emotional intelligence theory (Salove
   - Key-value based API with version-based conflict detection
   - Integrated with user authentication for data isolation
   - Accessible via the REST API endpoints
-
 
 ---
 
@@ -950,11 +949,11 @@ SoulSense provides a comprehensive test fixture system for standardized, reusabl
 
 **Available Fixtures:**
 
-| Category | Fixtures |
-|----------|----------|
+| Category              | Fixtures                                                                                                                       |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
 | **Database Entities** | `sample_user`, `sample_user_with_profiles`, `sample_score`, `sample_responses`, `sample_journal_entry`, `sample_question_bank` |
-| **ML Components** | `sample_user_features`, `sample_clustered_features`, `mock_clusterer`, `mock_feature_extractor`, `mock_risk_predictor` |
-| **Utilities** | `temp_db` (isolated database), `isolated_db`, `populated_db` |
+| **ML Components**     | `sample_user_features`, `sample_clustered_features`, `mock_clusterer`, `mock_feature_extractor`, `mock_risk_predictor`         |
+| **Utilities**         | `temp_db` (isolated database), `isolated_db`, `populated_db`                                                                   |
 
 **Factory Classes:**
 

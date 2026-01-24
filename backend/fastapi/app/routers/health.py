@@ -10,11 +10,4 @@ async def health() -> dict:
     return {"status": "ok"}
 
 
-@router.get("/")
-async def root() -> dict:
-    """Root endpoint with API information"""
-    return {
-        "message": "Soul Sense API",
-        "version": "1.0.0",
-        "status": "running"
-    }
+

@@ -1,0 +1,394 @@
+[
+  {
+    "endpoint": "/api/v1/health",
+    "method": "GET",
+    "status": 200,
+    "response": {
+      "status": "ok"
+    },
+    "success": true,
+    "timestamp": "2026-01-24T18:42:29.904876"
+  },
+  {
+    "endpoint": "/api/v1/auth/register",
+    "method": "POST",
+    "status": 200,
+    "response": {
+      "id": 3,
+      "username": "testuser_1769260349",
+      "created_at": "2026-01-24T13:12:30.243608",
+      "last_login": null
+    },
+    "success": true,
+    "timestamp": "2026-01-24T18:42:30.642640"
+  },
+  {
+    "endpoint": "/api/v1/auth/login",
+    "method": "POST",
+    "status": 200,
+    "response": {
+      "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ0ZXN0dXNlcl8xNzY5MjYwMzQ5IiwiZXhwIjoxNzY5MzQ2NzUwfQ.PeAc78WTXswIu26ReieQLRZtGqsJPHIFXUPpUsg5zvo",
+      "token_type": "bearer"
+    },
+    "success": true,
+    "timestamp": "2026-01-24T18:42:31.064224"
+  },
+  {
+    "endpoint": "/api/v1/users/me",
+    "method": "GET",
+    "status": 200,
+    "response": {
+      "id": 3,
+      "username": "testuser_1769260349",
+      "created_at": "2026-01-24T13:12:30.243608",
+      "last_login": null
+    },
+    "success": true,
+    "timestamp": "2026-01-24T18:42:31.079807"
+  },
+  {
+    "endpoint": "/api/v1/profiles/settings",
+    "method": "GET",
+    "status": 404,
+    "response": {
+      "detail": "User settings not found. Create them first."
+    },
+    "success": true,
+    "timestamp": "2026-01-24T18:42:31.103691"
+  },
+  {
+    "endpoint": "/api/v1/profiles/medical",
+    "method": "GET",
+    "status": 404,
+    "response": {
+      "detail": "Medical profile not found. Create it first."
+    },
+    "success": true,
+    "timestamp": "2026-01-24T18:42:31.118015"
+  },
+  {
+    "endpoint": "/api/v1/profiles/personal",
+    "method": "GET",
+    "status": 404,
+    "response": {
+      "detail": "Personal profile not found. Create it first."
+    },
+    "success": true,
+    "timestamp": "2026-01-24T18:42:31.132863"
+  },
+  {
+    "endpoint": "/api/v1/profiles/strengths",
+    "method": "GET",
+    "status": 404,
+    "response": {
+      "detail": "User strengths not found. Create them first."
+    },
+    "success": true,
+    "timestamp": "2026-01-24T18:42:31.145021"
+  },
+  {
+    "endpoint": "/api/v1/profiles/emotional",
+    "method": "GET",
+    "status": 404,
+    "response": {
+      "detail": "Not Found"
+    },
+    "success": true,
+    "timestamp": "2026-01-24T18:42:31.147149"
+  },
+  {
+    "endpoint": "/api/v1/questions/",
+    "method": "GET",
+    "status": 200,
+    "response": {
+      "total": 0,
+      "questions": [],
+      "page": 1,
+      "page_size": 5
+    },
+    "success": true,
+    "timestamp": "2026-01-24T18:42:31.151687"
+  },
+  {
+    "endpoint": "/api/v1/questions/categories",
+    "method": "GET",
+    "status": 200,
+    "response": [],
+    "success": true,
+    "timestamp": "2026-01-24T18:42:31.157178"
+  },
+  {
+    "endpoint": "/api/v1/assessments/",
+    "method": "GET",
+    "status": 200,
+    "response": {
+      "total": 0,
+      "assessments": [],
+      "page": 1,
+      "page_size": 10
+    },
+    "success": true,
+    "timestamp": "2026-01-24T18:42:31.163953"
+  },
+  {
+    "endpoint": "/api/v1/assessments/stats",
+    "method": "GET",
+    "status": 200,
+    "response": {
+      "total_assessments": 0,
+      "average_score": 0.0,
+      "highest_score": 0,
+      "lowest_score": 0,
+      "average_sentiment": 0.0,
+      "age_group_distribution": {}
+    },
+    "success": true,
+    "timestamp": "2026-01-24T18:42:31.174989"
+  },
+  {
+    "endpoint": "/api/v1/analytics/summary",
+    "method": "GET",
+    "status": 200,
+    "response": {
+      "total_assessments": 0,
+      "unique_users": 0,
+      "global_average_score": 0.0,
+      "global_average_sentiment": 0.0,
+      "age_group_stats": [],
+      "score_distribution": [],
+      "assessment_quality_metrics": {
+        "rushed_assessments": 0,
+        "inconsistent_assessments": 0
+      }
+    },
+    "success": true,
+    "timestamp": "2026-01-24T18:42:31.232265"
+  },
+  {
+    "endpoint": "/api/v1/journal/prompts",
+    "method": "GET",
+    "status": 200,
+    "response": {
+      "prompts": [
+        {
+          "id": 1,
+          "category": "gratitude",
+          "prompt": "What are three things you're grateful for today?",
+          "description": "Focus on positive aspects of your day"
+        },
+        {
+          "id": 2,
+          "category": "gratitude",
+          "prompt": "Who made a positive impact on your life recently?",
+          "description": "Reflect on supportive relationships"
+        },
+        {
+          "id": 3,
+          "category": "reflection",
+          "prompt": "What lesson did you learn this week?",
+          "description": "Extract wisdom from recent experiences"
+        },
+        {
+          "id": 4,
+          "category": "reflection",
+          "prompt": "How have you grown as a person in the last month?",
+          "description": "Track personal development"
+        },
+        {
+          "id": 5,
+          "category": "goals",
+          "prompt": "What's one small step you can take tomorrow toward your biggest goal?",
+          "description": "Break down big goals into actions"
+        },
+        {
+          "id": 6,
+          "category": "goals",
+          "prompt": "What would you attempt if you knew you couldn't fail?",
+          "description": "Explore ambitions without fear"
+        },
+        {
+          "id": 7,
+          "category": "emotions",
+          "prompt": "How are you really feeling right now? Describe it in detail.",
+          "description": "Deep emotional check-in"
+        },
+        {
+          "id": 8,
+          "category": "emotions",
+          "prompt": "What's been weighing on your mind lately?",
+          "description": "Release mental burdens"
+        },
+        {
+          "id": 9,
+          "category": "creativity",
+          "prompt": "If you could live anywhere for a year, where would you go and why?",
+          "description": "Explore dreams and desires"
+        },
+        {
+          "id": 10,
+          "category": "creativity",
+          "prompt": "Describe your perfect day from start to finish.",
+          "description": "Envision your ideal life"
+        }
+      ],
+      "category": null
+    },
+    "success": true,
+    "timestamp": "2026-01-24T18:42:31.252489"
+  },
+  {
+    "endpoint": "/api/v1/journal/",
+    "method": "POST",
+    "status": 201,
+    "response": {
+      "id": 2,
+      "username": "testuser_1769260349",
+      "content": "Comprehensive test of the journal API. This should be exactly sixteen words for testing.",
+      "sentiment_score": 62.5,
+      "emotional_patterns": "[]",
+      "tags": [
+        "test",
+        "verification"
+      ],
+      "entry_date": "2026-01-24 13:12:46",
+      "word_count": 14,
+      "reading_time_mins": 0.07,
+      "privacy_level": "private",
+      "sleep_hours": null,
+      "sleep_quality": null,
+      "energy_level": null,
+      "work_hours": null,
+      "screen_time_mins": null,
+      "stress_level": null,
+      "stress_triggers": null,
+      "daily_schedule": null
+    },
+    "success": true,
+    "timestamp": "2026-01-24T18:42:46.255886"
+  },
+  {
+    "endpoint": "/api/v1/journal/2",
+    "method": "GET",
+    "status": 200,
+    "response": {
+      "id": 2,
+      "username": "testuser_1769260349",
+      "content": "Comprehensive test of the journal API. This should be exactly sixteen words for testing.",
+      "sentiment_score": 62.5,
+      "emotional_patterns": "[]",
+      "tags": [
+        "test",
+        "verification"
+      ],
+      "entry_date": "2026-01-24 13:12:46",
+      "word_count": 14,
+      "reading_time_mins": 0.07,
+      "privacy_level": "private",
+      "sleep_hours": null,
+      "sleep_quality": null,
+      "energy_level": null,
+      "work_hours": null,
+      "screen_time_mins": null,
+      "stress_level": null,
+      "stress_triggers": null,
+      "daily_schedule": null
+    },
+    "success": true,
+    "timestamp": "2026-01-24T18:42:46.307537"
+  },
+  {
+    "endpoint": "/api/v1/journal/2",
+    "method": "PUT",
+    "status": 200,
+    "response": {
+      "id": 2,
+      "username": "testuser_1769260349",
+      "content": "Updated content for comprehensive test. Check word count again.",
+      "sentiment_score": 62.5,
+      "emotional_patterns": "[]",
+      "tags": [
+        "test",
+        "verification"
+      ],
+      "entry_date": "2026-01-24 13:12:46",
+      "word_count": 9,
+      "reading_time_mins": 0.04,
+      "privacy_level": "private",
+      "sleep_hours": null,
+      "sleep_quality": null,
+      "energy_level": null,
+      "work_hours": null,
+      "screen_time_mins": null,
+      "stress_level": null,
+      "stress_triggers": null,
+      "daily_schedule": null
+    },
+    "success": true,
+    "timestamp": "2026-01-24T18:42:46.356476"
+  },
+  {
+    "endpoint": "/api/v1/journal/analytics",
+    "method": "GET",
+    "status": 200,
+    "response": {
+      "total_entries": 1,
+      "average_sentiment": 62.5,
+      "sentiment_trend": "stable",
+      "most_common_tags": [
+        "test",
+        "verification"
+      ],
+      "average_stress_level": null,
+      "average_sleep_quality": null,
+      "entries_this_week": 1,
+      "entries_this_month": 1
+    },
+    "success": true,
+    "timestamp": "2026-01-24T18:42:46.370006"
+  },
+  {
+    "endpoint": "/api/v1/journal/search",
+    "method": "GET",
+    "status": 200,
+    "response": {
+      "total": 1,
+      "entries": [
+        {
+          "id": 2,
+          "username": "testuser_1769260349",
+          "content": "Updated content for comprehensive test. Check word count again.",
+          "sentiment_score": 62.5,
+          "emotional_patterns": "[]",
+          "tags": [
+            "test",
+            "verification"
+          ],
+          "entry_date": "2026-01-24 13:12:46",
+          "word_count": 9,
+          "reading_time_mins": 0.04,
+          "privacy_level": "private",
+          "sleep_hours": null,
+          "sleep_quality": null,
+          "energy_level": null,
+          "work_hours": null,
+          "screen_time_mins": null,
+          "stress_level": null,
+          "stress_triggers": null,
+          "daily_schedule": null
+        }
+      ],
+      "page": 1,
+      "page_size": 20
+    },
+    "success": true,
+    "timestamp": "2026-01-24T18:42:46.397069"
+  },
+  {
+    "endpoint": "/api/v1/journal/2",
+    "method": "DELETE",
+    "status": 204,
+    "response": "",
+    "success": true,
+    "timestamp": "2026-01-24T18:42:46.430799"
+  }
+]

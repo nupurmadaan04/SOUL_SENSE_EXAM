@@ -28,7 +28,7 @@ from ..routers.auth import get_current_user
 from ..services.db_service import get_db
 from app.models import User
 
-router = APIRouter(prefix="/settings", tags=["Settings Sync"])
+router = APIRouter(tags=["Settings Sync"])
 
 
 def get_settings_sync_service():

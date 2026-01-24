@@ -35,31 +35,31 @@ class TestAuth:
     
     def test_user_registration(self):
         # Test successful registration
-        success, message = self.auth_manager.register_user("testuser", "password123")
+        success, message = self.auth_manager.register_user("testuser", "TestPass123!")
         assert success == True
         assert "successful" in message
         
         # Test duplicate username
-        success, message = self.auth_manager.register_user("testuser", "password456")
+        success, message = self.auth_manager.register_user("testuser", "TestPass456!")
         assert success == False
         assert "already exists" in message
         
         # Test short username
-        success, message = self.auth_manager.register_user("ab", "password123")
+        success, message = self.auth_manager.register_user("ab", "TestPass123!")
         assert success == False
         assert "at least 3 characters" in message
         
         # Test short password
         success, message = self.auth_manager.register_user("newuser", "123")
         assert success == False
-        assert "at least 4 characters" in message
+        assert "at least 8 characters" in message
     
     def test_user_login(self):
         # Register a user first
-        self.auth_manager.register_user("testuser", "password123")
+        self.auth_manager.register_user("testuser", "TestPass123!")
         
         # Test successful login
-        success, message = self.auth_manager.login_user("testuser", "password123")
+        success, message = self.auth_manager.login_user("testuser", "TestPass123!")
         assert success == True
         assert "successful" in message
         assert self.auth_manager.current_user == "testuser"
@@ -70,14 +70,14 @@ class TestAuth:
         assert "Invalid" in message
         
         # Test non-existent user
-        success, message = self.auth_manager.login_user("nonexistent", "password123")
+        success, message = self.auth_manager.login_user("nonexistent", "TestPass123!")
         assert success == False
         assert "Invalid" in message
     
     def test_user_logout(self):
         # Register and login
-        self.auth_manager.register_user("testuser", "password123")
-        self.auth_manager.login_user("testuser", "password123")
+        self.auth_manager.register_user("testuser", "TestPass123!")
+        self.auth_manager.login_user("testuser", "TestPass123!")
         
         # Verify logged in
         assert self.auth_manager.is_logged_in() == True

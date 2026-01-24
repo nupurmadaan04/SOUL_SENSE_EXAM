@@ -32,7 +32,7 @@ from ..services.db_service import get_db
 from ..routers.auth import get_current_user
 from app.models import User
 
-router = APIRouter(prefix="/v1/journal", tags=["Journal"])
+router = APIRouter(tags=["Journal"])
 
 
 def get_journal_service(db: Session = Depends(get_db)):
