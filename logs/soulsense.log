@@ -806,3 +806,27 @@ AttributeError: 'UserProfileView' object has no attribute '_render_export_view'.
 2026-01-22 22:03:10 - __main__ - INFO - [main.py:461] - Initiating graceful application shutdown...
 2026-01-22 22:03:10 - __main__ - INFO - [main.py:470] - Database session committed and removed successfully
 2026-01-22 22:03:10 - __main__ - INFO - [main.py:475] - Application shutdown complete
+2026-01-24 01:55:50 - root - INFO - [logger.py:85] - Logging initialized.
+2026-01-24 01:55:50 - app.startup_checks - INFO - [startup_checks.py:302] - Running startup integrity checks...
+2026-01-24 01:55:50 - app.startup_checks - INFO - [startup_checks.py:272] - Config integrity check passed
+2026-01-24 01:55:50 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ config_integrity: Configuration is valid
+2026-01-24 01:55:50 - app.startup_checks - INFO - [startup_checks.py:195] - Required files check passed
+2026-01-24 01:55:50 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ required_files: All required files and directories present
+2026-01-24 01:55:50 - app.startup_checks - WARNING - [startup_checks.py:91] - Missing database tables: ['users', 'scores', 'responses', 'journal_entries', 'user_settings']
+2026-01-24 01:55:50 - app.db - INFO - [db.py:60] - Checking database state...
+2026-01-24 01:55:50 - app.models - INFO - [models.py:343] - Optimizing database settings...
+2026-01-24 01:55:50 - app.models - INFO - [models.py:357] - Creating question search optimization indexes...
+2026-01-24 01:55:50 - app.models - WARNING - [models.py:391] - FTS5 not available, skipping full-text search optimization
+2026-01-24 01:55:50 - app.db - INFO - [db.py:68] - Database tables created/verified successfully.
+2026-01-24 01:55:50 - app.db - INFO - [db.py:78] - Found 0 scores in database
+2026-01-24 01:55:50 - app.startup_checks - WARNING - [startup_checks.py:322] - ⚠ database_schema: Created missing tables: ['users', 'scores', 'responses', 'journal_entries', 'user_settings']
+2026-01-24 01:55:50 - app.startup_checks - INFO - [startup_checks.py:324] -   Recovery: Created tables: users, scores, responses, journal_entries, user_settings
+2026-01-24 01:55:50 - app.startup_checks - INFO - [startup_checks.py:345] - Integrity checks complete: 2 passed, 1 warnings, 0 failed
+2026-01-24 01:55:50 - __main__ - INFO - [main.py:540] - Startup Integrity Check Results:
+========================================
+✓ config_integrity: Configuration is valid
+✓ required_files: All required files and directories present
+⚠ database_schema: Created missing tables: ['users', 'scores', 'responses', 'journal_entries', 'user_settings']
+   → Recovery: Created tables: users, scores, responses, journal_entries, user_settings
+========================================
+2026-01-24 01:55:51 - app.questions - ERROR - [questions.py:56] - Failed to initialize questions: [E1002] A database error occurred.

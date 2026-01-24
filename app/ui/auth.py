@@ -446,14 +446,15 @@ class AuthManager:
             return
             
         # Sanitize entries
+        from app.validation import sanitize_text, validate_username, validate_age
         username = sanitize_text(self.username_entry.get())
         age_str = sanitize_text(self.age_entry.get())
         profession = sanitize_text(self.profession_entry.get())
         
-        # Validation (Fast, Sync)
-        valid_name, msg_name = validate_required(username, "Name")
+        # Enhanced validation
+        valid_name, msg_name = validate_username(username)
         if not valid_name:
-            messagebox.showwarning("Missing Information", msg_name)
+            messagebox.showwarning("Invalid Username", msg_name)
             return
 
         valid_age, msg_age = validate_age(age_str)

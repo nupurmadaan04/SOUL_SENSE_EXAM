@@ -1,3 +1,4 @@
-from . import health, assessments, auth, users, profiles, analytics, questions, journal
+from . import health, assessments, auth, users, profiles, analytics, questions, journal, settings_sync
 
-__all__ = ["health", "assessments", "auth", "users", "profiles", "analytics", "questions", "journal"]
+__all__ = ["health", "assessments", "auth", "users", "profiles", "analytics", "questions", "journal", "settings_sync"]
+

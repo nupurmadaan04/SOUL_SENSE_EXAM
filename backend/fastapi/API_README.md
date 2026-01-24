@@ -189,6 +189,65 @@ GET /api/v1/questions/categories
 ]
 ```
 
+### Settings Synchronization
+
+#### Get All Settings
+```http
+GET /api/sync/settings
+```
+
+**Response:**
+```json
+[
+  {
+    "key": "theme",
+    "value": "dark",
+    "version": 1,
+    "updated_at": "2026-01-23T10:30:00"
+  }
+]
+```
+
+#### Upsert Setting (with Conflict Detection)
+```http
+PUT /api/sync/settings/{key}
+```
+
+**Request Body:**
+- `value` (any): The value to store
+- `expected_version` (optional): Current version for optimistic locking
+
+**Response (Standard):** `200 OK` or `201 Created` with the updated setting.
+
+**Response (Conflict - 409):**
+```json
+{
+  "detail": {
+    "message": "Version conflict: expected 1, found 2",
+    "key": "theme",
+    "current_version": 2,
+    "current_value": "light"
+  }
+}
+```
+
+#### Batch Upsert
+```http
+POST /api/sync/settings/batch
+```
+
+**Request Body:**
+```json
+{
+  "settings": [
+    {"key": "theme", "value": "dark"},
+    {"key": "language", "value": "hi"}
+  ]
+}
+```
+
+---
+
 ## Interactive API Documentation
 
 Once the server is running, visit:
@@ -215,6 +274,12 @@ curl http://localhost:8000/api/v1/assessments/stats
 
 # Get categories
 curl http://localhost:8000/api/v1/questions/categories
+
+# Settings Sync (requires Auth)
+curl -X PUT "http://localhost:8000/api/sync/settings/theme" \
+     -H "Authorization: Bearer YOUR_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{"value": "dark"}'
 ```
 
 ### Python Testing
@@ -247,10 +312,12 @@ backend/fastapi/
 │   ├── routers/
 │   │   ├── assessments.py   # Assessment endpoints
 │   │   ├── questions.py     # Question endpoints
+│   │   ├── settings_sync.py # Settings Synchronization
 │   │   ├── auth.py          # Authentication
 │   │   └── health.py        # Health check
 │   └── services/
-│       └── db_service.py    # Database operations
+│       ├── db_service.py    # Database operations
+│       └── settings_sync_service.py # Sync operations
 └── requirements.txt         # Python dependencies
 ```
 

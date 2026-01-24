@@ -8,6 +8,7 @@ from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import scoped_session, sessionmaker, Session
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.pool import StaticPool
 
 from app.config import DATABASE_URL, DB_PATH, BASE_DIR
 from app.exceptions import DatabaseError
@@ -15,8 +16,18 @@ from app.exceptions import DatabaseError
 # Configure logger
 logger = logging.getLogger(__name__)
 
-# Create engine and session
-engine = create_engine(DATABASE_URL, echo=False)
+# Secure database connection with connection pooling
+engine = create_engine(
+    DATABASE_URL, 
+    echo=False,
+    poolclass=StaticPool,
+    connect_args={
+        "check_same_thread": False,
+        "timeout": 20,
+        "isolation_level": None
+    },
+    pool_pre_ping=True
+)
 SessionLocal = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
 
 def get_engine() -> Engine:

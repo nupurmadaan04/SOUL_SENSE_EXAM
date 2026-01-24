@@ -400,6 +400,12 @@ The application is grounded in established emotional intelligence theory (Salove
   - Two-step confirmation dialog for safety
   - Removes all user records, profiles, journals, settings, and local files
   - Accessible via Profile → Settings → Data Management
+- **Settings Synchronization (NEW!)**
+  - Sync user preferences and non-sensitive settings across clients
+  - Key-value based API with version-based conflict detection
+  - Integrated with user authentication for data isolation
+  - Accessible via the REST API endpoints
+
 
 ---
 

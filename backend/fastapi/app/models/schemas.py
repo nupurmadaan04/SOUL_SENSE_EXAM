@@ -601,3 +601,60 @@ class JournalPromptsResponse(BaseModel):
     """Schema for list of journal prompts."""
     prompts: List[JournalPrompt]
     category: Optional[str] = None
+
+
+# ============================================================================
+# Settings Synchronization Schemas (Issue #396)
+# ============================================================================
+
+class SyncSettingCreate(BaseModel):
+    """Schema for creating/updating a sync setting."""
+    key: str = Field(..., min_length=1, max_length=100, description="Setting key")
+    value: Any = Field(..., description="Setting value (will be JSON serialized)")
+
+
+class SyncSettingUpdate(BaseModel):
+    """Schema for updating a sync setting with conflict detection."""
+    value: Any = Field(..., description="New value")
+    expected_version: Optional[int] = Field(None, description="Expected version for conflict detection")
+
+
+class SyncSettingResponse(BaseModel):
+    """Schema for sync setting response."""
+    key: str
+    value: Any
+    version: int
+    updated_at: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+    @field_validator('value', mode='before')
+    @classmethod
+    def parse_value(cls, v):
+        """Decode JSON string from DB to Python object."""
+        if isinstance(v, str):
+            try:
+                return json.loads(v)
+            except:
+                return v
+        return v
+
+
+class SyncSettingBatchRequest(BaseModel):
+    """Schema for batch operations."""
+    settings: List[SyncSettingCreate]
+
+
+class SyncSettingBatchResponse(BaseModel):
+    """Schema for batch response."""
+    settings: List[SyncSettingResponse]
+    conflicts: List[str] = Field(default=[], description="Keys that had conflicts")
+
+
+class SyncSettingConflictResponse(BaseModel):
+    """Schema for conflict response (409)."""
+    detail: str = "Version conflict"
+    key: str
+    current_version: int
+    current_value: Any
+

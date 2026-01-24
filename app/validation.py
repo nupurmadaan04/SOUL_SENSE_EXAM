@@ -1,4 +1,5 @@
 import re
+import html
 from typing import Tuple, Union, Optional
 from datetime import datetime
 from app.constants import (
@@ -6,9 +7,23 @@ from app.constants import (
     MAX_AGE_LENGTH, AGE_MIN, AGE_MAX
 )
 
+# Security patterns
+SQL_INJECTION_PATTERNS = [
+    r"('|(\-\-)|(;)|(\||\|)|(\*|\*))",
+    r"(union|select|insert|delete|update|drop|create|alter)",
+    r"(script|javascript|vbscript|onload|onerror)"
+]
+XSS_PATTERNS = [
+    r"<script[^>]*>.*?</script>",
+    r"javascript:",
+    r"on\w+\s*=",
+    r"<iframe[^>]*>.*?</iframe>"
+]
+
 # Constants
 EMAIL_REGEX = r"[^@]+@[^@]+\.[^@]+"
 PHONE_REGEX = r"^\+?[\d\s-]{10,}$"
+USERNAME_REGEX = r"^[a-zA-Z0-9_-]+$"
 
 # Standard Ranges
 RANGES = {
@@ -22,16 +37,77 @@ RANGES = {
 
 
 def sanitize_text(text: Optional[str]) -> str:
-    """Strip whitespace and handle None."""
+    """Strip whitespace, handle None, and sanitize for security."""
     if text is None:
         return ""
-    return str(text).strip()
+    
+    text = str(text).strip()
+    
+    # Check for malicious patterns
+    if detect_malicious_input(text):
+        return ""  # Return empty string for malicious input
+    
+    # HTML escape to prevent XSS
+    text = html.escape(text)
+    
+    return text
 
 
-def validate_required(text: str, label: str) -> Tuple[bool, str]:
-    """Check if text is not empty."""
-    if not text:
-        return False, f"{label} is required."
+def detect_malicious_input(text: str) -> bool:
+    """Detect potential SQL injection or XSS attempts."""
+    text_lower = text.lower()
+    
+    # Check SQL injection patterns
+    for pattern in SQL_INJECTION_PATTERNS:
+        if re.search(pattern, text_lower, re.IGNORECASE):
+            return True
+    
+    # Check XSS patterns
+    for pattern in XSS_PATTERNS:
+        if re.search(pattern, text, re.IGNORECASE):
+            return True
+    
+    return False
+
+
+def validate_username(username: str) -> Tuple[bool, str]:
+    """Validate username format and security."""
+    if not username:
+        return False, "Username is required."
+    
+    if len(username) < 3 or len(username) > MAX_USERNAME_LENGTH:
+        return False, f"Username must be 3-{MAX_USERNAME_LENGTH} characters."
+    
+    if not re.match(USERNAME_REGEX, username):
+        return False, "Username can only contain letters, numbers, hyphens and underscores."
+    
+    if detect_malicious_input(username):
+        return False, "Invalid username format."
+    
+    return True, ""
+
+
+def validate_password_security(password: str) -> Tuple[bool, str]:
+    """Enhanced password security validation."""
+    if len(password) < 8:
+        return False, "Password must be at least 8 characters."
+    
+    if len(password) > 128:
+        return False, "Password too long."
+    
+    # Check character requirements
+    if not re.search(r'[A-Z]', password):
+        return False, "Password must contain uppercase letter."
+    
+    if not re.search(r'[a-z]', password):
+        return False, "Password must contain lowercase letter."
+    
+    if not re.search(r'\d', password):
+        return False, "Password must contain number."
+    
+    if not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
+        return False, "Password must contain special character."
+    
     return True, ""
 
 
@@ -108,4 +184,14 @@ def validate_dob(date_str: str) -> Tuple[bool, str]:
              
     except ValueError:
         return False, "Invalid date format (expected YYYY-MM-DD)."
+    return True, ""
+
+def validate_required(text: str, label: str) -> Tuple[bool, str]:
+    """Check if text is not empty and secure."""
+    if not text:
+        return False, f"{label} is required."
+    
+    if detect_malicious_input(text):
+        return False, f"{label} contains invalid characters."
+    
     return True, ""
