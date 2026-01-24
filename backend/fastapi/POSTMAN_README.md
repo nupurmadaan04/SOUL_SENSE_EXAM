@@ -1,32 +1,43 @@
-# SoulSense API Postman Collection
+# SoulSense API v1 - Postman Test Suite
 
-This directory contains a pre-configured Postman Collection to help you test and develop against the SoulSense API (v1).
+## Quick Start
 
-## Getting Started
+1. **Import Collection**: File → Import → `SoulSense_API_v1.postman_collection.json`
+2. **Import Environment**: File → Import → `SoulSense_API_v1.postman_environment.json`
+3. **Select Environment**: Choose "SoulSense API v1" from dropdown (top-right)
+4. **Start Server**: Run `python backend/fastapi/start_server.py`
 
-1.  **Import**:
-    - Open Postman.
-    - Click "Import" -> "File" -> Select `SoulSense_API_v1.postman_collection.json`.
+## Test Coverage (28 Tests)
 
-2.  **Environment Setup**:
-    - The collection uses a variable `{{base_url}}` which defaults to `http://localhost:8000/api/v1`.
-    - You do NOT need to manually set the `access_token`.
+| Folder        | Tests | Coverage                                                                                                          |
+| ------------- | ----- | ----------------------------------------------------------------------------------------------------------------- |
+| Auth          | 7     | Register (valid, short username, weak password, missing fields), Login (valid, wrong password, non-existent user) |
+| Users         | 3     | GET /me (authenticated, no token, invalid token)                                                                  |
+| Journal       | 5     | POST (valid, short content, invalid privacy), GET (paginated, analytics)                                          |
+| Profiles      | 5     | GET settings, medical, personal, strengths, emotional                                                             |
+| Settings Sync | 2     | GET all, PUT /theme upsert                                                                                        |
+| Assessments   | 2     | GET list, stats                                                                                                   |
+| Questions     | 2     | GET list, categories                                                                                              |
+| Analytics     | 1     | GET summary                                                                                                       |
+| Health        | 1     | GET health check                                                                                                  |
 
-3.  **Authentication Flow**:
-    - Go to the **Auth** folder.
-    - Run the **Register** request (it uses a timestamp to create a unique user each time).
-    - Run the **Login** request.
-    - **Magic**: The Login request has a "Test Script" that automatically captures the token and saves it to your Postman environment as `access_token`.
-    - All other requests (Journal, Users, etc.) will now automatically use this token.
+## Running Tests
 
-## Included Folders
+### Run All Tests
 
-- **Auth**: Registration and Login.
-- **Journal**: Create, List, and Analyze journal entries.
-- **Settings Sync**: Test the new synchronization API.
-- **Profiles**: View user profile data.
-- **Health**: Check API status.
+1. Right-click "SoulSense API v1 - Test Suite" → Run Collection
+2. Review test results in the runner window
 
-## Contributing
+### Auto-Authentication Flow
 
-If you add new endpoints to the API, please export the updated collection and update `SoulSense_API_v1.postman_collection.json` in your PR.
+1. Run "Auth → Register - Valid" to create a test user
+2. Run "Auth → Login - Valid" - token is auto-saved to `{{access_token}}`
+3. All authenticated requests now use the saved token automatically
+
+## Variables
+
+| Variable        | Description                                            |
+| --------------- | ------------------------------------------------------ |
+| `base_url`      | API base URL (default: `http://localhost:8000/api/v1`) |
+| `access_token`  | JWT token (auto-populated on login)                    |
+| `test_username` | Dynamic username for registration tests                |
