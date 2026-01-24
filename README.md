@@ -139,6 +139,46 @@ You can raise an issue on the GitHub repository or contact the project maintaine
     python scripts/setup/seed_questions_v2.py
     ```
 
+5.  **Configure Environment Variables:**
+
+    The application now includes robust environment validation on startup.
+
+    **For Development (Default):**
+
+    ```bash
+    # Copy the example environment file
+    cp .env.example .env
+    ```
+
+    The `.env.example` file contains all required and optional variables with sensible defaults for development.
+
+    **For Production/Staging:**
+
+    Set the following required environment variables in your `.env` file:
+
+    ```bash
+    # Required for all environments
+    APP_ENV=production  # or 'staging'
+    DATABASE_URL=postgresql://user:password@host:port/database
+    JWT_SECRET_KEY=your_super_secret_key_here
+
+    # Additional required for staging/production
+    DATABASE_HOST=your_database_host
+    DATABASE_PORT=5432
+    DATABASE_NAME=your_database_name
+    DATABASE_USER=your_database_user
+    DATABASE_PASSWORD=your_secure_password
+    ```
+
+    **Environment Validation:**
+
+    The application will validate all environment variables on startup and fail fast if:
+    - Required variables are missing
+    - Variables have invalid types or values
+    - Database URLs are malformed
+
+    Check the startup logs for a validation summary and any errors or warnings.
+
 ### 3. Running the Application
 
 **Easy Launch (Recommended):**

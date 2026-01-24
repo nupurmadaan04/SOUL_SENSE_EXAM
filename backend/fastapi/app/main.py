@@ -1,12 +1,10 @@
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from starlette.middleware.base import BaseHTTPMiddleware
+from .config import get_settings_instance
+from .routers import health, assessments, auth, users, profiles, analytics, questions, journal
 
-from .config import get_settings
-from .api.v1.router import api_router as api_v1_router
-from .routers.health import router as health_router
-
-settings = get_settings()
+# Load and validate settings on import
+settings = get_settings_instance()
 
 
 class VersionHeaderMiddleware(BaseHTTPMiddleware):
