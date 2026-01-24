@@ -1,9 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .config import get_settings
+from .config import get_settings_instance
 from .routers import health, assessments, auth, users, profiles, analytics, questions, journal
 
-settings = get_settings()
+# Load and validate settings on import
+settings = get_settings_instance()
 
 
 def create_app() -> FastAPI:
