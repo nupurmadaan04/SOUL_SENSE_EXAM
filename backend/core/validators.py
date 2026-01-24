@@ -175,7 +175,7 @@ def validate_environment_on_startup(env: str = "development") -> Dict[str, Any]:
     validator = EnvironmentValidator(env)
 
     # Define required variables based on environment
-    required_vars = {
+    required_vars: Dict[str, Dict[str, Any]] = {
         'APP_ENV': {'type': 'string'},
         'DATABASE_URL': {'type': 'string'},
         'JWT_SECRET_KEY': {'type': 'string'},
