@@ -1,5 +1,7 @@
 # 🧠 Soul Sense EQ Test
 
+[GitHub Repository](https://github.com/nupurmadaan04/SOUL_SENSE_EXAM)
+
 **A comprehensive Emotional Intelligence assessment platform with AI-powered insights, journaling, and multi-language support.**
 
 [![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/)
