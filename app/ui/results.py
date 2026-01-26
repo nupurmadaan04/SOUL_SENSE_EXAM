@@ -11,6 +11,7 @@ try:
 except ImportError:
     generate_pdf_report = None
 import json
+from app.services.export_service import collect_user_data, export_as_csv
 from app.models import AssessmentResult
 from typing import Any, Dict, List, Optional, Tuple
 from app.ui.components.loading_overlay import show_loading, hide_loading
@@ -163,6 +164,14 @@ class ResultsManager:
         
         return interpretations
 
+
+def on_export_clicked(user_id):
+    data = collect_user_data(user_id)
+    csv_data = export_as_csv(data)
+
+    with open("exports/user_export.csv", "w") as f:
+        f.write(csv_data)
+        
     def create_benchmark_chart(self, parent: tk.Widget, comparisons: Dict[str, Any]) -> tk.Frame:
         """Create a visual benchmark comparison chart"""
         chart_frame = tk.Frame(parent)
