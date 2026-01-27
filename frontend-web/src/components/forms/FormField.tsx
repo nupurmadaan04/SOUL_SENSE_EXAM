@@ -5,7 +5,7 @@ import { useController, Control, FieldValues, Path } from 'react-hook-form';
 import { FormLabel } from './FormLabel';
 import { FormError } from './FormError';
 import { FormMessage } from './FormMessage';
-import { Input } from '@/components/ui/input';
+import { Input } from '@/components/ui';
 import { cn } from '@/lib/utils';
 
 interface FormFieldProps<T extends FieldValues> {

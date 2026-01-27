@@ -1,9 +1,8 @@
 'use client';
 
 import React from 'react';
-import { Section } from '@/components/layout/section';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Section } from '@/components/layout';
+import { Button, Input } from '@/components/ui';
 import { Mail, CheckCircle2 } from 'lucide-react';
 
 export function Newsletter() {

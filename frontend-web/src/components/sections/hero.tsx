@@ -1,11 +1,11 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui';
 import Link from 'next/link';
 import { ArrowRight, Sparkles } from 'lucide-react';
-import { Section } from '@/components/layout/section';
-import { analytics } from '@/lib/analytics';
+import { Section } from '@/components/layout';
+import { analytics } from '@/lib/utils/analytics';
 
 export function Hero() {
   return (

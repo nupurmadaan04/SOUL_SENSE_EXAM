@@ -3,7 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { Menu, X, Rocket, Sun, Moon } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Button } from '@/components/ui';
 import { useTheme } from 'next-themes';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';

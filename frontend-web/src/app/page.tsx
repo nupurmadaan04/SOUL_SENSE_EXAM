@@ -1,14 +1,9 @@
 'use client';
 
-import { Navbar } from '@/components/layout/navbar';
-import { Footer } from '@/components/layout/footer';
-import { Hero } from '@/components/sections/hero';
-import { Features } from '@/components/sections/features';
-import { Testimonials } from '@/components/sections/testimonials';
-import { Newsletter } from '@/components/sections/newsletter';
-import { CTA } from '@/components/sections/cta';
+import { Navbar, Footer } from '@/components/layout';
+import { Hero, Features, Testimonials, Newsletter, CTA } from '@/components/sections';
 import { useEffect } from 'react';
-import { analytics } from '@/lib/analytics';
+import { analytics } from '@/lib/utils/analytics';
 
 export default function Home() {
   useEffect(() => {

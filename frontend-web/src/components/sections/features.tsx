@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion';
 import { Brain, Target, Zap, Heart, MessageCircle, BarChart3 } from 'lucide-react';
-import { Section } from '@/components/layout/section';
+import { Section } from '@/components/layout';
 
 const features = [
   {

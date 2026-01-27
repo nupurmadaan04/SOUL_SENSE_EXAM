@@ -39,7 +39,13 @@ def test_database_connection():
 @patch("app.main.UIStyles")
 @patch("app.main.get_logger")
 @patch("tkinter.Tk")
-def test_app_initialization_verification(mock_tk, mock_logger, mock_styles):
+@patch("tkinter.Frame")
+@patch("tkinter.Label")
+@patch("tkinter.Toplevel")
+@patch("tkinter.Canvas")
+@patch("tkinter.Entry")
+@patch("tkinter.Button")
+def test_app_initialization_verification(mock_button, mock_entry, mock_canvas, mock_toplevel, mock_label, mock_frame, mock_tk, mock_logger, mock_styles):
     """
     Smoke Test: Verify SoulSenseApp initializes without crashing.
     Mocks GUI components to run in headless environments.
