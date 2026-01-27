@@ -1,8 +1,12 @@
 import sys
 import importlib.util
 from unittest.mock import MagicMock, patch
+import os
+import pytest
+import json
+import threading
 
-# CRITICAL: Automatically mock all GUI and visualization modules
+# CRITICAL: Automatically mock all GUI and visualization modules for headless tests
 class MockFinder:
     def __init__(self, prefixes):
         self.prefixes = prefixes
@@ -20,23 +24,46 @@ class MockFinder:
     def exec_module(self, module):
         pass
 
-# CRITICAL: Prevent any GUI/Display connection attempts in headless environments
-import os
-os.environ["DISPLAY"] = ":0.0" # Dummy display
-os.environ["MPLBACKEND"] = "Agg" # Force matplotlib to non-interactive backend
+@pytest.fixture(scope="module", autouse=True)
+def headless_mocks():
+    """
+    Fixture to mock GUI modules for the duration of this module's tests.
+    Cleans up sys.modules and sys.meta_path after tests.
+    """
+    prefixes = ['tkinter', 'matplotlib', 'PIL', '_tkinter', 'tcl', 'tk']
+    
+    # Save state
+    old_meta_path = sys.meta_path[:]
+    old_modules = {k: v for k, v in sys.modules.items() if any(k.startswith(p) for p in prefixes)}
+    old_display = os.environ.get("DISPLAY")
+    old_backend = os.environ.get("MPLBACKEND")
+    
+    # Apply mocks
+    os.environ["DISPLAY"] = ":0.0"
+    os.environ["MPLBACKEND"] = "Agg"
+    
+    for mod in list(sys.modules.keys()):
+        if any(mod.startswith(p) for p in prefixes):
+            del sys.modules[mod]
+            
+    finder = MockFinder(prefixes)
+    sys.meta_path.insert(0, finder)
+    
+    yield
+    
+    # Restore state
+    sys.meta_path = old_meta_path
+    for mod in list(sys.modules.keys()):
+        if any(mod.startswith(p) for p in prefixes):
+            del sys.modules[mod]
+    sys.modules.update(old_modules)
+    
+    if old_display: os.environ["DISPLAY"] = old_display
+    else: os.environ.pop("DISPLAY", None)
+    
+    if old_backend: os.environ["MPLBACKEND"] = old_backend
+    else: os.environ.pop("MPLBACKEND", None)
 
-# Clear existing GUI modules to force re-import through our MockFinder
-for mod in list(sys.modules.keys()):
-    if any(mod.startswith(p) for p in ['tkinter', 'matplotlib', 'PIL', '_tkinter', 'tcl', 'tk']):
-        del sys.modules[mod]
-
-# Register the finder before any app imports
-sys.meta_path.insert(0, MockFinder(['tkinter', 'matplotlib', 'PIL', '_tkinter', 'tcl', 'tk']))
-
-import pytest
-import os
-import json
-import threading
 from app.startup_checks import run_all_checks, CheckStatus, check_config_integrity
 from app.db import get_session
 from sqlalchemy import text
@@ -44,7 +71,7 @@ from app.config import CONFIG_PATH, DEFAULT_CONFIG
 from app.questions import initialize_questions, _ALL_QUESTIONS
 
 # Pre-load app modules so patch can find them
-import app.main_refactored
+import app.main
 import app.ui.styles
 
 def test_integrity_checks_pass():
@@ -79,7 +106,7 @@ def test_app_initialization_verification(mock_logger, mock_styles):
     Mocks GUI components to run in headless environments.
     """
     # Import inside the test to ensure module-level mocks are active
-    from app.main_refactored import SoulSenseApp
+    from app.main import SoulSenseApp
     
     # Setup mocks
     mock_root = MagicMock()
