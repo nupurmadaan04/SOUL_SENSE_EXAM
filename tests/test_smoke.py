@@ -71,7 +71,7 @@ from app.config import CONFIG_PATH, DEFAULT_CONFIG
 from app.questions import initialize_questions, _ALL_QUESTIONS
 
 # Pre-load app modules so patch can find them
-import app.main_refactored
+import app.main
 import app.ui.styles
 
 def test_integrity_checks_pass():
@@ -106,7 +106,7 @@ def test_app_initialization_verification(mock_logger, mock_styles):
     Mocks GUI components to run in headless environments.
     """
     # Import inside the test to ensure module-level mocks are active
-    from app.main_refactored import SoulSenseApp
+    from app.main import SoulSenseApp
     
     # Setup mocks
     mock_root = MagicMock()
