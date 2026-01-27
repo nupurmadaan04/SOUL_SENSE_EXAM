@@ -1,4 +1,6 @@
 export * from './button';
 export * from './card';
 export * from './input';
-// Add other UI exports here
+export * from './avatar';
+export * from './skeleton';
+export * from './tooltip';

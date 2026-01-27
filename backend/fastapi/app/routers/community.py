@@ -25,3 +25,23 @@ async def get_activity():
     """Get weekly commit activity for the past year."""
     activity = await github_service.get_activity()
     return activity
+
+@router.get("/mix")
+async def get_contribution_mix():
+    """Get contribution types breakdown."""
+    return await github_service.get_contribution_mix()
+
+@router.get("/reviews")
+async def get_reviewer_stats():
+    """Get top reviewers and community sentiment."""
+    return await github_service.get_reviewer_stats()
+
+@router.get("/graph")
+async def get_community_graph():
+    """Get force-directed graph data for contributor connections."""
+    return await github_service.get_community_graph()
+
+@router.get("/sunburst")
+async def get_repository_sunburst():
+    """Get repository directory attention data for sunburst chart."""
+    return await github_service.get_repository_sunburst()
