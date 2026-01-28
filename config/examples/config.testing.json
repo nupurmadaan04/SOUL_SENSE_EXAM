@@ -1,0 +1,24 @@
+{
+  "database": {
+    "filename": "soulsense_test.db",
+    "path": "data"
+  },
+  "ui": {
+    "theme": "light",
+    "window_size": "800x600"
+  },
+  "features": {
+    "enable_journal": true,
+    "enable_analytics": true
+  },
+  "exam": {
+    "num_questions": 3
+  },
+  "experimental": {
+    "ai_journal_suggestions": false,
+    "advanced_analytics": false,
+    "beta_ui_components": false,
+    "ml_emotion_detection": false,
+    "data_export_v2": false
+  }
+}

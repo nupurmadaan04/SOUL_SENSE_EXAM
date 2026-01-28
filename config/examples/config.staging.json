@@ -1,0 +1,24 @@
+{
+  "database": {
+    "filename": "soulsense_staging.db",
+    "path": "db"
+  },
+  "ui": {
+    "theme": "light",
+    "window_size": "1024x768"
+  },
+  "features": {
+    "enable_journal": true,
+    "enable_analytics": true
+  },
+  "exam": {
+    "num_questions": 10
+  },
+  "experimental": {
+    "ai_journal_suggestions": true,
+    "advanced_analytics": true,
+    "beta_ui_components": false,
+    "ml_emotion_detection": true,
+    "data_export_v2": true
+  }
+}
