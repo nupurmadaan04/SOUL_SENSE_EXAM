@@ -180,3 +180,12 @@ experiments/
 test_*.txt
 *_output.txt
 *_output_*.txt
+
+# Logs
+logs/
+*.log
+
+# SQLite temp files
+*.db-wal
+*.db-shm
+*.db
