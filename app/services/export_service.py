@@ -1,6 +1,6 @@
-from app.db import get_db_session
-from app.models import Assessment, JournalEntry
-from app.report_engine import generate_pdf_report
+from app.db import get_session
+from app.models import Score, JournalEntry
+from app.report_engine import generate_export_pdf
 import csv
 import os
 import json
@@ -11,25 +11,26 @@ from io import StringIO
 # DATA COLLECTION
 # -----------------------------
 def collect_user_data(user_id, start_date=None, end_date=None):
-    session = get_db_session()
+    session = get_session()
 
-    query_assess = session.query(Assessment).filter_by(user_id=user_id)
-    query_journal = session.query(JournalEntry).filter_by(user_id=user_id)
+    # Score = Assessment
+    query_scores = session.query(Score).filter_by(user_id=user_id)
+    query_journals = session.query(JournalEntry).filter_by(user_id=user_id)
 
     if start_date:
-        query_assess = query_assess.filter(Assessment.date >= start_date)
-        query_journal = query_journal.filter(JournalEntry.date >= start_date)
+        query_scores = query_scores.filter(Score.timestamp >= start_date)
+        query_journals = query_journals.filter(JournalEntry.entry_date >= start_date)
 
     if end_date:
-        query_assess = query_assess.filter(Assessment.date <= end_date)
-        query_journal = query_journal.filter(JournalEntry.date <= end_date)
+        query_scores = query_scores.filter(Score.timestamp <= end_date)
+        query_journals = query_journals.filter(JournalEntry.entry_date <= end_date)
 
-    assessments = query_assess.all()
-    journals = query_journal.all()
+    scores = query_scores.all()
+    journals = query_journals.all()
 
     session.close()
 
-    return {"assessments": assessments, "journals": journals}
+    return {"scores": scores, "journals": journals}
 
 
 # -----------------------------
@@ -38,11 +39,19 @@ def collect_user_data(user_id, start_date=None, end_date=None):
 def export_as_json(data):
     serializable = {
         "assessments": [
-            {"date": str(a.date), "score": a.score}
-            for a in data["assessments"]
+            {
+                "timestamp": s.timestamp,
+                "total_score": s.total_score,
+                "sentiment_score": s.sentiment_score,
+            }
+            for s in data["scores"]
         ],
         "journals": [
-            {"date": str(j.date), "text": j.text}
+            {
+                "date": j.entry_date,
+                "text": j.content,
+                "sentiment": j.sentiment_score,
+            }
             for j in data["journals"]
         ],
     }
@@ -58,11 +67,11 @@ def export_as_csv(data):
 
     writer.writerow(["Type", "Date", "Value", "Notes"])
 
-    for a in data["assessments"]:
-        writer.writerow(["Assessment", str(a.date), a.score, ""])
+    for s in data["scores"]:
+        writer.writerow(["Assessment", s.timestamp, s.total_score, s.sentiment_score])
 
     for j in data["journals"]:
-        writer.writerow(["Journal", str(j.date), "", j.text])
+        writer.writerow(["Journal", j.entry_date, "", j.content])
 
     return output.getvalue()
 
@@ -71,11 +80,11 @@ def export_as_csv(data):
 # PDF EXPORT
 # -----------------------------
 def export_as_pdf(data, file_path):
-    generate_pdf_report(data, file_path)
+    generate_export_pdf(data, file_path)
 
 
 # -----------------------------
-# MASTER CONTROLLER (MAIN ENTRY)
+# MAIN CONTROLLER
 # -----------------------------
 def export_user_data(user_id, format_type="csv", start_date=None, end_date=None):
     data = collect_user_data(user_id, start_date, end_date)

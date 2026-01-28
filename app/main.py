@@ -24,6 +24,9 @@ from app.ui.assessments import AssessmentHub
 from app.ui.exam import ExamManager
 from app.ui.dashboard import AnalyticsDashboard
 from app.ui.journal import JournalFeature
+from app.db import check_db_state
+
+check_db_state()
 
 class SoulSenseApp:
     def __init__(self, root: tk.Tk) -> None:
