@@ -6,7 +6,8 @@ from datetime import datetime
 # Add project root to path
 sys.path.append(os.getcwd())
 
-from app.models import get_session, User, PersonalProfile
+from app.db import get_session
+from app.models import User, PersonalProfile
 # from app.db import init_db # Not needed, auto-inits
 
 def verify_personal_history():

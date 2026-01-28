@@ -73,6 +73,11 @@ class SemanticVersion:
     """Handles semantic versioning (major.minor.patch)."""
     
     def __init__(self, version_str: str = "1.0.0"):
+        """Initialize semantic version from string.
+
+        Args:
+            version_str (str, optional): Version string in format major.minor.patch. Defaults to "1.0.0".
+        """
         parts = version_str.split(".")
         self.major = int(parts[0]) if len(parts) > 0 else 1
         self.minor = int(parts[1]) if len(parts) > 1 else 0
@@ -114,6 +119,11 @@ class ModelRegistry:
     """
     
     def __init__(self, registry_path: str = None):
+        """Initialize the model registry.
+
+        Args:
+            registry_path (str, optional): Path to registry directory. If None, uses default.
+        """
         self.registry_path = Path(registry_path or os.path.join(MODELS_DIR, "registry"))
         self.models_path = self.registry_path / "models"
         self.metadata_file = self.registry_path / "registry.json"
@@ -188,27 +198,26 @@ class ModelRegistry:
         additional_artifacts: Optional[Dict[str, Any]] = None,
         notes: str = ""
     ) -> ModelMetadata:
-        """
-        Register a new model version.
-        
+        """Register a new model version.
+
         Args:
-            model: The trained model object
-            name: Model name (e.g., 'soulsense_predictor')
-            description: Description of the model
-            model_type: Type of model (classifier, regressor, etc.)
-            framework: ML framework used (sklearn, tensorflow, etc.)
-            metrics: Performance metrics (accuracy, f1, etc.)
-            parameters: Model hyperparameters
-            feature_names: List of feature names
-            class_names: List of class names for classifiers
-            tags: List of tags for categorization
-            bump_type: Version bump type ('major', 'minor', 'patch')
-            scaler: Optional scaler object
-            additional_artifacts: Additional objects to save
-            notes: Additional notes
-            
+            model (Any): The trained model object.
+            name (str): Model name (e.g., 'soulsense_predictor').
+            description (str, optional): Description of the model. Defaults to "".
+            model_type (str, optional): Type of model. Defaults to "classifier".
+            framework (str, optional): ML framework used. Defaults to "sklearn".
+            metrics (Optional[Dict[str, float]], optional): Performance metrics. Defaults to None.
+            parameters (Optional[Dict[str, Any]], optional): Model hyperparameters. Defaults to None.
+            feature_names (Optional[List[str]], optional): List of feature names. Defaults to None.
+            class_names (Optional[List[str]], optional): List of class names. Defaults to None.
+            tags (Optional[List[str]], optional): List of tags. Defaults to None.
+            bump_type (str, optional): Version bump type. Defaults to "patch".
+            scaler (Any, optional): Optional scaler object. Defaults to None.
+            additional_artifacts (Optional[Dict[str, Any]], optional): Additional objects to save. Defaults to None.
+            notes (str, optional): Additional notes. Defaults to "".
+
         Returns:
-            ModelMetadata for the registered model
+            ModelMetadata: Metadata for the registered model.
         """
         # Initialize model entry if needed
         if name not in self.registry["models"]:
@@ -283,15 +292,14 @@ class ModelRegistry:
         name: str,
         version: Optional[str] = None
     ) -> Tuple[Any, ModelMetadata]:
-        """
-        Load a model by name and version.
-        
+        """Load a model by name and version.
+
         Args:
-            name: Model name
-            version: Version string (default: latest)
-            
+            name (str): Model name.
+            version (Optional[str], optional): Version string. Defaults to latest.
+
         Returns:
-            Tuple of (model_data, metadata)
+            Tuple[Any, ModelMetadata]: Tuple of (model_data, metadata).
         """
         if name not in self.registry["models"]:
             raise ValueError(f"Model '{name}' not found in registry")
@@ -323,11 +331,26 @@ class ModelRegistry:
 
     # Backwards-compatible alias for older callers
     def load_model(self, name: str, version: Optional[str] = None) -> Tuple[Any, ModelMetadata]:
-        """Alias for get_model to preserve backward compatibility."""
+        """Alias for get_model to preserve backward compatibility.
+
+        Args:
+            name (str): Model name.
+            version (Optional[str], optional): Version string. Defaults to latest.
+
+        Returns:
+            Tuple[Any, ModelMetadata]: Tuple of (model_data, metadata).
+        """
         return self.get_model(name, version)
     
     def get_production_model(self, name: str) -> Optional[Tuple[Any, ModelMetadata]]:
-        """Get the production model for a given name."""
+        """Get the production model for a given name.
+
+        Args:
+            name (str): Model name.
+
+        Returns:
+            Optional[Tuple[Any, ModelMetadata]]: Production model data and metadata, or None.
+        """
         if name not in self.registry["models"]:
             return None
         
@@ -339,11 +362,23 @@ class ModelRegistry:
         return None
 
     def has_active_run(self) -> bool:
-        """Return True if there is an active experiment run."""
+        """Return True if there is an active experiment run.
+
+        Returns:
+            bool: True if there is an active experiment, False otherwise.
+        """
         return bool(self._current_experiment)
     
     def promote_to_production(self, name: str, version: str) -> bool:
-        """Promote a model version to production."""
+        """Promote a model version to production.
+
+        Args:
+            name (str): Model name.
+            version (str): Version to promote.
+
+        Returns:
+            bool: True if promotion successful.
+        """
         if name not in self.registry["models"]:
             raise ValueError(f"Model '{name}' not found")
         
@@ -364,7 +399,11 @@ class ModelRegistry:
         return True
     
     def list_models(self) -> List[Dict[str, Any]]:
-        """List all registered models."""
+        """List all registered models.
+
+        Returns:
+            List[Dict[str, Any]]: List of model information dictionaries.
+        """
         models_list = []
         for name, info in self.registry["models"].items():
             latest_version = max(info["versions"].keys(), key=lambda v: SemanticVersion(v)) if info["versions"] else None
@@ -377,7 +416,14 @@ class ModelRegistry:
         return models_list
     
     def list_versions(self, name: str) -> List[Dict[str, Any]]:
-        """List all versions of a model."""
+        """List all versions of a model.
+
+        Args:
+            name (str): Model name.
+
+        Returns:
+            List[Dict[str, Any]]: List of version information dictionaries.
+        """
         if name not in self.registry["models"]:
             return []
         
@@ -400,7 +446,16 @@ class ModelRegistry:
         version1: str,
         version2: str
     ) -> Dict[str, Any]:
-        """Compare two versions of a model."""
+        """Compare two versions of a model.
+
+        Args:
+            name (str): Model name.
+            version1 (str): First version to compare.
+            version2 (str): Second version to compare.
+
+        Returns:
+            Dict[str, Any]: Comparison results including metrics and parameters.
+        """
         if name not in self.registry["models"]:
             raise ValueError(f"Model '{name}' not found")
         
@@ -440,11 +495,28 @@ class ModelRegistry:
         }
     
     def rollback(self, name: str, target_version: str) -> bool:
-        """Rollback to a previous version by promoting it to production."""
+        """Rollback to a previous version by promoting it to production.
+
+        Args:
+            name (str): Model name.
+            target_version (str): Version to rollback to.
+
+        Returns:
+            bool: True if rollback successful.
+        """
         return self.promote_to_production(name, target_version)
     
     def delete_version(self, name: str, version: str, force: bool = False) -> bool:
-        """Delete a specific version."""
+        """Delete a specific version.
+
+        Args:
+            name (str): Model name.
+            version (str): Version to delete.
+            force (bool, optional): Force deletion even if production. Defaults to False.
+
+        Returns:
+            bool: True if deletion successful.
+        """
         if name not in self.registry["models"]:
             raise ValueError(f"Model '{name}' not found")
         
@@ -784,6 +856,12 @@ class ModelVersioningManager:
         registry_path: str = None,
         experiments_path: str = None
     ):
+        """Initialize the model versioning manager.
+
+        Args:
+            registry_path (str, optional): Path to model registry. Defaults to None.
+            experiments_path (str, optional): Path to experiments. Defaults to None.
+        """
         self.registry = ModelRegistry(registry_path)
         self.tracker = ExperimentTracker(experiments_path)
         self._current_experiment: Optional[str] = None
@@ -797,7 +875,18 @@ class ModelVersioningManager:
         dataset_info: Optional[Dict[str, Any]] = None,
         tags: Optional[List[str]] = None
     ) -> str:
-        """Start a new training run (experiment)."""
+        """Start a new training run (experiment).
+
+        Args:
+            name (str): Experiment name.
+            description (str, optional): Experiment description. Defaults to "".
+            hyperparameters (Optional[Dict[str, Any]], optional): Model hyperparameters. Defaults to None.
+            dataset_info (Optional[Dict[str, Any]], optional): Dataset information. Defaults to None.
+            tags (Optional[List[str]], optional): Experiment tags. Defaults to None.
+
+        Returns:
+            str: Experiment ID.
+        """
         self._current_experiment = self.tracker.start_experiment(
             name=name,
             description=description,
@@ -809,13 +898,28 @@ class ModelVersioningManager:
         return self._current_experiment
     
     def log_metrics(self, metrics: Dict[str, float]):
-        """Log metrics for the current run."""
+        """Log metrics for the current run.
+
+        Args:
+            metrics (Dict[str, float]): Metrics to log.
+
+        Raises:
+            ValueError: If no active experiment.
+        """
         if not self._current_experiment:
             raise ValueError("No active experiment. Call start_run() first.")
         self.tracker.log_metrics(self._current_experiment, metrics)
     
     def log_artifact(self, name: str, data: Any):
-        """Log an artifact for the current run."""
+        """Log an artifact for the current run.
+
+        Args:
+            name (str): Artifact name.
+            data (Any): Artifact data.
+
+        Raises:
+            ValueError: If no active experiment.
+        """
         if not self._current_experiment:
             raise ValueError("No active experiment. Call start_run() first.")
         self.tracker.log_artifact(self._current_experiment, name, data)
@@ -830,20 +934,22 @@ class ModelVersioningManager:
         bump_type: str = "patch",
         notes: str = ""
     ) -> Optional[ModelMetadata]:
-        """
-        End the current run and optionally register the model.
-        
+        """End the current run and optionally register the model.
+
         Args:
-            model: Model to register (optional)
-            model_name: Name for the registered model
-            scaler: Scaler to save with model
-            feature_names: Feature names
-            class_names: Class names
-            bump_type: Version bump type
-            notes: Additional notes
-            
+            model (Any, optional): Model to register. Defaults to None.
+            model_name (str, optional): Name for the registered model. Defaults to "".
+            scaler (Any, optional): Scaler to save with model. Defaults to None.
+            feature_names (Optional[List[str]], optional): Feature names. Defaults to None.
+            class_names (Optional[List[str]], optional): Class names. Defaults to None.
+            bump_type (str, optional): Version bump type. Defaults to "patch".
+            notes (str, optional): Additional notes. Defaults to "".
+
         Returns:
-            ModelMetadata if model was registered, None otherwise
+            Optional[ModelMetadata]: Model metadata if model was registered, None otherwise.
+
+        Raises:
+            ValueError: If no active experiment.
         """
         if not self._current_experiment:
             raise ValueError("No active experiment.")
@@ -888,7 +994,11 @@ class ModelVersioningManager:
         return metadata
     
     def fail_run(self, error_message: str = ""):
-        """Mark the current run as failed."""
+        """Mark the current run as failed.
+
+        Args:
+            error_message (str, optional): Error message. Defaults to "".
+        """
         if not self._current_experiment:
             return
         
@@ -897,15 +1007,31 @@ class ModelVersioningManager:
         self._experiment_start_time = None
     
     def get_production_model(self, name: str) -> Optional[Tuple[Any, ModelMetadata]]:
-        """Get the production model."""
+        """Get the production model.
+
+        Args:
+            name (str): Model name.
+
+        Returns:
+            Optional[Tuple[Any, ModelMetadata]]: Production model data and metadata.
+        """
         return self.registry.get_production_model(name)
     
     def promote_model(self, name: str, version: str):
-        """Promote a model to production."""
+        """Promote a model to production.
+
+        Args:
+            name (str): Model name.
+            version (str): Version to promote.
+        """
         return self.registry.promote_to_production(name, version)
     
     def generate_summary(self) -> str:
-        """Generate a summary of all models and experiments."""
+        """Generate a summary of all models and experiments.
+
+        Returns:
+            str: Formatted summary string.
+        """
         summary = """
 ╔══════════════════════════════════════════════════════════════╗
 ║              MODEL VERSIONING SYSTEM SUMMARY                  ║
@@ -944,7 +1070,15 @@ def create_versioning_manager(
     registry_path: str = "models/registry",
     experiments_path: str = "experiments"
 ) -> ModelVersioningManager:
-    """Create a ModelVersioningManager instance."""
+    """Create a ModelVersioningManager instance.
+
+    Args:
+        registry_path (str, optional): Path to model registry. Defaults to "models/registry".
+        experiments_path (str, optional): Path to experiments. Defaults to "experiments".
+
+    Returns:
+        ModelVersioningManager: Initialized manager instance.
+    """
     return ModelVersioningManager(registry_path, experiments_path)
 
 

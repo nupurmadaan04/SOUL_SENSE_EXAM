@@ -10,13 +10,12 @@ from matplotlib.figure import Figure
 
 # App imports
 from app.models import Score, JournalEntry
-from app.db import get_session
+from app.db import get_session, safe_db_context
 
 class CorrelationTab:
     def __init__(self, parent_frame, username):
         self.parent = parent_frame
         self.username = username
-        self.session = get_session()
         self.setup_ui()
         
     def setup_ui(self):
@@ -56,15 +55,16 @@ class CorrelationTab:
         """Run correlation analysis"""
         try:
             self.results_text.delete(1.0, tk.END)
-            
+
             # Clear previous visualization
             for widget in self.viz_frame.winfo_children():
                 widget.destroy()
-            
+
             # Fetch data
-            scores_data = self.session.query(Score).filter(
-                Score.username == self.username
-            ).order_by(Score.timestamp).all()
+            with safe_db_context() as session:
+                scores_data = session.query(Score).filter(
+                    Score.username == self.username
+                ).order_by(Score.timestamp).all()
             
             if len(scores_data) < 2:
                 self.results_text.insert(tk.END, "⚠️ Need at least 2 EQ tests for correlation analysis.\n")
@@ -158,10 +158,11 @@ class CorrelationTab:
             self.create_visualizations(scores)
             
             # 7. Check journal correlation if available
-            journal_data = self.session.query(JournalEntry).filter(
-                JournalEntry.username == self.username
-            ).all()
-            
+            with safe_db_context() as session:
+                journal_data = session.query(JournalEntry).filter(
+                    JournalEntry.username == self.username
+                ).all()
+
             if journal_data:
                 self.analyze_journal_correlation(scores, journal_data)
             
@@ -262,7 +263,4 @@ class CorrelationTab:
             else:
                 self.results_text.insert(tk.END, "🔍 No clear correlation with journal sentiment\n")
     
-    def __del__(self):
-        """Close session when object is destroyed"""
-        if hasattr(self, 'session'):
-            self.session.close()
+

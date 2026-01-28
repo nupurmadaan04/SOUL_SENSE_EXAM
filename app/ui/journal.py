@@ -13,7 +13,7 @@ from sqlalchemy import desc, text
 from app.i18n_manager import get_i18n
 from app.i18n_manager import get_i18n
 from app.models import JournalEntry, User
-from app.db import get_session
+from app.db import get_session, safe_db_context
 from app.services.journal_service import JournalService
 from app.validation import validate_required, validate_length, validate_range, sanitize_text, RANGES
 from app.validation import MAX_TEXT_LENGTH
@@ -372,8 +372,7 @@ class JournalFeature:
         to_date = self.inline_to_date_var.get().strip()
         selected_mood = self.inline_mood_var.get()
 
-        session = get_session()
-        try:
+        with safe_db_context() as session:
             entries = session.query(JournalEntry)\
                 .filter_by(username=self.username)\
                 .order_by(desc(JournalEntry.entry_date))\
@@ -424,8 +423,6 @@ class JournalFeature:
                 tk.Label(self.results_scrollable_frame, text="No entries found matching filters.",
                         font=("Segoe UI", 12), bg=self.colors.get("surface", "#fff"),
                         fg=self.colors.get("text_secondary", "#666")).pack(pady=20)
-        finally:
-            session.close()
 
     def open_journal_window(self, username):
         """Standalone Window Mode (Deprecated but kept for compat)"""
@@ -987,8 +984,7 @@ class JournalFeature:
                 fg=self.colors.get("text_primary", "#000")).pack(pady=10)
 
         # Get data
-        session = get_session()
-        try:
+        with safe_db_context() as session:
             entries = session.query(JournalEntry)\
                 .filter_by(username=self.username)\
                 .order_by(JournalEntry.entry_date)\
@@ -1078,12 +1074,6 @@ class JournalFeature:
             tk.Button(chart_window, text="Close", command=chart_window.destroy,
                      font=("Segoe UI", 11), bg=self.colors.get("primary", "#8B5CF6"),
                      fg="white", relief="flat", padx=20, pady=8).pack(pady=(0, 20))
-
-        except Exception as e:
-            logging.error(f"Failed to generate mood trends: {e}")
-            messagebox.showerror("Error", f"Failed to generate mood trends: {e}")
-        finally:
-            session.close()
 
     def _create_entry_card(self, parent, entry):
         """Create a modern, aesthetic card for a journal entry with click-to-detail"""
@@ -1281,16 +1271,16 @@ class JournalFeature:
             user_emotions = []
             preferred_support = None
             try:
-                session = get_session()
-                user = session.query(User).filter_by(username=self.username).first()
-                if user and user.emotional_patterns:
-                    ep = user.emotional_patterns
-                    import json
-                    try:
-                        user_emotions = json.loads(ep.common_emotions) if ep.common_emotions else []
-                    except:
-                        user_emotions = []
-                    preferred_support = ep.preferred_support
+                with safe_db_context() as session:
+                    user = session.query(User).filter_by(username=self.username).first()
+                    if user and user.emotional_patterns:
+                        ep = user.emotional_patterns
+                        import json
+                        try:
+                            user_emotions = json.loads(ep.common_emotions) if ep.common_emotions else []
+                        except:
+                            user_emotions = []
+                        preferred_support = ep.preferred_support
             except Exception as e:
                 logging.warning(f"Could not load emotional patterns: {e}")
             

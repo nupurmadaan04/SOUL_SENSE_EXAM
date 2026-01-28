@@ -44,7 +44,7 @@ jobs:
 
       - name: Test Root App
         env:
-          DISPLAY: ""
+          DISPLAY: ":0.0"
         run: pytest tests/
 
       - name: Test Backend App

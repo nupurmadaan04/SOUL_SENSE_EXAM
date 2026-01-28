@@ -1,7 +1,2 @@
-import sys
-import os
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-
-from app.auth.auth import AuthManager
-
-__all__ = ['AuthManager']
+from .auth import AuthManager
+from .app_auth import AppAuth

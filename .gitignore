@@ -158,6 +158,8 @@ __pypackages__/
 data/*.db
 data/*.sqlite
 data/soulsense.db
+data/soulsense.db-shm
+data/soulsense.db-wal
 data/experiments/
 data/model_metrics.txt
 data/confusion_matrix.png

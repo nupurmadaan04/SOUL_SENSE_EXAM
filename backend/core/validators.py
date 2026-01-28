@@ -220,23 +220,23 @@ def validate_environment_on_startup(env: str = "development") -> Dict[str, Any]:
 
 def log_environment_summary(validated_vars: Dict[str, Any], summary: Dict[str, Any]) -> None:
     """Log environment validation summary."""
-    print("🔍 Environment Validation Summary:")
-    print(f"   ✅ Valid: {summary['valid']}")
-    print(f"   ❌ Errors: {summary['error_count']}")
-    print(f"   ⚠️  Warnings: {summary['warning_count']}")
+    print("Environment Validation Summary:")
+    print(f"   [OK] Valid: {summary['valid']}")
+    print(f"   [ERR] Errors: {summary['error_count']}")
+    print(f"   [WARN] Warnings: {summary['warning_count']}")
 
     if summary['errors']:
-        print("\n❌ Validation Errors:")
+        print("\n[ERR] Validation Errors:")
         for error in summary['errors']:
             print(f"   - {error}")
 
     if summary['warnings']:
-        print("\n⚠️  Validation Warnings:")
+        print("\n[WARN] Validation Warnings:")
         for warning in summary['warnings']:
             print(f"   - {warning}")
 
     # Log non-sensitive variables
-    print("\n📋 Environment Configuration (non-sensitive):")
+    print("\nEnvironment Configuration (non-sensitive):")
     sensitive_keys = {'JWT_SECRET_KEY', 'DATABASE_PASSWORD', 'SECRET_KEY'}
     for key, value in validated_vars.items():
         if key not in sensitive_keys:

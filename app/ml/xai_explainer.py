@@ -7,7 +7,10 @@ import json
 from datetime import datetime
 
 class SoulSenseXAI:
+    """XAI (Explainable AI) module for SoulSense emotional analysis."""
+
     def __init__(self):
+        """Initialize the XAI explainer with database connection."""
         self.conn = sqlite3.connect("soulsense_db")
         self.cursor = self.conn.cursor()
         
@@ -55,7 +58,16 @@ class SoulSenseXAI:
         }
     
     def analyze_score(self, total_score, username, age):
-        """Generate XAI explanation based on total score"""
+        """Generate XAI explanation based on total score.
+
+        Args:
+            total_score: Total assessment score.
+            username: User's name.
+            age: User's age.
+
+        Returns:
+            str: Formatted explanation report.
+        """
         
         # Score interpretation
         if total_score <= 10:
@@ -127,7 +139,14 @@ class SoulSenseXAI:
         return explanation
     
     def get_detailed_analysis(self, user_id):
-        """Get detailed analysis for a specific user"""
+        """Get detailed analysis for a specific user.
+
+        Args:
+            user_id: User's ID.
+
+        Returns:
+            dict or None: Analysis data or None if user not found.
+        """
         self.cursor.execute("""
         SELECT username, age, total_score FROM scores WHERE id = ?
         """, (user_id,))
@@ -160,7 +179,14 @@ class SoulSenseXAI:
         return analysis
     
     def _calculate_breakdown(self, total_score):
-        """Calculate detailed score breakdown"""
+        """Calculate detailed score breakdown.
+
+        Args:
+            total_score: Total assessment score.
+
+        Returns:
+            dict: Breakdown by emotional components.
+        """
         breakdown = {
             'emotional_awareness': (total_score * 0.3),  # 30% weight
             'emotional_regulation': (total_score * 0.25),  # 25% weight
@@ -170,7 +196,14 @@ class SoulSenseXAI:
         return breakdown
     
     def _analyze_trends(self, user_id):
-        """Analyze score trends over time"""
+        """Analyze score trends over time.
+
+        Args:
+            user_id: User's ID.
+
+        Returns:
+            str: Trend analysis description.
+        """
         self.cursor.execute("""
         SELECT total_score, timestamp FROM scores 
         WHERE id = ? ORDER BY id DESC LIMIT 5
@@ -195,7 +228,13 @@ class SoulSenseXAI:
         return f"Score trend: {trend} (from {previous_score} to {recent_score})"
     
     def save_explanation(self, user_id, total_score, explanation_text):
-        """Save explanation to database"""
+        """Save explanation to database.
+
+        Args:
+            user_id: User's ID.
+            total_score: Total assessment score.
+            explanation_text: Explanation text to save.
+        """
         self.cursor.execute("""
         INSERT INTO explanations (user_id, timestamp, total_score, explanation_text)
         VALUES (?, ?, ?, ?)
@@ -203,18 +242,22 @@ class SoulSenseXAI:
         self.conn.commit()
     
     def get_last_user_id(self):
-        """Get the last inserted user ID"""
+        """Get the last inserted user ID.
+
+        Returns:
+            int: Last inserted row ID.
+        """
         self.cursor.execute("SELECT last_insert_rowid()")
         return self.cursor.fetchone()[0]
     
     def close(self):
-        """Close database connection"""
+        """Close database connection."""
         self.conn.close()
 
 
 # Quick test function
 def test_xai():
-    """Test the XAI system"""
+    """Test the XAI system."""
     xai = SoulSenseXAI()
     
     # Test with sample data

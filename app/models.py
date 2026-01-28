@@ -348,10 +348,7 @@ class AssessmentResult(Base):
         Index('idx_assessment_user_type', 'user_id', 'assessment_type'),
     )
     
-# Simple function to get session (from upstream)
-def get_session() -> Session:
-    from app.db import get_session as get_db_session
-    return get_db_session()
+
 
 # ==================== DATABASE PERFORMANCE OPTIMIZATIONS ====================
 

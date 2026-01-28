@@ -6,7 +6,8 @@ import json
 from datetime import datetime
 
 from app.services.question_curator import QuestionCurator
-from app.models import AssessmentResult, get_session
+from app.db import get_session
+from app.models import AssessmentResult
 
 # Configure logging
 logger = logging.getLogger(__name__)

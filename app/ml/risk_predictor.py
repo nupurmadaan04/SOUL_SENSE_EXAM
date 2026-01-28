@@ -8,7 +8,14 @@ import logging
 logging.basicConfig(level=logging.INFO)
 
 class RiskPredictor:
+    """Predicts emotional risk levels using ML models or rule-based fallback."""
+
     def __init__(self, models_dir="models"):
+        """Initialize the risk predictor.
+
+        Args:
+            models_dir (str, optional): Directory containing trained models. Defaults to "models".
+        """
         self.models_dir = models_dir
         self.model = None
         self._model_loaded = False
@@ -36,9 +43,15 @@ class RiskPredictor:
             self.model = None
 
     def predict(self, total_score, sentiment_score, age):
-        """
-        Predicts risk level.
-        Returns: 'High Risk', 'Medium Risk', 'Low Risk', or 'Unknown'
+        """Predicts risk level.
+
+        Args:
+            total_score: Total assessment score.
+            sentiment_score: Sentiment analysis score.
+            age: User's age.
+
+        Returns:
+            str: Risk level ('High Risk', 'Medium Risk', 'Low Risk', or 'Unknown').
         """
         # Lazy load model if not already loaded
         if not self._model_loaded:
@@ -63,8 +76,16 @@ class RiskPredictor:
             return self._rule_based_fallback(total_score, sentiment_score)
 
     def predict_with_explanation(self, responses, age, total_score, sentiment_score=0.0):
-        """
-        Interface for UI. Returns dict with 'prediction' (int) and 'prediction_label' (str).
+        """Interface for UI. Returns dict with 'prediction' (int) and 'prediction_label' (str).
+
+        Args:
+            responses: List of question responses.
+            age: User's age.
+            total_score: Total assessment score.
+            sentiment_score: Sentiment score. Defaults to 0.0.
+
+        Returns:
+            dict: Dictionary with prediction details including prediction code, label, score, sentiment, and confidence.
         """
         # Get raw prediction (String)
         label = self.predict(total_score, sentiment_score, age)
@@ -99,7 +120,15 @@ class RiskPredictor:
         }
 
     def _rule_based_fallback(self, score, sentiment):
-        """Simple rules if ML is broken/missing."""
+        """Simple rules if ML is broken/missing.
+
+        Args:
+            score: Total assessment score.
+            sentiment: Sentiment score.
+
+        Returns:
+            str: Risk level based on simple rules.
+        """
         if score < 25:
             return "High Risk (Rule)"
         elif score > 35:

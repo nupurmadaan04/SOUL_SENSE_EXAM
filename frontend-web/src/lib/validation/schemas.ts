@@ -1,10 +1,7 @@
 import { z } from 'zod';
 
 // Base schemas
-export const emailSchema = z
-  .string()
-  .min(1, 'Email is required')
-  .email('Invalid email format');
+export const emailSchema = z.string().min(1, 'Email is required').email('Invalid email format');
 
 export const passwordSchema = z
   .string()

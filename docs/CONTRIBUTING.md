@@ -96,6 +96,20 @@ The suite includes:
 
 Please ensure all tests pass (or known failures are marked `xfail`) before submitting a PR.
 
+#### 4. Frontend Quality Checks (Web)
+
+If you are working in the `frontend-web` directory:
+
+1.  **Strict Linting**: Architectural boundaries and import rules are checked via ESLint.
+    ```bash
+    cd frontend-web
+    npm run lint
+    ```
+2.  **Production Build**: Ensure the application compiles without errors.
+    ```bash
+    npm run build
+    ```
+
 ---
 
 ### 5. Commit Your Changes

@@ -1,0 +1,12 @@
+{
+  "common": {
+    "title": "Soul Sense",
+    "description": "AI-Powered Emotional Intelligence Test"
+  },
+  "home": {
+    "hero": {
+      "title": "Unlock Your Emotional Intelligence",
+      "subtitle": "Discover your EQ with our AI-powered assessment."
+    }
+  }
+}

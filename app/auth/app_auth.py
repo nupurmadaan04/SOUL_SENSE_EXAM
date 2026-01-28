@@ -1,5 +1,5 @@
 import tkinter as tk
-from app.auth import AuthManager
+from app import auth
 from app.logger import get_logger
 from typing import TYPE_CHECKING
 
@@ -9,7 +9,7 @@ if TYPE_CHECKING:
 class AppAuth:
     def __init__(self, app: 'SoulSenseApp'):
         self.app = app
-        self.auth_manager = AuthManager()
+        self.auth_manager = auth.AuthManager()
         self.logger = get_logger(__name__)
 
     def show_login_screen(self):
