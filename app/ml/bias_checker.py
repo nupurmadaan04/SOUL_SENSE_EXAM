@@ -10,11 +10,31 @@ from datetime import datetime
 
 class SimpleBiasChecker:
     def __init__(self, db_path=None):
+        """Initialize the SimpleBiasChecker.
+
+        Args:
+            db_path (str, optional): Path to the database file. If None, uses the default DB_PATH from config.
+        """
         from app.config import DB_PATH
         self.db_path = db_path if db_path is not None else DB_PATH
     
     def check_age_bias(self):
-        """Simple check: Are scores different across age groups?"""
+        """Check for age bias in test scores by comparing averages across age groups.
+
+        Analyzes the database to determine if there are significant differences in average
+        scores between different age groups, which could indicate bias.
+
+        Returns:
+            dict: A dictionary containing the analysis results with the following keys:
+                - status (str): 'ok', 'potential_bias', 'insufficient_data', or 'error'
+                - message (str): Human-readable message about the results
+                - issues (list, optional): List of bias issues found
+                - overall_avg (float, optional): Overall average score
+                - details (list, optional): Detailed statistics per age group
+
+        Raises:
+            No explicit exceptions raised; errors are caught and returned in the dict.
+        """
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
@@ -83,7 +103,21 @@ class SimpleBiasChecker:
             return {"status": "error", "message": str(e)}
     
     def check_question_fairness(self):
-        """Check if questions have similar average responses across ages"""
+        """Check if questions have similar average responses across age groups.
+
+        Analyzes individual questions to see if younger and older respondents
+        give significantly different average responses, which could indicate
+        question bias or fairness issues.
+
+        Returns:
+            dict: A dictionary containing the analysis results with the following keys:
+                - status (str): 'ok' or 'error'
+                - biased_questions (list): List of questions with significant differences
+                - total_questions_checked (int): Number of questions analyzed
+
+        Raises:
+            No explicit exceptions raised; errors are caught and returned in the dict.
+        """
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
@@ -142,7 +176,18 @@ class SimpleBiasChecker:
             return {"status": "error", "message": str(e)}
     
     def generate_bias_report(self):
-        """Generate a simple bias report"""
+        """Generate a comprehensive bias report and save it to a file.
+
+        Combines age bias and question fairness analyses into a single report,
+        saves it as a JSON file in the reports directory, and returns the data.
+
+        Returns:
+            dict: The complete bias report containing timestamp, age bias analysis,
+                  and question fairness analysis.
+
+        Raises:
+            OSError: If unable to create the reports directory or write the file.
+        """
         age_bias = self.check_age_bias()
         question_bias = self.check_question_fairness()
         
@@ -162,6 +207,12 @@ class SimpleBiasChecker:
 
 # Simple standalone function
 def quick_bias_check():
-    """Quick one-line bias check"""
+    """Perform a quick bias check on test scores.
+
+    Creates a SimpleBiasChecker instance and runs the age bias check.
+
+    Returns:
+        dict: The result of the age bias check, containing status and analysis details.
+    """
     checker = SimpleBiasChecker()
     return checker.check_age_bias()

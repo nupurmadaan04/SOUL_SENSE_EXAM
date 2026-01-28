@@ -15,12 +15,11 @@ class SoulSenseMLPredictor:
     """
 
     def __init__(self, use_versioning: bool = True, models_dir: str = "models"):
-        """
-        Initialize the ML predictor.
+        """Initialize the ML predictor.
 
         Args:
-            use_versioning: Whether to use model versioning
-            models_dir: Directory containing trained models
+            use_versioning (bool, optional): Whether to use model versioning. Defaults to True.
+            models_dir (str, optional): Directory containing trained models. Defaults to "models".
         """
         self.use_versioning = use_versioning
         self.models_dir = models_dir
@@ -46,11 +45,10 @@ class SoulSenseMLPredictor:
         self._load_model()
 
     def _load_model(self) -> bool:
-        """
-        Load the latest trained model and scaler.
+        """Load the latest trained model and scaler.
 
         Returns:
-            True if model loaded successfully, False otherwise
+            bool: True if model loaded successfully, False otherwise.
         """
         try:
             # Try to load from versioning system first
@@ -90,16 +88,15 @@ class SoulSenseMLPredictor:
         return False
 
     def predict(self, total_score: float, sentiment_score: float, age: int) -> str:
-        """
-        Predict risk level using the trained model or fallback.
+        """Predict risk level using the trained model or fallback.
 
         Args:
-            total_score: Total EQ assessment score
-            sentiment_score: Sentiment analysis score
-            age: User's age
+            total_score (float): Total EQ assessment score.
+            sentiment_score (float): Sentiment analysis score.
+            age (int): User's age.
 
         Returns:
-            Risk level string
+            str: Risk level string ("Low Risk", "Moderate Risk", or "High Risk").
         """
         if self.model is not None and self.scaler is not None:
             try:
@@ -121,17 +118,17 @@ class SoulSenseMLPredictor:
 
     def predict_with_explanation(self, responses: List[Dict], age: int, total_score: float,
                                sentiment_score: float = 0.0) -> Dict[str, Any]:
-        """
-        Predict with detailed explanation.
+        """Predict with detailed explanation.
 
         Args:
-            responses: List of question responses
-            age: User's age
-            total_score: Total assessment score
-            sentiment_score: Sentiment score
+            responses (List[Dict]): List of question responses.
+            age (int): User's age.
+            total_score (float): Total assessment score.
+            sentiment_score (float, optional): Sentiment score. Defaults to 0.0.
 
         Returns:
-            Dictionary with prediction details
+            Dict[str, Any]: Dictionary with prediction details including prediction code,
+                           label, score, sentiment, and confidence.
         """
         # Get basic prediction
         label = self.predict(total_score, sentiment_score, age)
@@ -164,5 +161,9 @@ class SoulSenseMLPredictor:
         }
 
     def is_model_loaded(self) -> bool:
-        """Check if a trained model is loaded."""
+        """Check if a trained model is loaded.
+
+        Returns:
+            bool: True if a model is loaded, False otherwise.
+        """
         return self.model is not None
