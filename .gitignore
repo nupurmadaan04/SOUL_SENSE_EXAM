@@ -186,6 +186,7 @@ test_*.txt
 # Logs
 logs/
 *.log
+!logs/soulsense.log
 
 # SQLite temp files
 *.db-wal
