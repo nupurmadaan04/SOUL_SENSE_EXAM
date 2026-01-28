@@ -475,7 +475,7 @@ class UserProfileView:
         x = (self.window.winfo_screenwidth() // 2) - (width // 2)
         y = (self.window.winfo_screenheight() // 2) - (height // 2)
         dialog.geometry(f'{width}x{height}+{x}+{y}')
-        
+
         # Theme colors
         bg = self.colors.get("card_bg", "#ffffff")
         fg = self.colors.get("text_primary", "#000000")

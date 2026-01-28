@@ -98,6 +98,7 @@ def test_database_connection():
     except Exception as e:
         pytest.fail(f"Database connection failed: {e}")
 
+@patch("tkinter.ttk.Style")
 @patch("app.ui.styles.UIStyles")
 @patch("app.logger.get_logger")
 def test_app_initialization_verification(mock_logger, mock_styles):

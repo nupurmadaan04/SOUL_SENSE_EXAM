@@ -59,29 +59,30 @@ class SatisfactionSurvey:
             self.window.configure(bg="white")
         
         # Create scrollable canvas
-        canvas = tk.Canvas(self.window, highlightthickness=0, bg="white")
-        scrollbar = tk.Scrollbar(self.window, orient="vertical", command=canvas.yview)
-        scrollable_frame = tk.Frame(canvas, bg="white")
-        
+        self.canvas = tk.Canvas(self.window, highlightthickness=0, bg="white")
+        scrollbar = tk.Scrollbar(self.window, orient="vertical", command=self.canvas.yview)
+        scrollable_frame = tk.Frame(self.canvas, bg="white")
+
         scrollable_frame.bind(
             "<Configure>",
-            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+            lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all"))
         )
-        
-        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw", width=680)
-        canvas.configure(yscrollcommand=scrollbar.set)
-        
+
+        self.canvas.create_window((0, 0), window=scrollable_frame, anchor="nw", width=680)
+        self.canvas.configure(yscrollcommand=scrollbar.set)
+
         # Add mouse wheel scrolling
         def _on_mousewheel(event):
-            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
-        
-        canvas.bind_all("<MouseWheel>", _on_mousewheel)
+            if self.canvas and self.canvas.winfo_exists():
+                self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+
+        self.canvas.bind_all("<MouseWheel>", _on_mousewheel)
         
         # Build survey
         self._build_survey(scrollable_frame)
         
         # Pack layout
-        canvas.pack(side="left", fill="both", expand=True)
+        self.canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
         
         # Center window
