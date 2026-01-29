@@ -1,38 +1,48 @@
-from fpdf import FPDF
-import datetime
+from reportlab.pdfgen import canvas
 import os
+import datetime
 
-def generate_pdf_report(username, stats):
-    """
-    Generates a professional PDF assessment report.
-    """
-    pdf = FPDF()
-    pdf.add_page()
-    
-    # Header
-    pdf.set_font("Arial", 'B', 20)
-    pdf.cell(200, 10, "SoulSense AI Progress Report", ln=True, align='C')
-    pdf.ln(10)
-    
-    # User Info
-    pdf.set_font("Arial", size=12)
-    pdf.cell(200, 10, f"User: {username}", ln=True)
-    pdf.cell(200, 10, f"Date: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')}", ln=True)
-    pdf.ln(5)
-    
-    # Analysis Results
-    pdf.set_font("Arial", 'B', 14)
-    pdf.cell(200, 10, "Emotional Analysis Results", ln=True)
-    pdf.set_font("Arial", size=12)
-    pdf.cell(200, 10, f"Sentiment Score: {stats['avg_sentiment']}", ln=True)
-    pdf.cell(200, 10, f"Current Status: {stats['status']}", ln=True)
-    pdf.cell(200, 10, f"Entries Analyzed: {stats['count']}", ln=True)
-    
-    pdf.ln(10)
-    pdf.set_font("Arial", 'I', 10)
-    pdf.multi_cell(0, 10, "Disclaimer: This report is AI-generated and intended for self-awareness purposes only.")
 
-    # Save logic
-    file_name = f"{username}_report.pdf"
-    pdf.output(file_name)
-    return os.path.abspath(file_name)
+def generate_export_pdf(data, file_path):
+    c = canvas.Canvas(file_path)
+    y = 800
+
+    c.setFont("Helvetica-Bold", 16)
+    c.drawString(180, y, "SoulSense – User Export Report")
+    y -= 40
+
+    c.setFont("Helvetica", 12)
+    c.drawString(50, y, f"Generated at: {datetime.datetime.now()}")
+    y -= 30
+
+    # Scores
+    c.setFont("Helvetica-Bold", 14)
+    c.drawString(50, y, "Assessments")
+    y -= 20
+    c.setFont("Helvetica", 11)
+
+    for s in data["scores"]:
+        c.drawString(60, y, f"{s.timestamp} | Score: {s.total_score} | Sentiment: {s.sentiment_score}")
+        y -= 18
+        if y < 60:
+            c.showPage()
+            c.setFont("Helvetica", 11)
+            y = 800
+
+    y -= 20
+
+    # Journals
+    c.setFont("Helvetica-Bold", 14)
+    c.drawString(50, y, "Journal Entries")
+    y -= 20
+    c.setFont("Helvetica", 11)
+
+    for j in data["journals"]:
+        c.drawString(60, y, f"{j.entry_date} | {j.content[:70]}")
+        y -= 18
+        if y < 60:
+            c.showPage()
+            c.setFont("Helvetica", 11)
+            y = 800
+
+    c.save()

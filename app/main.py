@@ -13,6 +13,21 @@ from app.error_handler import setup_global_exception_handlers
 from app.questions import initialize_questions
 from typing import Optional, Dict, Any
 
+from app.error_handler import get_error_handler, ErrorSeverity
+from app.logger import get_logger
+from app.i18n_manager import get_i18n
+from app.auth import AuthManager
+from app.questions import load_questions
+from app.ui.sidebar import SidebarNav
+from app.ui.assessments import AssessmentHub
+from app.ui.exam import ExamManager
+from app.ui.dashboard import AnalyticsDashboard
+from app.ui.journal import JournalFeature
+from app.db import check_db_state
+
+check_db_state()
+
+
 class SoulSenseApp:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
