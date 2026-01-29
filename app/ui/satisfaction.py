@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import List, Optional
 import logging
 
-from app.db import get_session
+from app.db import get_session, safe_db_context
 from app.models import SatisfactionRecord
 from app.questions import SATISFACTION_QUESTIONS, SATISFACTION_OPTIONS
 from app.i18n_manager import get_i18n
@@ -402,58 +402,52 @@ class SatisfactionSurvey:
     
     def submit(self):
         """Submit survey results to database"""
+        # Validate required fields
+        if "satisfaction_score" not in self.responses:
+            messagebox.showerror("Error", "Please select your overall satisfaction score.")
+            return
+        
+        # Prepare data
+        record = SatisfactionRecord(
+            username=self.username,
+            user_id=self.user_id,
+            satisfaction_score=self.responses["satisfaction_score"],
+            context=self.responses.get("context", ""),
+            positive_factors=json.dumps(self.responses.get("positive_factors", [])),
+            negative_factors=json.dumps(self.responses.get("negative_factors", [])),
+            improvement_suggestions=self.responses.get("improvement_suggestion", ""),
+            eq_score_id=self.eq_score_id
+        )
+        
+        # Determine category
+        context = self.responses.get("context", "").lower()
+        if "student" in context or "study" in context:
+            record.satisfaction_category = "academic"
+        elif "work" in context or "employment" in context or "job" in context:
+            record.satisfaction_category = "work"
+        else:
+            record.satisfaction_category = "other"
+        
+        # Save to database
         try:
-            # Validate required fields
-            if "satisfaction_score" not in self.responses:
-                messagebox.showerror("Error", "Please select your overall satisfaction score.")
-                return
-            
-            # Prepare data
-            record = SatisfactionRecord(
-                username=self.username,
-                user_id=self.user_id,
-                satisfaction_score=self.responses["satisfaction_score"],
-                context=self.responses.get("context", ""),
-                positive_factors=json.dumps(self.responses.get("positive_factors", [])),
-                negative_factors=json.dumps(self.responses.get("negative_factors", [])),
-                improvement_suggestions=self.responses.get("improvement_suggestion", ""),
-                eq_score_id=self.eq_score_id
-            )
-            
-            # Determine category
-            context = self.responses.get("context", "").lower()
-            if "student" in context or "study" in context:
-                record.satisfaction_category = "academic"
-            elif "work" in context or "employment" in context or "job" in context:
-                record.satisfaction_category = "work"
-            else:
-                record.satisfaction_category = "other"
-            
-            # Save to database
-            session = get_session()
-            try:
+            with safe_db_context() as session:
                 session.add(record)
                 session.commit()
-                
-                # Show thank you message
-                messagebox.showinfo(
-                    "Thank You!",
-                    "Thank you for completing the satisfaction survey!\n\n"
-                    "Your responses will help provide better career/academic guidance."
-                )
-                
-                # Close window
-                self.on_close()
-                
-            except Exception as e:
-                session.rollback()
-                logging.error(f"Failed to save satisfaction survey: {e}")
-                raise e
-            finally:
-                session.close()
-                
+            
+            # Show thank you message
+            messagebox.showinfo(
+                "Thank You!",
+                "Thank you for completing the satisfaction survey!\n\n"
+                "Your responses will help provide better career/academic guidance."
+            )
+            
+            # Close window
+            self.on_close()
+            
         except Exception as e:
+            logging.error(f"Failed to save satisfaction survey: {e}")
             messagebox.showerror("Error", f"Failed to save survey: {str(e)}")
+            raise e
     
     def on_close(self):
         """Close the survey window"""

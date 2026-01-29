@@ -4,7 +4,7 @@ from tkinter import ttk, messagebox, simpledialog
 import logging
 import json
 from datetime import datetime
-from app.db import get_session
+from app.db import get_session, safe_db_context
 from app.models import User
 from app.services.profile_service import ProfileService
 # from app.ui.styles import ApplyTheme # Not needed
@@ -502,17 +502,16 @@ class UserProfileView:
                 
             try:
                 from app.models import PersonalProfile, User
-                session = get_session()
-                user = session.query(User).filter_by(username=self.app.username).first()
-                if user:
-                    if not user.personal_profile:
-                        pp = PersonalProfile(user_id=user.id)
-                        user.personal_profile = pp
-                        session.add(pp)
-                    user.personal_profile.life_pov = new_text
-                    session.commit()
-                    self.on_nav_change("overview")
-                session.close()
+                with safe_db_context() as session:
+                    user = session.query(User).filter_by(username=self.app.username).first()
+                    if user:
+                        if not user.personal_profile:
+                            pp = PersonalProfile(user_id=user.id)
+                            user.personal_profile = pp
+                            session.add(pp)
+                        user.personal_profile.life_pov = new_text
+                        session.commit()
+                        self.on_nav_change("overview")
                 dialog.destroy()
             except Exception as e:
                 logging.error(f"Failed to save: {e}")
@@ -536,66 +535,64 @@ class UserProfileView:
         
         try:
             from app.models import Score, JournalEntry, MedicalProfile
-            session = get_session()
-            user = session.query(User).filter_by(username=self.app.username).first()
-            
-            if user:
-                # Member since
-                if user.created_at:
-                    try:
-                        created = datetime.fromisoformat(user.created_at.replace('Z', '+00:00'))
-                        data["member_since"] = created.strftime("%b %Y")
-                    except:
-                        data["member_since"] = "--"
+            with safe_db_context() as session:
+                user = session.query(User).filter_by(username=self.app.username).first()
                 
-                # Personal Profile data
-                if user.personal_profile:
-                    pp = user.personal_profile
-                    data["email"] = pp.email or "Not set"
-                    data["phone"] = pp.phone or "Not set"
-                    data["address"] = pp.address or "Not set"
-                    data["occupation"] = pp.occupation
-                    data["gender"] = pp.gender or "--"
-                    data["avatar_path"] = pp.avatar_path  # Profile photo path
-                    if pp.date_of_birth:
-                        data["dob"] = pp.date_of_birth
+                if user:
+                    # Member since
+                    if user.created_at:
                         try:
-                            dob = datetime.strptime(pp.date_of_birth, "%Y-%m-%d")
-                            age = (datetime.now() - dob).days // 365
-                            data["age"] = f"{age}y"
+                            created = datetime.fromisoformat(user.created_at.replace('Z', '+00:00'))
+                            data["member_since"] = created.strftime("%b %Y")
                         except:
-                            data["age"] = "--"
+                            data["member_since"] = "--"
                     
-                    # Issue #260: Load Life Perspective (POV)
-                    data["life_pov"] = pp.life_pov or ""
-                
-                # Medical Profile data
-                if user.medical_profile:
-                    mp = user.medical_profile
-                    data["blood_type"] = mp.blood_type
-                    data["allergies"] = mp.allergies
-                    data["conditions"] = mp.medical_conditions
-                
-                # Recent scores
-                # Use username for filtering to be robust against missing user_id in historical data
-                scores = session.query(Score).filter_by(username=self.app.username).order_by(Score.timestamp.desc()).limit(5).all()
-                data["recent_scores"] = [{"score": s.total_score, "date": s.timestamp[:10] if s.timestamp else "--"} for s in scores]
-                if scores:
-                    data["last_eq"] = str(scores[0].total_score)
-                    if scores[0].sentiment_score:
-                        data["sentiment"] = f"{scores[0].sentiment_score:.1f}"
-                
-                # Tests count
-                data["tests_count"] = str(session.query(Score).filter_by(username=self.app.username).count())
-                
-                # Recent journals
-                journals = session.query(JournalEntry).filter_by(username=self.app.username).order_by(JournalEntry.entry_date.desc()).limit(3).all()
-                data["recent_journals"] = [{"date": j.entry_date[:10] if j.entry_date else "--", "content": (j.content or "")[:100]} for j in journals]
-                
-                # Journals count
-                data["journals_count"] = str(session.query(JournalEntry).filter_by(username=self.app.username).count())
-            
-            session.close()
+                    # Personal Profile data
+                    if user.personal_profile:
+                        pp = user.personal_profile
+                        data["email"] = pp.email or "Not set"
+                        data["phone"] = pp.phone or "Not set"
+                        data["address"] = pp.address or "Not set"
+                        data["occupation"] = pp.occupation
+                        data["gender"] = pp.gender or "--"
+                        data["avatar_path"] = pp.avatar_path  # Profile photo path
+                        if pp.date_of_birth:
+                            data["dob"] = pp.date_of_birth
+                            try:
+                                dob = datetime.strptime(pp.date_of_birth, "%Y-%m-%d")
+                                age = (datetime.now() - dob).days // 365
+                                data["age"] = f"{age}y"
+                            except:
+                                data["age"] = "--"
+                        
+                        # Issue #260: Load Life Perspective (POV)
+                        data["life_pov"] = pp.life_pov or ""
+                    
+                    # Medical Profile data
+                    if user.medical_profile:
+                        mp = user.medical_profile
+                        data["blood_type"] = mp.blood_type
+                        data["allergies"] = mp.allergies
+                        data["conditions"] = mp.medical_conditions
+                    
+                    # Recent scores
+                    # Use username for filtering to be robust against missing user_id in historical data
+                    scores = session.query(Score).filter_by(username=self.app.username).order_by(Score.timestamp.desc()).limit(5).all()
+                    data["recent_scores"] = [{"score": s.total_score, "date": s.timestamp[:10] if s.timestamp else "--"} for s in scores]
+                    if scores:
+                        data["last_eq"] = str(scores[0].total_score)
+                        if scores[0].sentiment_score:
+                            data["sentiment"] = f"{scores[0].sentiment_score:.1f}"
+                    
+                    # Tests count
+                    data["tests_count"] = str(session.query(Score).filter_by(username=self.app.username).count())
+                    
+                    # Recent journals
+                    journals = session.query(JournalEntry).filter_by(username=self.app.username).order_by(JournalEntry.entry_date.desc()).limit(3).all()
+                    data["recent_journals"] = [{"date": j.entry_date[:10] if j.entry_date else "--", "content": (j.content or "")[:100]} for j in journals]
+                    
+                    # Journals count
+                    data["journals_count"] = str(session.query(JournalEntry).filter_by(username=self.app.username).count())
         except Exception as e:
             logging.error(f"Error loading overview data: {e}")
         
@@ -623,23 +620,22 @@ class UserProfileView:
 
         try:
             from app.models import PersonalProfile, User
-            session = get_session()
-            user = session.query(User).filter_by(username=self.app.username).first()
-            
-            if user:
-                if not user.personal_profile:
-                    # Create if missing (Edge Case)
-                    pp = PersonalProfile(user_id=user.id)
-                    user.personal_profile = pp
-                    session.add(pp)
+            with safe_db_context() as session:
+                user = session.query(User).filter_by(username=self.app.username).first()
                 
-                user.personal_profile.life_pov = new_text.strip()
-                session.commit()
-                
-                # Refresh UI
-                self.on_nav_change("overview")
-                
-            session.close()
+                if user:
+                    if not user.personal_profile:
+                        # Create if missing (Edge Case)
+                        pp = PersonalProfile(user_id=user.id)
+                        user.personal_profile = pp
+                        session.add(pp)
+                    
+                    user.personal_profile.life_pov = new_text.strip()
+                    session.commit()
+                    
+                    # Refresh UI
+                    self.on_nav_change("overview")
+                    
         except Exception as e:
             logging.error(f"Failed to save manifesto: {e}")
             messagebox.showerror("Error", "Failed to save changes.")
@@ -790,15 +786,14 @@ class UserProfileView:
                 cropped.save(new_path, "PNG")
                 
                 # Update database
-                session = get_session()
-                user = session.query(User).filter_by(username=self.app.username).first()
-                if user:
-                    if not user.personal_profile:
-                        from app.models import PersonalProfile
-                        user.personal_profile = PersonalProfile(user_id=user.id)
-                    user.personal_profile.avatar_path = new_path
-                    session.commit()
-                session.close()
+                with safe_db_context() as session:
+                    user = session.query(User).filter_by(username=self.app.username).first()
+                    if user:
+                        if not user.personal_profile:
+                            from app.models import PersonalProfile
+                            user.personal_profile = PersonalProfile(user_id=user.id)
+                        user.personal_profile.avatar_path = new_path
+                        session.commit()
                 
                 dialog.destroy()
                 messagebox.showinfo("Success", "Profile photo updated!", parent=self.window)

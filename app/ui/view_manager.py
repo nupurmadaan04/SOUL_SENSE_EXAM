@@ -80,15 +80,14 @@ class ViewManager:
         # Journal Summary Section (Enhanced Journal Feature)
         if self.app.username:
             try:
-                from app.db import get_session
+                from app.db import safe_db_context
                 from app.models import JournalEntry
-                session = get_session()
-                recent_entries = session.query(JournalEntry)\
-                    .filter_by(username=self.app.username)\
-                    .order_by(JournalEntry.entry_date.desc())\
-                    .limit(3)\
-                    .all()
-                session.close()
+                with safe_db_context() as session:
+                    recent_entries = session.query(JournalEntry)\
+                        .filter_by(username=self.app.username)\
+                        .order_by(JournalEntry.entry_date.desc())\
+                        .limit(3)\
+                        .all()
 
                 if recent_entries:
                     summary_frame = tk.Frame(self.app.content_area, bg=self.app.colors["bg"], pady=10)
