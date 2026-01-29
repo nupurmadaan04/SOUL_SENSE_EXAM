@@ -15,11 +15,6 @@ class AppInitializer:
         self.app = app
         self.setup_ui()
         self.load_initial_data()
-        self.start_login_flow()
-
-    def start_login_flow(self):
-        """Start login flow on app launch"""
-        self.show_login_screen()
 
     def setup_ui(self):
         """Set up the main UI components"""
@@ -90,67 +85,7 @@ class AppInitializer:
             self.app.logger.error(f"Failed to load questions: {e}")
             messagebox.showerror("Error", f"Could not load questions: {e}")
 
-    def show_login_screen(self):
-        """Show login popup on startup"""
-        self.login_win = tk.Toplevel(self.app.root)
-        login_win = self.login_win
-        login_win.title("SoulSense Login")
-        login_win.geometry("400x500")
-        login_win.configure(bg=self.app.colors.get("bg", "#111111"))
-        login_win.transient(self.app.root)
-        login_win.grab_set()
-
-        # Prevent closing without login
-        login_win.protocol("WM_DELETE_WINDOW", lambda: None)
-
-        # Center popup
-        login_win.update_idletasks()
-        x = self.app.root.winfo_x() + (self.app.root.winfo_width() - 400) // 2
-        y = self.app.root.winfo_y() + (self.app.root.winfo_height() - 500) // 2
-        login_win.geometry(f"+{x}+{y}")
-
-        # Title
-        tk.Label(
-            login_win,
-            text="SoulSense AI",
-            font=("Segoe UI", 24, "bold"),
-            bg=self.app.colors.get("bg", "#111111"),
-            fg=self.app.colors.get("primary", "#4F46E5"),
-        ).pack(pady=(40, 10))
-
-        tk.Label(
-            login_win,
-            text="Login to continue",
-            font=("Segoe UI", 12),
-            bg=self.app.colors.get("bg", "#111111"),
-            fg=self.app.colors.get("text_secondary", "#AAAAAA"),
-        ).pack(pady=(0, 30))
-
-        # Form
-        entry_frame = tk.Frame(login_win, bg=self.app.colors.get("bg", "#111111"))
-        entry_frame.pack(fill="x", padx=40)
-
-        tk.Label(
-            entry_frame,
-            text="Username",
-            font=("Segoe UI", 10, "bold"),
-            bg=self.app.colors.get("bg", "#111111"),
-            fg=self.app.colors.get("text_primary", "#FFFFFF"),
-        ).pack(anchor="w")
-
-        username_entry = tk.Entry(entry_frame, font=("Segoe UI", 12))
-        username_entry.pack(fill="x", pady=(5, 15))
-
-        tk.Label(
-            entry_frame,
-            text="Password",
-            font=("Segoe UI", 10, "bold"),
-            bg=self.app.colors.get("bg", "#111111"),
-            fg=self.app.colors.get("text_primary", "#FFFFFF"),
-        ).pack(anchor="w")
-
-        password_entry = tk.Entry(entry_frame, font=("Segoe UI", 12), show="*")
-        password_entry.pack(fill="x", pady=(5, 20))
+    
 
         def do_login():
             user = username_entry.get().strip()
@@ -271,6 +206,3 @@ class AppInitializer:
         if hasattr(self.app, "content_area"):
             for widget in self.app.content_area.winfo_children():
                 widget.destroy()
-
-        # Show Login Screen again
-        self.start_login_flow()
