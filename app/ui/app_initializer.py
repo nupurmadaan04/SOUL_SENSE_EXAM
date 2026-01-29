@@ -155,32 +155,28 @@ class AppInitializer:
         def do_login():
             user = username_entry.get().strip()
             pwd = password_entry.get().strip()
-
             if not user or not pwd:
                 messagebox.showerror("Error", "Please enter username and password")
                 return
-
             success, msg = self.app.auth.login_user(user, pwd)
-
+                
             if success:
                 self.app.username = user
-                # Close login window properly
                 try:
                     login_win.grab_release()
                 except:
                     pass
-                    login_win.destroy()
-                    self.login_win = None
-                    # Bring main window front
-                    self.app.root.deiconify()
-                    self.app.root.lift()
-                    self.app.root.focus_force()
-                    self._load_user_settings(user)
-                    self._post_login_init()
-
+                    
+                login_win.destroy()
+                self.login_win = None
+                self.app.root.deiconify()
+                self.app.root.lift()
+                self.app.root.focus_force()
+                self._load_user_settings(user)
+                self._post_login_init()
             else:
                 messagebox.showerror("Login Failed", msg)
-
+                
         def do_register():
             user = username_entry.get().strip()
             pwd = password_entry.get().strip()
