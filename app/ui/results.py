@@ -3,7 +3,7 @@ from tkinter import messagebox
 import logging
 from datetime import datetime
 import random
-from app.db import get_connection, get_session
+from app.db import get_connection, get_session, safe_db_context
 from app.models import Score
 from app.constants import BENCHMARK_DATA
 try:
@@ -25,8 +25,7 @@ class ResultsManager:
             from app.ui.satisfaction import SatisfactionSurvey
             
             # Get latest score ID
-            session = get_session()
-            try:
+            with safe_db_context() as session:
                 latest_score = session.query(Score).filter(
                     Score.username == self.app.username
                 ).order_by(Score.id.desc()).first()
@@ -41,8 +40,6 @@ class ResultsManager:
                     language=self.app.settings.get("language", "en")
                 )
                 survey.show()
-            finally:
-                session.close()
         except Exception as e:
             messagebox.showerror("Error", f"Cannot open survey: {str(e)}")
         
