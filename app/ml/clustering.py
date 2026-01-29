@@ -113,9 +113,14 @@ EMOTIONAL_PROFILES = {
 # ==============================================================================
 
 class EmotionalFeatureExtractor:
-    """Extract features for clustering from user emotional data."""
+    """Extract features for clustering from user emotional data.
     
+    This class is responsible for extracting numerical features from user scores
+    and responses that can be used for clustering emotional profiles.
+    """
+
     def __init__(self):
+        """Initialize the feature extractor with predefined feature names."""
         self.feature_names = [
             'avg_total_score',
             'score_std',
@@ -130,7 +135,15 @@ class EmotionalFeatureExtractor:
         ]
     
     def extract_user_features(self, username: str) -> Optional[Dict[str, float]]:
-        """Extract emotional features for a single user."""
+        """Extract emotional features for a single user from the database.
+
+        Args:
+            username (str): The username to extract features for.
+
+        Returns:
+            Optional[Dict[str, float]]: Dictionary containing feature values for the user,
+                or None if insufficient data or extraction fails.
+        """
         try:
             with safe_db_context() as session:
                 # Get all scores for the user
@@ -170,7 +183,11 @@ class EmotionalFeatureExtractor:
             return None
     
     def extract_all_users_features(self) -> pd.DataFrame:
-        """Extract features for all users in the database."""
+        """Extract features for all users in the database.
+
+        Returns:
+            pd.DataFrame: DataFrame containing features for all users with sufficient data.
+        """
         features_list = []
         
         try:
@@ -196,7 +213,15 @@ class EmotionalFeatureExtractor:
         return df
     
     def _calculate_trend(self, scores: List[float]) -> float:
-        """Calculate score trend (positive = improving, negative = declining)."""
+        """Calculate score trend using linear correlation.
+
+        Args:
+            scores (List[float]): List of score values over time.
+
+        Returns:
+            float: Correlation coefficient indicating trend direction.
+                  Positive values indicate improving scores, negative declining.
+        """
         if len(scores) < 2:
             return 0.0
         
@@ -209,7 +234,14 @@ class EmotionalFeatureExtractor:
         return correlation if not np.isnan(correlation) else 0.0
     
     def _calculate_consistency(self, responses: List[Response]) -> float:
-        """Calculate response consistency across questions."""
+        """Calculate response consistency across questions.
+
+        Args:
+            responses (List[Response]): List of user responses.
+
+        Returns:
+            float: Consistency score between 0 and 1, where 1 is most consistent.
+        """
         if not responses:
             return 0.0
         
@@ -224,7 +256,14 @@ class EmotionalFeatureExtractor:
         return max(0, min(1, consistency))
     
     def _avg_response_value(self, responses: List[Response]) -> float:
-        """Calculate average response value."""
+        """Calculate average response value.
+
+        Args:
+            responses (List[Response]): List of user responses.
+
+        Returns:
+            float: Average response value, or 2.5 if no responses.
+        """
         if not responses:
             return 2.5  # Neutral default
         
@@ -232,7 +271,14 @@ class EmotionalFeatureExtractor:
         return np.mean(values) if values else 2.5
     
     def _response_variance(self, responses: List[Response]) -> float:
-        """Calculate response variance."""
+        """Calculate response variance.
+
+        Args:
+            responses (List[Response]): List of user responses.
+
+        Returns:
+            float: Variance of response values, or 0.0 if insufficient data.
+        """
         if not responses:
             return 0.0
         
@@ -248,12 +294,11 @@ class EmotionalProfileClusterer:
     """Main clustering engine for emotional profile categorization."""
     
     def __init__(self, n_clusters: int = 4, random_state: int = 42):
-        """
-        Initialize the clusterer.
-        
+        """Initialize the clusterer.
+
         Args:
-            n_clusters: Number of emotional profile clusters
-            random_state: Random seed for reproducibility
+            n_clusters (int, optional): Number of emotional profile clusters. Defaults to 4.
+            random_state (int, optional): Random seed for reproducibility. Defaults to 42.
         """
         self.n_clusters = n_clusters
         self.random_state = random_state
@@ -485,20 +530,42 @@ class EmotionalProfileClusterer:
         return result
     
     def get_user_profile(self, username: str) -> Optional[Dict[str, Any]]:
-        """Get the cached emotional profile for a user."""
+        """Get the cached emotional profile for a user.
+
+        Args:
+            username (str): Username to get profile for.
+
+        Returns:
+            Optional[Dict[str, Any]]: User's emotional profile data, or None if not available.
+        """
         if username in self.user_profiles:
             return self.user_profiles[username]
         return self.predict(username)
     
     def get_cluster_users(self, cluster_id: int) -> List[str]:
-        """Get all users in a specific cluster."""
+        """Get all users in a specific cluster.
+
+        Args:
+            cluster_id (int): The cluster ID to get users for.
+
+        Returns:
+            List[str]: List of usernames in the specified cluster.
+        """
         return [
             username for username, profile in self.user_profiles.items()
             if profile.get('cluster_id') == cluster_id
         ]
     
     def _find_optimal_clusters(self, X: np.ndarray, max_k: int = 8) -> int:
-        """Find optimal number of clusters using silhouette score."""
+        """Find optimal number of clusters using silhouette score.
+
+        Args:
+            X (np.ndarray): Feature matrix.
+            max_k (int, optional): Maximum number of clusters to test. Defaults to 8.
+
+        Returns:
+            int: Optimal number of clusters based on silhouette score.
+        """
         max_k = min(max_k, len(X) - 1)
         if max_k < 2:
             return 2
@@ -519,7 +586,15 @@ class EmotionalProfileClusterer:
         return optimal_k
     
     def _calculate_clustering_metrics(self, X: np.ndarray, labels: np.ndarray) -> Dict[str, float]:
-        """Calculate clustering quality metrics."""
+        """Calculate clustering quality metrics.
+
+        Args:
+            X (np.ndarray): Feature matrix.
+            labels (np.ndarray): Cluster labels.
+
+        Returns:
+            Dict[str, float]: Dictionary of clustering metrics.
+        """
         metrics = {}
         
         # Only calculate if we have valid clusters
@@ -547,7 +622,11 @@ class EmotionalProfileClusterer:
         return metrics
     
     def _get_cluster_distribution(self) -> Dict[int, int]:
-        """Get the distribution of users across clusters."""
+        """Get the distribution of users across clusters.
+
+        Returns:
+            Dict[int, int]: Dictionary mapping cluster IDs to user counts.
+        """
         if self.labels_ is None:
             return {}
         
@@ -555,7 +634,15 @@ class EmotionalProfileClusterer:
         return {int(k): int(v) for k, v in zip(unique, counts)}
     
     def _get_cluster_profiles(self, X: np.ndarray, feature_names: List[str]) -> Dict[int, Dict]:
-        """Get average feature values for each cluster."""
+        """Get average feature values for each cluster.
+
+        Args:
+            X (np.ndarray): Feature matrix.
+            feature_names (List[str]): Names of features.
+
+        Returns:
+            Dict[int, Dict]: Dictionary of cluster profiles with average features.
+        """
         profiles = {}
         
         for cluster_id in range(self.n_clusters):
@@ -597,7 +684,11 @@ class EmotionalProfileClusterer:
             logger.error(f"Error saving model: {e}")
     
     def _load_model(self) -> bool:
-        """Load a previously fitted model from disk."""
+        """Load a previously fitted model from disk.
+
+        Returns:
+            bool: True if model loaded successfully, False otherwise.
+        """
         try:
             model_file = self.model_path / "emotional_profile_model.pkl"
             if not model_file.exists():
@@ -630,10 +721,22 @@ class ClusteringVisualizer:
     """Visualization tools for emotional profile clustering."""
     
     def __init__(self, clusterer: EmotionalProfileClusterer):
+        """Initialize the visualizer with a clusterer instance.
+
+        Args:
+            clusterer (EmotionalProfileClusterer): The fitted clusterer to visualize.
+        """
         self.clusterer = clusterer
     
     def plot_cluster_distribution(self, save_path: Optional[str] = None):
-        """Plot the distribution of users across clusters."""
+        """Plot the distribution of users across clusters.
+
+        Args:
+            save_path (Optional[str], optional): Path to save the plot. If None, plot is not saved.
+
+        Returns:
+            matplotlib.figure.Figure or None: The figure object if matplotlib is available, None otherwise.
+        """
         if not MATPLOTLIB_AVAILABLE:
             logger.warning("Matplotlib not available for visualization")
             return None
@@ -674,7 +777,15 @@ class ClusteringVisualizer:
         return fig
     
     def plot_pca_clusters(self, results: Dict, save_path: Optional[str] = None):
-        """Plot PCA visualization of clusters."""
+        """Plot PCA visualization of clusters.
+
+        Args:
+            results (Dict): Clustering results containing PCA coordinates and labels.
+            save_path (Optional[str], optional): Path to save the plot. If None, plot is not saved.
+
+        Returns:
+            matplotlib.figure.Figure or None: The figure object if matplotlib is available, None otherwise.
+        """
         if not MATPLOTLIB_AVAILABLE:
             logger.warning("Matplotlib not available for visualization")
             return None
@@ -717,7 +828,15 @@ class ClusteringVisualizer:
         return fig
     
     def plot_feature_radar(self, cluster_profiles: Dict, save_path: Optional[str] = None):
-        """Plot radar chart comparing cluster feature profiles."""
+        """Plot radar chart comparing cluster feature profiles.
+
+        Args:
+            cluster_profiles (Dict): Dictionary of cluster profiles with average features.
+            save_path (Optional[str], optional): Path to save the plot. If None, plot is not saved.
+
+        Returns:
+            matplotlib.figure.Figure or None: The figure object if matplotlib is available, None otherwise.
+        """
         if not MATPLOTLIB_AVAILABLE:
             logger.warning("Matplotlib not available for visualization")
             return None
@@ -769,7 +888,14 @@ class ClusteringVisualizer:
         return fig
     
     def generate_profile_report(self, username: str) -> str:
-        """Generate a text report for a user's emotional profile."""
+        """Generate a text report for a user's emotional profile.
+
+        Args:
+            username (str): Username to generate report for.
+
+        Returns:
+            str: Formatted text report of the user's emotional profile.
+        """
         profile = self.clusterer.get_user_profile(username)
         
         if not profile:
@@ -818,24 +944,49 @@ class ClusteringVisualizer:
 # ==============================================================================
 
 def create_profile_clusterer(n_clusters: int = 4) -> EmotionalProfileClusterer:
-    """Factory function to create a profile clusterer."""
+    """Factory function to create a profile clusterer.
+
+    Args:
+        n_clusters (int, optional): Number of clusters. Defaults to 4.
+
+    Returns:
+        EmotionalProfileClusterer: Initialized clusterer instance.
+    """
     return EmotionalProfileClusterer(n_clusters=n_clusters)
 
 
 def cluster_all_users(n_clusters: int = 4) -> Dict[str, Any]:
-    """Convenience function to cluster all users in the database."""
+    """Convenience function to cluster all users in the database.
+
+    Args:
+        n_clusters (int, optional): Number of clusters. Defaults to 4.
+
+    Returns:
+        Dict[str, Any]: Clustering results.
+    """
     clusterer = create_profile_clusterer(n_clusters)
     return clusterer.fit()
 
 
 def get_user_emotional_profile(username: str) -> Optional[Dict[str, Any]]:
-    """Get emotional profile for a specific user."""
+    """Get emotional profile for a specific user.
+
+    Args:
+        username (str): Username to get profile for.
+
+    Returns:
+        Optional[Dict[str, Any]]: User's emotional profile data.
+    """
     clusterer = create_profile_clusterer()
     return clusterer.predict(username)
 
 
 def get_profile_summary() -> Dict[str, Any]:
-    """Get summary of all emotional profiles."""
+    """Get summary of all emotional profiles.
+
+    Returns:
+        Dict[str, Any]: Summary including profiles, distribution, and total users.
+    """
     clusterer = create_profile_clusterer()
     
     if not clusterer._load_model():

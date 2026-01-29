@@ -42,16 +42,6 @@ class AssessmentService:
     ) -> Tuple[List[Score], int]:
         """
         Get assessments with pagination and optional filters.
-        
-        Args:
-            db: Database session
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-            username: Optional username filter
-            age_group: Optional age group filter
-            
-        Returns:
-            Tuple of (list of scores, total count)
         """
         query = db.query(Score)
         
@@ -78,13 +68,6 @@ class AssessmentService:
     def get_assessment_stats(db: Session, username: Optional[str] = None) -> dict:
         """
         Get statistical summary of assessments.
-        
-        Args:
-            db: Database session
-            username: Optional username to filter stats
-            
-        Returns:
-            Dictionary with statistical information
         """
         query = db.query(Score)
         
@@ -125,13 +108,10 @@ class AssessmentService:
     @staticmethod
     def get_assessment_responses(db: Session, assessment_id: int) -> List[Response]:
         """Get all responses for a specific assessment."""
-        # Get the assessment to find username and timestamp
         assessment = db.query(Score).filter(Score.id == assessment_id).first()
         if not assessment:
             return []
         
-        # Get responses for this user around the same time
-        # Since we don't have a direct link, we match by username and timestamp proximity
         return db.query(Response).filter(
             Response.username == assessment.username,
             Response.timestamp == assessment.timestamp
@@ -153,18 +133,6 @@ class QuestionService:
     ) -> Tuple[List[Question], int]:
         """
         Get questions with pagination and filters.
-        
-        Args:
-            db: Database session
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-            min_age: Filter questions suitable for this minimum age
-            max_age: Filter questions suitable for this maximum age
-            category_id: Filter by category
-            active_only: Only return active questions
-            
-        Returns:
-            Tuple of (list of questions, total count)
         """
         query = db.query(Question)
         
@@ -202,14 +170,6 @@ class QuestionService:
     ) -> List[Question]:
         """
         Get questions appropriate for a specific age.
-        
-        Args:
-            db: Database session
-            age: User's age
-            limit: Optional limit on number of questions
-            
-        Returns:
-            List of questions
         """
         query = db.query(Question).filter(
             Question.is_active == 1,

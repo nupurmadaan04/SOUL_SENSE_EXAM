@@ -1,0 +1,20 @@
+{
+  "extends": ["next/core-web-vitals", "prettier"],
+  "rules": {
+    "no-restricted-imports": [
+      "error",
+      {
+        "patterns": [
+          {
+            "group": ["@/components/*/*", "!@/components/*/index"],
+            "message": "Please import from the barrel file (@/components/name) instead of the specific component file to maintain strict architectural boundaries."
+          },
+          {
+            "group": ["./index", "../index"],
+            "message": "Avoid importing from the barrel file within the same directory to prevent circular dependencies."
+          }
+        ]
+      }
+    ]
+  }
+}

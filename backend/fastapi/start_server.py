@@ -62,8 +62,11 @@ def start_server(host="127.0.0.1", port=8000, reload=True):
     current_pythonpath = env.get("PYTHONPATH", "")
     env["PYTHONPATH"] = f"{project_root}{os.pathsep}{current_pythonpath}"
     
+    # Set working directory to backend/fastapi so 'app.main' works
+    cwd = Path(__file__).parent
+    
     try:
-        subprocess.run(uvicorn_cmd, env=env)
+        subprocess.run(uvicorn_cmd, env=env, cwd=str(cwd))
     except KeyboardInterrupt:
         print("\n\n👋 Server stopped")
 

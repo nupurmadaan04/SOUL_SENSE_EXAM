@@ -90,6 +90,9 @@ class UserProfileView:
         
         # Ensure inner frame expands to fill width
         def _on_canvas_configure(event):
+            # Performance Optimization: Skip heavy resize math during sidebar animation
+            if hasattr(self.app, 'is_animating') and self.app.is_animating:
+                return
             # Update the inner frame's width to fill the canvas
             self.canvas.itemconfig(self.canvas_window, width=event.width)
             

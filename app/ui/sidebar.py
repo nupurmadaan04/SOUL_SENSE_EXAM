@@ -16,6 +16,9 @@ class SidebarNav(tk.Frame):
         self.app = app
         self.items = items
         self.on_change = on_change
+        self.is_collapsed = False
+        self.expanded_width = 250
+        self.collapsed_width = 70
         self.buttons = {}
         self.active_id = None
         
@@ -25,14 +28,38 @@ class SidebarNav(tk.Frame):
         
         self._render_header()
         self._render_items()
+        self._render_footer()
         
     def _render_header(self):
         # User Profile Summary Area
-        header = tk.Frame(self, bg=self.app.colors.get("sidebar_bg"), height=100)
-        header.pack(fill="x", padx=20, pady=30)
+        self.header_frame = tk.Frame(self, bg=self.app.colors.get("sidebar_bg"), height=100)
+        self.header_frame.pack(fill="x", padx=10, pady=(20, 10))
         
+        # Toggle Button (Top Right)
+        self.toggle_btn = tk.Label(
+            self.header_frame, 
+            text="❮", 
+            font=self.app.ui_styles.get_font("sm", "bold"),
+            bg=self.app.colors.get("sidebar_divider", "#4A5568"),
+            fg="white",
+            padx=8,
+            pady=2,
+            cursor="hand2",
+            relief="flat"
+        )
+        self.toggle_btn.pack(side="top", anchor="e", padx=5, pady=(0, 5))
+        self.toggle_btn.bind("<Button-1>", lambda e: self.toggle_collapse())
+        
+        # Hover effect for toggle
+        self.toggle_btn.bind("<Enter>", lambda e: self.toggle_btn.configure(bg=self.app.colors.get("sidebar_active", "#4C51BF")))
+        self.toggle_btn.bind("<Leave>", lambda e: self.toggle_btn.configure(bg=self.app.colors.get("sidebar_divider", "#4A5568")))
+
+        # Main Header Content (Avatar + Name)
+        self.header_content = tk.Frame(self.header_frame, bg=self.app.colors.get("sidebar_bg"))
+        self.header_content.pack(fill="both", expand=True)
+
         # Avatar Placeholder (Circle)
-        self.avatar_canvas = tk.Canvas(header, width=60, height=60, bg=self.app.colors.get("sidebar_bg"), highlightthickness=0, cursor="hand2")
+        self.avatar_canvas = tk.Canvas(self.header_content, width=60, height=60, bg=self.app.colors.get("sidebar_bg"), highlightthickness=0, cursor="hand2")
         self.avatar_canvas.pack(side="left")
         
         # Load existing avatar if available
@@ -41,11 +68,11 @@ class SidebarNav(tk.Frame):
         self.avatar_canvas.bind("<Button-1>", self._upload_avatar)
         
         # Name Info
-        info_frame = tk.Frame(header, bg=self.app.colors.get("sidebar_bg"))
-        info_frame.pack(side="left", padx=15, fill="both", expand=True)
+        self.info_frame = tk.Frame(self.header_content, bg=self.app.colors.get("sidebar_bg"))
+        self.info_frame.pack(side="left", padx=15, fill="both", expand=True)
         
         self.name_label = tk.Label(
-            info_frame, 
+            self.info_frame, 
             text=self.app.username or "Guest",
             font=self.app.ui_styles.get_font("sm", "bold"),
             bg=self.app.colors.get("sidebar_bg"),
@@ -55,7 +82,7 @@ class SidebarNav(tk.Frame):
         self.name_label.pack(fill="x", pady=(10, 0))
         
         self.edit_label = tk.Label(
-            info_frame, 
+            self.info_frame, 
             text="View Profile", 
             font=self.app.ui_styles.get_font("xs"),
             bg=self.app.colors.get("sidebar_bg"),
@@ -66,7 +93,7 @@ class SidebarNav(tk.Frame):
         self.edit_label.pack(fill="x")
         
         # Bind Name/Info to Open Profile Tab
-        for widget in [info_frame, self.name_label, self.edit_label]:
+        for widget in [self.info_frame, self.name_label, self.edit_label]:
             widget.bind("<Button-1>", lambda e: self.select_item("profile"))
             widget.configure(cursor="hand2")
         
@@ -220,6 +247,127 @@ class SidebarNav(tk.Frame):
         if self.on_change and trigger_callback:
             self.on_change(item_id)
             
+    def _render_footer(self):
+        """Render Logout button at the bottom"""
+        self.footer_frame = tk.Frame(self, bg=self.app.colors.get("sidebar_bg"), height=60)
+        self.footer_frame.pack(side="bottom", fill="x", padx=10, pady=20)
+        self.footer_frame.pack_propagate(False)
+
+        # Divider
+        divider = tk.Frame(self.footer_frame, bg=self.app.colors.get("sidebar_divider"), height=1)
+        divider.pack(fill="x", side="top", pady=(0, 10))
+
+        # Logout Button
+        logout_btn = tk.Frame(self.footer_frame, bg=self.app.colors.get("sidebar_bg"), cursor="hand2", height=40)
+        logout_btn.pack(fill="x")
+        logout_btn.pack_propagate(False)
+
+        # Icon
+        self.logout_icon = tk.Label(
+            logout_btn, 
+            text="🚪", 
+            font=self.app.ui_styles.get_font("md"),
+            bg=self.app.colors.get("sidebar_bg"),
+            fg=self.app.colors.get("sidebar_fg")
+        )
+        self.logout_icon.pack(side="left", padx=5)
+
+        # Label
+        self.logout_text = tk.Label(
+            logout_btn, 
+            text="Logout", 
+            font=self.app.ui_styles.get_font("sm", "bold"),
+            bg=self.app.colors.get("sidebar_bg"),
+            fg=self.app.colors.get("sidebar_fg")
+        )
+        self.logout_text.pack(side="left", padx=10)
+
+        # Bindings
+        for widget in [logout_btn, self.logout_icon, self.logout_text]:
+            widget.bind("<Button-1>", lambda e: self.app.logout())
+            widget.bind("<Enter>", lambda e: self._on_logout_hover(True))
+            widget.bind("<Leave>", lambda e: self._on_logout_hover(False))
+
+        self.logout_btn_frame = logout_btn
+
+    def _on_logout_hover(self, is_hovering):
+        bg_color = self.app.colors.get("sidebar_hover") if is_hovering else self.app.colors.get("sidebar_bg")
+        self.logout_btn_frame.configure(bg=bg_color)
+        self.logout_icon.configure(bg=bg_color)
+        self.logout_text.configure(bg=bg_color)
+
+    def toggle_collapse(self):
+        """Toggle between mini and full sidebar with animation"""
+        if self.app.is_animating: return # Debounce
+        
+        self.app.is_animating = True
+        self.is_collapsed = not self.is_collapsed
+        target_width = self.collapsed_width if self.is_collapsed else self.expanded_width
+        
+        # Update Icon immediately
+        self.toggle_btn.configure(text="❯" if self.is_collapsed else "❮")
+        
+        if self.is_collapsed:
+            # Preparing for collapse: hide text early to avoid layout glitch
+            self.info_frame.pack_forget()
+            self.header_frame.configure(padx=0)
+            self.avatar_canvas.pack(side="top", pady=10)
+            
+            for item_id, widgets in self.buttons.items():
+                widgets["text"].pack_forget()
+                widgets["indicator"].pack_forget()
+                widgets["icon"].pack(side="top", pady=10, fill="none", expand=True)
+                
+            if hasattr(self, 'footer_frame'):
+                self.logout_text.pack_forget()
+                self.logout_icon.pack(side="top", pady=10, fill="none", expand=True)
+
+        self._animate_sidebar(target_width)
+
+    def _animate_sidebar(self, target_width):
+        """Step-based width animation"""
+        current_width = self.winfo_width()
+        # Balanced speed: 30px step @ 20ms delay ~ 1.5px/ms
+        step = 30
+        
+        if abs(current_width - target_width) <= step:
+            self.configure(width=target_width)
+            self._finalize_toggle_state()
+            return
+
+        next_width = current_width + (step if target_width > current_width else -step)
+        self.configure(width=next_width)
+        # Increase delay to 20ms (50fps) to reduce main thread load during complex layout resizing
+        self.after(20, lambda: self._animate_sidebar(target_width))
+
+    def _finalize_toggle_state(self):
+        """Finalize UI elements after animation finish"""
+        self.app.is_animating = False
+        
+        if not self.is_collapsed:
+            # Restoration for Expanded Mode
+            self.avatar_canvas.pack_forget()
+            self.avatar_canvas.pack(side="left", pady=0)
+            self.info_frame.pack(side="left", padx=15, fill="both", expand=True)
+            self.header_frame.configure(padx=10)
+            
+            for item_id, widgets in self.buttons.items():
+                # Clear and Repack to ensure order
+                widgets["indicator"].pack_forget()
+                widgets["icon"].pack_forget()
+                widgets["text"].pack_forget()
+                
+                widgets["indicator"].pack(side="left", fill="y", pady=8, padx=(0, 8))
+                widgets["icon"].pack(side="left", padx=5)
+                widgets["text"].pack(side="left", padx=10)
+                widgets["frame"].configure(padx=0)
+
+            if hasattr(self, 'footer_frame'):
+                self.logout_icon.pack_forget()
+                self.logout_text.pack_forget()
+                self.logout_icon.pack(side="left", padx=5)
+                self.logout_text.pack(side="left", padx=10)
+
     def _update_item_style(self, item_id, is_active):
         if item_id not in self.buttons:
             return
@@ -279,6 +427,13 @@ class SidebarNav(tk.Frame):
         for item_id, widgets in self.buttons.items():
             is_active = (item_id == self.active_id)
             self._update_item_style(item_id, is_active)
+
+        # Update Footer
+        if hasattr(self, 'footer_frame'):
+            self.footer_frame.configure(bg=self.app.colors.get("sidebar_bg"))
+            self.logout_btn_frame.configure(bg=self.app.colors.get("sidebar_bg"))
+            self.logout_icon.configure(bg=self.app.colors.get("sidebar_bg"), fg=self.app.colors.get("sidebar_fg"))
+            self.logout_text.configure(bg=self.app.colors.get("sidebar_bg"), fg=self.app.colors.get("sidebar_fg"))
 
     def update_user_info(self):
         """Update username display and avatar after login"""

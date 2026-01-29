@@ -9,7 +9,6 @@
 [![Tests](https://img.shields.io/badge/Tests-Passing-brightgreen.svg)](tests/)
 ![Visitors](https://visitor-badge.laobi.icu/badge?page_id=nupurmadaan04.SOUL_SENSE_EXAM)
 
-
 ## 📋 Table of Contents
 
 - [Overview](#-overview)
@@ -71,14 +70,15 @@ graph TB
 
 ### System Components
 
-| Component | Technology | Purpose |
-|-----------|------------|---------|
-| **Frontend** | Tkinter | User interface and interaction |
-| **Backend** | Python/FastAPI | REST API for web/mobile clients |
-| **Database** | SQLite | Local data persistence |
-| **ML Engine** | NLTK, scikit-learn | Sentiment analysis and pattern detection |
-| **Auth System** | bcrypt, JWT | Secure user authentication |
-| **Migration System** | Alembic | Database schema management |
+| Component              | Technology         | Purpose                                  |
+| ---------------------- | ------------------ | ---------------------------------------- |
+| **Frontend (Desktop)** | Tkinter            | User interface for desktop users         |
+| **Frontend (Web)**     | Next.js            | Modern web client (React/TS)             |
+| **Backend**            | Python/FastAPI     | REST API for web/mobile clients          |
+| **Database**           | SQLite             | Local data persistence                   |
+| **ML Engine**          | NLTK, scikit-learn | Sentiment analysis and pattern detection |
+| **Auth System**        | bcrypt, JWT        | Secure user authentication               |
+| **Migration System**   | Alembic            | Database schema management               |
 
 ### Data Flow
 
@@ -91,25 +91,29 @@ User Input → GUI Events → Business Logic → Data Validation → Database �
 ## ✨ Key Features
 
 ### Core Assessment
+
 - ✅ 4-point Likert scale EQ evaluation
 - ✅ Age-appropriate question filtering
 - ✅ Real-time score calculation
 - ✅ Comprehensive result interpretation
 
 ### AI & Analytics
--  **Sentiment Analysis**: NLTK VADER integration for emotional tone detection
--  **Pattern Recognition**: Stress indicators, growth mindset, self-reflection tracking
--  **Outlier Detection**: Statistical analysis using Z-score, IQR, and ensemble methods
--  **Trend Analysis**: Emotional journey visualization over time
+
+- **Sentiment Analysis**: NLTK VADER integration for emotional tone detection
+- **Pattern Recognition**: Stress indicators, growth mindset, self-reflection tracking
+- **Outlier Detection**: Statistical analysis using Z-score, IQR, and ensemble methods
+- **Trend Analysis**: Emotional journey visualization over time
 
 ### User Experience
--  **Multi-language**: English, Hindi, Spanish with easy switching
--  **Daily Journal**: AI-powered emotional reflection with personalized insights
--  **Rich Profiles**: Medical history, personal strengths, emotional patterns
--  **Settings Sync**: Cross-device preference synchronization
--  **Data Management**: Backup, restore, and data export capabilities
+
+- **Multi-language**: English, Hindi, Spanish with easy switching
+- **Daily Journal**: AI-powered emotional reflection with personalized insights
+- **Rich Profiles**: Medical history, personal strengths, emotional patterns
+- **Settings Sync**: Cross-device preference synchronization
+- **Data Management**: Backup, restore, and data export capabilities
 
 ### Developer Experience
+
 - 🧪 **Comprehensive Testing**: Pytest suite with isolated databases
 - 🔄 **Database Migrations**: Alembic-powered schema evolution
 - 🐳 **Container Ready**: Docker support for consistent environments
@@ -120,10 +124,12 @@ User Input → GUI Events → Business Logic → Data Validation → Database �
 ## 🚀 Quick Start
 
 ### Prerequisites
+
 - Python 3.11+
 - Git
 
 ### One-Command Setup
+
 ```bash
 git clone https://github.com/nupurmadaan04/SOUL_SENSE_EXAM
 cd soul-sense-Exam/SOUL_SENSE_EXAM
@@ -138,12 +144,14 @@ That's it! The application will initialize the database, seed questions, and lau
 ## 📦 Installation
 
 ### 1. Clone Repository
+
 ```bash
 git clone https://github.com/nupurmadaan04/SOUL_SENSE_EXAM
 cd soul-sense-Exam/SOUL_SENSE_EXAM
 ```
 
 ### 2. Virtual Environment (Recommended)
+
 ```bash
 # Create
 python -m venv .venv
@@ -156,11 +164,13 @@ source .venv/bin/activate
 ```
 
 ### 3. Install Dependencies
+
 ```bash
 pip install -r requirements.txt
 ```
 
 ### 4. Initialize Database
+
 ```bash
 # Run migrations
 alembic upgrade head
@@ -170,6 +180,7 @@ python scripts/setup/seed_questions_v2.py
 ```
 
 ### 5. Launch Application
+
 ```bash
 # GUI Mode (Default)
 python -m app.main
@@ -179,7 +190,15 @@ python -m app.cli
 
 # API Server
 python -m uvicorn backend.fastapi.app.main:app --reload
+
+# Web Frontend
+cd frontend-web
+npm install
+npm run dev
 ```
+
+> [!NOTE]
+> For detailed web development setup, coding standards, and architecture, see [frontend-web/README.md](frontend-web/README.md).
 
 ---
 
@@ -198,6 +217,7 @@ python -m uvicorn backend.fastapi.app.main:app --reload
 ### For Developers
 
 #### API Usage
+
 ```python
 import requests
 
@@ -220,6 +240,7 @@ journal = requests.post("http://localhost:8000/api/v1/journal", headers=headers,
 ```
 
 #### CLI Tools
+
 ```bash
 # Admin interface
 python admin_interface.py
@@ -236,12 +257,14 @@ python scripts/outlier_analysis.py --user john_doe
 ## 🔧 Features
 
 ### Assessment Engine
+
 - **Question Bank**: 50+ validated EQ questions across 5 categories
 - **Adaptive Filtering**: Age-appropriate question selection (10-120 years)
 - **Scoring Algorithm**: Weighted calculation with interpretation bands
 - **Result Categories**: Self-Awareness, Emotional Regulation, Empathy, Social Skills, Motivation
 
 ### Journal & Reflection
+
 - **Sentiment Analysis**: Real-time emotional tone detection
 - **Pattern Recognition**: Identifies stress indicators and growth patterns
 - **AI Prompts**: Personalized journaling suggestions
@@ -249,12 +272,14 @@ python scripts/outlier_analysis.py --user john_doe
 - **Export Options**: JSON and text format exports
 
 ### User Management
+
 - **Secure Authentication**: bcrypt password hashing with JWT tokens
 - **Profile System**: Medical history, personal details, strengths assessment
 - **Settings Sync**: Cross-device preference synchronization
 - **Data Privacy**: Local storage with user-controlled backups
 
 ### Analytics & Insights
+
 - **Statistical Analysis**: Outlier detection and data quality assessment
 - **ML Integration**: Custom model training on user data
 - **Benchmarking**: Population-level EQ score comparisons
@@ -265,6 +290,7 @@ python scripts/outlier_analysis.py --user john_doe
 ## 💻 Development
 
 ### Project Structure
+
 ```
 SOUL_SENSE_EXAM/
 ├── app/                     # Core application
@@ -286,6 +312,7 @@ SOUL_SENSE_EXAM/
 ```
 
 ### Environment Configuration
+
 ```bash
 # Copy example environment file
 cp .env.example .env
@@ -297,6 +324,7 @@ SOULSENSE_DB_PATH=data/soulsense.db
 ```
 
 ### Database Migrations
+
 ```bash
 # Create new migration
 alembic revision --autogenerate -m "Add new feature"
@@ -309,6 +337,7 @@ alembic downgrade -1
 ```
 
 ### Feature Flags
+
 ```bash
 # Enable experimental features
 SOULSENSE_FF_AI_JOURNAL_SUGGESTIONS=true
@@ -320,6 +349,7 @@ SOULSENSE_FF_ADVANCED_ANALYTICS=true
 ## 🧪 Testing
 
 ### Run Test Suite
+
 ```bash
 # All tests
 python -m pytest tests/ -v
@@ -332,12 +362,14 @@ python -m pytest --cov=app tests/
 ```
 
 ### Test Categories
+
 - **Unit Tests**: Individual function/component testing
 - **Integration Tests**: Database and API integration
 - **Migration Tests**: Database schema evolution
 - **UI Tests**: GUI component testing (headless)
 
 ### Fixtures
+
 The project includes comprehensive test fixtures for consistent testing:
 
 ```python
@@ -354,6 +386,7 @@ def test_user_registration(temp_db, sample_user_data):
 We welcome contributions! Please see our [Contributing Guide](docs/CONTRIBUTING.md).
 
 ### Development Workflow
+
 1. Fork the repository
 2. Create a feature branch: `git checkout -b feature/amazing-feature`
 3. Make your changes with tests
@@ -363,6 +396,7 @@ We welcome contributions! Please see our [Contributing Guide](docs/CONTRIBUTING.
 7. Open a Pull Request
 
 ### Code Standards
+
 - **PEP 8** compliant Python code
 - **Type hints** for function parameters and return values
 - **Docstrings** for all public functions and classes
@@ -389,6 +423,7 @@ Results combine quantitative responses with qualitative sentiment analysis for c
 ### Technical Questions
 
 **What are the system requirements?**
+
 - Python 3.11+
 - 500MB free disk space
 - No internet connection required (except for optional features)
@@ -411,6 +446,7 @@ See our [I18N Guide](docs/I18N_GUIDE.md) for step-by-step instructions on adding
 Absolutely! Check our [Contributing Guide](docs/CONTRIBUTING.md) and open an issue to discuss your ideas.
 
 **How do I run the API server?**
+
 ```bash
 cd backend/fastapi
 python -m uvicorn app.main:app --reload --port 8000
@@ -433,5 +469,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 **Built with ❤️ for emotional intelligence and personal growth**
-
-

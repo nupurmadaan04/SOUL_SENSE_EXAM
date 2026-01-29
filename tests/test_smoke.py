@@ -1,16 +1,78 @@
-
-import pytest
-import tkinter as tk
+import sys
+import importlib.util
+from unittest.mock import MagicMock, patch
 import os
+import pytest
 import json
 import threading
-from unittest.mock import MagicMock, patch
+
+# CRITICAL: Automatically mock all GUI and visualization modules for headless tests
+class MockFinder:
+    def __init__(self, prefixes):
+        self.prefixes = prefixes
+    def find_spec(self, fullname, path, target=None):
+        if any(fullname.startswith(p) for p in self.prefixes):
+            spec = importlib.util.spec_from_loader(fullname, self)
+            spec.submodule_search_locations = [] 
+            return spec
+        return None
+    def create_module(self, spec):
+        mod = MagicMock()
+        mod.__name__ = spec.name
+        mod.__path__ = []
+        return mod
+    def exec_module(self, module):
+        pass
+
+@pytest.fixture(scope="module", autouse=True)
+def headless_mocks():
+    """
+    Fixture to mock GUI modules for the duration of this module's tests.
+    Cleans up sys.modules and sys.meta_path after tests.
+    """
+    prefixes = ['tkinter', 'matplotlib', 'PIL', '_tkinter', 'tcl', 'tk']
+    
+    # Save state
+    old_meta_path = sys.meta_path[:]
+    old_modules = {k: v for k, v in sys.modules.items() if any(k.startswith(p) for p in prefixes)}
+    old_display = os.environ.get("DISPLAY")
+    old_backend = os.environ.get("MPLBACKEND")
+    
+    # Apply mocks
+    os.environ["DISPLAY"] = ":0.0"
+    os.environ["MPLBACKEND"] = "Agg"
+    
+    for mod in list(sys.modules.keys()):
+        if any(mod.startswith(p) for p in prefixes):
+            del sys.modules[mod]
+            
+    finder = MockFinder(prefixes)
+    sys.meta_path.insert(0, finder)
+    
+    yield
+    
+    # Restore state
+    sys.meta_path = old_meta_path
+    for mod in list(sys.modules.keys()):
+        if any(mod.startswith(p) for p in prefixes):
+            del sys.modules[mod]
+    sys.modules.update(old_modules)
+    
+    if old_display: os.environ["DISPLAY"] = old_display
+    else: os.environ.pop("DISPLAY", None)
+    
+    if old_backend: os.environ["MPLBACKEND"] = old_backend
+    else: os.environ.pop("MPLBACKEND", None)
+
 from app.startup_checks import run_all_checks, CheckStatus, check_config_integrity
 from app.db import get_session
 from sqlalchemy import text
-from app.main import SoulSenseApp
 from app.config import CONFIG_PATH, DEFAULT_CONFIG
 from app.questions import initialize_questions, _ALL_QUESTIONS
+
+# Pre-load app modules so patch can find them
+import app.main
+import app.ui.styles
 
 def test_integrity_checks_pass():
     """
@@ -39,28 +101,37 @@ def test_database_connection():
 @patch("tkinter.ttk.Style")
 @patch("app.ui.styles.UIStyles")
 @patch("app.logger.get_logger")
-@patch("tkinter.Tk")
-def test_app_initialization_verification(mock_tk, mock_logger, mock_styles, mock_ttk_style):
+def test_app_initialization_verification(mock_logger, mock_styles):
     """
     Smoke Test: Verify SoulSenseApp initializes without crashing.
     Mocks GUI components to run in headless environments.
     """
+    # Import inside the test to ensure module-level mocks are active
+    from app.main import SoulSenseApp
+    
     # Setup mocks
     mock_root = MagicMock()
-    mock_tk.return_value = mock_root
     
     # Mock styles to populate colors preventing KeyError
     mock_style_instance = MagicMock()
     
     def style_init_side_effect(app_instance):
-        # We must populate colors when apply_theme is called, NOT now.
-        # Because app.__init__ does: self.colors = {} AFTER initing styles.
         def deferred_apply_theme(theme_name):
             app_instance.colors = {
                 "bg": "#ffffff", 
                 "sidebar_bg": "#f0f0f0",
                 "text_primary": "#000000",
-                "primary": "#blue"
+                "fg": "#000000",
+                "primary": "#blue",
+                "frame_bg": "#ffffff",
+                "label_bg": "#ffffff",
+                "label_fg": "#000000",
+                "button_bg": "#ffffff",
+                "button_fg": "#000000",
+                "entry_bg": "#ffffff",
+                "entry_fg": "#000000",
+                "radiobutton_bg": "#ffffff",
+                "radiobutton_fg": "#000000"
             }
         
         mock_style_instance.apply_theme.side_effect = deferred_apply_theme
@@ -75,10 +146,11 @@ def test_app_initialization_verification(mock_tk, mock_logger, mock_styles, mock
         assert app.root is not None
         assert app.auth is not None
         assert app.settings is not None
-        # assert app.questions is not None # Questions might be empty list if db empty, but attribute should exist
         assert hasattr(app, 'questions')
         
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         pytest.fail(f"App initialization crashed: {e}")
 
 def test_config_recovery_logic():

@@ -220,6 +220,306 @@ python admin_cli.py create-admin
 
 ---
 
+## Configuration Options
+
+This section documents all configuration options available in SoulSense, including environment variables, config.json settings, and security parameters.
+
+### Environment Variables
+
+Environment variables are prefixed with `SOULSENSE_` and take precedence over config.json settings.
+
+#### Application Environment
+- **`SOULSENSE_ENV`** (default: "development")
+  - Environment mode: "development", "staging", "production"
+  - Affects logging verbosity and error handling
+
+- **`SOULSENSE_DEBUG`** (default: false)
+  - Enable debug mode with detailed logging
+  - Shows stack traces and additional debug information
+
+- **`SOULSENSE_LOG_LEVEL`** (default: "INFO")
+  - Logging level: "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"
+  - Controls what messages are written to logs
+
+#### Database Configuration
+- **`SOULSENSE_DB_PATH`** (optional)
+  - Absolute or relative path to database file
+  - Overrides config.json database settings
+  - If relative, resolved from project root
+
+- **`SOULSENSE_DATABASE_TYPE`** (default: "sqlite")
+  - Database type: "sqlite" or "postgresql"
+  - SQLite for single-user, PostgreSQL for multi-user/production
+
+- **`SOULSENSE_DB_HOST`** (default: "localhost")
+  - PostgreSQL server hostname
+  - Only used when DATABASE_TYPE is "postgresql"
+
+- **`SOULSENSE_DB_PORT`** (default: 5432)
+  - PostgreSQL server port
+  - Only used when DATABASE_TYPE is "postgresql"
+
+- **`SOULSENSE_DB_NAME`** (default: "soulsense")
+  - PostgreSQL database name
+  - Only used when DATABASE_TYPE is "postgresql"
+
+- **`SOULSENSE_DB_USER`** (default: "postgres")
+  - PostgreSQL username
+  - Only used when DATABASE_TYPE is "postgresql"
+
+- **`SOULSENSE_DB_PASSWORD`** (default: "password")
+  - PostgreSQL password
+  - Only used when DATABASE_TYPE is "postgresql"
+
+#### Feature Toggles
+- **`SOULSENSE_ENABLE_JOURNAL`** (default: true)
+  - Enable/disable journaling feature
+  - When disabled, journal UI elements are hidden
+
+- **`SOULSENSE_ENABLE_ANALYTICS`** (default: true)
+  - Enable/disable analytics and reporting features
+  - When disabled, analytics UI and data collection are disabled
+
+### config.json Settings
+
+The `config.json` file contains application settings that can be modified without code changes.
+
+#### Database Section
+```json
+{
+  "database": {
+    "filename": "soulsense.db",
+    "path": "db"
+  }
+}
+```
+
+- **`database.filename`** (default: "soulsense.db")
+  - SQLite database filename
+  - Only used when DATABASE_TYPE is "sqlite"
+
+- **`database.path`** (default: "db")
+  - Database directory relative to project root
+  - Set to "data" to store in data/ directory
+  - Only used when DATABASE_TYPE is "sqlite"
+
+#### UI Section
+```json
+{
+  "ui": {
+    "theme": "light",
+    "window_size": "800x600"
+  }
+}
+```
+
+- **`ui.theme`** (default: "light")
+  - Application theme: "light" or "dark"
+  - Affects color scheme and visual appearance
+
+- **`ui.window_size`** (default: "800x600")
+  - Default window dimensions as "WIDTHxHEIGHT"
+  - Examples: "1024x768", "1280x720"
+
+#### Features Section
+```json
+{
+  "features": {
+    "enable_journal": true,
+    "enable_analytics": true
+  }
+}
+```
+
+- **`features.enable_journal`** (default: true)
+  - Enable journaling functionality
+  - Can be overridden by SOULSENSE_ENABLE_JOURNAL
+
+- **`features.enable_analytics`** (default: true)
+  - Enable analytics and reporting
+  - Can be overridden by SOULSENSE_ENABLE_ANALYTICS
+
+#### Exam Section
+```json
+{
+  "exam": {
+    "num_questions": 5
+  }
+}
+```
+
+- **`exam.num_questions`** (default: 5)
+  - Number of questions in each assessment
+  - Affects assessment length and scoring
+
+#### Experimental Section
+```json
+{
+  "experimental": {
+    "ai_journal_suggestions": false,
+    "advanced_analytics": false,
+    "beta_ui_components": false,
+    "ml_emotion_detection": false,
+    "data_export_v2": false
+  }
+}
+```
+
+- **`experimental.ai_journal_suggestions`** (default: false)
+  - Enable AI-powered journal entry suggestions
+  - Experimental feature, may be unstable
+
+- **`experimental.advanced_analytics`** (default: false)
+  - Enable advanced analytics features
+  - Includes additional charts and statistical analysis
+
+- **`experimental.beta_ui_components`** (default: false)
+  - Enable beta UI components and layouts
+  - May include unfinished or experimental interfaces
+
+- **`experimental.ml_emotion_detection`** (default: false)
+  - Enable machine learning emotion detection
+  - Requires ML models and may impact performance
+
+- **`experimental.data_export_v2`** (default: false)
+  - Enable enhanced data export features
+  - Includes additional export formats and options
+
+### Security Configuration
+
+Security settings are defined in `app/security_config.py` and affect password policies, session management, and input validation.
+
+#### Password Security
+- **`MIN_PASSWORD_LENGTH`** (default: 8)
+  - Minimum characters required for passwords
+  - Affects account creation and password changes
+
+- **`MAX_PASSWORD_LENGTH`** (default: 128)
+  - Maximum characters allowed for passwords
+  - Prevents extremely long password attacks
+
+- **`PASSWORD_HASH_ROUNDS`** (default: 12)
+  - PBKDF2 hash rounds for password security
+  - Higher values increase security but slow authentication
+
+#### Session Security
+- **`SESSION_TIMEOUT_HOURS`** (default: 24)
+  - Hours before automatic logout
+  - Balances security with user convenience
+
+- **`MAX_LOGIN_ATTEMPTS`** (default: 5)
+  - Failed login attempts before account lockout
+  - Prevents brute force attacks
+
+- **`LOCKOUT_DURATION_MINUTES`** (default: 5)
+  - Minutes account remains locked after failed attempts
+  - Temporary measure to prevent continued attacks
+
+#### Database Security
+- **`DB_CONNECTION_TIMEOUT`** (default: 20)
+  - Seconds to wait for database connections
+  - Prevents hanging on database issues
+
+- **`DB_POOL_SIZE`** (default: 5)
+  - Maximum concurrent database connections
+  - Affects performance and resource usage
+
+#### Input Validation
+- **`MAX_INPUT_LENGTH`** (default: 1000)
+  - Maximum characters allowed in text inputs
+  - Prevents buffer overflow and spam
+
+- **`ALLOWED_FILE_EXTENSIONS`** (default: ['.jpg', '.jpeg', '.png', '.gif'])
+  - Permitted file types for uploads
+  - Security measure against malicious file uploads
+
+- **`MAX_FILE_SIZE_MB`** (default: 5)
+  - Maximum file size in megabytes
+  - Prevents large file upload attacks
+
+#### Rate Limiting
+- **`MAX_REQUESTS_PER_MINUTE`** (default: 60)
+  - Maximum API requests per minute per user
+  - Prevents abuse and ensures fair resource usage
+
+### Configuration Management
+
+#### Setting Environment Variables
+
+**Linux/macOS:**
+```bash
+export SOULSENSE_DEBUG=true
+export SOULSENSE_LOG_LEVEL=DEBUG
+python app.py
+```
+
+**Windows:**
+```cmd
+set SOULSENSE_DEBUG=true
+set SOULSENSE_LOG_LEVEL=DEBUG
+python app.py
+```
+
+**Using .env file:**
+```bash
+# Create .env file in project root
+SOULSENSE_DEBUG=true
+SOULSENSE_LOG_LEVEL=DEBUG
+SOULSENSE_DATABASE_TYPE=postgresql
+SOULSENSE_DB_HOST=localhost
+```
+
+#### Modifying config.json
+
+1. Open `config.json` in a text editor
+2. Modify desired settings
+3. Save the file
+4. Restart the application
+
+**Example config.json:**
+```json
+{
+    "database": {
+        "filename": "soulsense.db",
+        "path": "data"
+    },
+    "ui": {
+        "theme": "dark",
+        "window_size": "1024x768"
+    },
+    "features": {
+        "enable_journal": true,
+        "enable_analytics": true
+    },
+    "exam": {
+        "num_questions": 10
+    },
+    "experimental": {
+        "ai_journal_suggestions": false,
+        "advanced_analytics": true,
+        "beta_ui_components": false,
+        "ml_emotion_detection": false,
+        "data_export_v2": false
+    }
+}
+```
+
+#### Configuration Priority
+
+Settings are applied in this order (highest priority first):
+1. Environment variables (SOULSENSE_*)
+2. config.json file
+3. Default values in code
+
+#### Validation and Error Handling
+
+- Invalid config.json files will cause startup failure with error messages
+- Missing config.json falls back to defaults with warning
+- Environment variables are validated for correct types
+- Security settings cannot be modified at runtime
+
+---
+
 ## Troubleshooting
 
 ### Common Issues

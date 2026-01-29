@@ -55,7 +55,7 @@ def create_app() -> FastAPI:
     @app.exception_handler(Exception)
     async def global_exception_handler(request: Request, exc: Exception):
         import traceback
-        print(f"❌ GLOBAL EXCEPTION: {exc}")
+        print(f"[ERROR] GLOBAL EXCEPTION: {exc}")
         traceback.print_exc()
         return JSONResponse(
             status_code=500,

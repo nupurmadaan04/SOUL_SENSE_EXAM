@@ -2,11 +2,14 @@ import { z } from 'zod';
 
 // Utility to get validation errors in a flat structure
 export const getValidationErrors = (error: z.ZodError) => {
-  return error.errors.reduce((acc, err) => {
-    const path = err.path.join('.');
-    acc[path] = err.message;
-    return acc;
-  }, {} as Record<string, string>);
+  return error.errors.reduce(
+    (acc, err) => {
+      const path = err.path.join('.');
+      acc[path] = err.message;
+      return acc;
+    },
+    {} as Record<string, string>
+  );
 };
 
 // Utility to validate a single field
@@ -49,7 +52,9 @@ export const hasAsyncRefinements = (schema: z.ZodSchema): boolean => {
 };
 
 // Utility for password strength calculation
-export const calculatePasswordStrength = (password: string): {
+export const calculatePasswordStrength = (
+  password: string
+): {
   score: number;
   feedback: string[];
 } => {

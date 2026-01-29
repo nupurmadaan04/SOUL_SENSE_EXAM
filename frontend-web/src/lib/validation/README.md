@@ -50,19 +50,8 @@ function RegistrationForm() {
     <Form schema={registrationSchema} onSubmit={onSubmit}>
       {(methods) => (
         <>
-          <FormField
-            control={methods.control}
-            name="username"
-            label="Username"
-            required
-          />
-          <FormField
-            control={methods.control}
-            name="email"
-            label="Email"
-            type="email"
-            required
-          />
+          <FormField control={methods.control} name="username" label="Username" required />
+          <FormField control={methods.control} name="email" label="Email" type="email" required />
           <FormField
             control={methods.control}
             name="password"

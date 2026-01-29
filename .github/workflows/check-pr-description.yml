@@ -10,6 +10,7 @@ on:
 
 permissions:
   pull-requests: write
+  contents: read
 
 jobs:
   check-description:
@@ -22,6 +23,8 @@ jobs:
           script: |
             const pr = context.payload.pull_request;
             const body = (pr.body || "").trim();
+
+            const isFork = pr.head.repo.full_name !== pr.base.repo.full_name;
 
             const minLength = 50;
             const requiredSections = ["## Summary", "## Description"];
@@ -50,14 +53,29 @@ jobs:
               return;
             }
 
-            const commentBody =
+            const feedback =
               "PR description needs improvement:\n\n" +
               issues.map(i => `- ${i}`).join("\n") +
               "\n\nPlease update the description.";
 
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: pr.number,
-              body: commentBody,
-            });
+            if (isFork) {
+              core.warning("Fork detected. Skipping comment creation to avoid 403 error.\n\n" + feedback);
+              return;
+            }
+
+            try {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr.number,
+                body: feedback,
+              });
+              core.setFailed("PR description validation failed. Please check the comment for details.");
+            } catch (error) {
+              core.error(`Failed to create comment: ${error.message}`);
+              if (error.status === 403) {
+                core.warning("Received 403 Forbidden. This usually happens on PRs from forks where the token has read-only access.");
+              } else {
+                core.setFailed(`An error occurred: ${error.message}`);
+              }
+            }

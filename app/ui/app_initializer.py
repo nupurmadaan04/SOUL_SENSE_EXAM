@@ -189,3 +189,30 @@ class AppInitializer:
             self.app.sidebar.select_item("home")
         else:
             self.app.switch_view("home")
+
+    def logout_user(self):
+        """Reset application state for logout"""
+        # Clear session data
+        self.app.username = None
+        self.app.current_user_id = None
+        self.app.settings = {}
+
+        # Clear DB Session
+        try:
+            from app.db import SessionLocal
+            SessionLocal.remove()
+            self.app.logger.info("Database session removed during logout")
+        except Exception as e:
+            self.app.logger.error(f"Error removing session during logout: {e}")
+
+        # Hide Sidebar
+        if hasattr(self.app, 'sidebar'):
+            self.app.sidebar.pack_forget()
+
+        # Clear Content Area
+        if hasattr(self.app, 'content_area'):
+            for widget in self.app.content_area.winfo_children():
+                widget.destroy()
+
+        # Show Login Screen
+        self.start_login_flow()

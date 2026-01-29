@@ -245,17 +245,4 @@ class ViewManager:
 
     def _do_logout(self):
         """Clear user session and show login screen."""
-        # Clear user state
-        self.app.username = None
-        self.app.current_user_id = None
-        self.app.settings = {}
-
-        # Hide sidebar
-        if hasattr(self.app, 'sidebar'):
-            self.app.sidebar.pack_forget()
-
-        # Clear content area
-        self.clear_screen()
-
-        # Show login screen
-        self.app.initializer.show_login_screen()
+        self.app.logout()

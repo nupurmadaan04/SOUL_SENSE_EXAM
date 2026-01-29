@@ -5,6 +5,8 @@ import { useController, Control, FieldValues, Path } from 'react-hook-form';
 import { FormLabel } from './FormLabel';
 import { FormError } from './FormError';
 import { FormMessage } from './FormMessage';
+import { Input } from '@/components/ui';
+import { cn } from '@/lib/utils';
 
 interface FormFieldProps<T extends FieldValues> {
   control: Control<T>;
@@ -43,17 +45,17 @@ export function FormField<T extends FieldValues>({
     type,
     required,
     disabled,
-    className: `form-field ${className}`,
+    className,
   };
 
   return (
-    <div className="form-field-container">
-      {label && <FormLabel htmlFor={name} required={required}>{label}</FormLabel>}
-      {children ? (
-        children(fieldProps)
-      ) : (
-        <input {...fieldProps} />
+    <div className={cn('space-y-2', className)}>
+      {label && (
+        <FormLabel htmlFor={name} required={required}>
+          {label}
+        </FormLabel>
       )}
+      {children ? children(fieldProps) : <Input {...fieldProps} />}
       <FormError error={error?.message} />
       <FormMessage name={name} />
     </div>
