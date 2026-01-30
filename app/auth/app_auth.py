@@ -151,6 +151,9 @@ class AppAuth:
         def do_register():
             self.show_signup_screen()
 
+        def do_forgot_password():
+            self.show_forgot_password_screen()
+
         # Buttons
         tk.Button(login_win, text="Login", command=do_login,
                  font=("Segoe UI", 12, "bold"), bg=self.app.colors["primary"], fg="white",
@@ -159,6 +162,10 @@ class AppAuth:
         tk.Button(login_win, text="Create Account", command=do_register,
                  font=("Segoe UI", 10), bg=self.app.colors["bg"], fg=self.app.colors["primary"],
                  bd=0, cursor="hand2").pack()
+
+        tk.Button(login_win, text="Forgot Password?", command=do_forgot_password,
+                 font=("Segoe UI", 9), bg=self.app.colors["bg"], fg=self.app.colors["text_secondary"],
+                 bd=0, cursor="hand2").pack(pady=(5, 0))
 
     def show_signup_screen(self):
         """Show signup popup window"""
@@ -274,6 +281,132 @@ class AppAuth:
                  width=20).pack()
 
         tk.Button(button_frame, text="Back to Login", command=signup_win.destroy,
+                 font=("Segoe UI", 10), bg=self.app.colors["bg"], fg=self.app.colors["primary"],
+                 bd=0, cursor="hand2").pack(pady=(10, 0))
+
+    def show_forgot_password_screen(self):
+        """Show forgot password popup window"""
+        forgot_win = tk.Toplevel(self.app.root)
+        forgot_win.title("Reset Password - SoulSense")
+        forgot_win.geometry("450x550")
+        forgot_win.configure(bg=self.app.colors["bg"])
+        forgot_win.transient(self.app.root)
+        forgot_win.grab_set()
+
+        # Center
+        forgot_win.update_idletasks()
+        x = self.app.root.winfo_x() + (self.app.root.winfo_width() - 450) // 2
+        y = self.app.root.winfo_y() + (self.app.root.winfo_height() - 550) // 2
+        forgot_win.geometry(f"+{x}+{y}")
+
+        # Title
+        tk.Label(forgot_win, text="Reset Password", font=("Segoe UI", 20, "bold"),
+                 bg=self.app.colors["bg"], fg=self.app.colors["primary"]).pack(pady=(30, 10))
+
+        tk.Label(forgot_win, text="Enter your details to reset password", font=("Segoe UI", 12),
+                 bg=self.app.colors["bg"], fg=self.app.colors["text_secondary"]).pack(pady=(0, 20))
+
+        # Form
+        form_frame = tk.Frame(forgot_win, bg=self.app.colors["bg"])
+        form_frame.pack(fill="x", padx=40)
+
+        # Email/Username
+        tk.Label(form_frame, text="Email or Username", font=("Segoe UI", 10, "bold"),
+                 bg=self.app.colors["bg"], fg=self.app.colors["text_primary"]).pack(anchor="w")
+        email_entry = tk.Entry(form_frame, font=("Segoe UI", 12))
+        email_entry.pack(fill="x", pady=(5, 15))
+
+        # New Password
+        tk.Label(form_frame, text="New Password", font=("Segoe UI", 10, "bold"),
+                 bg=self.app.colors["bg"], fg=self.app.colors["text_primary"]).pack(anchor="w")
+        new_password_entry = tk.Entry(form_frame, font=("Segoe UI", 12), show="*")
+        new_password_entry.pack(fill="x", pady=(5, 15))
+
+        # Confirm Password
+        tk.Label(form_frame, text="Confirm New Password", font=("Segoe UI", 10, "bold"),
+                 bg=self.app.colors["bg"], fg=self.app.colors["text_primary"]).pack(anchor="w")
+        confirm_password_entry = tk.Entry(form_frame, font=("Segoe UI", 12), show="*")
+        confirm_password_entry.pack(fill="x", pady=(5, 15))
+
+        # Show Password checkboxes
+        show_new_var = tk.BooleanVar()
+        show_confirm_var = tk.BooleanVar()
+
+        def toggle_new_password():
+            show_char = "" if show_new_var.get() else "*"
+            new_password_entry.config(show=show_char)
+
+        def toggle_confirm_password():
+            show_char = "" if show_confirm_var.get() else "*"
+            confirm_password_entry.config(show=show_char)
+
+        checkbox_frame = tk.Frame(form_frame, bg=self.app.colors["bg"])
+        checkbox_frame.pack(fill="x", pady=(0, 20))
+
+        tk.Checkbutton(checkbox_frame, text="Show New Password", variable=show_new_var,
+                      command=toggle_new_password, font=("Segoe UI", 9),
+                      bg=self.app.colors["bg"], fg=self.app.colors["text_primary"]).pack(side="left", padx=(0, 20))
+
+        tk.Checkbutton(checkbox_frame, text="Show Confirm Password", variable=show_confirm_var,
+                      command=toggle_confirm_password, font=("Segoe UI", 9),
+                      bg=self.app.colors["bg"], fg=self.app.colors["text_primary"]).pack(side="left")
+
+        def do_reset_password():
+            email = email_entry.get().strip()
+            new_password = new_password_entry.get().strip()
+            confirm_password = confirm_password_entry.get().strip()
+
+            # Validations
+            if not email:
+                tk.messagebox.showerror("Error", "Email or username is required")
+                return
+            if not new_password:
+                tk.messagebox.showerror("Error", "New password is required")
+                return
+            if len(new_password) < 8:
+                tk.messagebox.showerror("Error", "Password must be at least 8 characters")
+                return
+            if new_password != confirm_password:
+                tk.messagebox.showerror("Error", "Passwords don't match")
+                return
+
+            # Check if user exists
+            from app.db import get_session
+            from app.models import User
+            session = get_session()
+            try:
+                # Try to find by username first, then by email
+                user = session.query(User).filter(
+                    (User.username == email) | (User.email == email)
+                ).first()
+
+                if not user:
+                    tk.messagebox.showerror("Error", "User not found")
+                    return
+
+                # Update password
+                hashed_password = self.auth_manager.hash_password(new_password)
+                user.password_hash = hashed_password
+                session.commit()
+
+                tk.messagebox.showinfo("Success", "Password reset successfully! You can now login with your new password.")
+                forgot_win.destroy()
+
+            except Exception as e:
+                self.logger.error(f"Password reset failed: {e}")
+                tk.messagebox.showerror("Error", "Failed to reset password. Please try again.")
+            finally:
+                session.close()
+
+        # Buttons
+        button_frame = tk.Frame(forgot_win, bg=self.app.colors["bg"])
+        button_frame.pack(pady=20)
+
+        tk.Button(button_frame, text="Reset Password", command=do_reset_password,
+                 font=("Segoe UI", 12, "bold"), bg=self.app.colors["primary"], fg="white",
+                 width=20).pack()
+
+        tk.Button(button_frame, text="Back to Login", command=forgot_win.destroy,
                  font=("Segoe UI", 10), bg=self.app.colors["bg"], fg=self.app.colors["primary"],
                  bd=0, cursor="hand2").pack(pady=(10, 0))
 
