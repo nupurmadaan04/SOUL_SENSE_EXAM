@@ -2250,56 +2250,28 @@ AttributeError: 'AppInitializer' object has no attribute 'start_login_flow'
 2026-01-30 13:54:28 - app.shutdown_handler - INFO - [shutdown_handler.py:56] - Initiating graceful application shutdown...
 2026-01-30 13:54:28 - app.shutdown_handler - INFO - [shutdown_handler.py:65] - Database session committed and removed successfully
 2026-01-30 13:54:28 - app.shutdown_handler - INFO - [shutdown_handler.py:70] - Application shutdown complete
-2026-01-30 16:23:02 - root - INFO - [logger.py:85] - Logging initialized.
-2026-01-30 16:23:02 - app.startup_checks - INFO - [startup_checks.py:302] - Running startup integrity checks...
-2026-01-30 16:23:02 - app.startup_checks - INFO - [startup_checks.py:272] - Config integrity check passed
-2026-01-30 16:23:02 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ config_integrity: Configuration is valid
-2026-01-30 16:23:02 - app.startup_checks - INFO - [startup_checks.py:195] - Required files check passed
-2026-01-30 16:23:02 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ required_files: All required files and directories present
-2026-01-30 16:23:02 - app.startup_checks - INFO - [startup_checks.py:121] - Database schema check passed
-2026-01-30 16:23:02 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ database_schema: All required tables present
-2026-01-30 16:23:02 - app.startup_checks - INFO - [startup_checks.py:345] - Integrity checks complete: 3 passed, 0 warnings, 0 failed
-2026-01-30 16:23:02 - __main__ - INFO - [temp_main.py:135] - Startup Integrity Check Results:
+2026-01-30 16:20:15 - root - INFO - [logger.py:85] - Logging initialized.
+2026-01-30 16:20:15 - app.startup_checks - INFO - [startup_checks.py:302] - Running startup integrity checks...
+2026-01-30 16:20:15 - app.startup_checks - INFO - [startup_checks.py:272] - Config integrity check passed
+2026-01-30 16:20:15 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ config_integrity: Configuration is valid
+2026-01-30 16:20:15 - app.startup_checks - INFO - [startup_checks.py:195] - Required files check passed
+2026-01-30 16:20:15 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ required_files: All required files and directories present
+2026-01-30 16:20:15 - app.startup_checks - INFO - [startup_checks.py:121] - Database schema check passed
+2026-01-30 16:20:15 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ database_schema: All required tables present
+2026-01-30 16:20:15 - app.startup_checks - INFO - [startup_checks.py:345] - Integrity checks complete: 3 passed, 0 warnings, 0 failed
+2026-01-30 16:20:15 - __main__ - INFO - [temp_main.py:135] - Startup Integrity Check Results:
 ========================================
 ✓ config_integrity: Configuration is valid
 ✓ required_files: All required files and directories present
 ✓ database_schema: All required tables present
 ========================================
-2026-01-30 16:23:02 - __main__ - INFO - [temp_main.py:164] - Preloading questions into memory...
-2026-01-30 16:23:02 - app.questions - INFO - [questions.py:52] - Loaded 0 active questions into memory.
-2026-01-30 16:23:03 - app.questions - INFO - [questions.py:87] - Questions not initialized, loading now...
-2026-01-30 16:23:03 - app.questions - INFO - [questions.py:52] - Loaded 0 active questions into memory.
-2026-01-30 16:23:11 - app.shutdown_handler - INFO - [shutdown_handler.py:56] - Initiating graceful application shutdown...
-2026-01-30 16:23:11 - app.shutdown_handler - INFO - [shutdown_handler.py:65] - Database session committed and removed successfully
-2026-01-30 16:23:11 - app.shutdown_handler - INFO - [shutdown_handler.py:70] - Application shutdown complete
-2026-01-30 16:23:11 - app.shutdown_handler - INFO - [shutdown_handler.py:56] - Initiating graceful application shutdown...
-2026-01-30 16:23:11 - app.shutdown_handler - INFO - [shutdown_handler.py:65] - Database session committed and removed successfully
-2026-01-30 16:23:11 - app.shutdown_handler - INFO - [shutdown_handler.py:70] - Application shutdown complete
-2026-01-30 16:24:05 - root - INFO - [logger.py:85] - Logging initialized.
-2026-01-30 16:24:05 - app.startup_checks - INFO - [startup_checks.py:302] - Running startup integrity checks...
-2026-01-30 16:24:05 - app.startup_checks - INFO - [startup_checks.py:272] - Config integrity check passed
-2026-01-30 16:24:05 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ config_integrity: Configuration is valid
-2026-01-30 16:24:05 - app.startup_checks - INFO - [startup_checks.py:195] - Required files check passed
-2026-01-30 16:24:05 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ required_files: All required files and directories present
-2026-01-30 16:24:05 - app.startup_checks - INFO - [startup_checks.py:121] - Database schema check passed
-2026-01-30 16:24:05 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ database_schema: All required tables present
-2026-01-30 16:24:05 - app.startup_checks - INFO - [startup_checks.py:345] - Integrity checks complete: 3 passed, 0 warnings, 0 failed
-2026-01-30 16:24:05 - __main__ - INFO - [main.py:231] - Startup Integrity Check Results:
-========================================
-✓ config_integrity: Configuration is valid
-✓ required_files: All required files and directories present
-✓ database_schema: All required tables present
-========================================
-2026-01-30 16:24:05 - __main__ - INFO - [main.py:262] - Preloading questions into memory...
-2026-01-30 16:24:05 - app.questions - INFO - [questions.py:52] - Loaded 0 active questions into memory.
-2026-01-30 16:24:06 - app.questions - INFO - [questions.py:87] - Questions not initialized, loading now...
-2026-01-30 16:24:06 - app.questions - INFO - [questions.py:52] - Loaded 0 active questions into memory.
-2026-01-30 16:25:07 - app.shutdown_handler - INFO - [shutdown_handler.py:56] - Initiating graceful application shutdown...
-2026-01-30 16:25:07 - app.shutdown_handler - INFO - [shutdown_handler.py:65] - Database session committed and removed successfully
-2026-01-30 16:25:07 - app.shutdown_handler - INFO - [shutdown_handler.py:70] - Application shutdown complete
-2026-01-30 16:25:07 - app.shutdown_handler - INFO - [shutdown_handler.py:56] - Initiating graceful application shutdown...
-2026-01-30 16:25:07 - app.shutdown_handler - INFO - [shutdown_handler.py:65] - Database session committed and removed successfully
-2026-01-30 16:25:07 - app.shutdown_handler - INFO - [shutdown_handler.py:70] - Application shutdown complete
-2026-01-30 16:25:07 - app.shutdown_handler - INFO - [shutdown_handler.py:56] - Initiating graceful application shutdown...
-2026-01-30 16:25:07 - app.shutdown_handler - INFO - [shutdown_handler.py:65] - Database session committed and removed successfully
-2026-01-30 16:25:07 - app.shutdown_handler - INFO - [shutdown_handler.py:70] - Application shutdown complete
+2026-01-30 16:20:15 - __main__ - INFO - [temp_main.py:164] - Preloading questions into memory...
+2026-01-30 16:20:15 - app.questions - INFO - [questions.py:52] - Loaded 0 active questions into memory.
+2026-01-30 16:20:16 - app.questions - INFO - [questions.py:87] - Questions not initialized, loading now...
+2026-01-30 16:20:16 - app.questions - INFO - [questions.py:52] - Loaded 0 active questions into memory.
+2026-01-30 16:20:34 - app.shutdown_handler - INFO - [shutdown_handler.py:56] - Initiating graceful application shutdown...
+2026-01-30 16:20:34 - app.shutdown_handler - INFO - [shutdown_handler.py:65] - Database session committed and removed successfully
+2026-01-30 16:20:34 - app.shutdown_handler - INFO - [shutdown_handler.py:70] - Application shutdown complete
+2026-01-30 16:20:34 - app.shutdown_handler - INFO - [shutdown_handler.py:56] - Initiating graceful application shutdown...
+2026-01-30 16:20:34 - app.shutdown_handler - INFO - [shutdown_handler.py:65] - Database session committed and removed successfully
+2026-01-30 16:20:34 - app.shutdown_handler - INFO - [shutdown_handler.py:70] - Application shutdown complete
