@@ -12,7 +12,7 @@ from sqlalchemy.exc import IntegrityError
 from fastapi import HTTPException, status
 
 # Import models from root_models module (handles namespace collision)
-from app.root_models import User, UserSettings, MedicalProfile, PersonalProfile, UserStrengths, UserEmotionalPatterns, Score
+from api.root_models import User, UserSettings, MedicalProfile, PersonalProfile, UserStrengths, UserEmotionalPatterns, Score
 import bcrypt
 
 

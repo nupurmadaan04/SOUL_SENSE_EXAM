@@ -6,7 +6,7 @@ import json
 import aiofiles
 from datetime import datetime
 from typing import Dict, Any, List, Optional
-from backend.fastapi.app.config import get_settings_instance
+from ..config import get_settings_instance
 
 # NLTK Setup for Sentiment Analysis
 import nltk

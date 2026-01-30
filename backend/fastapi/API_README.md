@@ -9,52 +9,40 @@ RESTful API endpoints for Soul Sense EQ Test assessments and questions.
 ✅ **No client-side logic dependency** - Server-side processing  
 ✅ **Comprehensive filtering** - By age, category, username, etc.  
 ✅ **Pagination support** - Efficient data retrieval  
-✅ **Statistical endpoints** - Aggregate data analysis  
+✅ **Statistical endpoints** - Aggregate data analysis
 
-## Installation
+## 🚀 Running the API
 
-1. Install dependencies:
 ```bash
-cd backend/fastapi
-pip install -r requirements.txt
+# Run from project root
+python -m uvicorn backend.fastapi.api.main:app --reload
 ```
 
-2. Configure environment (optional):
-```bash
-# Create .env file in project root
-SOULSENSE_DATABASE_TYPE=sqlite
-SOULSENSE_JWT_SECRET_KEY=your-secret-key
-```
-
-3. Run the API server:
-```bash
-# From backend/fastapi directory
-uvicorn app.main:app --reload --port 8000
-
-# Or from project root
-cd backend/fastapi
-python -m uvicorn app.main:app --reload
-```
+_API will be available at: http://localhost:8000_
 
 ## API Endpoints
 
 ### Health Check
+
 - `GET /health` - Check API health status
 
 ### Assessments (Scores)
 
 #### List Assessments
+
 ```http
 GET /api/v1/assessments?username=john&page=1&page_size=10
 ```
 
 **Query Parameters:**
+
 - `username` (optional): Filter by username
 - `age_group` (optional): Filter by age group (e.g., "18-25")
 - `page` (default: 1): Page number
 - `page_size` (default: 10, max: 100): Items per page
 
 **Response:**
+
 ```json
 {
   "total": 45,
@@ -77,11 +65,13 @@ GET /api/v1/assessments?username=john&page=1&page_size=10
 ```
 
 #### Get Assessment Details
+
 ```http
 GET /api/v1/assessments/{assessment_id}
 ```
 
 **Response:**
+
 ```json
 {
   "id": 1,
@@ -99,11 +89,13 @@ GET /api/v1/assessments/{assessment_id}
 ```
 
 #### Get Assessment Statistics
+
 ```http
 GET /api/v1/assessments/stats?username=john
 ```
 
 **Response:**
+
 ```json
 {
   "total_assessments": 45,
@@ -122,11 +114,13 @@ GET /api/v1/assessments/stats?username=john
 ### Questions
 
 #### Get Question Set
+
 ```http
 GET /api/v1/questions?age=25&limit=20
 ```
 
 **Query Parameters:**
+
 - `age` (optional): Filter questions appropriate for this age
 - `category_id` (optional): Filter by category
 - `limit` (default: 100, max: 200): Maximum questions
@@ -134,6 +128,7 @@ GET /api/v1/questions?age=25&limit=20
 - `active_only` (default: true): Only active questions
 
 **Response:**
+
 ```json
 {
   "version": "1.0.0",
@@ -159,6 +154,7 @@ GET /api/v1/questions?age=25&limit=20
 ```
 
 #### Get Questions by Age
+
 ```http
 GET /api/v1/questions/by-age/25?limit=10
 ```
@@ -166,16 +162,19 @@ GET /api/v1/questions/by-age/25?limit=10
 **Response:** Array of `QuestionResponse` objects
 
 #### Get Specific Question
+
 ```http
 GET /api/v1/questions/{question_id}
 ```
 
 #### List Question Categories
+
 ```http
 GET /api/v1/questions/categories
 ```
 
 **Response:**
+
 ```json
 [
   {
@@ -192,11 +191,13 @@ GET /api/v1/questions/categories
 ### Settings Synchronization
 
 #### Get All Settings
+
 ```http
 GET /api/sync/settings
 ```
 
 **Response:**
+
 ```json
 [
   {
@@ -209,17 +210,20 @@ GET /api/sync/settings
 ```
 
 #### Upsert Setting (with Conflict Detection)
+
 ```http
 PUT /api/sync/settings/{key}
 ```
 
 **Request Body:**
+
 - `value` (any): The value to store
 - `expected_version` (optional): Current version for optimistic locking
 
 **Response (Standard):** `200 OK` or `201 Created` with the updated setting.
 
 **Response (Conflict - 409):**
+
 ```json
 {
   "detail": {
@@ -232,16 +236,18 @@ PUT /api/sync/settings/{key}
 ```
 
 #### Batch Upsert
+
 ```http
 POST /api/sync/settings/batch
 ```
 
 **Request Body:**
+
 ```json
 {
   "settings": [
-    {"key": "theme", "value": "dark"},
-    {"key": "language", "value": "hi"}
+    { "key": "theme", "value": "dark" },
+    { "key": "language", "value": "hi" }
   ]
 }
 ```
@@ -304,7 +310,7 @@ print(f"Average score: {stats['average_score']}")
 
 ```
 backend/fastapi/
-├── app/
+├── api/
 │   ├── main.py              # FastAPI app initialization
 │   ├── config.py            # Configuration settings
 │   ├── models/
@@ -324,6 +330,7 @@ backend/fastapi/
 ## Data Models
 
 ### QuestionResponse
+
 - `id`: Question ID
 - `question_text`: Question text
 - `category_id`: Category identifier
@@ -335,6 +342,7 @@ backend/fastapi/
 - `is_active`: Active status
 
 ### AssessmentResponse
+
 - `id`: Assessment ID
 - `username`: User identifier
 - `total_score`: Total EQ score
@@ -360,12 +368,14 @@ Questions are versioned using the `VERSION` constant from `app/constants.py`. Th
 ## Error Handling
 
 Standard HTTP status codes:
+
 - `200 OK` - Successful request
 - `400 Bad Request` - Invalid parameters
 - `404 Not Found` - Resource not found
 - `500 Internal Server Error` - Server error
 
 Error response format:
+
 ```json
 {
   "detail": "Assessment not found"

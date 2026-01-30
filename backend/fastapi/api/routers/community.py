@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from app.services.github_service import github_service
+from api.services.github_service import github_service
 
 router = APIRouter(tags=["Community Dashboard"])
 

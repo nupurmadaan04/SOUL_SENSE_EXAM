@@ -11,7 +11,7 @@ from datetime import datetime
 import json
 
 # Import models from root_models module (handles namespace collision)
-from app.root_models import UserSyncSetting
+from api.root_models import UserSyncSetting
 
 
 class SettingsSyncService:

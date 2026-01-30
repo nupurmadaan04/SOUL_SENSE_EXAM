@@ -124,28 +124,6 @@ User Input → GUI Events → Business Logic → Data Validation → Database �
 
 ---
 
-## 🚀 Quick Start
-
-### Prerequisites
-
-- Python 3.11 (officially tested), may work with 3.12+ (see compatibility notes)
-- Git
-
-> **Python Version Notes**: The application is actively tested on Python 3.11. Newer versions (3.12, 3.13) may work but could have dependency compatibility issues. For the most stable experience, use Python 3.11.
-
-### One-Command Setup
-
-```bash
-git clone https://github.com/nupurmadaan04/SOUL_SENSE_EXAM
-cd soul-sense-Exam/SOUL_SENSE_EXAM
-python -m scripts.setup_dev
-python -m app.main
-```
-
-That's it! The application will initialize the database, seed questions, and launch the GUI.
-
----
-
 ## 📦 Installation
 
 ### 1. Clone Repository
@@ -184,26 +162,47 @@ alembic upgrade head
 python scripts/setup/seed_questions_v2.py
 ```
 
-### 5. Launch Application
+## 🚀 Running the Application
+
+Follow these steps to start the full stack environment.
+
+### 1. Start Backend API (Required)
+
+Start the REST API server first, as other components depend on it.
 
 ```bash
-# GUI Mode (Default)
-python -m app.main
+# Run from project root
+python -m uvicorn backend.fastapi.api.main:app --reload
+```
 
-# CLI Mode
-python -m app.cli
+_API will be available at: http://localhost:8000_
 
-# API Server
-python -m uvicorn backend.fastapi.app.main:app --reload
+### 2. Start Web Frontend
 
-# Web Frontend
+Run the modern web interface.
+
+```bash
 cd frontend-web
-npm install
+npm install  # First time only
 npm run dev
 ```
 
+_Access the web app at: http://localhost:3005_
+
+### 3. Start Desktop App (Optional)
+
+Run the standalone desktop GUI.
+
+```bash
+# Open new terminal in project root
+python -m app.main
+```
+
 > [!NOTE]
-> For detailed web development setup, coding standards, and architecture, see [frontend-web/README.md](frontend-web/README.md).
+>
+> - **Backend Guide**: Architecture and API details: [backend/fastapi/API_README.md](backend/fastapi/API_README.md)
+> - **Frontend Guide**: Web setup and standards: [frontend-web/README.md](frontend-web/README.md)
+> - **API Docs**: Interactive Swagger UI: http://localhost:8000/docs
 
 ---
 
@@ -227,6 +226,7 @@ npm run dev
 import requests
 
 # Get questions for age 25
+# Note: Ensure backend is running on port 8000
 response = requests.get("http://localhost:8000/api/v1/questions?age=25&limit=10")
 questions = response.json()
 
@@ -248,10 +248,10 @@ journal = requests.post("http://localhost:8000/api/v1/journal", headers=headers,
 
 ```bash
 # Admin interface
-python admin_interface.py
+python scripts/admin_interface.py
 
-# Database management
-python scripts/db_backup.py
+# Database management (Backup)
+python -m app.db_backup
 
 # Analytics
 python scripts/outlier_analysis.py --user john_doe
@@ -259,7 +259,7 @@ python scripts/outlier_analysis.py --user john_doe
 
 ---
 
-##  Development
+## Development
 
 ### Project Structure
 
@@ -420,8 +420,8 @@ Absolutely! Check our [Contributing Guide](docs/CONTRIBUTING.md) and open an iss
 **How do I run the API server?**
 
 ```bash
-cd backend/fastapi
-python -m uvicorn app.main:app --reload --port 8000
+# From project root
+python -m uvicorn backend.fastapi.api.main:app --reload
 ```
 
 ---
@@ -431,11 +431,13 @@ python -m uvicorn app.main:app --reload --port 8000
 ### Common Installation Issues
 
 **Python Version Compatibility**
+
 - Soul Sense is tested on Python 3.11
 - Newer versions (3.12+) may work but could have dependency conflicts
 - If you encounter issues, try Python 3.11 or check GitHub issues for known problems
 
 **Dependency Installation Errors**
+
 ```bash
 # Clear pip cache and reinstall
 pip cache purge
@@ -444,6 +446,7 @@ pip install -r requirements.txt --force-reinstall
 ```
 
 **Database Initialization Issues**
+
 ```bash
 # Reset database
 rm data/soulsense.db
@@ -452,10 +455,12 @@ python scripts/setup/seed_questions_v2.py
 ```
 
 **Permission Errors (Windows)**
+
 - Run command prompt as Administrator
 - Or use `pip install --user` for user-level installation
 
 **Tkinter Missing Error**
+
 - On Ubuntu/Debian: `sudo apt-get install python3-tk`
 - On macOS: Usually included with Python
 - On Windows: Reinstall Python with Tkinter option
@@ -463,15 +468,18 @@ python scripts/setup/seed_questions_v2.py
 ### Runtime Issues
 
 **Application Won't Start**
+
 - Check Python version: `python --version`
 - Verify virtual environment is activated
 - Check logs in `logs/` directory
 
 **Database Connection Errors**
+
 - Ensure `data/` directory exists and is writable
 - Check file permissions on `soulsense.db`
 
 **GUI Display Issues**
+
 - Set `DISPLAY` environment variable on Linux
 - Try running with `--no-gui` flag for CLI mode
 

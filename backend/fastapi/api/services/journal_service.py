@@ -18,7 +18,7 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 
 # Import models from root_models module (handles namespace collision)
-from app.root_models import JournalEntry, User
+from api.root_models import JournalEntry, User
 
 
 # ============================================================================

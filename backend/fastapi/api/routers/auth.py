@@ -7,7 +7,7 @@ from jose import JWTError, jwt
 from ..config import get_settings
 from ..schemas import UserCreate, Token, UserResponse
 from ..services.db_service import get_db
-from app.root_models import User
+from api.root_models import User
 import bcrypt
 
 router = APIRouter()

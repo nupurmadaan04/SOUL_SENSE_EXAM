@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from app.routers import (
+from api.routers import (
     auth, users, profiles, assessments, 
     questions, analytics, journal, health,
     settings_sync, community

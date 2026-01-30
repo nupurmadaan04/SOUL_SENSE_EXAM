@@ -2,38 +2,16 @@
 
 Welcome to the web client for the Soul Sense EQ Test. This application is built with **Next.js 14**, **Tailwind CSS**, and **Framer Motion**.
 
-## 🚀 Getting Started
+## 🚀 Running the Frontend
 
-### Prerequisites
+```bash
+# Run from frontend-web directory
+cd frontend-web
+npm install
+npm run dev
+```
 
-- **Node.js**: `v20.x` (LTS/Iron) is required. See [.nvmrc](.nvmrc).
-- **Package Manager**: `npm` (configured via [.npmrc](.npmrc) for strict dependency management).
-
-### Installation
-
-1.  Navigate to the web directory:
-
-    ```bash
-    cd frontend-web
-    ```
-
-2.  Install dependencies:
-
-    ```bash
-    npm install
-    ```
-
-3.  Set up environment variables:
-
-    ```bash
-    cp .env.example .env.local
-    ```
-
-4.  Start development server:
-    ```bash
-    npm run dev
-    ```
-    The app will be available at [http://localhost:3005](http://localhost:3005).
+The app will be available at [http://localhost:3005](http://localhost:3005).
 
 ---
 

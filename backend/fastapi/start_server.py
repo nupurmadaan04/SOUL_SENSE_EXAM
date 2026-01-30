@@ -47,7 +47,7 @@ def start_server(host="127.0.0.1", port=8000, reload=True):
     # Ensure uvicorn is available in the path
     uvicorn_cmd = [
         sys.executable, "-m", "uvicorn",
-        "app.main:app",
+        "api.main:app",
         "--host", host,
         "--port", str(port)
     ]

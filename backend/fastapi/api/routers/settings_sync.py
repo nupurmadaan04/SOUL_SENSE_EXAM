@@ -26,7 +26,7 @@ from ..schemas import (
 from ..services.settings_sync_service import SettingsSyncService
 from ..routers.auth import get_current_user
 from ..services.db_service import get_db
-from app.root_models import User
+from api.root_models import User
 
 router = APIRouter(tags=["Settings Sync"])
 

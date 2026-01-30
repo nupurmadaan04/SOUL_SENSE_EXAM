@@ -30,7 +30,7 @@ from ..schemas import (
 from ..services.journal_service import JournalService, get_journal_prompts
 from ..services.db_service import get_db
 from ..routers.auth import get_current_user
-from app.root_models import User
+from api.root_models import User
 
 router = APIRouter(tags=["Journal"])
 
