@@ -41,9 +41,10 @@ const AvatarImage = React.forwardRef<HTMLImageElement, React.ImgHTMLAttributes<H
       } else {
         context?.setStatus('loading');
       }
-    }, [src]);
+    }, [src, context]);
 
     return (
+      // eslint-disable-next-line @next/next/no-img-element
       <img
         ref={ref}
         src={src}

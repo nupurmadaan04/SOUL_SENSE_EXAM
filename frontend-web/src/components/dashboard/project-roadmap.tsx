@@ -64,7 +64,7 @@ export function ProjectRoadmap({ data }: { data?: Milestone[] }) {
           Project Foundation Phase
         </h3>
         <p className="text-sm text-slate-500">
-          We're currently establishing the core project structure. Check back soon for detailed
+          We&apos;re currently establishing the core project structure. Check back soon for detailed
           milestones!
         </p>
       </div>

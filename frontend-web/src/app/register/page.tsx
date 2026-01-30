@@ -19,7 +19,6 @@ type RegisterFormData = z.infer<typeof registerSchema>;
 
 export default function Register() {
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleSubmit = async (data: RegisterFormData) => {
     // TODO: Implement registration logic
@@ -48,22 +47,11 @@ export default function Register() {
                 required
               >
                 {(fieldProps) => (
-                  <div className="relative">
-                    <input
-                      {...fieldProps}
-                      type={showPassword ? 'text' : 'password'}
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                    />
-                    <div className="absolute inset-y-0 right-0 flex items-center pr-3">
-                      <input
-                        type="checkbox"
-                        checked={showPassword}
-                        onChange={(e) => setShowPassword(e.target.checked)}
-                        className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
-                        title="Show Password"
-                      />
-                    </div>
-                  </div>
+                  <input
+                    {...fieldProps}
+                    type={showPassword ? 'text' : 'password'}
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  />
                 )}
               </FormField>
               <FormField
@@ -76,7 +64,7 @@ export default function Register() {
                 {(fieldProps) => (
                   <input
                     {...fieldProps}
-                    type={showConfirmPassword ? 'text' : 'password'}
+                    type={showPassword ? 'text' : 'password'}
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                   />
                 )}
@@ -84,13 +72,13 @@ export default function Register() {
               <div className="flex items-center space-x-2 mb-4">
                 <input
                   type="checkbox"
-                  id="showConfirmPassword"
-                  checked={showConfirmPassword}
-                  onChange={(e) => setShowConfirmPassword(e.target.checked)}
+                  id="showPassword"
+                  checked={showPassword}
+                  onChange={(e) => setShowPassword(e.target.checked)}
                   className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
                 />
-                <label htmlFor="showConfirmPassword" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                  Show Confirm Password
+                <label htmlFor="showPassword" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                  Show Password
                 </label>
               </div>
               <Button type="submit" className="w-full">
