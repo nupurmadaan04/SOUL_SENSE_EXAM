@@ -45,8 +45,9 @@ tabulate==0.9.0
 alembic==1.14.0
 
 # Database drivers
-psycopg2-binary
+# Database drivers
+# psycopg2-binary # Legacy, removed for SQLite-only deployment
 
 # Configuration
 python-dotenv==1.0.0
-reportlab
+# reportlab (Removed duplicate)

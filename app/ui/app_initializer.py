@@ -147,4 +147,9 @@ class AppInitializer:
                 widget.destroy()
 
         # Show Login Screen again
-        self.start_login_flow()
+        # Show Login Screen again
+        if hasattr(self.app, "auth_handler"):
+            self.app.auth_handler.start_login_flow()
+        else:
+            # Fallback if auth_handler is somehow missing (initialization race)
+             self.app.logger.error("Auth handler not found during logout")

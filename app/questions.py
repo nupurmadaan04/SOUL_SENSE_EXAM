@@ -346,16 +346,13 @@ def get_random_questions_by_age(all_questions, user_age, num_questions):
     ]
 
     if len(filtered_questions) < num_questions:
-        raise ValueError("Not enough questions for this age")
+        # Graceful fallback: return all available questions instead of crashing
+        # logging.warning(f"Requested {num_questions} questions for age {user_age}, but only found {len(filtered_questions)}")
+        return filtered_questions
 
     selected_questions = random.sample(filtered_questions, num_questions)
     return selected_questions
 
-# ------------------ INITIALIZATION ------------------
-# Explicitly initialize on module import to ensure readiness
-# Note: In a larger app, we might want to defer this to app.main
-# But keeping it here ensures functionality if imported standalone
-# Using a thread to avoid blocking if import happens in main thread
-safe_thread_run(initialize_questions)
+# Initialization is now handled explicitly by app.main setup
 
 

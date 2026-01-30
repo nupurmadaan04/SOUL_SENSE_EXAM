@@ -59,7 +59,7 @@ def check_database_schema() -> IntegrityCheckResult:
     Validate that the database exists and has the required tables.
     Attempts to create missing tables if possible.
     """
-    from app.db import engine, create_tables_directly, check_db_state
+    from app.db import engine, check_db_state
     
     try:
         # Check if database file exists

@@ -4,6 +4,7 @@ import time
 from datetime import datetime, timedelta
 from app.db import get_session
 from app.models import User
+from app.security_config import PASSWORD_HASH_ROUNDS, LOCKOUT_DURATION_MINUTES
 import logging
 
 class AuthManager:
@@ -11,12 +12,13 @@ class AuthManager:
         self.current_user = None
         self.session_token = None
         self.session_expiry = None
+        self.session_expiry = None
         self.failed_attempts = {}
-        self.lockout_duration = 300  # 5 minutes
+        self.lockout_duration = LOCKOUT_DURATION_MINUTES * 60
 
     def hash_password(self, password):
-        """Hash password using bcrypt with configurable rounds (default: 12)."""
-        salt = bcrypt.gensalt(rounds=12)
+        """Hash password using bcrypt with configurable rounds."""
+        salt = bcrypt.gensalt(rounds=PASSWORD_HASH_ROUNDS)
         return bcrypt.hashpw(password.encode(), salt).decode()
 
     def verify_password(self, password, password_hash):

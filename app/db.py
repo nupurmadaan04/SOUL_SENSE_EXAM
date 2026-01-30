@@ -81,76 +81,13 @@ def check_db_state() -> bool:
         
     except ImportError as e:
         logger.error(f"Failed to import models: {e}")
-        # Create tables using direct SQLite
-        create_tables_directly()
-        return True
+        # Critical error: Cannot proceed without models
+        return False
     except Exception as e:
         logger.error(f"Error checking database state: {e}")
-        create_tables_directly()
-        return True
+        return False
 
-def create_tables_directly() -> None:
-    """Create tables using direct SQLite"""
-    try:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        
-        # Create scores table (Updated with sentiment columns)
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS scores (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT,
-                age INTEGER,
-                total_score INTEGER,
-                sentiment_score REAL DEFAULT 0.0,
-                reflection_text TEXT,
-                is_rushed BOOLEAN DEFAULT 0,
-                is_inconsistent BOOLEAN DEFAULT 0,
-                timestamp TEXT DEFAULT CURRENT_TIMESTAMP,
-                detailed_age_group TEXT,
-                user_id INTEGER
-            )
-        """)
-        
-        # Create journal_entries table
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS journal_entries (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT,
-                entry_date TEXT DEFAULT CURRENT_TIMESTAMP,
-                content TEXT,
-                sentiment_score REAL,
-                emotional_patterns TEXT,
-                sleep_hours REAL,
-                sleep_quality INTEGER,
-                energy_level INTEGER,
-                work_hours REAL,
-                screen_time_mins INTEGER,
-                stress_level INTEGER,
-                stress_triggers TEXT,
-                daily_schedule TEXT,
-                tags TEXT
-            )
-        """)
-        
-        # Create users table
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS users (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT UNIQUE NOT NULL,
-                password_hash TEXT NOT NULL,
-                created_at TEXT,
-                last_login TEXT
-            )
-        """)
-        
-        conn.commit()
-        conn.close()
-        logger.info("Tables created using direct SQLite")
-        
-    except sqlite3.Error as e:
-        logger.error(f"Failed to create tables: {e}")
-        raise DatabaseError("Failed to initialize database", original_exception=e)
+# Removed create_tables_directly to prevent shadow schema drift
 
 # Initialize database
 # check_db_state()  # DISABLED to prevent side-effects on import

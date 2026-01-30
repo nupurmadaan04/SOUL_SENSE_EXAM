@@ -8,6 +8,7 @@ It manages language switching and string translation throughout the app.
 import json
 import os
 from typing import Dict, Any, Optional
+from app.config import BASE_DIR
 
 
 class I18nManager:
@@ -28,19 +29,13 @@ class I18nManager:
         """
         self.current_language = default_language
         self.translations: Dict[str, Any] = {}
-        self.locales_dir = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), 
-            'locales'
-        )
+        self.locales_dir = os.path.join(BASE_DIR, 'app', 'locales')
         
         # Load the default language
         self.load_language(default_language)
         
         # Load or create settings
-        self.settings_file = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), 
-            'language_settings.json'
-        )
+        self.settings_file = os.path.join(BASE_DIR, 'app', 'language_settings.json')
         self.load_settings()
     
     def load_language(self, language_code: str) -> bool:
@@ -89,16 +84,14 @@ class I18nManager:
             return True
         return False
     
-    def get(self, key: str, **kwargs) -> str:
+    def get(self, key: str, default: Optional[str] = None, **kwargs) -> str:
         """
         Get a translated string by key
         
         Args:
-            key: Translation key (supports dot notation, e.g., 'errors.empty_name')
-            **kwargs: Format parameters for the string
-            
-        Returns:
-            Translated and formatted string
+            key: Translation key
+            default: Optional default value if key not found
+            **kwargs: Format parameters
         """
         # Support dot notation for nested keys
         keys = key.split('.')
@@ -112,8 +105,8 @@ class I18nManager:
                 break
         
         if value is None:
-            # Return the key itself if translation not found
-            return key
+            # Return default if provided, else key
+            return default if default is not None else key
         
         # If it's a string, format it with kwargs
         if isinstance(value, str):

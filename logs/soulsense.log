@@ -1809,3 +1809,444 @@ _tkinter.TclError: invalid command name ".!frame.!frame.!frame38.!button"
 2026-01-29 23:24:01 - app.ui.assessments - INFO - [assessments.py:355] - Assessment result committed to DB with ID: 12
 2026-01-29 23:24:06 - app.services.pdf_generator - INFO - [pdf_generator.py:193] - PDF Report generated successfully: C:/Users/Rohan Rathod/Downloads/EQ_Report_rohan_20260129_232403.pdf
 2026-01-29 23:25:05 - app.services.exam_service - INFO - [exam_service.py:180] - Exam session started for user: rohan
+2026-01-30 01:17:58 - root - INFO - [logger.py:85] - Logging initialized.
+2026-01-30 01:17:58 - app.startup_checks - INFO - [startup_checks.py:302] - Running startup integrity checks...
+2026-01-30 01:17:58 - app.startup_checks - INFO - [startup_checks.py:272] - Config integrity check passed
+2026-01-30 01:17:58 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ config_integrity: Configuration is valid
+2026-01-30 01:17:58 - app.startup_checks - INFO - [startup_checks.py:195] - Required files check passed
+2026-01-30 01:17:58 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ required_files: All required files and directories present
+2026-01-30 01:17:58 - app.startup_checks - INFO - [startup_checks.py:121] - Database schema check passed
+2026-01-30 01:17:58 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ database_schema: All required tables present
+2026-01-30 01:17:58 - app.startup_checks - INFO - [startup_checks.py:345] - Integrity checks complete: 3 passed, 0 warnings, 0 failed
+2026-01-30 01:17:58 - __main__ - INFO - [main.py:135] - Startup Integrity Check Results:
+========================================
+✓ config_integrity: Configuration is valid
+✓ required_files: All required files and directories present
+✓ database_schema: All required tables present
+========================================
+2026-01-30 01:17:58 - __main__ - INFO - [main.py:164] - Preloading questions into memory...
+2026-01-30 01:17:58 - app.questions - INFO - [questions.py:52] - Loaded 100 active questions into memory.
+2026-01-30 01:18:01 - app.error_handler - CRITICAL - [error_handler.py:132] - [CRITICAL] main.startup: AttributeError - 'AppInitializer' object has no attribute 'start_login_flow'
+Traceback (most recent call last):
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\main.py", line 186, in <module>
+    app = SoulSenseApp(root)
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\main.py", line 21, in __init__
+    self.initializer = AppInitializer(self)
+                       ~~~~~~~~~~~~~~^^^^^^
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\ui\app_initializer.py", line 15, in __init__
+    self.start_login_flow()
+    ^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'AppInitializer' object has no attribute 'start_login_flow'
+2026-01-30 01:19:24 - root - INFO - [logger.py:85] - Logging initialized.
+2026-01-30 01:19:24 - app.startup_checks - INFO - [startup_checks.py:302] - Running startup integrity checks...
+2026-01-30 01:19:24 - app.startup_checks - INFO - [startup_checks.py:272] - Config integrity check passed
+2026-01-30 01:19:24 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ config_integrity: Configuration is valid
+2026-01-30 01:19:24 - app.startup_checks - INFO - [startup_checks.py:195] - Required files check passed
+2026-01-30 01:19:24 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ required_files: All required files and directories present
+2026-01-30 01:19:24 - app.startup_checks - INFO - [startup_checks.py:121] - Database schema check passed
+2026-01-30 01:19:24 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ database_schema: All required tables present
+2026-01-30 01:19:24 - app.startup_checks - INFO - [startup_checks.py:345] - Integrity checks complete: 3 passed, 0 warnings, 0 failed
+2026-01-30 01:19:24 - __main__ - INFO - [main.py:135] - Startup Integrity Check Results:
+========================================
+✓ config_integrity: Configuration is valid
+✓ required_files: All required files and directories present
+✓ database_schema: All required tables present
+========================================
+2026-01-30 01:19:24 - __main__ - INFO - [main.py:164] - Preloading questions into memory...
+2026-01-30 01:19:24 - app.questions - INFO - [questions.py:52] - Loaded 100 active questions into memory.
+2026-01-30 01:19:26 - app.error_handler - CRITICAL - [error_handler.py:132] - [CRITICAL] main.startup: AttributeError - 'AppInitializer' object has no attribute 'start_login_flow'
+Traceback (most recent call last):
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\main.py", line 186, in <module>
+    app = SoulSenseApp(root)
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\main.py", line 21, in __init__
+    self.initializer = AppInitializer(self)
+                       ~~~~~~~~~~~~~~^^^^^^
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\ui\app_initializer.py", line 15, in __init__
+    self.start_login_flow()
+    ^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'AppInitializer' object has no attribute 'start_login_flow'
+2026-01-30 01:29:20 - root - INFO - [logger.py:85] - Logging initialized.
+2026-01-30 01:29:20 - app.startup_checks - INFO - [startup_checks.py:302] - Running startup integrity checks...
+2026-01-30 01:29:20 - app.startup_checks - INFO - [startup_checks.py:272] - Config integrity check passed
+2026-01-30 01:29:20 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ config_integrity: Configuration is valid
+2026-01-30 01:29:20 - app.startup_checks - INFO - [startup_checks.py:195] - Required files check passed
+2026-01-30 01:29:20 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ required_files: All required files and directories present
+2026-01-30 01:29:20 - app.startup_checks - INFO - [startup_checks.py:121] - Database schema check passed
+2026-01-30 01:29:20 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ database_schema: All required tables present
+2026-01-30 01:29:20 - app.startup_checks - INFO - [startup_checks.py:345] - Integrity checks complete: 3 passed, 0 warnings, 0 failed
+2026-01-30 01:29:20 - __main__ - INFO - [main.py:135] - Startup Integrity Check Results:
+========================================
+✓ config_integrity: Configuration is valid
+✓ required_files: All required files and directories present
+✓ database_schema: All required tables present
+========================================
+2026-01-30 01:29:20 - __main__ - INFO - [main.py:164] - Preloading questions into memory...
+2026-01-30 01:29:20 - app.questions - INFO - [questions.py:52] - Loaded 100 active questions into memory.
+2026-01-30 01:29:42 - app.ui.view_manager - ERROR - [view_manager.py:108] - Failed to load journal summary: Instance <JournalEntry at 0x1b9a1edd010> is not bound to a Session; attribute refresh operation cannot proceed (Background on this error at: https://sqlalche.me/e/20/bhk3)
+2026-01-30 01:30:02 - app.ui.view_manager - ERROR - [view_manager.py:108] - Failed to load journal summary: Instance <JournalEntry at 0x1b9a1e86990> is not bound to a Session; attribute refresh operation cannot proceed (Background on this error at: https://sqlalche.me/e/20/bhk3)
+2026-01-30 01:30:07 - app.shutdown_handler - INFO - [shutdown_handler.py:56] - Initiating graceful application shutdown...
+2026-01-30 01:30:07 - app.shutdown_handler - INFO - [shutdown_handler.py:65] - Database session committed and removed successfully
+2026-01-30 01:30:07 - app.shutdown_handler - INFO - [shutdown_handler.py:70] - Application shutdown complete
+2026-01-30 01:30:07 - app.shutdown_handler - INFO - [shutdown_handler.py:56] - Initiating graceful application shutdown...
+2026-01-30 01:30:07 - app.shutdown_handler - INFO - [shutdown_handler.py:65] - Database session committed and removed successfully
+2026-01-30 01:30:07 - app.shutdown_handler - INFO - [shutdown_handler.py:70] - Application shutdown complete
+2026-01-30 01:30:07 - app.shutdown_handler - INFO - [shutdown_handler.py:56] - Initiating graceful application shutdown...
+2026-01-30 01:30:07 - app.shutdown_handler - INFO - [shutdown_handler.py:65] - Database session committed and removed successfully
+2026-01-30 01:30:07 - app.shutdown_handler - INFO - [shutdown_handler.py:70] - Application shutdown complete
+2026-01-30 01:30:30 - root - INFO - [logger.py:85] - Logging initialized.
+2026-01-30 01:30:30 - app.startup_checks - INFO - [startup_checks.py:302] - Running startup integrity checks...
+2026-01-30 01:30:30 - app.startup_checks - INFO - [startup_checks.py:272] - Config integrity check passed
+2026-01-30 01:30:30 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ config_integrity: Configuration is valid
+2026-01-30 01:30:30 - app.startup_checks - INFO - [startup_checks.py:195] - Required files check passed
+2026-01-30 01:30:30 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ required_files: All required files and directories present
+2026-01-30 01:30:30 - app.startup_checks - INFO - [startup_checks.py:121] - Database schema check passed
+2026-01-30 01:30:30 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ database_schema: All required tables present
+2026-01-30 01:30:30 - app.startup_checks - INFO - [startup_checks.py:345] - Integrity checks complete: 3 passed, 0 warnings, 0 failed
+2026-01-30 01:30:30 - __main__ - INFO - [main.py:135] - Startup Integrity Check Results:
+========================================
+✓ config_integrity: Configuration is valid
+✓ required_files: All required files and directories present
+✓ database_schema: All required tables present
+========================================
+2026-01-30 01:30:30 - __main__ - INFO - [main.py:164] - Preloading questions into memory...
+2026-01-30 01:30:30 - app.questions - INFO - [questions.py:52] - Loaded 100 active questions into memory.
+2026-01-30 01:30:39 - app.ui.view_manager - ERROR - [view_manager.py:108] - Failed to load journal summary: Instance <JournalEntry at 0x1a49c785160> is not bound to a Session; attribute refresh operation cannot proceed (Background on this error at: https://sqlalche.me/e/20/bhk3)
+2026-01-30 01:30:46 - app.ui.view_manager - ERROR - [view_manager.py:108] - Failed to load journal summary: Instance <JournalEntry at 0x1a49c746990> is not bound to a Session; attribute refresh operation cannot proceed (Background on this error at: https://sqlalche.me/e/20/bhk3)
+2026-01-30 01:30:47 - app.services.exam_service - INFO - [exam_service.py:180] - Exam session started for user: rohan
+2026-01-30 01:30:49 - app.ml.clustering - INFO - [clustering.py:708] - Model loaded from B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\ml\models\clustering\emotional_profile_model.pkl
+2026-01-30 01:30:55 - root - ERROR - [profile.py:1342] - Error loading personal profile: 'UserProfileView' object has no attribute 'current_events'
+2026-01-30 01:31:00 - root - ERROR - [profile.py:1342] - Error loading personal profile: 'UserProfileView' object has no attribute 'current_events'
+2026-01-30 01:31:06 - app.shutdown_handler - INFO - [shutdown_handler.py:56] - Initiating graceful application shutdown...
+2026-01-30 01:31:06 - app.shutdown_handler - INFO - [shutdown_handler.py:65] - Database session committed and removed successfully
+2026-01-30 01:31:06 - app.shutdown_handler - INFO - [shutdown_handler.py:70] - Application shutdown complete
+2026-01-30 01:31:06 - app.shutdown_handler - INFO - [shutdown_handler.py:56] - Initiating graceful application shutdown...
+2026-01-30 01:31:06 - app.shutdown_handler - INFO - [shutdown_handler.py:65] - Database session committed and removed successfully
+2026-01-30 01:31:06 - app.shutdown_handler - INFO - [shutdown_handler.py:70] - Application shutdown complete
+2026-01-30 01:31:06 - app.shutdown_handler - INFO - [shutdown_handler.py:56] - Initiating graceful application shutdown...
+2026-01-30 01:31:07 - app.shutdown_handler - INFO - [shutdown_handler.py:65] - Database session committed and removed successfully
+2026-01-30 01:31:07 - app.shutdown_handler - INFO - [shutdown_handler.py:70] - Application shutdown complete
+2026-01-30 01:31:56 - root - INFO - [logger.py:85] - Logging initialized.
+2026-01-30 01:31:56 - app.startup_checks - INFO - [startup_checks.py:302] - Running startup integrity checks...
+2026-01-30 01:31:56 - app.startup_checks - INFO - [startup_checks.py:272] - Config integrity check passed
+2026-01-30 01:31:56 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ config_integrity: Configuration is valid
+2026-01-30 01:31:56 - app.startup_checks - INFO - [startup_checks.py:195] - Required files check passed
+2026-01-30 01:31:56 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ required_files: All required files and directories present
+2026-01-30 01:31:56 - app.startup_checks - INFO - [startup_checks.py:121] - Database schema check passed
+2026-01-30 01:31:56 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ database_schema: All required tables present
+2026-01-30 01:31:56 - app.startup_checks - INFO - [startup_checks.py:345] - Integrity checks complete: 3 passed, 0 warnings, 0 failed
+2026-01-30 01:31:56 - __main__ - INFO - [main.py:135] - Startup Integrity Check Results:
+========================================
+✓ config_integrity: Configuration is valid
+✓ required_files: All required files and directories present
+✓ database_schema: All required tables present
+========================================
+2026-01-30 01:31:56 - __main__ - INFO - [main.py:164] - Preloading questions into memory...
+2026-01-30 01:31:56 - app.questions - INFO - [questions.py:52] - Loaded 100 active questions into memory.
+2026-01-30 01:33:10 - app.ui.view_manager - ERROR - [view_manager.py:108] - Failed to load journal summary: Instance <JournalEntry at 0x18269f15160> is not bound to a Session; attribute refresh operation cannot proceed (Background on this error at: https://sqlalche.me/e/20/bhk3)
+2026-01-30 01:33:19 - app.ui.view_manager - ERROR - [view_manager.py:108] - Failed to load journal summary: Instance <JournalEntry at 0x18269ed2990> is not bound to a Session; attribute refresh operation cannot proceed (Background on this error at: https://sqlalche.me/e/20/bhk3)
+2026-01-30 01:33:45 - app.shutdown_handler - INFO - [shutdown_handler.py:56] - Initiating graceful application shutdown...
+2026-01-30 01:33:45 - app.shutdown_handler - INFO - [shutdown_handler.py:65] - Database session committed and removed successfully
+2026-01-30 01:33:45 - app.shutdown_handler - INFO - [shutdown_handler.py:70] - Application shutdown complete
+2026-01-30 01:33:45 - app.shutdown_handler - INFO - [shutdown_handler.py:56] - Initiating graceful application shutdown...
+2026-01-30 01:33:45 - app.shutdown_handler - INFO - [shutdown_handler.py:65] - Database session committed and removed successfully
+2026-01-30 01:33:45 - app.shutdown_handler - INFO - [shutdown_handler.py:70] - Application shutdown complete
+2026-01-30 01:33:45 - app.shutdown_handler - INFO - [shutdown_handler.py:56] - Initiating graceful application shutdown...
+2026-01-30 01:33:45 - app.shutdown_handler - INFO - [shutdown_handler.py:65] - Database session committed and removed successfully
+2026-01-30 01:33:45 - app.shutdown_handler - INFO - [shutdown_handler.py:70] - Application shutdown complete
+2026-01-30 01:48:44 - root - INFO - [logger.py:85] - Logging initialized.
+2026-01-30 01:48:44 - app.startup_checks - INFO - [startup_checks.py:302] - Running startup integrity checks...
+2026-01-30 01:48:44 - app.startup_checks - INFO - [startup_checks.py:272] - Config integrity check passed
+2026-01-30 01:48:44 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ config_integrity: Configuration is valid
+2026-01-30 01:48:44 - app.startup_checks - INFO - [startup_checks.py:195] - Required files check passed
+2026-01-30 01:48:44 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ required_files: All required files and directories present
+2026-01-30 01:48:44 - app.startup_checks - INFO - [startup_checks.py:121] - Database schema check passed
+2026-01-30 01:48:44 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ database_schema: All required tables present
+2026-01-30 01:48:44 - app.startup_checks - INFO - [startup_checks.py:345] - Integrity checks complete: 3 passed, 0 warnings, 0 failed
+2026-01-30 01:48:44 - __main__ - INFO - [main.py:135] - Startup Integrity Check Results:
+========================================
+✓ config_integrity: Configuration is valid
+✓ required_files: All required files and directories present
+✓ database_schema: All required tables present
+========================================
+2026-01-30 01:48:44 - __main__ - INFO - [main.py:164] - Preloading questions into memory...
+2026-01-30 01:48:44 - app.questions - INFO - [questions.py:52] - Loaded 100 active questions into memory.
+2026-01-30 01:48:55 - app.ui.view_manager - ERROR - [view_manager.py:108] - Failed to load journal summary: Instance <JournalEntry at 0x21113814ec0> is not bound to a Session; attribute refresh operation cannot proceed (Background on this error at: https://sqlalche.me/e/20/bhk3)
+2026-01-30 01:48:58 - app.shutdown_handler - INFO - [shutdown_handler.py:56] - Initiating graceful application shutdown...
+2026-01-30 01:48:58 - app.shutdown_handler - INFO - [shutdown_handler.py:65] - Database session committed and removed successfully
+2026-01-30 01:48:58 - app.shutdown_handler - INFO - [shutdown_handler.py:70] - Application shutdown complete
+2026-01-30 01:48:58 - app.shutdown_handler - INFO - [shutdown_handler.py:56] - Initiating graceful application shutdown...
+2026-01-30 01:48:58 - app.shutdown_handler - INFO - [shutdown_handler.py:65] - Database session committed and removed successfully
+2026-01-30 01:48:58 - app.shutdown_handler - INFO - [shutdown_handler.py:70] - Application shutdown complete
+2026-01-30 01:48:58 - app.shutdown_handler - INFO - [shutdown_handler.py:56] - Initiating graceful application shutdown...
+2026-01-30 01:48:58 - app.shutdown_handler - INFO - [shutdown_handler.py:65] - Database session committed and removed successfully
+2026-01-30 01:48:58 - app.shutdown_handler - INFO - [shutdown_handler.py:70] - Application shutdown complete
+2026-01-30 02:00:49 - root - INFO - [logger.py:85] - Logging initialized.
+2026-01-30 02:00:49 - app.startup_checks - INFO - [startup_checks.py:302] - Running startup integrity checks...
+2026-01-30 02:00:49 - app.startup_checks - INFO - [startup_checks.py:272] - Config integrity check passed
+2026-01-30 02:00:49 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ config_integrity: Configuration is valid
+2026-01-30 02:00:49 - app.startup_checks - INFO - [startup_checks.py:195] - Required files check passed
+2026-01-30 02:00:49 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ required_files: All required files and directories present
+2026-01-30 02:00:49 - app.startup_checks - INFO - [startup_checks.py:121] - Database schema check passed
+2026-01-30 02:00:49 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ database_schema: All required tables present
+2026-01-30 02:00:49 - app.startup_checks - INFO - [startup_checks.py:345] - Integrity checks complete: 3 passed, 0 warnings, 0 failed
+2026-01-30 02:00:49 - __main__ - INFO - [main.py:135] - Startup Integrity Check Results:
+========================================
+✓ config_integrity: Configuration is valid
+✓ required_files: All required files and directories present
+✓ database_schema: All required tables present
+========================================
+2026-01-30 02:00:49 - __main__ - INFO - [main.py:164] - Preloading questions into memory...
+2026-01-30 02:00:49 - app.questions - INFO - [questions.py:52] - Loaded 100 active questions into memory.
+2026-01-30 02:01:01 - app.ui.view_manager - ERROR - [view_manager.py:108] - Failed to load journal summary: Instance <JournalEntry at 0x24f95d45010> is not bound to a Session; attribute refresh operation cannot proceed (Background on this error at: https://sqlalche.me/e/20/bhk3)
+2026-01-30 02:01:02 - app.services.exam_service - INFO - [exam_service.py:180] - Exam session started for user: rohan
+2026-01-30 02:01:04 - app.ml.clustering - INFO - [clustering.py:708] - Model loaded from B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\ml\models\clustering\emotional_profile_model.pkl
+2026-01-30 02:01:33 - app.shutdown_handler - INFO - [shutdown_handler.py:56] - Initiating graceful application shutdown...
+2026-01-30 02:01:33 - app.shutdown_handler - INFO - [shutdown_handler.py:65] - Database session committed and removed successfully
+2026-01-30 02:01:33 - app.shutdown_handler - INFO - [shutdown_handler.py:70] - Application shutdown complete
+2026-01-30 02:01:33 - app.shutdown_handler - INFO - [shutdown_handler.py:56] - Initiating graceful application shutdown...
+2026-01-30 02:01:33 - app.shutdown_handler - INFO - [shutdown_handler.py:65] - Database session committed and removed successfully
+2026-01-30 02:01:33 - app.shutdown_handler - INFO - [shutdown_handler.py:70] - Application shutdown complete
+2026-01-30 02:01:33 - app.shutdown_handler - INFO - [shutdown_handler.py:56] - Initiating graceful application shutdown...
+2026-01-30 02:01:33 - app.shutdown_handler - INFO - [shutdown_handler.py:65] - Database session committed and removed successfully
+2026-01-30 02:01:33 - app.shutdown_handler - INFO - [shutdown_handler.py:70] - Application shutdown complete
+2026-01-30 02:30:08 - root - INFO - [logger.py:85] - Logging initialized.
+2026-01-30 02:30:08 - app.startup_checks - INFO - [startup_checks.py:302] - Running startup integrity checks...
+2026-01-30 02:30:08 - app.startup_checks - INFO - [startup_checks.py:272] - Config integrity check passed
+2026-01-30 02:30:08 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ config_integrity: Configuration is valid
+2026-01-30 02:30:08 - app.startup_checks - INFO - [startup_checks.py:195] - Required files check passed
+2026-01-30 02:30:08 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ required_files: All required files and directories present
+2026-01-30 02:30:08 - app.startup_checks - INFO - [startup_checks.py:121] - Database schema check passed
+2026-01-30 02:30:08 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ database_schema: All required tables present
+2026-01-30 02:30:08 - app.startup_checks - INFO - [startup_checks.py:345] - Integrity checks complete: 3 passed, 0 warnings, 0 failed
+2026-01-30 02:30:08 - __main__ - INFO - [main.py:135] - Startup Integrity Check Results:
+========================================
+✓ config_integrity: Configuration is valid
+✓ required_files: All required files and directories present
+✓ database_schema: All required tables present
+========================================
+2026-01-30 02:30:08 - __main__ - INFO - [main.py:164] - Preloading questions into memory...
+2026-01-30 02:30:08 - app.questions - INFO - [questions.py:52] - Loaded 100 active questions into memory.
+2026-01-30 02:31:08 - app.ui.view_manager - ERROR - [view_manager.py:108] - Failed to load journal summary: Instance <JournalEntry at 0x1f14755cad0> is not bound to a Session; attribute refresh operation cannot proceed (Background on this error at: https://sqlalche.me/e/20/bhk3)
+2026-01-30 02:31:12 - app.shutdown_handler - INFO - [shutdown_handler.py:56] - Initiating graceful application shutdown...
+2026-01-30 02:31:12 - app.shutdown_handler - INFO - [shutdown_handler.py:65] - Database session committed and removed successfully
+2026-01-30 02:31:12 - app.shutdown_handler - INFO - [shutdown_handler.py:70] - Application shutdown complete
+2026-01-30 02:31:12 - app.shutdown_handler - INFO - [shutdown_handler.py:56] - Initiating graceful application shutdown...
+2026-01-30 02:31:12 - app.shutdown_handler - INFO - [shutdown_handler.py:65] - Database session committed and removed successfully
+2026-01-30 02:31:12 - app.shutdown_handler - INFO - [shutdown_handler.py:70] - Application shutdown complete
+2026-01-30 02:31:12 - app.shutdown_handler - INFO - [shutdown_handler.py:56] - Initiating graceful application shutdown...
+2026-01-30 02:31:12 - app.shutdown_handler - INFO - [shutdown_handler.py:65] - Database session committed and removed successfully
+2026-01-30 02:31:12 - app.shutdown_handler - INFO - [shutdown_handler.py:70] - Application shutdown complete
+2026-01-30 13:23:54 - root - INFO - [logger.py:85] - Logging initialized.
+2026-01-30 13:23:54 - root - INFO - [verify_logging.py:27] - Test log entry from verify_logging.py
+2026-01-30 13:35:29 - root - INFO - [logger.py:85] - Logging initialized.
+2026-01-30 13:35:29 - app.startup_checks - INFO - [startup_checks.py:302] - Running startup integrity checks...
+2026-01-30 13:35:29 - app.startup_checks - INFO - [startup_checks.py:272] - Config integrity check passed
+2026-01-30 13:35:29 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ config_integrity: Configuration is valid
+2026-01-30 13:35:29 - app.startup_checks - INFO - [startup_checks.py:195] - Required files check passed
+2026-01-30 13:35:29 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ required_files: All required files and directories present
+2026-01-30 13:35:29 - app.startup_checks - ERROR - [startup_checks.py:330] - Check check_database_schema crashed: cannot import name 'create_tables_directly' from 'app.db' (B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\db.py)
+Traceback (most recent call last):
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\startup_checks.py", line 315, in run_all_checks
+    result = check_func()
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\startup_checks.py", line 62, in check_database_schema
+    from app.db import engine, create_tables_directly, check_db_state
+ImportError: cannot import name 'create_tables_directly' from 'app.db' (B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\db.py)
+2026-01-30 13:35:29 - app.startup_checks - INFO - [startup_checks.py:345] - Integrity checks complete: 2 passed, 0 warnings, 1 failed
+2026-01-30 13:39:44 - root - INFO - [logger.py:85] - Logging initialized.
+2026-01-30 13:39:44 - app.startup_checks - INFO - [startup_checks.py:302] - Running startup integrity checks...
+2026-01-30 13:39:44 - app.startup_checks - INFO - [startup_checks.py:272] - Config integrity check passed
+2026-01-30 13:39:44 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ config_integrity: Configuration is valid
+2026-01-30 13:39:44 - app.startup_checks - INFO - [startup_checks.py:195] - Required files check passed
+2026-01-30 13:39:44 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ required_files: All required files and directories present
+2026-01-30 13:39:44 - app.startup_checks - ERROR - [startup_checks.py:330] - Check check_database_schema crashed: cannot import name 'create_tables_directly' from 'app.db' (B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\db.py)
+Traceback (most recent call last):
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\startup_checks.py", line 315, in run_all_checks
+    result = check_func()
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\startup_checks.py", line 62, in check_database_schema
+    from app.db import engine, create_tables_directly, check_db_state
+ImportError: cannot import name 'create_tables_directly' from 'app.db' (B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\db.py)
+2026-01-30 13:39:44 - app.startup_checks - INFO - [startup_checks.py:345] - Integrity checks complete: 2 passed, 0 warnings, 1 failed
+2026-01-30 13:41:09 - root - INFO - [logger.py:85] - Logging initialized.
+2026-01-30 13:41:09 - app.startup_checks - INFO - [startup_checks.py:302] - Running startup integrity checks...
+2026-01-30 13:41:09 - app.startup_checks - INFO - [startup_checks.py:272] - Config integrity check passed
+2026-01-30 13:41:09 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ config_integrity: Configuration is valid
+2026-01-30 13:41:09 - app.startup_checks - INFO - [startup_checks.py:195] - Required files check passed
+2026-01-30 13:41:09 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ required_files: All required files and directories present
+2026-01-30 13:41:09 - app.startup_checks - ERROR - [startup_checks.py:330] - Check check_database_schema crashed: cannot import name 'create_tables_directly' from 'app.db' (B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\db.py)
+Traceback (most recent call last):
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\startup_checks.py", line 315, in run_all_checks
+    result = check_func()
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\startup_checks.py", line 62, in check_database_schema
+    from app.db import engine, create_tables_directly, check_db_state
+ImportError: cannot import name 'create_tables_directly' from 'app.db' (B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\db.py)
+2026-01-30 13:41:09 - app.startup_checks - INFO - [startup_checks.py:345] - Integrity checks complete: 2 passed, 0 warnings, 1 failed
+2026-01-30 13:42:13 - root - INFO - [logger.py:85] - Logging initialized.
+2026-01-30 13:42:13 - app.startup_checks - INFO - [startup_checks.py:302] - Running startup integrity checks...
+2026-01-30 13:42:13 - app.startup_checks - INFO - [startup_checks.py:272] - Config integrity check passed
+2026-01-30 13:42:13 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ config_integrity: Configuration is valid
+2026-01-30 13:42:13 - app.startup_checks - INFO - [startup_checks.py:195] - Required files check passed
+2026-01-30 13:42:13 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ required_files: All required files and directories present
+2026-01-30 13:42:13 - app.startup_checks - INFO - [startup_checks.py:121] - Database schema check passed
+2026-01-30 13:42:13 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ database_schema: All required tables present
+2026-01-30 13:42:13 - app.startup_checks - INFO - [startup_checks.py:345] - Integrity checks complete: 3 passed, 0 warnings, 0 failed
+2026-01-30 13:42:13 - __main__ - INFO - [main.py:134] - Startup Integrity Check Results:
+========================================
+✓ config_integrity: Configuration is valid
+✓ required_files: All required files and directories present
+✓ database_schema: All required tables present
+========================================
+2026-01-30 13:42:13 - __main__ - INFO - [main.py:163] - Preloading questions into memory...
+2026-01-30 13:42:13 - app.questions - INFO - [questions.py:52] - Loaded 100 active questions into memory.
+2026-01-30 13:46:28 - root - INFO - [logger.py:85] - Logging initialized.
+2026-01-30 13:46:28 - app.startup_checks - INFO - [startup_checks.py:302] - Running startup integrity checks...
+2026-01-30 13:46:28 - app.startup_checks - INFO - [startup_checks.py:272] - Config integrity check passed
+2026-01-30 13:46:28 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ config_integrity: Configuration is valid
+2026-01-30 13:46:28 - app.startup_checks - INFO - [startup_checks.py:195] - Required files check passed
+2026-01-30 13:46:28 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ required_files: All required files and directories present
+2026-01-30 13:46:28 - app.startup_checks - INFO - [startup_checks.py:121] - Database schema check passed
+2026-01-30 13:46:28 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ database_schema: All required tables present
+2026-01-30 13:46:28 - app.startup_checks - INFO - [startup_checks.py:345] - Integrity checks complete: 3 passed, 0 warnings, 0 failed
+2026-01-30 13:46:28 - __main__ - INFO - [main.py:134] - Startup Integrity Check Results:
+========================================
+✓ config_integrity: Configuration is valid
+✓ required_files: All required files and directories present
+✓ database_schema: All required tables present
+========================================
+2026-01-30 13:46:28 - __main__ - INFO - [main.py:163] - Preloading questions into memory...
+2026-01-30 13:46:28 - app.questions - INFO - [questions.py:52] - Loaded 100 active questions into memory.
+2026-01-30 13:46:33 - app.ui.view_manager - ERROR - [view_manager.py:108] - Failed to load journal summary: Instance <JournalEntry at 0x290433c5160> is not bound to a Session; attribute refresh operation cannot proceed (Background on this error at: https://sqlalche.me/e/20/bhk3)
+2026-01-30 13:46:35 - app.shutdown_handler - INFO - [shutdown_handler.py:56] - Initiating graceful application shutdown...
+2026-01-30 13:46:35 - app.shutdown_handler - INFO - [shutdown_handler.py:65] - Database session committed and removed successfully
+2026-01-30 13:46:35 - app.shutdown_handler - INFO - [shutdown_handler.py:70] - Application shutdown complete
+2026-01-30 13:46:35 - app.shutdown_handler - INFO - [shutdown_handler.py:56] - Initiating graceful application shutdown...
+2026-01-30 13:46:35 - app.shutdown_handler - INFO - [shutdown_handler.py:65] - Database session committed and removed successfully
+2026-01-30 13:46:35 - app.shutdown_handler - INFO - [shutdown_handler.py:70] - Application shutdown complete
+2026-01-30 13:46:35 - app.shutdown_handler - INFO - [shutdown_handler.py:56] - Initiating graceful application shutdown...
+2026-01-30 13:46:35 - app.shutdown_handler - INFO - [shutdown_handler.py:65] - Database session committed and removed successfully
+2026-01-30 13:46:35 - app.shutdown_handler - INFO - [shutdown_handler.py:70] - Application shutdown complete
+2026-01-30 13:46:44 - app.ui.view_manager - ERROR - [view_manager.py:108] - Failed to load journal summary: Instance <JournalEntry at 0x23e30a58c20> is not bound to a Session; attribute refresh operation cannot proceed (Background on this error at: https://sqlalche.me/e/20/bhk3)
+2026-01-30 13:46:46 - app.services.exam_service - INFO - [exam_service.py:180] - Exam session started for user: rohan
+2026-01-30 13:46:47 - app.services.exam_service - INFO - [exam_service.py:180] - Exam session started for user: rohan
+2026-01-30 13:46:49 - app.ml.clustering - INFO - [clustering.py:708] - Model loaded from B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\ml\models\clustering\emotional_profile_model.pkl
+2026-01-30 13:46:50 - app.ui.view_manager - ERROR - [view_manager.py:201] - Journal error: I18nManager.get() takes 2 positional arguments but 3 were given
+2026-01-30 13:47:19 - root - ERROR - [profile.py:1342] - Error loading personal profile: 'UserProfileView' object has no attribute 'current_events'
+2026-01-30 13:47:43 - app.ml.clustering - INFO - [clustering.py:708] - Model loaded from B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\ml\models\clustering\emotional_profile_model.pkl
+2026-01-30 13:47:48 - app.ui.app_initializer - INFO - [app_initializer.py:136] - Database session removed during logout
+2026-01-30 13:47:49 - app.error_handler - ERROR - [error_handler.py:134] - [HIGH] tkinter.callback: AttributeError - 'AppInitializer' object has no attribute 'start_login_flow'
+Traceback (most recent call last):
+  File "C:\Python314\Lib\tkinter\__init__.py", line 2088, in __call__
+    return self.func(*args)
+           ~~~~~~~~~^^^^^^^
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\ui\sidebar.py", line 287, in <lambda>
+    widget.bind("<Button-1>", lambda e: self.app.logout())
+                                        ~~~~~~~~~~~~~~~^^
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\main.py", line 98, in logout
+    self.initializer.logout_user()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\ui\app_initializer.py", line 150, in logout_user
+    self.start_login_flow()
+    ^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'AppInitializer' object has no attribute 'start_login_flow'
+2026-01-30 13:47:52 - app.shutdown_handler - INFO - [shutdown_handler.py:56] - Initiating graceful application shutdown...
+2026-01-30 13:47:52 - app.shutdown_handler - INFO - [shutdown_handler.py:65] - Database session committed and removed successfully
+2026-01-30 13:47:52 - app.shutdown_handler - INFO - [shutdown_handler.py:70] - Application shutdown complete
+2026-01-30 13:47:52 - app.shutdown_handler - INFO - [shutdown_handler.py:56] - Initiating graceful application shutdown...
+2026-01-30 13:47:52 - app.shutdown_handler - INFO - [shutdown_handler.py:65] - Database session committed and removed successfully
+2026-01-30 13:47:52 - app.shutdown_handler - INFO - [shutdown_handler.py:70] - Application shutdown complete
+2026-01-30 13:47:52 - app.shutdown_handler - INFO - [shutdown_handler.py:56] - Initiating graceful application shutdown...
+2026-01-30 13:47:52 - app.shutdown_handler - INFO - [shutdown_handler.py:65] - Database session committed and removed successfully
+2026-01-30 13:47:52 - app.shutdown_handler - INFO - [shutdown_handler.py:70] - Application shutdown complete
+2026-01-30 13:48:09 - root - INFO - [logger.py:85] - Logging initialized.
+2026-01-30 13:48:09 - app.startup_checks - INFO - [startup_checks.py:302] - Running startup integrity checks...
+2026-01-30 13:48:09 - app.startup_checks - INFO - [startup_checks.py:272] - Config integrity check passed
+2026-01-30 13:48:09 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ config_integrity: Configuration is valid
+2026-01-30 13:48:09 - app.startup_checks - INFO - [startup_checks.py:195] - Required files check passed
+2026-01-30 13:48:09 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ required_files: All required files and directories present
+2026-01-30 13:48:09 - app.startup_checks - INFO - [startup_checks.py:121] - Database schema check passed
+2026-01-30 13:48:09 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ database_schema: All required tables present
+2026-01-30 13:48:09 - app.startup_checks - INFO - [startup_checks.py:345] - Integrity checks complete: 3 passed, 0 warnings, 0 failed
+2026-01-30 13:48:09 - __main__ - INFO - [main.py:134] - Startup Integrity Check Results:
+========================================
+✓ config_integrity: Configuration is valid
+✓ required_files: All required files and directories present
+✓ database_schema: All required tables present
+========================================
+2026-01-30 13:48:09 - __main__ - INFO - [main.py:163] - Preloading questions into memory...
+2026-01-30 13:48:09 - app.questions - INFO - [questions.py:52] - Loaded 100 active questions into memory.
+2026-01-30 13:48:22 - app.ui.view_manager - ERROR - [view_manager.py:108] - Failed to load journal summary: Instance <JournalEntry at 0x2ac3dec5160> is not bound to a Session; attribute refresh operation cannot proceed (Background on this error at: https://sqlalche.me/e/20/bhk3)
+2026-01-30 13:48:54 - app.ml.clustering - INFO - [clustering.py:708] - Model loaded from B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\ml\models\clustering\emotional_profile_model.pkl
+2026-01-30 13:48:54 - app.services.exam_service - INFO - [exam_service.py:180] - Exam session started for user: rohan
+2026-01-30 13:48:56 - app.services.exam_service - INFO - [exam_service.py:180] - Exam session started for user: rohan
+2026-01-30 13:49:08 - app.services.exam_service - INFO - [exam_service.py:95] - Exam saved. Score: 10, User: rohan
+2026-01-30 13:49:25 - app.ui.app_initializer - INFO - [app_initializer.py:136] - Database session removed during logout
+2026-01-30 13:49:25 - app.error_handler - ERROR - [error_handler.py:134] - [HIGH] tkinter.callback: AttributeError - 'AppInitializer' object has no attribute 'start_login_flow'
+Traceback (most recent call last):
+  File "C:\Python314\Lib\tkinter\__init__.py", line 2088, in __call__
+    return self.func(*args)
+           ~~~~~~~~~^^^^^^^
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\ui\sidebar.py", line 287, in <lambda>
+    widget.bind("<Button-1>", lambda e: self.app.logout())
+                                        ~~~~~~~~~~~~~~~^^
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\main.py", line 98, in logout
+    self.initializer.logout_user()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\ui\app_initializer.py", line 150, in logout_user
+    self.start_login_flow()
+    ^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'AppInitializer' object has no attribute 'start_login_flow'
+2026-01-30 13:49:27 - app.shutdown_handler - INFO - [shutdown_handler.py:56] - Initiating graceful application shutdown...
+2026-01-30 13:49:27 - app.shutdown_handler - INFO - [shutdown_handler.py:65] - Database session committed and removed successfully
+2026-01-30 13:49:27 - app.shutdown_handler - INFO - [shutdown_handler.py:70] - Application shutdown complete
+2026-01-30 13:49:27 - app.shutdown_handler - INFO - [shutdown_handler.py:56] - Initiating graceful application shutdown...
+2026-01-30 13:49:27 - app.shutdown_handler - INFO - [shutdown_handler.py:65] - Database session committed and removed successfully
+2026-01-30 13:49:27 - app.shutdown_handler - INFO - [shutdown_handler.py:70] - Application shutdown complete
+2026-01-30 13:49:27 - app.shutdown_handler - INFO - [shutdown_handler.py:56] - Initiating graceful application shutdown...
+2026-01-30 13:49:27 - app.shutdown_handler - INFO - [shutdown_handler.py:65] - Database session committed and removed successfully
+2026-01-30 13:49:27 - app.shutdown_handler - INFO - [shutdown_handler.py:70] - Application shutdown complete
+2026-01-30 13:51:38 - root - INFO - [logger.py:85] - Logging initialized.
+2026-01-30 13:51:38 - app.startup_checks - INFO - [startup_checks.py:302] - Running startup integrity checks...
+2026-01-30 13:51:38 - app.startup_checks - INFO - [startup_checks.py:272] - Config integrity check passed
+2026-01-30 13:51:38 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ config_integrity: Configuration is valid
+2026-01-30 13:51:38 - app.startup_checks - INFO - [startup_checks.py:195] - Required files check passed
+2026-01-30 13:51:38 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ required_files: All required files and directories present
+2026-01-30 13:51:38 - app.startup_checks - INFO - [startup_checks.py:121] - Database schema check passed
+2026-01-30 13:51:38 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ database_schema: All required tables present
+2026-01-30 13:51:38 - app.startup_checks - INFO - [startup_checks.py:345] - Integrity checks complete: 3 passed, 0 warnings, 0 failed
+2026-01-30 13:51:38 - __main__ - INFO - [main.py:134] - Startup Integrity Check Results:
+========================================
+✓ config_integrity: Configuration is valid
+✓ required_files: All required files and directories present
+✓ database_schema: All required tables present
+========================================
+2026-01-30 13:51:38 - __main__ - INFO - [main.py:163] - Preloading questions into memory...
+2026-01-30 13:51:38 - app.questions - INFO - [questions.py:52] - Loaded 100 active questions into memory.
+2026-01-30 13:53:08 - root - INFO - [logger.py:85] - Logging initialized.
+2026-01-30 13:53:08 - app.startup_checks - INFO - [startup_checks.py:302] - Running startup integrity checks...
+2026-01-30 13:53:08 - app.startup_checks - INFO - [startup_checks.py:272] - Config integrity check passed
+2026-01-30 13:53:08 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ config_integrity: Configuration is valid
+2026-01-30 13:53:08 - app.startup_checks - INFO - [startup_checks.py:195] - Required files check passed
+2026-01-30 13:53:08 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ required_files: All required files and directories present
+2026-01-30 13:53:08 - app.startup_checks - INFO - [startup_checks.py:121] - Database schema check passed
+2026-01-30 13:53:08 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ database_schema: All required tables present
+2026-01-30 13:53:08 - app.startup_checks - INFO - [startup_checks.py:345] - Integrity checks complete: 3 passed, 0 warnings, 0 failed
+2026-01-30 13:53:08 - __main__ - INFO - [main.py:134] - Startup Integrity Check Results:
+========================================
+✓ config_integrity: Configuration is valid
+✓ required_files: All required files and directories present
+✓ database_schema: All required tables present
+========================================
+2026-01-30 13:53:08 - __main__ - INFO - [main.py:163] - Preloading questions into memory...
+2026-01-30 13:53:08 - app.questions - INFO - [questions.py:52] - Loaded 100 active questions into memory.
+2026-01-30 13:53:31 - app.ui.view_manager - ERROR - [view_manager.py:108] - Failed to load journal summary: Instance <JournalEntry at 0x22615be4ad0> is not bound to a Session; attribute refresh operation cannot proceed (Background on this error at: https://sqlalche.me/e/20/bhk3)
+2026-01-30 13:53:34 - app.services.exam_service - INFO - [exam_service.py:180] - Exam session started for user: rohan
+2026-01-30 13:53:44 - app.services.exam_service - INFO - [exam_service.py:95] - Exam saved. Score: 9, User: rohan
+2026-01-30 13:54:01 - app.ml.clustering - INFO - [clustering.py:708] - Model loaded from B:\Open_Source\soul_sence_Exam\SOUL_SENSE_EXAM\app\ml\models\clustering\emotional_profile_model.pkl
+2026-01-30 13:54:07 - app.ui.app_initializer - INFO - [app_initializer.py:136] - Database session removed during logout
+2026-01-30 13:54:21 - app.ui.view_manager - ERROR - [view_manager.py:108] - Failed to load journal summary: Instance <JournalEntry at 0x22615c4a470> is not bound to a Session; attribute refresh operation cannot proceed (Background on this error at: https://sqlalche.me/e/20/bhk3)
+2026-01-30 13:54:26 - app.ui.app_initializer - INFO - [app_initializer.py:136] - Database session removed during logout
+2026-01-30 13:54:28 - app.shutdown_handler - INFO - [shutdown_handler.py:56] - Initiating graceful application shutdown...
+2026-01-30 13:54:28 - app.shutdown_handler - INFO - [shutdown_handler.py:65] - Database session committed and removed successfully
+2026-01-30 13:54:28 - app.shutdown_handler - INFO - [shutdown_handler.py:70] - Application shutdown complete
+2026-01-30 13:54:28 - app.shutdown_handler - INFO - [shutdown_handler.py:56] - Initiating graceful application shutdown...
+2026-01-30 13:54:28 - app.shutdown_handler - INFO - [shutdown_handler.py:65] - Database session committed and removed successfully
+2026-01-30 13:54:28 - app.shutdown_handler - INFO - [shutdown_handler.py:70] - Application shutdown complete
