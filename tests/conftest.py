@@ -170,4 +170,20 @@ def mock_app(mocker):
     # Configure root as a separate mock
     mock_app.root = mocker.Mock()
     
-    return mock_app
+@pytest.fixture(scope="session", autouse=True)
+def ensure_nltk_data():
+    """
+    Ensure NLTK VADER lexicon is available for all tests.
+    This prevents CI failures where the resource might be missing.
+    """
+    try:
+        import nltk
+        try:
+            nltk.data.find('sentiment/vader_lexicon.zip')
+        except LookupError:
+            print("Downloading NLTK VADER lexicon for tests...")
+            nltk.download('vader_lexicon', quiet=True)
+    except ImportError:
+        pass  # NLTK not installed, tests should handle this
+    except Exception as e:
+        print(f"Warning: Failed to ensure NLTK data: {e}")
