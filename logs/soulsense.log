@@ -2337,3 +2337,28 @@ AttributeError: 'AppInitializer' object has no attribute 'start_login_flow'
 2026-01-30 16:05:55 - app.shutdown_handler - INFO - [shutdown_handler.py:56] - Initiating graceful application shutdown...
 2026-01-30 16:05:55 - app.shutdown_handler - INFO - [shutdown_handler.py:65] - Database session committed and removed successfully
 2026-01-30 16:05:55 - app.shutdown_handler - INFO - [shutdown_handler.py:70] - Application shutdown complete
+2026-01-30 16:08:05 - root - INFO - [logger.py:85] - Logging initialized.
+2026-01-30 16:08:05 - app.startup_checks - INFO - [startup_checks.py:302] - Running startup integrity checks...
+2026-01-30 16:08:05 - app.startup_checks - INFO - [startup_checks.py:272] - Config integrity check passed
+2026-01-30 16:08:05 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ config_integrity: Configuration is valid
+2026-01-30 16:08:05 - app.startup_checks - INFO - [startup_checks.py:195] - Required files check passed
+2026-01-30 16:08:05 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ required_files: All required files and directories present
+2026-01-30 16:08:05 - app.startup_checks - INFO - [startup_checks.py:121] - Database schema check passed
+2026-01-30 16:08:05 - app.startup_checks - INFO - [startup_checks.py:320] - ✓ database_schema: All required tables present
+2026-01-30 16:08:05 - app.startup_checks - INFO - [startup_checks.py:345] - Integrity checks complete: 3 passed, 0 warnings, 0 failed
+2026-01-30 16:08:05 - __main__ - INFO - [temp_main.py:135] - Startup Integrity Check Results:
+========================================
+✓ config_integrity: Configuration is valid
+✓ required_files: All required files and directories present
+✓ database_schema: All required tables present
+========================================
+2026-01-30 16:08:05 - __main__ - INFO - [temp_main.py:164] - Preloading questions into memory...
+2026-01-30 16:08:05 - app.questions - INFO - [questions.py:52] - Loaded 0 active questions into memory.
+2026-01-30 16:08:06 - app.questions - INFO - [questions.py:87] - Questions not initialized, loading now...
+2026-01-30 16:08:06 - app.questions - INFO - [questions.py:52] - Loaded 0 active questions into memory.
+2026-01-30 16:08:20 - app.shutdown_handler - INFO - [shutdown_handler.py:56] - Initiating graceful application shutdown...
+2026-01-30 16:08:20 - app.shutdown_handler - INFO - [shutdown_handler.py:65] - Database session committed and removed successfully
+2026-01-30 16:08:20 - app.shutdown_handler - INFO - [shutdown_handler.py:70] - Application shutdown complete
+2026-01-30 16:08:20 - app.shutdown_handler - INFO - [shutdown_handler.py:56] - Initiating graceful application shutdown...
+2026-01-30 16:08:20 - app.shutdown_handler - INFO - [shutdown_handler.py:65] - Database session committed and removed successfully
+2026-01-30 16:08:20 - app.shutdown_handler - INFO - [shutdown_handler.py:70] - Application shutdown complete
