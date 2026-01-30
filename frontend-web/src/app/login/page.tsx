@@ -142,6 +142,15 @@ export default function Login() {
               <Button type="submit" className="w-full">
                 Login
               </Button>
+              <div className="text-center mt-4">
+                <button
+                  type="button"
+                  onClick={() => window.location.href = '/forgot-password'}
+                  className="text-sm text-blue-600 hover:text-blue-800 underline"
+                >
+                  Forgot Password?
+                </button>
+              </div>
             </>
           )}
         </Form>
