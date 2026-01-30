@@ -40,6 +40,7 @@ class User(Base):
     strengths = relationship("UserStrengths", uselist=False, back_populates="user", cascade="all, delete-orphan")
     emotional_patterns = relationship("UserEmotionalPatterns", uselist=False, back_populates="user", cascade="all, delete-orphan")
     sync_settings = relationship("UserSyncSetting", back_populates="user", cascade="all, delete-orphan")
+    journal_entries = relationship("JournalEntry", back_populates="user", cascade="all, delete-orphan")
 
 
 class UserSyncSetting(Base):
@@ -276,6 +277,18 @@ class JournalEntry(Base):
     is_deleted = Column(Boolean, default=False)
     privacy_level = Column(String, default="private") # private, shared, public
     word_count = Column(Integer, default=0)
+
+    user = relationship("User", back_populates="journal_entries")
+
+    def __init__(self, **kwargs):
+        # Python-side defaults for instantiation without session
+        if 'is_deleted' not in kwargs:
+            kwargs['is_deleted'] = False
+        if 'privacy_level' not in kwargs:
+            kwargs['privacy_level'] = "private"
+        if 'word_count' not in kwargs:
+            kwargs['word_count'] = 0
+        super().__init__(**kwargs)
 
 class SatisfactionRecord(Base):
     __tablename__ = 'satisfaction_records'
