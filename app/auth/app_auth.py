@@ -17,7 +17,7 @@ class AppAuth:
         """Show login popup on startup"""
         login_win = tk.Toplevel(self.app.root)
         login_win.title("SoulSense Login")
-        login_win.geometry("400x500")
+        login_win.geometry("400x520")
         login_win.configure(bg=self.app.colors["bg"])
         login_win.transient(self.app.root)
         login_win.grab_set()
@@ -28,7 +28,7 @@ class AppAuth:
         # Center
         login_win.update_idletasks()
         x = self.app.root.winfo_x() + (self.app.root.winfo_width() - 400) // 2
-        y = self.app.root.winfo_y() + (self.app.root.winfo_height() - 500) // 2
+        y = self.app.root.winfo_y() + (self.app.root.winfo_height() - 520) // 2
         login_win.geometry(f"+{x}+{y}")
 
         # Logo/Title
@@ -50,7 +50,18 @@ class AppAuth:
         tk.Label(entry_frame, text="Password", font=("Segoe UI", 10, "bold"),
                  bg=self.app.colors["bg"], fg=self.app.colors["text_primary"]).pack(anchor="w")
         password_entry = tk.Entry(entry_frame, font=("Segoe UI", 12), show="*")
-        password_entry.pack(fill="x", pady=(5, 20))
+        password_entry.pack(fill="x", pady=(5, 15))
+
+        # Show Password checkbox
+        show_password_var = tk.BooleanVar()
+        def toggle_password_visibility():
+            show_char = "" if show_password_var.get() else "*"
+            password_entry.config(show=show_char)
+
+        show_password_cb = tk.Checkbutton(entry_frame, text="Show Password", variable=show_password_var,
+                                         command=toggle_password_visibility, font=("Segoe UI", 10),
+                                         bg=self.app.colors["bg"], fg=self.app.colors["text_primary"])
+        show_password_cb.pack(anchor="w", pady=(0, 10))
 
         def do_login():
             user = username_entry.get().strip()

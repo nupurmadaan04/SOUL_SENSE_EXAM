@@ -113,29 +113,94 @@ EMOTIONAL_PROFILES = {
 # ==============================================================================
 
 class EmotionalFeatureExtractor:
-    """Extract features for clustering from user emotional data.
-    
-    This class is responsible for extracting numerical features from user scores
-    and responses that can be used for clustering emotional profiles.
+    """
+    Extract numerical features for clustering from user emotional assessment data.
+
+    FEATURE EXTRACTION ALGORITHM OVERVIEW:
+
+    This class transforms raw emotional assessment data into numerical features suitable
+    for clustering algorithms. The features capture different aspects of user emotional patterns:
+
+    1. SCORE-BASED FEATURES:
+       - avg_total_score: Mean emotional assessment score across all sessions
+       - score_std: Standard deviation of scores (emotional variability)
+       - emotional_range: Difference between highest and lowest scores
+
+    2. SENTIMENT ANALYSIS FEATURES:
+       - avg_sentiment: Average sentiment polarity from text responses
+       - sentiment_std: Variability in sentiment expression
+
+    3. TEMPORAL PATTERN FEATURES:
+       - score_trend: Linear trend in scores over time (improvement/decline)
+       - assessment_frequency: Number of completed assessments
+
+    4. RESPONSE PATTERN FEATURES:
+       - response_consistency: Similarity between responses across sessions
+       - avg_response_value: Average numerical value of categorical responses
+       - response_variance: Variability in response patterns
+
+    MATHEMATICAL FOUNDATIONS:
+    - Statistical measures: mean, standard deviation, range
+    - Trend analysis: Linear regression slope
+    - Consistency: Cosine similarity between response vectors
+    - Normalization: Features scaled for clustering algorithms
+
+    INPUT: Raw user assessment data from database (scores, responses, timestamps)
+    OUTPUT: Normalized numerical feature vectors for each user
     """
 
     def __init__(self):
         """Initialize the feature extractor with predefined feature names."""
         self.feature_names = [
-            'avg_total_score',
-            'score_std',
-            'avg_sentiment',
-            'sentiment_std',
-            'score_trend',
-            'response_consistency',
-            'emotional_range',
-            'assessment_frequency',
-            'avg_response_value',
-            'response_variance'
+            'avg_total_score',      # Mean assessment score
+            'score_std',           # Score variability
+            'avg_sentiment',       # Average sentiment polarity
+            'sentiment_std',       # Sentiment variability
+            'score_trend',         # Temporal trend in scores
+            'response_consistency', # Response pattern similarity
+            'emotional_range',     # Score range (max - min)
+            'assessment_frequency', # Number of assessments
+            'avg_response_value',   # Average response numerical value
+            'response_variance'     # Response pattern variability
         ]
     
     def extract_user_features(self, username: str) -> Optional[Dict[str, float]]:
-        """Extract emotional features for a single user from the database.
+        """
+        Extract emotional features for a single user from the database.
+
+        FEATURE CALCULATION ALGORITHMS:
+
+        1. SCORE-BASED FEATURES:
+           - avg_total_score: Arithmetic mean of all assessment total scores
+             Formula: μ = (Σ scores) / n
+           - score_std: Standard deviation of scores
+             Formula: σ = √[(Σ (x_i - μ)²) / (n-1)]
+           - emotional_range: Score dispersion
+             Formula: range = max(scores) - min(scores)
+
+        2. SENTIMENT FEATURES:
+           - avg_sentiment: Mean sentiment polarity (-1 to +1)
+           - sentiment_std: Sentiment variability
+
+        3. TEMPORAL ANALYSIS:
+           - score_trend: Linear regression slope of scores over time
+             Formula: slope = cov(timestamps, scores) / var(timestamps)
+             Positive slope = improving emotional state
+             Negative slope = declining emotional state
+
+        4. FREQUENCY METRICS:
+           - assessment_frequency: Count of completed assessments
+             Higher frequency may indicate engagement level
+
+        5. RESPONSE PATTERN ANALYSIS:
+           - response_consistency: Similarity between response vectors
+           - avg_response_value: Mean of categorical response values
+           - response_variance: Variability in response selections
+
+        DATA VALIDATION:
+        - Minimum 1 score required for basic features
+        - Missing values handled gracefully (return None for insufficient data)
+        - Features normalized and scaled for clustering compatibility
 
         Args:
             username (str): The username to extract features for.
@@ -146,38 +211,50 @@ class EmotionalFeatureExtractor:
         """
         try:
             with safe_db_context() as session:
-                # Get all scores for the user
+                # STEP 1: DATA RETRIEVAL
+                # Query all assessment scores for the user, ordered chronologically
                 scores = session.query(Score).filter_by(username=username).order_by(Score.timestamp).all()
-                
+
+                # VALIDATION: Require at least one score for meaningful analysis
                 if not scores or len(scores) < 1:
                     return None
-                
-                # Get all responses for the user
+
+                # Query all categorical responses for pattern analysis
                 responses = session.query(Response).filter_by(username=username).all()
-                
-                # Extract score-based features
+
+                # STEP 2: SCORE FEATURE EXTRACTION
+                # Extract numerical values, filtering out null entries
                 score_values = [s.total_score for s in scores if s.total_score is not None]
                 sentiment_values = [s.sentiment_score for s in scores if s.sentiment_score is not None]
-                
+
+                # VALIDATION: Must have at least one valid score
                 if not score_values:
                     return None
-                
+
+                # STEP 3: STATISTICAL FEATURE CALCULATION
                 features = {
                     'username': username,
+                    # Basic statistical measures of assessment scores
                     'avg_total_score': np.mean(score_values),
                     'score_std': np.std(score_values) if len(score_values) > 1 else 0,
+                    # Sentiment analysis features (may be empty if no text analysis)
                     'avg_sentiment': np.mean(sentiment_values) if sentiment_values else 0,
                     'sentiment_std': np.std(sentiment_values) if len(sentiment_values) > 1 else 0,
+                    # Temporal trend analysis using linear regression
                     'score_trend': self._calculate_trend(score_values),
+                    # Response pattern analysis
                     'response_consistency': self._calculate_consistency(responses),
+                    # Score dispersion (emotional range)
                     'emotional_range': max(score_values) - min(score_values) if len(score_values) > 1 else 0,
+                    # Engagement metric
                     'assessment_frequency': len(scores),
+                    # Response pattern features
                     'avg_response_value': self._avg_response_value(responses),
                     'response_variance': self._response_variance(responses)
                 }
-                
+
                 return features
-                
+
         except Exception as e:
             logger.error(f"Error extracting features for {username}: {e}")
             return None
@@ -322,66 +399,135 @@ class EmotionalProfileClusterer:
     def fit(self, data: Optional[pd.DataFrame] = None) -> Dict[str, Any]:
         """
         Fit the clustering model on user emotional data.
-        
+
+        ALGORITHM OVERVIEW:
+        This method implements a multi-algorithm clustering approach for emotional profile categorization:
+
+        1. FEATURE EXTRACTION: Extract numerical features from user emotional assessment data
+        2. DATA PREPROCESSING: Handle missing values and standardize features
+        3. OPTIMAL CLUSTER DETECTION: Use silhouette analysis to find best number of clusters
+        4. PRIMARY CLUSTERING: K-Means algorithm for main profile assignment
+        5. SECONDARY CLUSTERING: Hierarchical clustering for validation
+        6. ANOMALY DETECTION: DBSCAN for identifying outlier emotional patterns
+        7. METRICS CALCULATION: Evaluate clustering quality using multiple metrics
+        8. PROFILE ASSIGNMENT: Map clusters to predefined emotional profile categories
+
         Args:
             data: Optional DataFrame with user features. If None, extracts from database.
-            
+
         Returns:
             Dictionary containing clustering results and metrics
         """
-        # Extract features if not provided
+        # STEP 1: FEATURE EXTRACTION
+        # Extract emotional features from database if not provided
+        # Features include: average scores, sentiment analysis, response patterns, etc.
         if data is None:
             data = self.feature_extractor.extract_all_users_features()
-        
+
+        # VALIDATION: Ensure sufficient data for meaningful clustering
         if data.empty or len(data) < self.n_clusters:
             logger.warning(f"Insufficient data for clustering. Need at least {self.n_clusters} users.")
             return {"error": "Insufficient data for clustering"}
-        
-        # Prepare feature matrix
+
+        # STEP 2: DATA PREPROCESSING
+        # Prepare feature matrix by separating usernames from numerical features
         usernames = data['username'].tolist()
         feature_cols = [col for col in data.columns if col != 'username']
         X = data[feature_cols].values
-        
-        # Handle missing values
+
+        # Handle missing values by replacing NaN with 0.0
+        # This prevents clustering algorithms from failing on incomplete data
         X = np.nan_to_num(X, nan=0.0)
-        
-        # Scale features
+
+        # STEP 3: FEATURE STANDARDIZATION
+        # Standardize features to zero mean and unit variance
+        # This ensures all features contribute equally to clustering regardless of scale
+        # Formula: X_scaled = (X - mean) / std
         X_scaled = self.scaler.fit_transform(X)
-        
-        # Determine optimal number of clusters if we have enough data
+
+        # STEP 4: OPTIMAL CLUSTER NUMBER DETECTION
+        # Use silhouette analysis to find statistically optimal number of clusters
+        # Only performed when we have sufficient data (≥10 users) for reliable analysis
         if len(X_scaled) >= 10:
             optimal_k = self._find_optimal_clusters(X_scaled)
             if optimal_k != self.n_clusters:
                 logger.info(f"Optimal clusters: {optimal_k}, using configured: {self.n_clusters}")
-        
-        # Fit K-Means (primary method)
+
+        # STEP 5: PRIMARY CLUSTERING ALGORITHM - K-MEANS
+        # K-Means clustering: Partition users into k clusters based on feature similarity
+        # Algorithm steps:
+        # 1. Initialize k cluster centers randomly
+        # 2. Assign each point to nearest center (Euclidean distance)
+        # 3. Update centers as mean of assigned points
+        # 4. Repeat until convergence or max iterations
+        # Mathematical foundation: Minimizes within-cluster sum of squared distances
         self.kmeans = KMeans(
             n_clusters=self.n_clusters,
-            random_state=self.random_state,
-            n_init=10,
-            max_iter=300
+            random_state=self.random_state,  # Ensures reproducible results
+            n_init=10,                       # Try 10 different initializations, pick best
+            max_iter=300                     # Maximum iterations per initialization
         )
+        # fit_predict() performs clustering and returns cluster labels for each user
         self.labels_ = self.kmeans.fit_predict(X_scaled)
+        # Store cluster centers for analysis and prediction
         self.cluster_centers_ = self.kmeans.cluster_centers_
-        
-        # Fit Hierarchical Clustering (secondary)
+
+        # STEP 6: SECONDARY CLUSTERING - HIERARCHICAL CLUSTERING
+        # Agglomerative Hierarchical Clustering: Build hierarchy of clusters
+        # Algorithm steps:
+        # 1. Start with each point as individual cluster
+        # 2. Find closest pair of clusters and merge them
+        # 3. Repeat until desired number of clusters reached
+        # Ward linkage: Minimizes increase in within-cluster variance
         if len(X_scaled) >= self.n_clusters:
             self.hierarchical = AgglomerativeClustering(
                 n_clusters=self.n_clusters,
-                linkage='ward'
+                linkage='ward'  # Ward's method minimizes within-cluster variance
             )
             hierarchical_labels = self.hierarchical.fit_predict(X_scaled)
         else:
+            # Fallback to K-Means labels if insufficient data
             hierarchical_labels = self.labels_
-        
-        # Fit DBSCAN for anomaly detection
+
+        # STEP 7: ANOMALY DETECTION - DBSCAN ALGORITHM
+        # Density-Based Spatial Clustering of Applications with Noise
+        #
+        # ALGORITHM PRINCIPLES:
+        # DBSCAN groups points based on density rather than distance from centroids
+        # Unlike K-Means, it can find arbitrarily shaped clusters and identify outliers
+        #
+        # KEY CONCEPTS:
+        # - Core Point: Point with ≥ min_samples neighbors within eps distance
+        # - Border Point: Within eps of core point but has < min_samples neighbors
+        # - Noise Point: Neither core nor border (outliers/anomalies)
+        #
+        # ALGORITHM STEPS:
+        # 1. For each unvisited point, find all neighbors within eps distance
+        # 2. If point has ≥ min_samples neighbors, start new cluster
+        # 3. Expand cluster by adding all density-reachable points
+        # 4. Points not reachable from any cluster are marked as noise (-1)
+        #
+        # PARAMETER CHOICE:
+        # - eps=0.5: Maximum distance for neighborhood (scaled feature space)
+        # - min_samples=2: Conservative threshold for small dataset
+        #
+        # OUTPUT INTERPRETATION:
+        # - Labels ≥ 0: Valid cluster assignments
+        # - Labels = -1: Outlier points (unusual emotional patterns)
+        #
+        # USE CASE: Identifies users with anomalous emotional profiles that don't
+        # fit typical patterns, potentially indicating unique needs or data issues
         self.dbscan = DBSCAN(eps=0.5, min_samples=2)
         dbscan_labels = self.dbscan.fit_predict(X_scaled)
-        
-        # Calculate metrics
+        # DBSCAN labels: -1 for noise/outliers, 0+ for clusters
+
+        # STEP 8: CLUSTERING QUALITY ASSESSMENT
+        # Calculate multiple metrics to evaluate clustering effectiveness
         metrics = self._calculate_clustering_metrics(X_scaled, self.labels_)
-        
-        # Store user profiles
+
+        # STEP 9: EMOTIONAL PROFILE ASSIGNMENT
+        # Map numerical cluster IDs to predefined emotional profile categories
+        # Each profile includes: name, description, characteristics, recommendations
         for username, label in zip(usernames, self.labels_):
             profile_data = EMOTIONAL_PROFILES.get(label, EMOTIONAL_PROFILES[0])
             self.user_profiles[username] = {
@@ -390,14 +536,19 @@ class EmotionalProfileClusterer:
                 'profile_name': profile_data['name'],
                 'assigned_at': datetime.utcnow().isoformat()
             }
-        
-        # PCA for visualization
+
+        # STEP 10: DIMENSIONALITY REDUCTION FOR VISUALIZATION
+        # Principal Component Analysis: Reduce high-dimensional features to 2D
+        # Algorithm: Find principal components that maximize variance
+        # Mathematical foundation: Eigenvalue decomposition of covariance matrix
         if len(X_scaled) >= 2:
             X_pca = self.pca.fit_transform(X_scaled)
         else:
             X_pca = X_scaled
-        
+
+        # Mark model as fitted and save for future use
         self.is_fitted = True
+        self._save_model()
         
         # Save model
         self._save_model()
@@ -418,27 +569,67 @@ class EmotionalProfileClusterer:
     
     def predict(self, username: str) -> Optional[Dict[str, Any]]:
         """
-        Predict emotional profile for a user.
-        
+        Predict emotional profile for a user using trained clustering model.
+
+        PREDICTION ALGORITHM STEPS:
+
+        1. MODEL VALIDATION:
+           - Check if clustering model has been fitted
+           - Attempt to load saved model if not in memory
+
+        2. CACHE CHECK:
+           - Return cached profile if user was processed during fit()
+           - Avoids redundant computation for known users
+
+        3. FEATURE EXTRACTION:
+           - Extract same features used during training
+           - Handle missing data gracefully
+
+        4. FEATURE PREPROCESSING:
+           - Transform features to match training data format
+           - Apply same scaling transformation (StandardScaler)
+
+        5. CLUSTER ASSIGNMENT:
+           - Use trained K-Means model to predict cluster
+           - Algorithm: Assign to nearest cluster center (minimum Euclidean distance)
+           - Formula: argmin_c ||x - μ_c||² where μ_c are cluster centroids
+
+        6. CONFIDENCE CALCULATION:
+           - Measure prediction certainty using distance-based confidence
+           - Algorithm: Compare distance to assigned cluster vs all clusters
+           - Formula: confidence = 1 - (d_assigned / Σ d_all_clusters)
+           - Higher confidence when point is much closer to its cluster than others
+
+        7. PROFILE MAPPING:
+           - Map numerical cluster ID to emotional profile category
+           - Include profile details: name, characteristics, recommendations
+
+        MATHEMATICAL FOUNDATION:
+        - Distance metric: Euclidean distance in scaled feature space
+        - Confidence: Relative distance-based probability estimate
+        - Decision rule: Nearest centroid classification
+
         Args:
             username: Username to predict profile for
-            
+
         Returns:
-            Dictionary with profile prediction and confidence
+            Dictionary with profile prediction and confidence, or None if prediction fails
         """
+        # STEP 1: MODEL VALIDATION
         if not self.is_fitted:
-            # Try to load existing model
+            # Try to load existing model from disk
             if not self._load_model():
                 logger.warning("Model not fitted. Call fit() first.")
                 return None
-        
-        # Check if user already has a cached profile (from fit)
+
+        # STEP 2: CACHE CHECK FOR EFFICIENCY
+        # Return pre-computed profile if user was processed during training
         if username in self.user_profiles:
             cached = self.user_profiles[username]
-            # Ensure it has all needed fields
+            # Ensure cached profile has required fields
             if 'profile_name' in cached:
                 return cached
-            # Convert old format to new format
+            # Handle legacy format conversion
             cluster_id = cached.get('cluster_id', 0)
             profile = EMOTIONAL_PROFILES.get(cluster_id, EMOTIONAL_PROFILES[0])
             return {
@@ -446,31 +637,46 @@ class EmotionalProfileClusterer:
                 'cluster_id': int(cluster_id),
                 'profile_name': profile['name'],
                 'profile': profile,
-                'confidence': 1.0,  # Already assigned during fit
+                'confidence': 1.0,  # Maximum confidence for training data
                 'features': {},
                 'predicted_at': cached.get('assigned_at', datetime.utcnow().isoformat())
             }
-        
-        # Extract features for the user from database
+
+        # STEP 3: FEATURE EXTRACTION FROM DATABASE
+        # Extract same features used during model training
         features = self.feature_extractor.extract_user_features(username)
         if not features:
+            logger.warning(f"Could not extract features for user {username}")
             return None
-        
-        # Prepare feature vector
+
+        # STEP 4: FEATURE VECTOR PREPARATION
+        # Create feature vector in same format as training data
         feature_cols = self.feature_extractor.feature_names
         X = np.array([[features.get(col, 0) for col in feature_cols]])
+        # Handle any remaining missing values
         X = np.nan_to_num(X, nan=0.0)
-        
-        # Scale and predict
+
+        # STEP 5: FEATURE SCALING
+        # Apply same standardization transformation used during training
+        # Formula: X_scaled = (X - mean_train) / std_train
         X_scaled = self.scaler.transform(X)
+
+        # STEP 6: CLUSTER PREDICTION USING K-MEANS
+        # Assign to nearest cluster centroid using Euclidean distance
         cluster_id = self.kmeans.predict(X_scaled)[0]
-        
-        # Calculate confidence based on distance to cluster center
+
+        # STEP 7: CONFIDENCE CALCULATION
+        # Calculate confidence based on relative distance to cluster centers
+        # distances[i] = Euclidean distance from point to i-th cluster center
         distances = np.linalg.norm(X_scaled - self.cluster_centers_, axis=1)
+        # Confidence = 1 - (distance_to_assigned / sum_of_all_distances)
+        # This gives higher confidence when point is much closer to its cluster
         confidence = 1 - (distances[cluster_id] / np.sum(distances))
-        
+
+        # STEP 8: PROFILE MAPPING AND RESULT FORMATION
+        # Map cluster ID to emotional profile category
         profile = EMOTIONAL_PROFILES.get(cluster_id, EMOTIONAL_PROFILES[0])
-        
+
         result = {
             'username': username,
             'cluster_id': int(cluster_id),
@@ -480,10 +686,10 @@ class EmotionalProfileClusterer:
             'features': features,
             'predicted_at': datetime.utcnow().isoformat()
         }
-        
-        # Update stored profile
+
+        # Cache result for future predictions
         self.user_profiles[username] = result
-        
+
         return result
     
     def predict_from_features(self, features: Dict[str, float], username: str = "anonymous") -> Optional[Dict[str, Any]]:
@@ -557,68 +763,159 @@ class EmotionalProfileClusterer:
         ]
     
     def _find_optimal_clusters(self, X: np.ndarray, max_k: int = 8) -> int:
-        """Find optimal number of clusters using silhouette score.
+        """
+        Find optimal number of clusters using silhouette score analysis.
+
+        ALGORITHM: SILHOUETTE ANALYSIS FOR OPTIMAL CLUSTER DETECTION
+
+        The silhouette score measures how similar an object is to its own cluster
+        compared to other clusters. For each data point i:
+
+        1. Calculate a(i): Average distance to all other points in same cluster
+           - Measures cohesion (how well points fit within their cluster)
+
+        2. Calculate b(i): Average distance to all points in nearest neighboring cluster
+           - Measures separation (how distinct clusters are from each other)
+
+        3. Calculate silhouette coefficient s(i):
+           s(i) = (b(i) - a(i)) / max(a(i), b(i))
+
+           - s(i) ranges from -1 to +1
+           - +1: Point is far from neighboring clusters (well-clustered)
+           - 0: Point is on or very close to decision boundary
+           - -1: Point might be assigned to wrong cluster
+
+        4. Average silhouette score across all points gives overall clustering quality
+
+        DECISION LOGIC:
+        - Test cluster numbers from 2 to max_k
+        - Select k that maximizes average silhouette score
+        - Higher scores indicate better-defined, more separated clusters
 
         Args:
-            X (np.ndarray): Feature matrix.
+            X (np.ndarray): Feature matrix (already scaled)
             max_k (int, optional): Maximum number of clusters to test. Defaults to 8.
 
         Returns:
-            int: Optimal number of clusters based on silhouette score.
+            int: Optimal number of clusters based on silhouette analysis
         """
+        # Limit maximum clusters to prevent overfitting and computational issues
         max_k = min(max_k, len(X) - 1)
         if max_k < 2:
-            return 2
-        
+            return 2  # Minimum meaningful clustering
+
         silhouette_scores = []
         k_range = range(2, max_k + 1)
-        
+
+        # Evaluate clustering quality for each candidate k
         for k in k_range:
+            # Fit K-Means for current k value
             kmeans = KMeans(n_clusters=k, random_state=self.random_state, n_init=10)
             labels = kmeans.fit_predict(X)
+
             try:
+                # Calculate average silhouette score for this clustering
                 score = silhouette_score(X, labels)
             except ValueError:
-                score = -1.0 # Invalid for single cluster
+                # Silhouette score undefined for single cluster or other edge cases
+                score = -1.0
+
             silhouette_scores.append(score)
-        
+
+        # Select k that maximizes silhouette score
+        # np.argmax returns index of maximum value
         optimal_k = k_range[np.argmax(silhouette_scores)]
         return optimal_k
     
     def _calculate_clustering_metrics(self, X: np.ndarray, labels: np.ndarray) -> Dict[str, float]:
-        """Calculate clustering quality metrics.
+        """
+        Calculate multiple clustering quality metrics to evaluate algorithm performance.
+
+        CLUSTERING METRICS IMPLEMENTED:
+
+        1. SILHOUETTE SCORE:
+           - Measures how similar objects are to their own cluster vs other clusters
+           - Formula: s(i) = (b(i) - a(i)) / max(a(i), b(i))
+           - Range: [-1, +1], higher values indicate better clustering
+           - +1: Well-clustered, points far from neighboring clusters
+           - 0: Points on cluster boundaries
+           - -1: Points may be in wrong clusters
+
+        2. CALINSKI-HARABASZ INDEX (Variance Ratio Criterion):
+           - Ratio of between-cluster dispersion to within-cluster dispersion
+           - Formula: CH = (B/(k-1)) / (W/(n-k))
+           - Where B=between-cluster sum of squares, W=within-cluster sum of squares
+           - Higher values indicate better defined, more separated clusters
+
+        3. DAVIES-BOULDIN INDEX:
+           - Average similarity measure of each cluster with its most similar cluster
+           - Formula: DB = (1/k) * Σ max(Rij) for i=1 to k
+           - Where Rij = (Si + Sj) / Mij (Si,Sj: cluster diameters, Mij: distance between centers)
+           - Lower values indicate better clustering (more separated, less dispersed clusters)
+
+        4. INERTIA (Within-cluster Sum of Squares):
+           - Sum of squared distances of samples to their closest cluster center
+           - Formula: Σ ||x_i - μ_c||² for all points in cluster c
+           - Lower values indicate tighter, more cohesive clusters
+           - Used by K-Means as optimization objective
+
+        INTERPRETATION GUIDELINES:
+        - Silhouette: > 0.5 excellent, 0.25-0.5 good, < 0.25 poor
+        - Calinski-Harabasz: Higher is better, compare across different k values
+        - Davies-Bouldin: Lower is better, values < 1.0 indicate good clustering
+        - Inertia: Decreases as k increases, look for "elbow" in scree plot
 
         Args:
-            X (np.ndarray): Feature matrix.
-            labels (np.ndarray): Cluster labels.
+            X (np.ndarray): Feature matrix (scaled)
+            labels (np.ndarray): Cluster labels from clustering algorithm
 
         Returns:
-            Dict[str, float]: Dictionary of clustering metrics.
+            Dict[str, float]: Dictionary containing all calculated metrics
         """
         metrics = {}
-        
-        # Only calculate if we have valid clusters
+
+        # VALIDATION: Ensure we have multiple clusters for meaningful metrics
         unique_labels = np.unique(labels)
         if len(unique_labels) < 2:
-            return {'silhouette_score': 0, 'calinski_harabasz': 0, 'davies_bouldin': float('inf')}
-        
+            # Return default values for degenerate case (single cluster)
+            return {
+                'silhouette_score': 0.0,
+                'calinski_harabasz': 0.0,
+                'davies_bouldin': float('inf'),
+                'inertia': float('inf')
+            }
+
+        # Calculate silhouette score with error handling
         try:
+            # silhouette_score computes average silhouette coefficient across all samples
             metrics['silhouette_score'] = float(silhouette_score(X, labels))
-        except:
-            metrics['silhouette_score'] = 0
-        
+        except Exception as e:
+            logger.warning(f"Silhouette score calculation failed: {e}")
+            metrics['silhouette_score'] = 0.0
+
+        # Calculate Calinski-Harabasz index
         try:
+            # Measures between-cluster vs within-cluster dispersion ratio
             metrics['calinski_harabasz'] = float(calinski_harabasz_score(X, labels))
-        except:
-            metrics['calinski_harabasz'] = 0
-        
+        except Exception as e:
+            logger.warning(f"Calinski-Harabasz score calculation failed: {e}")
+            metrics['calinski_harabasz'] = 0.0
+
+        # Calculate Davies-Bouldin index
         try:
+            # Measures average cluster similarity to nearest cluster
             metrics['davies_bouldin'] = float(davies_bouldin_score(X, labels))
-        except:
+        except Exception as e:
+            logger.warning(f"Davies-Bouldin score calculation failed: {e}")
             metrics['davies_bouldin'] = float('inf')
-        
-        metrics['inertia'] = float(self.kmeans.inertia_)
-        
+
+        # Include K-Means inertia (within-cluster sum of squares)
+        # This is only available if K-Means was used
+        if self.kmeans is not None:
+            metrics['inertia'] = float(self.kmeans.inertia_)
+        else:
+            metrics['inertia'] = float('inf')
+
         return metrics
     
     def _get_cluster_distribution(self) -> Dict[int, int]:

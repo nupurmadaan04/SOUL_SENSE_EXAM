@@ -11,6 +11,10 @@ import json
 from app.models import AssessmentResult
 from typing import Any, Dict, List, Optional, Tuple
 from app.ui.components.loading_overlay import show_loading, hide_loading
+try:
+    from app.ml.insights_generator import EQInsightsGenerator
+except ImportError:
+    EQInsightsGenerator = None
 
 class ResultsManager:
     def __init__(self, app: Any) -> None:
@@ -508,11 +512,11 @@ class ResultsManager:
         # Sentiment Score Display in Main Card
         if hasattr(self.app, 'sentiment_score') and self.app.sentiment_score is not None:
             tk.Frame(card_inner, height=1, bg=colors.get("border", "#E2E8F0")).pack(fill="x", pady=15)
-            
+
             s_score = self.app.sentiment_score
             s_color = "#22C55E" if s_score > 20 else "#EF4444" if s_score < -20 else "#F59E0B"
             s_text = "Positive" if s_score > 20 else "Negative" if s_score < -20 else "Neutral"
-            
+
             tk.Label(
                 card_inner,
                 text="Sentiment Analysis",
@@ -520,7 +524,7 @@ class ResultsManager:
                 bg=colors.get("surface", "#FFFFFF"),
                 fg=colors.get("text_secondary", "#64748B")
             ).pack()
-            
+
             tk.Label(
                 card_inner,
                 text=f"{s_score:+.1f} ({s_text})",
@@ -528,7 +532,195 @@ class ResultsManager:
                 bg=colors.get("surface", "#FFFFFF"),
                 fg=s_color
             ).pack(pady=(5, 0))
-        
+
+        # ===== AI INSIGHTS SECTION =====
+        if EQInsightsGenerator and self.app.current_user_id:
+            try:
+                # Generate insights
+                insights_generator = EQInsightsGenerator()
+                insights = insights_generator.generate_insights(
+                    user_id=self.app.current_user_id,
+                    current_score=self.app.current_score,
+                    age=self.app.age or 25,
+                    sentiment_score=self.app.sentiment_score if hasattr(self.app, 'sentiment_score') else 0.0
+                )
+
+                # AI Insights Card
+                insights_card = tk.Frame(
+                    content,
+                    bg=colors.get("surface", "#FFFFFF"),
+                    highlightbackground="#8B5CF6",
+                    highlightthickness=2
+                )
+                insights_card.pack(pady=20, padx=20, ipadx=30, ipady=20)
+
+                insights_inner = tk.Frame(insights_card, bg=colors.get("surface", "#FFFFFF"))
+                insights_inner.pack(padx=30, pady=20)
+
+                # Header with AI icon
+                header_frame = tk.Frame(insights_inner, bg=colors.get("surface", "#FFFFFF"))
+                header_frame.pack(fill="x", pady=(0, 15))
+
+                tk.Label(
+                    header_frame,
+                    text="🤖 AI-Powered Insights",
+                    font=("Segoe UI", 16, "bold"),
+                    bg=colors.get("surface", "#FFFFFF"),
+                    fg="#8B5CF6"
+                ).pack(side="left")
+
+                # Confidence indicator
+                confidence = insights.get('confidence_score', 0.5)
+                conf_color = "#22C55E" if confidence > 0.8 else "#F59E0B" if confidence > 0.6 else "#EF4444"
+                tk.Label(
+                    header_frame,
+                    text=f"Confidence: {confidence:.1%}",
+                    font=("Segoe UI", 10),
+                    bg=colors.get("surface", "#FFFFFF"),
+                    fg=conf_color
+                ).pack(side="right")
+
+                # User cluster
+                cluster = insights.get('user_cluster', 'Unknown')
+                cluster_colors = {
+                    'Beginner': '#EF4444',
+                    'Intermediate': '#F59E0B',
+                    'Advanced': '#22C55E'
+                }
+                cluster_color = cluster_colors.get(cluster, '#64748B')
+
+                tk.Label(
+                    insights_inner,
+                    text=f"Development Level: {cluster}",
+                    font=("Segoe UI", 12, "bold"),
+                    bg=colors.get("surface", "#FFFFFF"),
+                    fg=cluster_color
+                ).pack(anchor="w", pady=(0, 10))
+
+                # Improvement potential
+                improvement = insights.get('improvement_potential', 0)
+                if improvement != 0:
+                    imp_color = "#22C55E" if improvement > 0 else "#EF4444"
+                    imp_symbol = "↗" if improvement > 0 else "↘"
+                    tk.Label(
+                        insights_inner,
+                        text=f"{imp_symbol} Improvement Potential: {improvement:+.1f} points",
+                        font=("Segoe UI", 11),
+                        bg=colors.get("surface", "#FFFFFF"),
+                        fg=imp_color
+                    ).pack(anchor="w", pady=(0, 15))
+
+                # Top recommendations
+                recommendations = insights.get('recommendations', [])
+                if recommendations:
+                    tk.Label(
+                        insights_inner,
+                        text="Personalized Recommendations:",
+                        font=("Segoe UI", 13, "bold"),
+                        bg=colors.get("surface", "#FFFFFF"),
+                        fg=colors.get("text_primary", "#0F172A")
+                    ).pack(anchor="w", pady=(0, 10))
+
+                    # Show top 3 recommendations
+                    for i, rec in enumerate(recommendations[:3]):
+                        rec_frame = tk.Frame(insights_inner, bg=colors.get("surface", "#FFFFFF"))
+                        rec_frame.pack(fill="x", pady=2)
+
+                        tk.Label(
+                            rec_frame,
+                            text="•",
+                            font=("Segoe UI", 12),
+                            bg=colors.get("surface", "#FFFFFF"),
+                            fg="#8B5CF6"
+                        ).pack(side="left", padx=(0, 5))
+
+                        tk.Label(
+                            rec_frame,
+                            text=rec,
+                            font=("Segoe UI", 11),
+                            bg=colors.get("surface", "#FFFFFF"),
+                            fg=colors.get("text_primary", "#0F172A"),
+                            wraplength=600,
+                            justify="left"
+                        ).pack(side="left", anchor="w")
+
+                # Next steps
+                next_steps = insights.get('next_steps', [])
+                if next_steps:
+                    tk.Frame(insights_inner, height=1, bg=colors.get("border", "#E2E8F0")).pack(fill="x", pady=15)
+
+                    tk.Label(
+                        insights_inner,
+                        text="Next Steps:",
+                        font=("Segoe UI", 13, "bold"),
+                        bg=colors.get("surface", "#FFFFFF"),
+                        fg=colors.get("text_primary", "#0F172A")
+                    ).pack(anchor="w", pady=(0, 10))
+
+                    # Show top 2 next steps
+                    for step in next_steps[:2]:
+                        step_frame = tk.Frame(insights_inner, bg=colors.get("surface", "#FFFFFF"))
+                        step_frame.pack(fill="x", pady=1)
+
+                        tk.Label(
+                            step_frame,
+                            text="→",
+                            font=("Segoe UI", 10),
+                            bg=colors.get("surface", "#FFFFFF"),
+                            fg="#22C55E"
+                        ).pack(side="left", padx=(0, 5))
+
+                        tk.Label(
+                            step_frame,
+                            text=step,
+                            font=("Segoe UI", 10),
+                            bg=colors.get("surface", "#FFFFFF"),
+                            fg=colors.get("text_secondary", "#64748B"),
+                            wraplength=600,
+                            justify="left"
+                        ).pack(side="left", anchor="w")
+
+                # Feedback button
+                tk.Button(
+                    insights_inner,
+                    text="💬 Provide Feedback on Insights",
+                    font=("Segoe UI", 10),
+                    bg="#F3F4F6",
+                    fg="#374151",
+                    relief="flat",
+                    cursor="hand2",
+                    command=lambda: self._show_insights_feedback(insights),
+                    padx=15, pady=5
+                ).pack(pady=(15, 0))
+
+            except Exception as e:
+                logging.error(f"Failed to generate AI insights: {e}")
+                # Fallback: show basic insights card
+                fallback_card = tk.Frame(
+                    content,
+                    bg=colors.get("surface", "#FFFFFF"),
+                    highlightbackground="#E5E7EB",
+                    highlightthickness=1
+                )
+                fallback_card.pack(pady=20, padx=20, ipadx=30, ipady=20)
+
+                tk.Label(
+                    fallback_card,
+                    text="AI Insights Unavailable",
+                    font=("Segoe UI", 14, "bold"),
+                    bg=colors.get("surface", "#FFFFFF"),
+                    fg=colors.get("text_secondary", "#64748B")
+                ).pack(pady=10)
+
+                tk.Label(
+                    fallback_card,
+                    text="Personalized insights will be available after more data is collected.",
+                    font=("Segoe UI", 11),
+                    bg=colors.get("surface", "#FFFFFF"),
+                    fg=colors.get("text_secondary", "#64748B"),
+                    wraplength=400
+                ).pack()
+
         # ===== ACTION BUTTONS (Modern, Slim Design) =====
         tk.Label(
             content,
@@ -546,6 +738,7 @@ class ResultsManager:
             ("\U0001f4ca Dashboard", "#14B8A6", self.app.open_dashboard_flow if hasattr(self.app, 'open_dashboard_flow') else None),
             ("\U0001f4c8 Analysis", "#EC4899", self.show_detailed_analysis),
             ("\U0001f916 AI Insights", "#8B5CF6", self.show_ml_analysis if hasattr(self.app, 'ml_predictor') and self.app.ml_predictor else None),
+            ("📝 Daily Journal", "#9C27B0", lambda: self.app.switch_view('journal')),
             ("💼 Satisfaction", "#178240", self.show_satisfaction_survey),
             ("\U0001f4c4 Export PDF", "#06B6D4", self.export_results_pdf),
             ("\U0001f504 Retake Test", "#3B82F6", self.reset_test),

@@ -4,6 +4,11 @@ from tkinter import messagebox
 import time
 
 import os
+import sys
+
+# Add the app directory to the path so we can import i18n_manager
+sys.path.append(os.path.join(os.path.dirname(__file__), 'app'))
+from app.i18n_manager import get_i18n
 
 # ================= DATABASE SETUP =================
 # Use absolute path relative to the project root for consistency
@@ -31,7 +36,24 @@ CREATE TABLE IF NOT EXISTS scores (
     time_taken_seconds INTEGER
 )
 """)
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS app_settings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    key TEXT UNIQUE,
+    value TEXT
+)
+""")
 conn.commit()
+
+# Load language preference
+cursor.execute("SELECT value FROM app_settings WHERE key = 'language'")
+result = cursor.fetchone()
+language = result[0] if result else 'en'
+
+# Initialize i18n manager with saved language
+i18n = get_i18n()
+i18n.switch_language(language)
 
 # ================= QUESTIONS =================
 questions = [
@@ -67,14 +89,14 @@ def compute_analytics(responses, time_taken, total_questions):
 # ================= SPLASH SCREEN =================
 def show_splash():
     splash = tk.Tk()
-    splash.title("SoulSense")
+    splash.title(i18n.get("app_title"))
     splash.geometry("500x300")
     splash.configure(bg="#1E1E2F")
     splash.resizable(False, False)
 
     tk.Label(
         splash,
-        text="SoulSense",
+        text=i18n.get("app_title"),
         font=("Arial", 32, "bold"),
         fg="white",
         bg="#1E1E2F"
@@ -82,7 +104,7 @@ def show_splash():
 
     tk.Label(
         splash,
-        text="Emotional Awareness Assessment",
+        text=i18n.get("welcome_message"),
         font=("Arial", 14),
         fg="#CCCCCC",
         bg="#1E1E2F"
@@ -90,7 +112,7 @@ def show_splash():
 
     tk.Label(
         splash,
-        text="Loading...",
+        text=i18n.get("quiz.loading", loading="Loading..."),
         font=("Arial", 15),
         fg="white",
         bg="#1E1E2F"
@@ -145,7 +167,7 @@ def start_quiz(username, age):
     total_questions = len(filtered_questions)
 
     quiz = tk.Tk()
-    quiz.title("SoulSense Quiz")
+    quiz.title(i18n.get("app_title") + " " + i18n.get("quiz.question_counter", current=1, total=total_questions).split(" ")[-1])
     quiz.geometry("750x600")
     quiz.resizable(False, False)
 
@@ -167,15 +189,18 @@ def start_quiz(username, age):
 
     update_timer()
 
+    question_counter = tk.Label(quiz, font=("Arial", 12), fg="#666")
+    question_counter.pack(pady=(10, 0))
+
     question_label = tk.Label(quiz, wraplength=700, font=("Arial", 16))
     question_label.pack(pady=20)
 
     options = [
-        ("Strongly Disagree", 1),
-        ("Disagree", 2),
-        ("Neutral", 3),
-        ("Agree", 4),
-        ("Strongly Agree", 5)
+        (i18n.get("quiz.strongly_disagree"), 1),
+        (i18n.get("quiz.disagree"), 2),
+        (i18n.get("quiz.neutral"), 3),
+        (i18n.get("quiz.agree"), 4),
+        (i18n.get("quiz.strongly_agree"), 5)
     ]
 
     for text, val in options:
@@ -188,7 +213,8 @@ def start_quiz(username, age):
         ).pack(anchor="w", padx=60)
 
     def load_question():
-        question_label.config(text=filtered_questions[current_q]["text"])
+        question_counter.config(text=i18n.get("quiz.question_counter", current=current_q+1, total=total_questions))
+        question_label.config(text=i18n.get_question(current_q))
 
     def finish(title):
         elapsed = int(time.time() - start_time)
@@ -209,7 +235,7 @@ def start_quiz(username, age):
         conn.commit()
 
         messagebox.showinfo(
-            title,
+            i18n.get("results.completed"),
             f"Score: {score}\n"
             f"Questions Attempted: {analytics['attempted']}\n"
             f"Time Taken: {elapsed} sec"
@@ -221,7 +247,7 @@ def start_quiz(username, age):
     def next_question():
         nonlocal current_q, score
         if var.get() == 0:
-            messagebox.showwarning("Warning", "Please select an option")
+            messagebox.showwarning(i18n.get("quiz.warning"), i18n.get("errors.select_option"))
             return
 
         responses.append(var.get())
@@ -232,15 +258,15 @@ def start_quiz(username, age):
         if current_q < total_questions:
             load_question()
         else:
-            finish("Quiz Completed")
+            finish(i18n.get("results.completed"))
 
     def stop_test():
-        if messagebox.askyesno("Stop Test", "Stop test and save progress?"):
-            finish("Quiz Stopped")
+        if messagebox.askyesno(i18n.get("quiz.warning"), i18n.get("quiz.stop_test", stop="Stop test and save progress?")):
+            finish(i18n.get("quiz.stopped", stopped="Quiz Stopped"))
 
     tk.Button(
         quiz,
-        text="Next",
+        text=i18n.get("quiz.next"),
         command=next_question,
         bg="#4CAF50",
         fg="white",
@@ -250,7 +276,7 @@ def start_quiz(username, age):
 
     tk.Button(
         quiz,
-        text="Stop Test",
+        text=i18n.get("quiz.stop_test", stop="Stop Test"),
         command=stop_test,
         bg="#E53935",
         fg="white",
