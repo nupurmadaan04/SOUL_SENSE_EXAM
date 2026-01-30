@@ -21,7 +21,8 @@ from api.root_models import (
     MedicalProfile,
     PersonalProfile,
     UserStrengths,
-    UserEmotionalPatterns
+    UserEmotionalPatterns,
+    UserSettings
 )
 
 
