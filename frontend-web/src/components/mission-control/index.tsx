@@ -8,7 +8,6 @@ import { KanbanBoard } from './kanban-board';
 import { DataGrid } from './data-grid';
 import { DataFilters } from './filters';
 import { MissionItem, MissionControlData } from './types';
-import { API_CONFIG } from '@/config/api.config';
 import { MOCK_DASHBOARD_DATA } from '@/lib/dashboard-mock-data';
 
 interface MissionControlProps {

@@ -13,11 +13,18 @@ class AppAuth:
         self.logger = get_logger(__name__)
         self.start_login_flow()
 
+    def _generate_captcha(self):
+        """Generate a random 5-character CAPTCHA code"""
+        import random
+        import string
+        chars = string.ascii_uppercase + string.digits
+        return ''.join(random.choice(chars) for _ in range(5))
+
     def show_login_screen(self):
         """Show login popup on startup"""
         login_win = tk.Toplevel(self.app.root)
         login_win.title("SoulSense Login")
-        login_win.geometry("400x520")
+        login_win.geometry("400x580")  # Increased height for CAPTCHA
         login_win.configure(bg=self.app.colors["bg"])
         login_win.transient(self.app.root)
         login_win.grab_set()
@@ -28,7 +35,7 @@ class AppAuth:
         # Center
         login_win.update_idletasks()
         x = self.app.root.winfo_x() + (self.app.root.winfo_width() - 400) // 2
-        y = self.app.root.winfo_y() + (self.app.root.winfo_height() - 520) // 2
+        y = self.app.root.winfo_y() + (self.app.root.winfo_height() - 580) // 2
         login_win.geometry(f"+{x}+{y}")
 
         # Logo/Title
@@ -37,6 +44,48 @@ class AppAuth:
 
         tk.Label(login_win, text="Login to continue", font=("Segoe UI", 12),
                  bg=self.app.colors["bg"], fg=self.app.colors["text_secondary"]).pack(pady=(0, 30))
+
+        # CAPTCHA Section
+        captcha_frame = tk.Frame(login_win, bg=self.app.colors["bg"])
+        captcha_frame.pack(fill="x", padx=40, pady=(0, 20))
+
+        tk.Label(captcha_frame, text="Security Verification", font=("Segoe UI", 10, "bold"),
+                 bg=self.app.colors["bg"], fg=self.app.colors["text_primary"]).pack(anchor="w")
+
+        # CAPTCHA state
+        captcha_code = [self._generate_captcha()]  # Use list to make it mutable
+
+        # CAPTCHA Display
+        captcha_display_frame = tk.Frame(captcha_frame, bg=self.app.colors["bg"])
+        captcha_display_frame.pack(fill="x", pady=(5, 10))
+
+        captcha_label = tk.Label(captcha_display_frame, text=captcha_code[0],
+                                font=("Courier New", 18, "bold"),
+                                bg="#f0f0f0", fg="#333333", relief="solid", borderwidth=2)
+        captcha_label.pack(side="left", padx=(0, 10), ipady=5, ipadx=20)
+
+        # Refresh CAPTCHA button
+        def refresh_captcha():
+            captcha_code[0] = self._generate_captcha()
+            captcha_label.config(text=captcha_code[0])
+            captcha_entry.delete(0, tk.END)
+            captcha_error_label.config(text="")
+
+        refresh_btn = tk.Button(captcha_display_frame, text="↻", command=refresh_captcha,
+                               font=("Segoe UI", 12), bg=self.app.colors["primary"], fg="white",
+                               width=3, cursor="hand2")
+        refresh_btn.pack(side="left")
+
+        # CAPTCHA Input
+        tk.Label(captcha_frame, text="Enter CAPTCHA code", font=("Segoe UI", 10, "bold"),
+                 bg=self.app.colors["bg"], fg=self.app.colors["text_primary"]).pack(anchor="w", pady=(10, 5))
+        captcha_entry = tk.Entry(captcha_frame, font=("Segoe UI", 12))
+        captcha_entry.pack(fill="x", pady=(0, 5))
+
+        # CAPTCHA Error Label
+        captcha_error_label = tk.Label(captcha_frame, text="", font=("Segoe UI", 9),
+                                      bg=self.app.colors["bg"], fg="red")
+        captcha_error_label.pack(anchor="w")
 
         # Form
         entry_frame = tk.Frame(login_win, bg=self.app.colors["bg"])
@@ -66,11 +115,26 @@ class AppAuth:
         def do_login():
             user = username_entry.get().strip()
             pwd = password_entry.get().strip()
+            captcha_input = captcha_entry.get().strip()
 
             if not user or not pwd:
                 tk.messagebox.showerror("Error", "Please enter username and password")
                 return
 
+            # Validate CAPTCHA first
+            if not captcha_input:
+                captcha_error_label.config(text="Please enter the CAPTCHA code")
+                return
+
+            if captcha_input.upper() != captcha_code[0]:
+                captcha_error_label.config(text="Invalid CAPTCHA. Please try again!")
+                # Regenerate CAPTCHA on failure
+                captcha_code[0] = self._generate_captcha()
+                captcha_label.config(text=captcha_code[0])
+                captcha_entry.delete(0, tk.END)
+                return
+
+            # CAPTCHA is valid, proceed with authentication
             success, msg = self.auth_manager.login_user(user, pwd)
             if success:
                 self.app.username = user
@@ -78,7 +142,11 @@ class AppAuth:
                 login_win.destroy()
                 self._post_login_init()
             else:
-                tk.messagebox.showerror("Login Failed", msg)
+                captcha_error_label.config(text="Invalid username or password.")
+                # Regenerate CAPTCHA on login failure
+                captcha_code[0] = self._generate_captcha()
+                captcha_label.config(text=captcha_code[0])
+                captcha_entry.delete(0, tk.END)
 
         def do_register():
             self.show_signup_screen()
