@@ -111,6 +111,8 @@ def test_app_initialization_verification(mock_get_logger, mock_ui_styles, mock_t
     
     # Setup mocks
     mock_root = MagicMock()
+    mock_root.winfo_screenwidth.return_value = 1920
+    mock_root.winfo_screenheight.return_value = 1080
     
     # Mock styles to populate colors preventing KeyError
     mock_style_instance = MagicMock()

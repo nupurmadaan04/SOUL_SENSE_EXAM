@@ -1,72 +1,78 @@
 import pytest
-from unittest.mock import MagicMock
-from app.ui.auth import AuthManager
+from unittest.mock import MagicMock, patch
+import tkinter as tk
+from app.auth.app_auth import AppAuth, PasswordStrengthMeter
 
-def test_auth_manager_initialization(mock_app):
-    """Verify AuthManager can be initialized with a mock app"""
-    auth = AuthManager(mock_app)
-    assert auth.app == mock_app
+@pytest.fixture
+def mock_app_with_colors(mock_app):
+    """Enhanced mock app with required UI colors"""
+    mock_app.colors = {
+        "bg": "#ffffff",
+        "primary": "#3B82F6",
+        "text_primary": "#0F172A",
+        "text_secondary": "#475569",
+        "surface": "#FFFFFF",
+        "border": "#E2E8F0"
+    }
+    return mock_app
 
-def test_submit_user_info_valid(mock_app, mocker):
-    """Verify submit_user_info proceeds with valid input"""
-    auth = AuthManager(mock_app)
+def test_password_strength_meter(mock_app_with_colors):
+    """Test the PasswordStrengthMeter visual indicator logic"""
+    # Create a real root for widget testing (headless safe via conftest mocks)
+    root = tk.Tk()
+    meter = PasswordStrengthMeter(root, mock_app_with_colors.colors)
     
-    # Mock UI widgets (Entry widgets) using MagicMock
-    auth.username_entry = MagicMock()
-    auth.username_entry.get.return_value = "TestUser"
+    # Test default
+    assert "Password Strength" in meter.label.cget("text")
     
-    auth.age_entry = MagicMock()
-    auth.age_entry.get.return_value = "25"
+    # Test very strong password
+    meter.update_strength("ComplexPass123!")
+    # Score should be high (>=8 chars, upper, lower, digit, special)
+    assert "Strong" in meter.label.cget("text")
     
-    auth.profession_entry = MagicMock()
-    auth.profession_entry.get.return_value = "Engineer"
+    # Test weak password
+    meter.update_strength("abc")
+    assert "Weak" in meter.label.cget("text") or "Too Weak" in meter.label.cget("text")
     
-    # Mock questions list (needed for logging)
-    mock_app.questions = []
-    
-    # Mock helper used inside the method
-    # It imports 'from app.utils import compute_age_group' locally
-    mocker.patch("app.utils.compute_age_group", return_value="25-34")
-    
-    # Mock the loading overlay to prevent Tkinter widget creation
-    mocker.patch("app.ui.components.loading_overlay.show_loading", return_value=MagicMock())
-    
-    # Call the method
-    auth.submit_user_info()
-    
-    # Verify app data was updated
-    assert mock_app.username == "TestUser"
-    assert mock_app.age == 25
-    assert mock_app.age_group == "25-34"
-    assert mock_app.profession == "Engineer"
-    
-    # Verify it called start_test (not start_exam_flow)
-    assert mock_app.start_test.called
+    root.destroy()
 
-def test_submit_user_info_invalid_age(mock_app, mocker):
-    """Verify error handling for invalid age"""
-    auth = AuthManager(mock_app)
-    
-    # Mock inputs
-    auth.username_entry = MagicMock()
-    auth.username_entry.get.return_value = "TestUser"
-    
-    auth.age_entry = MagicMock()
-    auth.age_entry.get.return_value = "not_a_number" 
-    
-    auth.profession_entry = MagicMock()
-    auth.profession_entry.get.return_value = "Engineer"
+def test_app_auth_initialization(mock_app_with_colors):
+    """Verify AppAuth can be initialized and triggers start flow"""
+    # Prevent the delayed Tcl call from firing during test
+    with patch("app.auth.app_auth.AppAuth.start_login_flow") as mock_start:
+        auth = AppAuth(mock_app_with_colors)
+        assert auth.app == mock_app_with_colors
+        assert auth.auth_manager is not None
+        assert mock_start.called
 
-    # Mock message box module to intercept all calls
-    from unittest.mock import patch
-    with patch("tkinter.messagebox") as mock_mb:
-        # Call method
-        auth.submit_user_info()
+@patch("tkinter.Toplevel")
+def test_show_login_screen_creation(mock_toplevel, mock_app_with_colors):
+    """Verify show_login_screen creates a Toplevel window with correct properties"""
+    # Mock root methods used during window creation
+    mock_app_with_colors.root.winfo_x.return_value = 0
+    mock_app_with_colors.root.winfo_y.return_value = 0
+    mock_app_with_colors.root.winfo_width.return_value = 1000
+    mock_app_with_colors.root.winfo_height.return_value = 800
+    
+    with patch("app.auth.app_auth.AppAuth.start_login_flow"):
+        auth = AppAuth(mock_app_with_colors)
+        auth.show_login_screen()
         
-        # Verify error was shown
-        assert mock_mb.showwarning.called
-        args, _ = mock_mb.showwarning.call_args
-        assert args[0] == "Invalid Age" or "invalid number" in args[1]
+        assert mock_toplevel.called
+        # Verify the window was made transient and modal
+        window_mock = mock_toplevel.return_value
+        assert window_mock.transient.called
+        assert window_mock.grab_set.called
+
+@patch("tkinter.Toplevel")
+def test_show_signup_screen_creation(mock_toplevel, mock_app_with_colors):
+    """Verify signup screen creation"""
+    mock_app_with_colors.root.winfo_x.return_value = 0
+    mock_app_with_colors.root.winfo_y.return_value = 0
+    mock_app_with_colors.root.winfo_width.return_value = 1000
+    mock_app_with_colors.root.winfo_height.return_value = 800
     
-    # Verify flow did NOT proceed
-    assert not mock_app.start_test.called
+    with patch("app.auth.app_auth.AppAuth.start_login_flow"):
+        auth = AppAuth(mock_app_with_colors)
+        auth.show_signup_screen()
+        assert mock_toplevel.called

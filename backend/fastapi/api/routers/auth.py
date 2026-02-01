@@ -1,14 +1,17 @@
 from datetime import timedelta
 from typing import Annotated
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request, Response
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 
 from ..config import get_settings
-from ..schemas import UserCreate, Token, UserResponse
+from ..schemas import UserCreate, Token, UserResponse, ErrorResponse
 from ..services.db_service import get_db
 from ..services.auth_service import AuthService
-from api.root_models import User, PersonalProfile
+from ..constants.errors import ErrorCode
+from ..constants.security_constants import REFRESH_TOKEN_EXPIRE_DAYS
+from ..exceptions import AuthException
+from api.root_models import User
 from sqlalchemy.orm import Session
 
 router = APIRouter()
@@ -41,56 +44,20 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: Se
     return user
 
 
-@router.post("/register", response_model=UserResponse)
+@router.post("/register", response_model=UserResponse, responses={400: {"model": ErrorResponse}, 500: {"model": ErrorResponse}})
 async def register(user: UserCreate, auth_service: AuthService = Depends()):
-    # 1. Normalize identifiers
-    username_lower = user.username.lower()
-    email_lower = user.email.lower()
-
-    # 2. Check if username already exists
-    if auth_service.db.query(User).filter(User.username == username_lower).first():
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Identifier already in use")
-
-    # 3. Check if email already exists in PersonalProfile
-    if auth_service.db.query(PersonalProfile).filter(PersonalProfile.email == email_lower).first():
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Identifier already in use")
-
-    # 4. Create new user and profile in a transaction
-    try:
-        hashed_pw = auth_service.hash_password(user.password)
-        new_user = User(
-            username=username_lower,
-            password_hash=hashed_pw
-        )
-        auth_service.db.add(new_user)
-        auth_service.db.flush()  # Flush to get new_user.id for profile
-
-        new_profile = PersonalProfile(
-            user_id=new_user.id,
-            email=email_lower,
-            first_name=user.first_name,
-            last_name=user.last_name,
-            age=user.age,
-            gender=user.gender
-        )
-        auth_service.db.add(new_profile)
-        
-        auth_service.db.commit()
-        auth_service.db.refresh(new_user)
-        
-        return UserResponse(
-            id=new_user.id, 
-            username=new_user.username, 
-            created_at=new_user.created_at,
-            last_login=new_user.last_login
-        )
-    except Exception as e:
-        auth_service.db.rollback()
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Registration failed: {str(e)}")
+    new_user = auth_service.register_user(user)
+    return UserResponse(
+        id=new_user.id, 
+        username=new_user.username, 
+        created_at=new_user.created_at,
+        last_login=new_user.last_login
+    )
 
 
-@router.post("/login", response_model=Token)
+@router.post("/login", response_model=Token, responses={401: {"model": ErrorResponse}})
 async def login(
+    response: Response,
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()], 
     request: Request,
     auth_service: AuthService = Depends()
@@ -98,18 +65,64 @@ async def login(
     ip = request.client.host
     user = auth_service.authenticate_user(form_data.username, form_data.password, ip_address=ip)
     
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    
     access_token = auth_service.create_access_token(
-        data={"sub": user.username},
-        expires_delta=timedelta(hours=settings.jwt_expiration_hours)
+        data={"sub": user.username}
     )
-    return Token(access_token=access_token, token_type="bearer")
+    
+    refresh_token = auth_service.create_refresh_token(user.id)
+    
+    # Set refresh token in HttpOnly cookie
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=False, # Set to True in production with HTTPS
+        samesite="lax",
+        max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60
+    )
+    
+    return Token(access_token=access_token, token_type="bearer", refresh_token=refresh_token)
+
+
+@router.post("/refresh", response_model=Token)
+async def refresh(
+    request: Request,
+    response: Response,
+    auth_service: AuthService = Depends()
+):
+    refresh_token = request.cookies.get("refresh_token")
+    if not refresh_token:
+        raise AuthException(
+            code=ErrorCode.AUTH_INVALID_TOKEN,
+            message="Refresh token missing"
+        )
+        
+    access_token, new_refresh_token = auth_service.refresh_access_token(refresh_token)
+    
+    response.set_cookie(
+        key="refresh_token",
+        value=new_refresh_token,
+        httponly=True,
+        secure=False,
+        samesite="lax",
+        max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60
+    )
+    
+    return Token(access_token=access_token, token_type="bearer", refresh_token=new_refresh_token)
+
+
+@router.post("/logout")
+async def logout(
+    request: Request,
+    response: Response,
+    auth_service: AuthService = Depends()
+):
+    refresh_token = request.cookies.get("refresh_token")
+    if refresh_token:
+        auth_service.revoke_refresh_token(refresh_token)
+        
+    response.delete_cookie("refresh_token")
+    return {"message": "Logged out successfully"}
 
 
 @router.get("/me", response_model=UserResponse)

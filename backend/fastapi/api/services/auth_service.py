@@ -1,7 +1,11 @@
 from datetime import datetime, timedelta, timezone
-from typing import Optional, Dict
 import logging
 import secrets
+import hashlib
+from typing import Optional, Dict, TYPE_CHECKING, Tuple
+
+if TYPE_CHECKING:
+    from ..schemas import UserCreate
 
 from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm import Session
@@ -9,8 +13,11 @@ from sqlalchemy.exc import OperationalError
 import bcrypt
 
 from .db_service import get_db
-from app.models import User, LoginAttempt, PersonalProfile
+from ..root_models import User, LoginAttempt, PersonalProfile, RefreshToken
 from ..config import get_settings
+from ..constants.errors import ErrorCode
+from ..constants.security_constants import BCRYPT_ROUNDS, REFRESH_TOKEN_EXPIRE_DAYS
+from ..exceptions import AuthException
 
 settings = get_settings()
 
@@ -22,7 +29,7 @@ class AuthService:
 
     def hash_password(self, password: str) -> str:
         """Hash a password for storing."""
-        salt = bcrypt.gensalt()
+        salt = bcrypt.gensalt(rounds=BCRYPT_ROUNDS)
         pwd_bytes = password.encode('utf-8')
         return bcrypt.hashpw(pwd_bytes, salt).decode('utf-8')
 
@@ -65,12 +72,18 @@ class AuthService:
             # Dummy verify to consume time
             self.verify_password("dummy", "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW")
             self._record_login_attempt(identifier_lower, False, ip_address)
-            return None
+            raise AuthException(
+                code=ErrorCode.AUTH_INVALID_CREDENTIALS,
+                message="Incorrect username or password"
+            )
 
         # 5. Verify password
         if not self.verify_password(password, user.password_hash):
             self._record_login_attempt(identifier_lower, False, ip_address)
-            return None
+            raise AuthException(
+                code=ErrorCode.AUTH_INVALID_CREDENTIALS,
+                message="Incorrect username or password"
+            )
         
         # 6. Success - Update last login & Audit
         self._record_login_attempt(identifier_lower, True, ip_address)
@@ -137,3 +150,126 @@ class AuthService:
             # Audit logging failure should not block the user, but should be logged
             self.db.rollback()
             logger.error(f"Failed to record login attempt: {e}")
+
+    def register_user(self, user_data: 'UserCreate') -> User:
+        """
+        Register a new user and their personal profile.
+        Standardizes identifiers and validates uniqueness.
+        """
+        from ..exceptions import APIException
+        from ..constants.errors import ErrorCode
+
+        username_lower = user_data.username.lower().strip()
+        email_lower = user_data.email.lower().strip()
+
+        # Check uniqueness
+        if self.db.query(User).filter(User.username == username_lower).first():
+            raise APIException(
+                code=ErrorCode.REG_USERNAME_EXISTS,
+                message="Username already taken",
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+
+        if self.db.query(PersonalProfile).filter(PersonalProfile.email == email_lower).first():
+            raise APIException(
+                code=ErrorCode.REG_EMAIL_EXISTS,
+                message="Email already registered",
+                status_code=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            hashed_pw = self.hash_password(user_data.password)
+            new_user = User(
+                username=username_lower,
+                password_hash=hashed_pw
+            )
+            self.db.add(new_user)
+            self.db.flush()
+
+            new_profile = PersonalProfile(
+                user_id=new_user.id,
+                email=email_lower,
+                first_name=user_data.first_name,
+                last_name=user_data.last_name,
+                age=user_data.age,
+                gender=user_data.gender
+            )
+            self.db.add(new_profile)
+            
+            self.db.commit()
+            self.db.refresh(new_user)
+            return new_user
+        except Exception as e:
+            self.db.rollback()
+            logger.error(f"Registration failed: {e}")
+            raise APIException(
+                code=ErrorCode.REG_INVALID_DATA,
+                message="Could not complete registration",
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    def create_refresh_token(self, user_id: int) -> str:
+        """
+        Generate a secure refresh token, hash it, and store it in the DB.
+        """
+        token = secrets.token_urlsafe(32)
+        token_hash = hashlib.sha256(token.encode()).hexdigest()
+        
+        expires_at = datetime.now(timezone.utc) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+        
+        db_token = RefreshToken(
+            user_id=user_id,
+            token_hash=token_hash,
+            expires_at=expires_at
+        )
+        self.db.add(db_token)
+        self.db.commit()
+        
+        return token
+
+    def refresh_access_token(self, refresh_token: str) -> Tuple[str, str]:
+        """
+        Validate a refresh token and return a new access token + new refresh token (Rotation).
+        """
+        token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
+        
+        db_token = self.db.query(RefreshToken).filter(
+            RefreshToken.token_hash == token_hash,
+            RefreshToken.is_revoked == False,
+            RefreshToken.expires_at > datetime.now(timezone.utc)
+        ).first()
+        
+        if not db_token:
+            # Security: If an invalid token is used, log it as a potential attack
+            logger.warning(f"Invalid refresh token attempt: {token_hash[:8]}...")
+            raise AuthException(
+                code=ErrorCode.AUTH_INVALID_TOKEN,
+                message="Invalid or expired refresh token"
+            )
+            
+        # Token Rotation: Invalidate the current one immediately
+        db_token.is_revoked = True
+        self.db.commit()
+        
+        # Get user
+        user = self.db.query(User).filter(User.id == db_token.user_id).first()
+        if not user:
+             raise AuthException(
+                code=ErrorCode.AUTH_INVALID_TOKEN,
+                message="User associated with token no longer exists"
+            )
+            
+        # Create new tokens
+        access_token = self.create_access_token(data={"sub": user.username})
+        new_refresh_token = self.create_refresh_token(user.id)
+        
+        return access_token, new_refresh_token
+
+    def revoke_refresh_token(self, refresh_token: str) -> None:
+        """Manually revoke a refresh token (e.g., on logout)."""
+        token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
+        db_token = self.db.query(RefreshToken).filter(RefreshToken.token_hash == token_hash).first()
+        if db_token:
+            db_token.is_revoked = True
+            self.db.commit()
+            logger.info(f"Revoked refresh token for user_id={db_token.user_id}")

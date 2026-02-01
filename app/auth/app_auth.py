@@ -125,7 +125,7 @@ class AppAuth:
                 tk.messagebox.showerror("Error", "Please enter username and password")
                 return
 
-            success, msg = self.auth_manager.login_user(user, pwd)
+            success, msg, _ = self.auth_manager.login_user(user, pwd)
             if success:
                 self.app.username = user
                 self._load_user_settings(user)
@@ -337,7 +337,7 @@ class AppAuth:
                 return
 
             # Register user
-            success, msg = self.auth_manager.register_user(username, email, first_name, last_name, age, gender, password)
+            success, msg, _ = self.auth_manager.register_user(username, email, first_name, last_name, age, gender, password)
             if success:
                 tk.messagebox.showinfo("Success", "Account created successfully! You can now login.")
                 signup_win.destroy()

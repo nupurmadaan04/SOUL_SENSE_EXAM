@@ -36,6 +36,8 @@ PersonalProfile = _models_module.PersonalProfile
 UserStrengths = _models_module.UserStrengths
 UserEmotionalPatterns = _models_module.UserEmotionalPatterns
 UserSyncSetting = _models_module.UserSyncSetting
+LoginAttempt = _models_module.LoginAttempt
+RefreshToken = _models_module.RefreshToken
 
 # Export all for easy discovery
 __all__ = [
@@ -52,4 +54,6 @@ __all__ = [
     'UserStrengths',
     'UserEmotionalPatterns',
     'UserSyncSetting',
+    'LoginAttempt',
+    'RefreshToken',
 ]

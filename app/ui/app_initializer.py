@@ -46,8 +46,20 @@ class AppInitializer:
         self.app.ui_styles.apply_theme("TERMINAL")  # Terminal-inspired theme
 
         # Fonts (Terminal-style monospace) - responsive sizing
-        # Scale fonts based on screen size for better readability
-        font_scale = min(screen_width / 1920, screen_height / 1080, 1.0)  # Base on 1920x1080
+        # Scale fonts based on screen size for better readability. 
+        # Use getattr with defaults to survive headless/mock environments.
+        def get_dim(method_name, default):
+            try:
+                val = getattr(self.app.root, method_name)()
+                return int(val) if val and str(val).isdigit() else default
+            except Exception:
+                return default
+
+        w = get_dim("winfo_screenwidth", 1920)
+        h = get_dim("winfo_screenheight", 1080)
+        
+        # Calculate scale, bounded to reasonable limits
+        font_scale = min(max(w / 1920, 0.5), max(h / 1080, 0.5), 1.2)
         
         base_h1 = max(16, int(20 * font_scale))
         base_h2 = max(14, int(16 * font_scale))

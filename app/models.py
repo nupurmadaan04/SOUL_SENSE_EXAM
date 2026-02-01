@@ -40,6 +40,7 @@ class User(Base):
     strengths = relationship("UserStrengths", uselist=False, back_populates="user", cascade="all, delete-orphan")
     emotional_patterns = relationship("UserEmotionalPatterns", uselist=False, back_populates="user", cascade="all, delete-orphan")
     sync_settings = relationship("UserSyncSetting", back_populates="user", cascade="all, delete-orphan")
+    refresh_tokens = relationship("RefreshToken", back_populates="user", cascade="all, delete-orphan")
 
 
 class LoginAttempt(Base):
@@ -54,6 +55,25 @@ class LoginAttempt(Base):
     ip_address = Column(String)
     timestamp = Column(DateTime, default=datetime.utcnow)
     is_successful = Column(Boolean)
+
+
+class RefreshToken(Base):
+    """
+    Persistent storage for JWT refresh tokens.
+    Enables long-lived sessions with high security via:
+    - Token Rotation: New refresh token issued on every use.
+    - Revocation: Ability to kill sessions remotely.
+    """
+    __tablename__ = 'refresh_tokens'
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id'), index=True, nullable=False)
+    token_hash = Column(String, unique=True, index=True, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    expires_at = Column(DateTime, nullable=False)
+    is_revoked = Column(Boolean, default=False)
+    
+    user = relationship("User", back_populates="refresh_tokens")
 
 
 class UserSyncSetting(Base):

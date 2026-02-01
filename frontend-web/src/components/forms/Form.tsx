@@ -7,7 +7,7 @@ import { z } from 'zod';
 
 interface FormProps<T extends FieldValues> extends UseFormProps<T> {
   schema: z.ZodSchema<T>;
-  onSubmit: (data: T) => void | Promise<void>;
+  onSubmit: (data: T, methods: UseFormReturn<T>) => void | Promise<void>;
   children: (methods: UseFormReturn<T>) => React.ReactNode;
   className?: string;
 }
@@ -26,7 +26,7 @@ export function Form<T extends FieldValues>({
 
   const handleSubmit = methods.handleSubmit(async (data) => {
     try {
-      await onSubmit(data);
+      await onSubmit(data, methods);
     } catch (error) {
       console.error('Form submission error:', error);
     }

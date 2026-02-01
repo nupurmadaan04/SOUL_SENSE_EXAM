@@ -32,17 +32,17 @@ class AuthManager:
     def register_user(self, username, email, first_name, last_name, age, gender, password):
         # Enhanced validation
         if len(username) < 3:
-            return False, "Username must be at least 3 characters"
+            return False, "Username must be at least 3 characters", "REG003"
         if len(first_name) < 1:
-            return False, "First name is required"
+            return False, "First name is required", "REG004"
         if len(password) < 8:
-            return False, "Password must be at least 8 characters"
+            return False, "Password must be at least 8 characters", "REG005"
         if not self._validate_password_strength(password):
-            return False, "Password must contain uppercase, lowercase, number and special character"
+            return False, "Password must contain uppercase, lowercase, number and special character", "REG006"
         if age < 13 or age > 120:
-            return False, "Age must be between 13 and 120"
+            return False, "Age must be between 13 and 120", "REG007"
         if gender not in ["Male", "Female", "Other", "Prefer not to say"]:
-            return False, "Invalid gender selection"
+            return False, "Invalid gender selection", "REG008"
 
         session = get_session()
         try:
@@ -52,12 +52,12 @@ class AuthManager:
 
             # 2. Check if username already exists
             if session.query(User).filter(User.username == username_lower).first():
-                return False, "Identifier already in use"
+                return False, "Username already taken", "REG001"
 
             # 3. Check if email already exists
             from app.models import PersonalProfile
             if session.query(PersonalProfile).filter(PersonalProfile.email == email_lower).first():
-                return False, "Identifier already in use"
+                return False, "Email already registered", "REG002"
 
             password_hash = self.hash_password(password)
             
@@ -83,19 +83,19 @@ class AuthManager:
             session.add(profile)
             
             session.commit()
-            return True, "Registration successful"
+            return True, "Registration successful", None
 
         except Exception as e:
             session.rollback()
             logging.error(f"Registration failed: {e}")
-            return False, "Registration failed"
+            return False, "Registration failed", "REG009"
         finally:
             session.close()
 
     def login_user(self, identifier, password):
         # Check rate limiting
         if self._is_locked_out(identifier):
-            return False, "Account temporarily locked due to failed attempts"
+            return False, "Account temporarily locked due to failed attempts", "AUTH002"
 
         session = get_session()
         try:
@@ -125,15 +125,15 @@ class AuthManager:
                     
                 self.current_user = user.username # Return canonical username
                 self._generate_session_token()
-                return True, "Login successful"
+                return True, "Login successful", None
             else:
                 self._record_login_attempt(session, id_lower, False)
                 session.commit()
-                return False, "Invalid credentials"
+                return False, "Incorrect username or password", "AUTH001"
 
         except Exception as e:
             logging.error(f"Login failed: {e}")
-            return False, "Login failed"
+            return False, "Internal error occurred", "GLB001"
         finally:
             session.close()
 

@@ -53,14 +53,34 @@ def create_app() -> FastAPI:
     # Register Health endpoints at root level for orchestration
     app.include_router(health_router, tags=["Health"])
 
+    from .exceptions import APIException
+    from .constants.errors import ErrorCode
+
+    @app.exception_handler(APIException)
+    async def api_exception_handler(request: Request, exc: APIException):
+        return JSONResponse(
+            status_code=exc.status_code,
+            content=exc.detail
+        )
+
     @app.exception_handler(Exception)
     async def global_exception_handler(request: Request, exc: Exception):
         import traceback
-        print(f"[ERROR] GLOBAL EXCEPTION: {exc}")
+        import logging
+        logger = logging.getLogger("api.main")
+        logger.error(f"Global Exception: {exc}")
         traceback.print_exc()
+        
+        # Don't leak raw exception info in production
+        error_msg = str(exc) if settings.debug else "An unexpected error occurred"
+        
         return JSONResponse(
             status_code=500,
-            content={"detail": "Internal Server Error", "error": str(exc)}
+            content={
+                "code": ErrorCode.INTERNAL_SERVER_ERROR.value,
+                "message": "Internal Server Error",
+                "details": {"error": error_msg} if settings.debug else None
+            }
         )
 
     # Root endpoint - version discovery

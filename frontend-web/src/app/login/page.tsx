@@ -9,6 +9,7 @@ import { Button, Input } from '@/components/ui';
 import { AuthLayout, SocialLogin } from '@/components/auth';
 import { loginSchema } from '@/lib/validation';
 import { z } from 'zod';
+import { UseFormReturn } from 'react-hook-form';
 
 type LoginFormData = z.infer<typeof loginSchema>;
 
@@ -16,7 +17,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = async (data: LoginFormData) => {
+  const handleSubmit = async (data: LoginFormData, methods: UseFormReturn<LoginFormData>) => {
     setIsLoading(true);
     try {
       const formData = new URLSearchParams();
@@ -33,7 +34,16 @@ export default function LoginPage() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.detail || 'Login failed');
+        const code = errorData.detail?.code;
+
+        // Map login-specific error codes
+        if (code === 'AUTH001') {
+          methods.setError('identifier', { message: 'Invalid username/email or password' });
+          return;
+        }
+
+        const errorMessage = errorData.detail?.message || errorData.detail || 'Login failed';
+        throw new Error(errorMessage);
       }
 
       const result = await response.json();

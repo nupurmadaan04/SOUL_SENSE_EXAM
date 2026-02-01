@@ -46,6 +46,7 @@ class Token(BaseModel):
     """Schema for JWT token response."""
     access_token: str
     token_type: str
+    refresh_token: Optional[str] = None
 
 
 class TokenData(BaseModel):
@@ -61,6 +62,21 @@ class UserResponse(BaseModel):
     last_login: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class FieldError(BaseModel):
+    """Schema for individual field validation errors."""
+    field: str
+    message: str
+    code: Optional[str] = None
+
+
+class ErrorResponse(BaseModel):
+    """Standardized error response for the entire API."""
+    code: str = Field(..., description="Machine-readable error code (e.g., AUTH001)")
+    message: str = Field(..., description="Human-readable error message")
+    details: Optional[Dict[str, Any]] = Field(None, description="Additional context or debugging info")
+    fields: Optional[List[FieldError]] = Field(None, description="Granular field-level errors for forms")
 
 
 # ============================================================================

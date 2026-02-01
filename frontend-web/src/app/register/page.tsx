@@ -9,6 +9,7 @@ import { Button, Input } from '@/components/ui';
 import { AuthLayout, SocialLogin, PasswordStrengthIndicator } from '@/components/auth';
 import { registrationSchema } from '@/lib/validation';
 import { z } from 'zod';
+import { UseFormReturn } from 'react-hook-form';
 
 type RegisterFormData = z.infer<typeof registrationSchema>;
 
@@ -17,7 +18,7 @@ export default function RegisterPage() {
 
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = async (data: RegisterFormData) => {
+  const handleSubmit = async (data: RegisterFormData, methods: UseFormReturn<RegisterFormData>) => {
     setIsLoading(true);
     try {
       const response = await fetch('http://localhost:8000/api/v1/auth/register', {
@@ -38,7 +39,20 @@ export default function RegisterPage() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.detail || 'Registration failed');
+        const code = errorData.detail?.code;
+
+        // Map backend ErrorCodes to specific form fields
+        if (code === 'REG001') {
+          methods.setError('username', { message: 'Username already taken' });
+          return;
+        }
+        if (code === 'REG002') {
+          methods.setError('email', { message: 'Email already registered' });
+          return;
+        }
+
+        const errorMessage = errorData.detail?.message || errorData.detail || 'Registration failed';
+        throw new Error(errorMessage);
       }
 
       const result = await response.json();
@@ -46,6 +60,7 @@ export default function RegisterPage() {
       window.location.href = '/login?registered=true';
     } catch (error) {
       console.error('Registration error:', error);
+      // Fallback to alert for global or unexpected errors
       alert(error instanceof Error ? error.message : 'Registration failed');
     } finally {
       setIsLoading(false);

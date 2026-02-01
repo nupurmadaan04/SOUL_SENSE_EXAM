@@ -21,10 +21,10 @@ GENDERED_TERMS = [
 
 # Files/Directories to exclude
 EXCLUDE_DIRS = [
-    '.git', '__pycache__', 'venv', 'env', '.pytest_cache', 
+    '.git', '__pycache__', 'venv', 'env', '.venv', '.pytest_cache', 
     'scripts/check_gender_bias.py',  # Exclude this script itself
     'logs', 'migrations', 'frontend-web', 'mobile-app', 
-    '.mypy_cache', 'SOUL_SENSE_EXAM', 'soulsense_db'
+    '.mypy_cache', 'SOUL_SENSE_EXAM', 'soulsense_db', 'backend', 'tests'
 ]
 
 EXCLUDE_FILES = [
@@ -102,6 +102,9 @@ def scan_codebase(root_dir):
             if not file.endswith(('.py', '.txt', '.md', '.json', '.html', '.js', '.css')):
                 continue
 
+            # DEBUG: Print file being scanned
+            print(f"Scanning: {filepath}")
+            
             files_scanned += 1
             issues = check_file(filepath)
             if issues:
@@ -119,7 +122,8 @@ def main():
     if issues:
         print("\n\033[91mFound potential gendered terms:\033[0m")
         for filepath, file_issues in issues.items():
-            print(f"\nFile: {filepath}")
+            abs_path = os.path.abspath(filepath)
+            print(f"\nFile: {abs_path}")
             for line_num, term, content in file_issues:
                 clean_term = term.replace(r'\b', '')
                 print(f"  Line {line_num}: Found '{clean_term}' -> \"{content}\"")
