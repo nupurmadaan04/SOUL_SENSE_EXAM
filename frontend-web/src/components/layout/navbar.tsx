@@ -14,10 +14,13 @@ const navigation = [
   { name: 'About', href: '#about' },
 ];
 
+import { useAuth } from '@/hooks/useAuth';
+
 export function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
   const { setTheme, theme } = useTheme();
   const [mounted, setMounted] = React.useState(false);
+  const { isAuthenticated, logout } = useAuth();
 
   React.useEffect(() => setMounted(true), []);
 
@@ -81,18 +84,30 @@ export function Navbar() {
               {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
             </Button>
           )}
-          <Link
-            href="/login"
-            className="text-sm font-semibold leading-6 text-foreground hover:text-primary transition-colors"
-          >
-            Log in
-          </Link>
-          <Button
-            asChild
-            className="rounded-full px-6 bg-gradient-to-r from-primary to-secondary hover:opacity-90 transition-opacity"
-          >
-            <Link href="/register">Get Started</Link>
-          </Button>
+          {isAuthenticated ? (
+            <Button
+              variant="ghost"
+              onClick={logout}
+              className="text-sm font-semibold leading-6 text-foreground hover:text-primary transition-colors"
+            >
+              Logout
+            </Button>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                className="text-sm font-semibold leading-6 text-foreground hover:text-primary transition-colors"
+              >
+                Log in
+              </Link>
+              <Button
+                asChild
+                className="rounded-full px-6 bg-gradient-to-r from-primary to-secondary hover:opacity-90 transition-opacity"
+              >
+                <Link href="/register">Get Started</Link>
+              </Button>
+            </>
+          )}
         </div>
       </nav>
 
@@ -139,20 +154,36 @@ export function Navbar() {
                     ))}
                   </div>
                   <div className="py-6 flex flex-col gap-4">
-                    <Link
-                      href="/login"
-                      className="-mx-3 block rounded-lg px-3 py-2.5 text-base font-semibold leading-7 text-foreground hover:bg-accent transition-all"
-                    >
-                      Log in
-                    </Link>
-                    <Button
-                      className="w-full rounded-full bg-gradient-to-r from-primary to-secondary"
-                      asChild
-                    >
-                      <Link href="/register" onClick={() => setMobileMenuOpen(false)}>
-                        Get Started
-                      </Link>
-                    </Button>
+                    {isAuthenticated ? (
+                      <Button
+                        variant="ghost"
+                        className="justify-start -mx-3 px-3 py-2.5 text-base font-semibold leading-7"
+                        onClick={() => {
+                          logout();
+                          setMobileMenuOpen(false);
+                        }}
+                      >
+                        Logout
+                      </Button>
+                    ) : (
+                      <>
+                        <Link
+                          href="/login"
+                          className="-mx-3 block rounded-lg px-3 py-2.5 text-base font-semibold leading-7 text-foreground hover:bg-accent transition-all"
+                          onClick={() => setMobileMenuOpen(false)}
+                        >
+                          Log in
+                        </Link>
+                        <Button
+                          className="w-full rounded-full bg-gradient-to-r from-primary to-secondary"
+                          asChild
+                        >
+                          <Link href="/register" onClick={() => setMobileMenuOpen(false)}>
+                            Get Started
+                          </Link>
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>

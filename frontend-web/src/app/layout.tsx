@@ -19,6 +19,8 @@ export const metadata: Metadata = {
   ],
 };
 
+import { AuthProvider } from '@/hooks/useAuth';
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
@@ -29,8 +31,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           enableSystem
           disableTransitionOnChange
         >
-          <NavbarController />
-          {children}
+          <AuthProvider>
+            <NavbarController />
+            {children}
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>
