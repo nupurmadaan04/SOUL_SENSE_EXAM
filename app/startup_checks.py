@@ -51,6 +51,14 @@ REQUIRED_TABLES: List[str] = [
     "responses",
     "journal_entries",
     "user_settings",
+    "personal_profiles",
+    "medical_profiles",
+    "user_strengths",
+    "user_emotional_patterns",
+    "login_attempts",
+    "user_sync_settings",
+    "question_bank",
+    "question_category"
 ]
 
 

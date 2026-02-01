@@ -6,6 +6,51 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from app.main import SoulSenseApp
 
+class PasswordStrengthMeter(tk.Frame):
+    """A visual indicator for password strength."""
+    def __init__(self, parent, colors, **kwargs):
+        super().__init__(parent, bg=colors["bg"], **kwargs)
+        self.colors = colors
+        
+        # Labels and segments container
+        self.segments_frame = tk.Frame(self, bg=colors["bg"])
+        self.segments_frame.pack(fill="x", pady=(5, 0))
+        
+        # 5 segments for 5 levels
+        self.segments = []
+        for _ in range(5):
+            seg = tk.Frame(self.segments_frame, height=4, width=40, bg="#E0E0E0")
+            seg.pack(side="left", padx=1, expand=True, fill="x")
+            self.segments.append(seg)
+            
+        self.label = tk.Label(self, text="Password Strength", font=("Segoe UI", 9), 
+                             bg=colors["bg"], fg=colors["text_secondary"])
+        self.label.pack(anchor="w")
+
+    def update_strength(self, password):
+        score = 0
+        if len(password) >= 8: score += 1
+        if any(c.isupper() for c in password): score += 1
+        if any(c.islower() for c in password): score += 1
+        if any(c.isdigit() for c in password): score += 1
+        if any(not c.isalnum() for c in password): score += 1
+        
+        # Colors: Gray, Red, Orange, Gold, YellowGreen, Green
+        strength_colors = ["#E0E0E0", "#EF4444", "#F59E0B", "#FBBF24", "#84CC16", "#10B981"]
+        strength_texts = ["Too Weak", "Weak", "Fair", "Good", "Strong", "Very Strong"]
+        
+        color = strength_colors[score]
+        text = strength_texts[score]
+        
+        # Update segments
+        for i in range(5):
+            if i < score:
+                self.segments[i].configure(bg=color)
+            else:
+                self.segments[i].configure(bg="#E0E0E0")
+                
+        self.label.configure(text=f"Strength: {text}", fg=color if score > 0 else self.colors["text_secondary"])
+
 class AppAuth:
     def __init__(self, app: 'SoulSenseApp'):
         self.app = app
@@ -51,7 +96,7 @@ class AppAuth:
         entry_frame = tk.Frame(login_win, bg=self.app.colors["bg"])
         entry_frame.pack(fill="x", padx=40)
 
-        tk.Label(entry_frame, text="Username", font=("Segoe UI", 10, "bold"),
+        tk.Label(entry_frame, text="Email or Username", font=("Segoe UI", 10, "bold"),
                  bg=self.app.colors["bg"], fg=self.app.colors["text_primary"]).pack(anchor="w")
         username_entry = tk.Entry(entry_frame, font=("Segoe UI", 12))
         username_entry.pack(fill="x", pady=(5, 15))
@@ -96,6 +141,9 @@ class AppAuth:
         tk.Button(login_win, text="Login", command=do_login,
                  font=("Segoe UI", 12, "bold"), bg=self.app.colors["primary"], fg="white",
                  width=20).pack(pady=10)
+                 
+        # Keyboard usability: Bind Enter to login
+        login_win.bind("<Return>", lambda e: do_login())
 
         tk.Button(login_win, text="Create Account", command=do_register,
                  font=("Segoe UI", 10), bg=self.app.colors["bg"], fg=self.app.colors["primary"],
@@ -159,114 +207,73 @@ class AppAuth:
         form_frame = tk.Frame(form_container, bg=self.app.colors.get("surface", "#FFFFFF"))
         form_frame.pack(fill="both", expand=True, padx=20, pady=15)
 
-        # Configure grid weights for responsive layout
+        # Configuration grid weights for responsive layout
         form_frame.grid_columnconfigure(0, weight=1)
         form_frame.grid_columnconfigure(1, weight=1)
 
-        # Name field (row 0, column 0)
-        name_frame = tk.Frame(form_frame, bg=self.app.colors.get("surface", "#FFFFFF"))
-        name_frame.grid(row=0, column=0, sticky="ew", padx=(0, 5), pady=(0, 10))
+        # Row 0: First Name & Last Name
+        fn_frame = tk.Frame(form_frame, bg=self.app.colors.get("surface", "#FFFFFF"))
+        fn_frame.grid(row=0, column=0, sticky="ew", padx=(0, 5), pady=(0, 8))
+        tk.Label(fn_frame, text="👤 First Name", font=("Segoe UI", 9, "bold"),
+                 bg=self.app.colors.get("surface", "#FFFFFF"), fg=self.app.colors["text_primary"]).pack(anchor="w")
+        first_name_entry = tk.Entry(fn_frame, font=("Segoe UI", 10), bg=self.app.colors.get("entry_bg", "#F8FAFC"), relief="flat", highlightthickness=1)
+        first_name_entry.pack(fill="x", ipady=4)
 
-        tk.Label(name_frame, text="👤 Name", font=("Segoe UI", 10, "bold"),
-                 bg=self.app.colors.get("surface", "#FFFFFF"), fg=self.app.colors["text_primary"]).pack(anchor="w", pady=(0, 3))
-        name_entry = tk.Entry(name_frame, font=("Segoe UI", 11),
-                             bg=self.app.colors.get("entry_bg", "#FFFFFF"),
-                             fg=self.app.colors.get("entry_fg", "#0F172A"),
-                             insertbackground=self.app.colors.get("text_primary", "#0F172A"),
-                             relief="flat", highlightthickness=2,
-                             highlightbackground=self.app.colors.get("border", "#E2E8F0"),
-                             highlightcolor=self.app.colors.get("primary", "#3B82F6"))
-        name_entry.pack(fill="x", ipady=6)
+        ln_frame = tk.Frame(form_frame, bg=self.app.colors.get("surface", "#FFFFFF"))
+        ln_frame.grid(row=0, column=1, sticky="ew", padx=(5, 0), pady=(0, 8))
+        tk.Label(ln_frame, text="👥 Last Name", font=("Segoe UI", 9, "bold"),
+                 bg=self.app.colors.get("surface", "#FFFFFF"), fg=self.app.colors["text_primary"]).pack(anchor="w")
+        last_name_entry = tk.Entry(ln_frame, font=("Segoe UI", 10), bg=self.app.colors.get("entry_bg", "#F8FAFC"), relief="flat", highlightthickness=1)
+        last_name_entry.pack(fill="x", ipady=4)
 
-        # Email field (row 0, column 1)
-        email_frame = tk.Frame(form_frame, bg=self.app.colors.get("surface", "#FFFFFF"))
-        email_frame.grid(row=0, column=1, sticky="ew", padx=(5, 0), pady=(0, 10))
+        # Row 1: Username & Email
+        un_frame = tk.Frame(form_frame, bg=self.app.colors.get("surface", "#FFFFFF"))
+        un_frame.grid(row=1, column=0, sticky="ew", padx=(0, 5), pady=(0, 8))
+        tk.Label(un_frame, text="🏷️ Username", font=("Segoe UI", 9, "bold"),
+                 bg=self.app.colors.get("surface", "#FFFFFF"), fg=self.app.colors["text_primary"]).pack(anchor="w")
+        username_signup_entry = tk.Entry(un_frame, font=("Segoe UI", 10), bg=self.app.colors.get("entry_bg", "#F8FAFC"), relief="flat", highlightthickness=1)
+        username_signup_entry.pack(fill="x", ipady=4)
 
-        tk.Label(email_frame, text="📧 Email", font=("Segoe UI", 10, "bold"),
-                 bg=self.app.colors.get("surface", "#FFFFFF"), fg=self.app.colors["text_primary"]).pack(anchor="w", pady=(0, 3))
-        email_entry = tk.Entry(email_frame, font=("Segoe UI", 11),
-                              bg=self.app.colors.get("entry_bg", "#FFFFFF"),
-                              fg=self.app.colors.get("entry_fg", "#0F172A"),
-                              insertbackground=self.app.colors.get("text_primary", "#0F172A"),
-                              relief="flat", highlightthickness=2,
-                              highlightbackground=self.app.colors.get("border", "#E2E8F0"),
-                              highlightcolor=self.app.colors.get("primary", "#3B82F6"))
-        email_entry.pack(fill="x", ipady=6)
+        em_frame = tk.Frame(form_frame, bg=self.app.colors.get("surface", "#FFFFFF"))
+        em_frame.grid(row=1, column=1, sticky="ew", padx=(5, 0), pady=(0, 8))
+        tk.Label(em_frame, text="📧 Email", font=("Segoe UI", 9, "bold"),
+                 bg=self.app.colors.get("surface", "#FFFFFF"), fg=self.app.colors["text_primary"]).pack(anchor="w")
+        email_entry = tk.Entry(em_frame, font=("Segoe UI", 10), bg=self.app.colors.get("entry_bg", "#F8FAFC"), relief="flat", highlightthickness=1)
+        email_entry.pack(fill="x", ipady=4)
 
-        # Age field (row 1, column 0)
-        age_frame = tk.Frame(form_frame, bg=self.app.colors.get("surface", "#FFFFFF"))
-        age_frame.grid(row=1, column=0, sticky="ew", padx=(0, 5), pady=(0, 10))
-        
-        tk.Label(age_frame, text="🎂 Age", font=("Segoe UI", 10, "bold"),
-                 bg=self.app.colors.get("surface", "#FFFFFF"), fg=self.app.colors["text_primary"]).pack(anchor="w", pady=(0, 3))
-        age_entry = tk.Entry(age_frame, font=("Segoe UI", 11),
-                            bg=self.app.colors.get("entry_bg", "#FFFFFF"),
-                            fg=self.app.colors.get("entry_fg", "#0F172A"),
-                            insertbackground=self.app.colors.get("text_primary", "#0F172A"),
-                            relief="flat", highlightthickness=2,
-                            highlightbackground=self.app.colors.get("border", "#E2E8F0"),
-                            highlightcolor=self.app.colors.get("primary", "#3B82F6"))
-        age_entry.pack(fill="x", ipady=6)
+        # Row 2: Age & Gender
+        ag_frame = tk.Frame(form_frame, bg=self.app.colors.get("surface", "#FFFFFF"))
+        ag_frame.grid(row=2, column=0, sticky="ew", padx=(0, 5), pady=(0, 8))
+        tk.Label(ag_frame, text="🎂 Age", font=("Segoe UI", 9, "bold"),
+                 bg=self.app.colors.get("surface", "#FFFFFF"), fg=self.app.colors["text_primary"]).pack(anchor="w")
+        age_entry = tk.Entry(ag_frame, font=("Segoe UI", 10), bg=self.app.colors.get("entry_bg", "#F8FAFC"), relief="flat", highlightthickness=1)
+        age_entry.pack(fill="x", ipady=4)
 
-        # Gender field (row 1, column 1)
-        gender_frame = tk.Frame(form_frame, bg=self.app.colors.get("surface", "#FFFFFF"))
-        gender_frame.grid(row=1, column=1, sticky="ew", padx=(5, 0), pady=(0, 10))
-
-        tk.Label(gender_frame, text="⚧ Gender", font=("Segoe UI", 10, "bold"),
-                 bg=self.app.colors.get("surface", "#FFFFFF"), fg=self.app.colors["text_primary"]).pack(anchor="w", pady=(0, 3))
+        ge_frame = tk.Frame(form_frame, bg=self.app.colors.get("surface", "#FFFFFF"))
+        ge_frame.grid(row=2, column=1, sticky="ew", padx=(5, 0), pady=(0, 8))
+        tk.Label(ge_frame, text="⚧ Gender", font=("Segoe UI", 9, "bold"),
+                 bg=self.app.colors.get("surface", "#FFFFFF"), fg=self.app.colors["text_primary"]).pack(anchor="w")
         gender_var = tk.StringVar(value="Prefer not to say")
         gender_options = ["Male", "Female", "Other", "Prefer not to say"]
-        gender_menu = tk.OptionMenu(gender_frame, gender_var, *gender_options)
-        gender_menu.config(font=("Segoe UI", 11), bg=self.app.colors.get("entry_bg", "#FFFFFF"),
-                          fg=self.app.colors.get("entry_fg", "#0F172A"),
-                          highlightbackground=self.app.colors.get("border", "#E2E8F0"),
-                          highlightcolor=self.app.colors.get("primary", "#3B82F6"),
-                          relief="flat", bd=0)
-        gender_menu.pack(fill="x", ipady=6)
+        gender_menu = tk.OptionMenu(ge_frame, gender_var, *gender_options)
+        gender_menu.config(font=("Segoe UI", 10), bg=self.app.colors.get("entry_bg", "#F8FAFC"), relief="flat", bd=0)
+        gender_menu.pack(fill="x", ipady=2)
 
-        # Password field (row 2, spans both columns)
-        password_frame = tk.Frame(form_frame, bg=self.app.colors.get("surface", "#FFFFFF"))
-        password_frame.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(0, 10))
+        # Row 3: Password (spans both)
+        pw_frame = tk.Frame(form_frame, bg=self.app.colors.get("surface", "#FFFFFF"))
+        pw_frame.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(0, 8))
+        tk.Label(pw_frame, text="🔒 Password", font=("Segoe UI", 9, "bold"),
+                 bg=self.app.colors.get("surface", "#FFFFFF"), fg=self.app.colors["text_primary"]).pack(anchor="w")
+        password_entry = tk.Entry(pw_frame, font=("Segoe UI", 10), show="*", bg=self.app.colors.get("entry_bg", "#F8FAFC"), relief="flat", highlightthickness=1)
+        password_entry.pack(fill="x", ipady=4)
 
-        tk.Label(password_frame, text="🔒 Password", font=("Segoe UI", 10, "bold"),
-                 bg=self.app.colors.get("surface", "#FFFFFF"), fg=self.app.colors["text_primary"]).pack(anchor="w", pady=(0, 3))
-        password_entry = tk.Entry(password_frame, font=("Segoe UI", 11), show="*",
-                                 bg=self.app.colors.get("entry_bg", "#FFFFFF"),
-                                 fg=self.app.colors.get("entry_fg", "#0F172A"),
-                                 insertbackground=self.app.colors.get("text_primary", "#0F172A"),
-                                 relief="flat", highlightthickness=2,
-                                 highlightbackground=self.app.colors.get("border", "#E2E8F0"),
-                                 highlightcolor=self.app.colors.get("primary", "#3B82F6"))
-        password_entry.pack(fill="x", pady=(0, 3), ipady=6)
-
-        # Show Password for Password field
-        show_password_var = tk.BooleanVar()
-        def toggle_password_visibility():
-            show_char = "" if show_password_var.get() else "*"
-            password_entry.config(show=show_char)
-
-        show_password_cb = tk.Checkbutton(password_frame, text="👁 Show Password", variable=show_password_var,
-                                         command=toggle_password_visibility, font=("Segoe UI", 8),
-                                         bg=self.app.colors.get("surface", "#FFFFFF"), fg=self.app.colors["text_secondary"],
-                                         activebackground=self.app.colors.get("surface", "#FFFFFF"),
-                                         activeforeground=self.app.colors["text_primary"],
-                                         selectcolor=self.app.colors.get("primary", "#3B82F6"))
-        show_password_cb.pack(anchor="w")
-
-        # Confirm Password field (row 3, spans both columns)
-        confirm_frame = tk.Frame(form_frame, bg=self.app.colors.get("surface", "#FFFFFF"))
-        confirm_frame.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(0, 15))
-
-        tk.Label(confirm_frame, text="🔒 Confirm Password", font=("Segoe UI", 10, "bold"),
-                 bg=self.app.colors.get("surface", "#FFFFFF"), fg=self.app.colors["text_primary"]).pack(anchor="w", pady=(0, 3))
-        confirm_password_entry = tk.Entry(confirm_frame, font=("Segoe UI", 11), show="*",
-                                         bg=self.app.colors.get("entry_bg", "#FFFFFF"),
-                                         fg=self.app.colors.get("entry_fg", "#0F172A"),
-                                         insertbackground=self.app.colors.get("text_primary", "#0F172A"),
-                                         relief="flat", highlightthickness=2,
-                                         highlightbackground=self.app.colors.get("border", "#E2E8F0"),
-                                         highlightcolor=self.app.colors.get("primary", "#3B82F6"))
-        confirm_password_entry.pack(fill="x", pady=(0, 3), ipady=6)
+        # Row 4: Confirm Password (spans both)
+        cp_frame = tk.Frame(form_frame, bg=self.app.colors.get("surface", "#FFFFFF"))
+        cp_frame.grid(row=4, column=0, columnspan=2, sticky="ew", pady=(0, 15))
+        tk.Label(cp_frame, text="🔒 Confirm Password", font=("Segoe UI", 9, "bold"),
+                 bg=self.app.colors.get("surface", "#FFFFFF"), fg=self.app.colors["text_primary"]).pack(anchor="w")
+        confirm_password_entry = tk.Entry(cp_frame, font=("Segoe UI", 10), show="*", bg=self.app.colors.get("entry_bg", "#F8FAFC"), relief="flat", highlightthickness=1)
+        confirm_password_entry.pack(fill="x", ipady=4)
         
         # Show Password for Confirm Password field
         show_confirm_var = tk.BooleanVar()
@@ -274,7 +281,7 @@ class AppAuth:
             show_char = "" if show_confirm_var.get() else "*"
             confirm_password_entry.config(show=show_char)
         
-        show_confirm_cb = tk.Checkbutton(confirm_frame, text="👁 Show Password", variable=show_confirm_var,
+        show_confirm_cb = tk.Checkbutton(cp_frame, text="👁 Show Password", variable=show_confirm_var,
                                         command=toggle_confirm_visibility, font=("Segoe UI", 8),
                                         bg=self.app.colors.get("surface", "#FFFFFF"), fg=self.app.colors["text_secondary"],
                                         activebackground=self.app.colors.get("surface", "#FFFFFF"),
@@ -282,8 +289,17 @@ class AppAuth:
                                         selectcolor=self.app.colors.get("primary", "#3B82F6"))
         show_confirm_cb.pack(anchor="w")
 
+        # Terms and Conditions (Parity with Web)
+        terms_var = tk.BooleanVar(value=True)
+        terms_cb = tk.Checkbutton(form_frame, text="I accept the Terms and Conditions", variable=terms_var,
+                                 font=("Segoe UI", 9), bg=self.app.colors.get("surface", "#FFFFFF"),
+                                 fg=self.app.colors["text_secondary"], activebackground=self.app.colors.get("surface", "#FFFFFF"))
+        terms_cb.grid(row=5, column=0, columnspan=2, sticky="w", pady=(0, 10))
+
         def do_signup():
-            name = name_entry.get().strip()
+            first_name = first_name_entry.get().strip()
+            last_name = last_name_entry.get().strip()
+            username = username_signup_entry.get().strip()
             email = email_entry.get().strip()
             age_str = age_entry.get().strip()
             gender = gender_var.get()
@@ -291,8 +307,14 @@ class AppAuth:
             confirm_password = confirm_password_entry.get()
 
             # Validations
-            if not name:
-                tk.messagebox.showerror("Error", "Name is required")
+            if not terms_var.get():
+                tk.messagebox.showerror("Error", "You must accept the Terms and Conditions")
+                return
+            if not first_name:
+                tk.messagebox.showerror("Error", "First name is required")
+                return
+            if not username:
+                tk.messagebox.showerror("Error", "Username is required")
                 return
             if not email:
                 tk.messagebox.showerror("Error", "Email is required")
@@ -315,7 +337,7 @@ class AppAuth:
                 return
 
             # Register user
-            success, msg = self.auth_manager.register_user(name, email, age, gender, password)
+            success, msg = self.auth_manager.register_user(username, email, first_name, last_name, age, gender, password)
             if success:
                 tk.messagebox.showinfo("Success", "Account created successfully! You can now login.")
                 signup_win.destroy()
@@ -342,6 +364,9 @@ class AppAuth:
         
         create_btn.bind("<Enter>", on_enter_create)
         create_btn.bind("<Leave>", on_leave_create)
+
+        # Keyboard usability: Bind Enter to signup
+        signup_win.bind("<Return>", lambda e: do_signup())
 
         # Back to Login button
         back_btn = tk.Button(button_frame, text="← Back to Login", command=signup_win.destroy,
@@ -393,3 +418,22 @@ class AppAuth:
             self.app.sidebar.select_item("home")
         else:
             self.app.view_manager.switch_view("home")
+        
+        # Phase 0.2: Onboarding check - Delay by 3s to avoid SQLite lock contention with sidebar loading
+        self.app.root.after(3000, self._check_onboarding_completion)
+
+    def _check_onboarding_completion(self):
+        """Prompt user to complete profile if missing key data."""
+        try:
+            from app.services.profile_service import ProfileService
+            user = ProfileService.get_user_profile(self.app.username)
+            if user and user.personal_profile:
+                pp = user.personal_profile
+                if not pp.first_name or not pp.email:
+                    tk.messagebox.showinfo(
+                        "Complete Your Profile",
+                        f"Welcome {self.app.username}!\n\n"
+                        "Please complete your profile (First Name and Email) in the Profile settings to unlock all features."
+                    )
+        except Exception as e:
+            self.logger.error(f"Onboarding check failed: {e}")

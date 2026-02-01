@@ -299,8 +299,14 @@ class UserProfileView:
         avatar_canvas.bind("<Button-1>", lambda e: self._upload_profile_photo())
         
         # Name
+        full_name = user_data.get("username", "User")
+        if user_data.get("first_name"):
+            full_name = f"{user_data.get('first_name')} {user_data.get('last_name', '')}".strip()
+            if full_name:
+                full_name = f"{full_name} ({user_data.get('username')})"
+
         tk.Label(
-            left_profile, text=user_data.get("username", "User"),
+            left_profile, text=full_name,
             font=self.styles.get_font("xl", "bold"),
             bg=self.colors.get("card_bg"), fg=self.colors.get("text_primary")
         ).pack(anchor="w")
@@ -336,7 +342,13 @@ class UserProfileView:
         
         self._create_contact_row(right_profile, "Home Address", user_data.get("address", "Not set"))
         self._create_contact_row(right_profile, "Phone #", user_data.get("phone", "Not set"))
-        self._create_contact_row(right_profile, "Email", user_data.get("email", "Not set"))
+        
+        # Email with Verification Badge (Mocked status)
+        email_val = user_data.get("email", "Not set")
+        email_badge = None
+        if email_val != "Not set" and "@" in email_val:
+            email_badge = {"text": "UNVERIFIED", "bg": "#EF4444"} # Red for unverified
+        self._create_contact_row(right_profile, "Email", email_val, badge=email_badge)
         
         # =====================
         # RIGHT COLUMN - ROW 0: MEDICAL INFO / EQ INFO
@@ -557,6 +569,8 @@ class UserProfileView:
                     # Personal Profile data
                     if user.personal_profile:
                         pp = user.personal_profile
+                        data["first_name"] = pp.first_name or ""
+                        data["last_name"] = pp.last_name or ""
                         data["email"] = pp.email or "Not set"
                         data["phone"] = pp.phone or "Not set"
                         data["address"] = pp.address or "Not set"
@@ -853,14 +867,24 @@ class UserProfileView:
         tk.Label(box, text=value, font=self.styles.get_font("sm", "bold"), bg=self.colors.get("card_bg"), 
                 fg=self.colors.get("text_primary")).pack(anchor="w")
     
-    def _create_contact_row(self, parent, label, value):
-        """Create a contact info row with label above value."""
+    def _create_contact_row(self, parent, label, value, badge=None):
+        """Create a contact info row with label above value and optional badge."""
         row = tk.Frame(parent, bg=self.colors.get("card_bg"))
         row.pack(fill="x", pady=8)
         
         tk.Label(row, text=label, font=self.styles.get_font("xs"), bg=self.colors.get("card_bg"), fg="gray").pack(anchor="w")
-        tk.Label(row, text=value, font=("Segoe UI", 11, "bold"), bg=self.colors.get("card_bg"),
-                fg=self.colors.get("text_primary"), wraplength=200, justify="left").pack(anchor="w")
+        
+        val_frame = tk.Frame(row, bg=self.colors.get("card_bg"))
+        val_frame.pack(anchor="w")
+        
+        tk.Label(val_frame, text=value, font=("Segoe UI", 11, "bold"), bg=self.colors.get("card_bg"),
+                fg=self.colors.get("text_primary"), wraplength=200, justify="left").pack(side="left")
+                
+        if badge:
+            tk.Label(
+                val_frame, text=badge["text"], font=("Segoe UI", 7, "bold"),
+                bg=badge["bg"], fg="white", padx=4, pady=0
+            ).pack(side="left", padx=8)
     
     def _create_pill_item(self, parent, text):
         """Create a pill/medication style list item."""
@@ -1106,6 +1130,22 @@ class UserProfileView:
         
         self._create_section_label(form_content, "About You")
         
+        # Names
+        name_frame = tk.Frame(form_content, bg=self.colors.get("card_bg"))
+        name_frame.pack(fill="x", pady=(0, 10))
+        
+        fn_col = tk.Frame(name_frame, bg=self.colors.get("card_bg"))
+        fn_col.pack(side="left", fill="x", expand=True, padx=(0, 5))
+        self._create_field_label(fn_col, "First Name")
+        self.fn_var = tk.StringVar()
+        self._create_entry(fn_col, self.fn_var)
+        
+        ln_col = tk.Frame(name_frame, bg=self.colors.get("card_bg"))
+        ln_col.pack(side="left", fill="x", expand=True, padx=(5, 0))
+        self._create_field_label(ln_col, "Last Name")
+        self.ln_var = tk.StringVar()
+        self._create_entry(ln_col, self.ln_var)
+        
         self._create_field_label(form_content, "Occupation")
         self.occ_var = tk.StringVar()
         self._create_entry(form_content, self.occ_var)
@@ -1127,7 +1167,19 @@ class UserProfileView:
         self._create_section_label(form_content, "📞 Contact Information")
         
         # Email
-        self._create_field_label(form_content, "Email")
+        email_header = tk.Frame(form_content, bg=self.colors.get("card_bg"))
+        email_header.pack(fill="x")
+        tk.Label(email_header, text="Email", font=self.styles.get_font("xs", "bold"), bg=self.colors.get("card_bg"), fg="gray").pack(side="left")
+        
+        # Verification button (Mocked)
+        self.resend_btn = tk.Button(
+            email_header, text="Send Verification Link", 
+            command=lambda: tk.messagebox.showinfo("Verification", "Verification email sent to " + self.email_var.get()),
+            font=("Segoe UI", 8), bg=self.colors.get("bg"), fg=self.colors.get("primary"),
+            bd=0, cursor="hand2", activeforeground=self.colors.get("primary_hover")
+        )
+        self.resend_btn.pack(side="right")
+
         self.email_var = tk.StringVar()
         self._create_entry(form_content, self.email_var)
         
@@ -1321,6 +1373,8 @@ class UserProfileView:
                 profile = user.personal_profile
                 
                 # Update UI
+                self.fn_var.set(profile.first_name or "")
+                self.ln_var.set(profile.last_name or "")
                 self.occ_var.set(profile.occupation or "")
                 self.edu_var.set(profile.education or "")
                 self.status_var.set(profile.marital_status or "Single")
@@ -1415,6 +1469,8 @@ class UserProfileView:
 
              # Prepare Data Dict
              data = {
+                 "first_name": sanitize_text(self.fn_var.get()),
+                 "last_name": sanitize_text(self.ln_var.get()),
                  "occupation": occupation,
                  "education": education,
                  "marital_status": self.status_var.get(),

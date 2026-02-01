@@ -29,6 +29,11 @@ class UserCreate(BaseModel):
     """Schema for creating a new user."""
     username: str = Field(..., min_length=3, max_length=50, description="Unique username")
     password: str = Field(..., min_length=8, description="Password (min 8 characters)")
+    email: EmailStr = Field(..., description="User's email address")
+    first_name: str = Field(..., min_length=1, max_length=50, description="User's first name")
+    last_name: Optional[str] = Field(None, max_length=50, description="User's last name")
+    age: Optional[int] = Field(None, ge=13, le=120, description="User's age")
+    gender: Optional[str] = Field(None, description="User's gender")
 
 
 class UserLogin(BaseModel):

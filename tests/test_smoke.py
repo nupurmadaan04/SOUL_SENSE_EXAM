@@ -101,7 +101,7 @@ def test_database_connection():
 @patch("tkinter.ttk.Style")
 @patch("app.ui.styles.UIStyles")
 @patch("app.logger.get_logger")
-def test_app_initialization_verification(mock_logger, mock_styles):
+def test_app_initialization_verification(mock_get_logger, mock_ui_styles, mock_ttk_style):
     """
     Smoke Test: Verify SoulSenseApp initializes without crashing.
     Mocks GUI components to run in headless environments.
@@ -137,7 +137,7 @@ def test_app_initialization_verification(mock_logger, mock_styles):
         mock_style_instance.apply_theme.side_effect = deferred_apply_theme
         return mock_style_instance
         
-    mock_styles.side_effect = style_init_side_effect
+    mock_ui_styles.side_effect = style_init_side_effect
     
     try:
         app = SoulSenseApp(mock_root)

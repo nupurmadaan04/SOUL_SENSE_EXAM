@@ -29,10 +29,12 @@ class AuthManager:
             logging.error(f"Password verification failed: {e}")
             return False
 
-    def register_user(self, name, email, age, gender, password):
+    def register_user(self, username, email, first_name, last_name, age, gender, password):
         # Enhanced validation
-        if len(name) < 2:
-            return False, "Name must be at least 2 characters"
+        if len(username) < 3:
+            return False, "Username must be at least 3 characters"
+        if len(first_name) < 1:
+            return False, "First name is required"
         if len(password) < 8:
             return False, "Password must be at least 8 characters"
         if not self._validate_password_strength(password):
@@ -44,38 +46,37 @@ class AuthManager:
 
         session = get_session()
         try:
-            # Check if username (name) already exists
-            existing_user = session.query(User).filter_by(username=name).first()
-            if existing_user:
-                return False, "Username already exists"
+            # 1. Normalize
+            username_lower = username.lower().strip()
+            email_lower = email.lower().strip()
 
-            # Check if email already exists
+            # 2. Check if username already exists
+            if session.query(User).filter(User.username == username_lower).first():
+                return False, "Identifier already in use"
+
+            # 3. Check if email already exists
             from app.models import PersonalProfile
-            existing_email = session.query(PersonalProfile).filter_by(email=email).first()
-            if existing_email:
-                return False, "Email already exists"
+            if session.query(PersonalProfile).filter(PersonalProfile.email == email_lower).first():
+                return False, "Identifier already in use"
 
             password_hash = self.hash_password(password)
             
-            # Calculate date_of_birth from age
-            from datetime import datetime
-            current_year = datetime.utcnow().year
-            birth_year = current_year - age
-            date_of_birth = f"{birth_year}-01-01"  # Approximate
-            
+            # 4. Create User
             new_user = User(
-                username=name,
+                username=username_lower,
                 password_hash=password_hash,
                 created_at=datetime.utcnow().isoformat()
             )
             session.add(new_user)
             session.flush()  # Get the user id
             
-            # Create personal profile
+            # 5. Create personal profile
             profile = PersonalProfile(
                 user_id=new_user.id,
-                email=email,
-                date_of_birth=date_of_birth,
+                email=email_lower,
+                first_name=first_name,
+                last_name=last_name,
+                age=age,
                 gender=gender,
                 last_updated=datetime.utcnow().isoformat()
             )
@@ -91,25 +92,44 @@ class AuthManager:
         finally:
             session.close()
 
-    def login_user(self, username, password):
+    def login_user(self, identifier, password):
         # Check rate limiting
-        if self._is_locked_out(username):
+        if self._is_locked_out(identifier):
             return False, "Account temporarily locked due to failed attempts"
 
         session = get_session()
         try:
-            user = session.query(User).filter_by(username=username).first()
+            # Normalize
+            id_lower = identifier.lower().strip()
+
+            # 1. Try fetching by username
+            user = session.query(User).filter(User.username == id_lower).first()
+
+            # 2. If not found, try fetching by email
+            if not user:
+                from app.models import PersonalProfile
+                profile = session.query(PersonalProfile).filter(PersonalProfile.email == id_lower).first()
+                if profile:
+                    user = session.query(User).filter(User.id == profile.user_id).first()
 
             if user and self.verify_password(password, user.password_hash):
-                user.last_login = datetime.utcnow().isoformat()
-                session.commit()
-                self.current_user = username
+                # Update last login
+                try:
+                    user.last_login = datetime.utcnow().isoformat()
+                    # Audit success
+                    self._record_login_attempt(session, id_lower, True)
+                    session.commit()
+                except Exception as e:
+                    logging.error(f"Failed to update login metadata: {e}")
+                    # Allow login even if metadata update fails
+                    
+                self.current_user = user.username # Return canonical username
                 self._generate_session_token()
-                self._reset_failed_attempts(username)
                 return True, "Login successful"
             else:
-                self._record_failed_attempt(username)
-                return False, "Invalid username or password"
+                self._record_login_attempt(session, id_lower, False)
+                session.commit()
+                return False, "Invalid credentials"
 
         except Exception as e:
             logging.error(f"Login failed: {e}")
@@ -151,24 +171,37 @@ class AuthManager:
         self.session_expiry = datetime.utcnow() + timedelta(hours=24)
 
     def _is_locked_out(self, username):
-        """Check if user is locked out due to failed attempts"""
-        if username not in self.failed_attempts:
+        """Check if user is locked out based on recent failed attempts in DB."""
+        session = get_session()
+        try:
+            from app.models import LoginAttempt
+            
+            # Count recent failed attempts
+            since_time = datetime.utcnow() - timedelta(seconds=self.lockout_duration)
+            
+            recent_failures = session.query(LoginAttempt).filter(
+                LoginAttempt.username == username,
+                LoginAttempt.is_successful == False,
+                LoginAttempt.timestamp >= since_time
+            ).count()
+            
+            return recent_failures >= 5
+        except Exception as e:
+            logging.error(f"Lockout check failed: {e}")
             return False
-        attempts, last_attempt = self.failed_attempts[username]
-        if attempts >= 5 and (time.time() - last_attempt) < self.lockout_duration:
-            return True
-        return False
+        finally:
+            session.close()
 
-    def _record_failed_attempt(self, username):
-        """Record failed login attempt"""
-        current_time = time.time()
-        if username in self.failed_attempts:
-            attempts, _ = self.failed_attempts[username]
-            self.failed_attempts[username] = (attempts + 1, current_time)
-        else:
-            self.failed_attempts[username] = (1, current_time)
-
-    def _reset_failed_attempts(self, username):
-        """Reset failed attempts on successful login"""
-        if username in self.failed_attempts:
-            del self.failed_attempts[username]
+    def _record_login_attempt(self, session, username, success):
+        """Record login attempt to DB."""
+        try:
+            from app.models import LoginAttempt
+            attempt = LoginAttempt(
+                username=username,
+                is_successful=success,
+                timestamp=datetime.utcnow(),
+                ip_address="desktop"
+            )
+            session.add(attempt)
+        except Exception as e:
+            logging.error(f"Failed to record attempt: {e}")

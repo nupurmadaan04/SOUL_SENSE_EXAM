@@ -228,14 +228,39 @@ class SidebarNav(tk.Frame):
             
     def _on_hover(self, item_id, is_hovering):
         if item_id == self.active_id:
+            self._update_item_style(item_id, True)
             return
             
         widgets = self.buttons[item_id]
-        bg_color = self.app.colors.get("sidebar_hover") if is_hovering else self.app.colors.get("sidebar_bg")
+        frame = widgets["frame"]
         
-        widgets["frame"].configure(bg=bg_color)
-        widgets["icon"].configure(bg=bg_color)
-        widgets["text"].configure(bg=bg_color)
+        # Robust check: If is_hovering is False, double check if mouse is actually outside
+        if not is_hovering:
+            # Get mouse position relative to frame
+            x, y = frame.winfo_pointerxy()
+            fx = frame.winfo_rootx()
+            fy = frame.winfo_rooty()
+            fw = frame.winfo_width()
+            fh = frame.winfo_height()
+            
+            # If still inside the frame area, don't reset yet
+            # (Tkinter sometimes fires Leave when entering a child)
+            if fx <= x <= fx + fw and fy <= y <= fy + fh:
+                return
+
+        # Apply styles
+        bg_color = self.app.colors.get("sidebar_hover") if is_hovering else self.app.colors.get("sidebar_bg")
+        fg_color = self.app.colors.get("sidebar_fg")
+        
+        # When entering an item, reset ALL other non-active items to be safe
+        if is_hovering:
+            for other_id in self.buttons:
+                if other_id != item_id and other_id != self.active_id:
+                    self._on_hover(other_id, False)
+
+        frame.configure(bg=bg_color)
+        widgets["icon"].configure(bg=bg_color, fg=fg_color)
+        widgets["text"].configure(bg=bg_color, fg=fg_color)
         widgets["indicator"].configure(bg=bg_color)
 
     def select_item(self, item_id, trigger_callback=True):

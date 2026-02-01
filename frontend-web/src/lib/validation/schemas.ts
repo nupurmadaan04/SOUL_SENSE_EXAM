@@ -31,7 +31,7 @@ export const nameSchema = z
 
 // Login schema
 export const loginSchema = z.object({
-  email: emailSchema,
+  identifier: z.string().min(1, 'Email or Username is required'),
   password: z.string().min(1, 'Password is required'),
   rememberMe: z.boolean().optional(),
 });
@@ -50,6 +50,8 @@ export const registrationSchema = z
     confirmPassword: z.string(),
     firstName: nameSchema,
     lastName: nameSchema.optional(),
+    age: z.coerce.number().min(13, 'You must be at least 13 years old').max(120, 'Invalid age'),
+    gender: z.enum(['Male', 'Female', 'Other', 'Prefer not to say']),
     acceptTerms: z.boolean().refine((val) => val === true, {
       message: 'You must accept the terms and conditions',
     }),

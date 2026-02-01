@@ -5,6 +5,11 @@ Provides personalized EQ improvement suggestions using scikit-learn for pattern 
 
 import logging
 import json
+import os
+try:
+    import joblib
+except ImportError:
+    joblib = None
 from typing import Dict, List, Optional, Tuple, Any
 from datetime import datetime, timedelta
 import numpy as np
@@ -45,8 +50,8 @@ class EQInsightsGenerator:
         """Load existing model or train new one from historical data."""
         try:
             # Try to load pre-trained model
-            import joblib
-            import os
+            if joblib is None:
+                return
 
             model_path = os.path.join("models", "eq_insights_model.pkl")
             if os.path.exists(model_path):
@@ -195,8 +200,8 @@ class EQInsightsGenerator:
     def _save_model(self) -> None:
         """Save trained model to disk."""
         try:
-            import joblib
-            import os
+            if joblib is None:
+                return
 
             os.makedirs("models", exist_ok=True)
             model_data = {

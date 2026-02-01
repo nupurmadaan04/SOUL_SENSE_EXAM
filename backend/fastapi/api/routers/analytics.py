@@ -39,7 +39,7 @@ async def get_analytics_summary(db: Session = Depends(get_db)):
 
 @router.get("/trends", response_model=TrendAnalytics, dependencies=[Depends(rate_limit_analytics)])
 async def get_trend_analytics(
-    period: str = Query('monthly', regex='^(daily|weekly|monthly)$', description="Time period type"),
+    period: str = Query('monthly', pattern='^(daily|weekly|monthly)$', description="Time period type"),
     limit: int = Query(12, ge=1, le=24, description="Number of periods to return"),
     db: Session = Depends(get_db)
 ):
