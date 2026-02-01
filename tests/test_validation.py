@@ -31,12 +31,63 @@ def test_validate_length():
     assert "at least" in validate_length("ab", 5, "Field", min_len=3)[1]
 
 
+
 def test_validate_email():
+    """Test basic email validation with stricter regex."""
     assert validate_email("test@example.com")[0] is True
     assert validate_email("user.name+tag@example.co.uk")[0] is True
     assert validate_email("invalid-email")[0] is False
     assert validate_email("@example.com")[0] is False
+    assert validate_email("user@domain")[0] is False  # No TLD
+    assert validate_email("user@.com")[0] is False    # No domain name
     assert validate_email("")[0] is True  # Optional
+
+
+def test_validate_email_strict():
+    """Test strict email validation with detailed error messages."""
+    from app.validation import validate_email_strict
+    
+    # Valid emails
+    assert validate_email_strict("test@example.com")[0] is True
+    assert validate_email_strict("user.name+tag@example.co.uk")[0] is True
+    assert validate_email_strict("firstname.lastname@company.org")[0] is True
+    
+    # Empty email - required
+    is_valid, msg = validate_email_strict("", required=True)
+    assert is_valid is False
+    assert "required" in msg.lower()
+    
+    # Empty email - optional
+    assert validate_email_strict("", required=False)[0] is True
+    
+    # Missing @ symbol
+    is_valid, msg = validate_email_strict("invalidemail.com", required=True)
+    assert is_valid is False
+    assert "@" in msg
+    
+    # Multiple @ symbols
+    is_valid, msg = validate_email_strict("user@@example.com", required=True)
+    assert is_valid is False
+    
+    # Missing domain
+    is_valid, msg = validate_email_strict("user@", required=True)
+    assert is_valid is False
+    assert "domain" in msg.lower()
+    
+    # Missing TLD
+    is_valid, msg = validate_email_strict("user@domain", required=True)
+    assert is_valid is False
+    assert "extension" in msg.lower()
+    
+    # TLD too short
+    is_valid, msg = validate_email_strict("user@domain.c", required=True)
+    assert is_valid is False
+    assert "2 characters" in msg
+    
+    # Starts with @
+    is_valid, msg = validate_email_strict("@example.com", required=True)
+    assert is_valid is False
+
 
 
 def test_validate_phone():

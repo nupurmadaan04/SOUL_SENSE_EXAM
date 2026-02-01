@@ -192,6 +192,36 @@ class AppAuth:
                               highlightbackground=self.app.colors.get("border", "#E2E8F0"),
                               highlightcolor=self.app.colors.get("primary", "#3B82F6"))
         email_entry.pack(fill="x", ipady=6)
+        
+        # Email validation error label
+        email_error_label = tk.Label(email_frame, text="", font=("Segoe UI", 8),
+                                     bg=self.app.colors.get("surface", "#FFFFFF"),
+                                     fg=self.app.colors.get("error", "#EF4444"))
+        email_error_label.pack(anchor="w", pady=(2, 0))
+        
+        # Real-time email validation function
+        def validate_email_realtime(event=None):
+            from app.validation import validate_email_strict
+            email = email_entry.get().strip()
+            
+            # Don't validate if empty (will validate on submit)
+            if not email:
+                email_error_label.config(text="")
+                email_entry.config(highlightbackground=self.app.colors.get("border", "#E2E8F0"))
+                return
+            
+            is_valid, error_msg = validate_email_strict(email, required=False)
+            if is_valid:
+                email_error_label.config(text="")
+                email_entry.config(highlightbackground=self.app.colors.get("success", "#10B981"))
+            else:
+                email_error_label.config(text=error_msg)
+                email_entry.config(highlightbackground=self.app.colors.get("error", "#EF4444"))
+        
+        # Bind real-time validation to email field
+        email_entry.bind("<KeyRelease>", validate_email_realtime)
+        email_entry.bind("<FocusOut>", validate_email_realtime)
+
 
         # Age field (row 1, column 0)
         age_frame = tk.Frame(form_frame, bg=self.app.colors.get("surface", "#FFFFFF"))
@@ -294,8 +324,13 @@ class AppAuth:
             if not name:
                 tk.messagebox.showerror("Error", "Name is required")
                 return
-            if not email:
-                tk.messagebox.showerror("Error", "Email is required")
+            
+            # Email validation using stricter pattern (matching frontend)
+            from app.validation import validate_email_strict
+            is_valid_email, email_error = validate_email_strict(email, required=True)
+            if not is_valid_email:
+                tk.messagebox.showerror("Email Error", email_error)
+                email_entry.focus_set()
                 return
             if not age_str:
                 tk.messagebox.showerror("Error", "Age is required")

@@ -21,7 +21,8 @@ XSS_PATTERNS = [
 ]
 
 # Constants
-EMAIL_REGEX = r"[^@]+@[^@]+\.[^@]+"
+# Enhanced email validation with stricter pattern requiring valid domain and TLD
+EMAIL_REGEX = r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$"
 PHONE_REGEX = r"^\+?[\d\s-]{10,}$"
 USERNAME_REGEX = r"^[a-zA-Z0-9_-]+$"
 
@@ -121,11 +122,61 @@ def validate_length(text: str, max_len: int, label: str, min_len: int = 0) -> Tu
 
 
 def validate_email(email: str) -> Tuple[bool, str]:
-    """Validate email format."""
+    """Validate email format with stricter pattern."""
     if not email:
         return True, ""  # Empty is valid (optional), use validate_required if mandatory
     if not re.match(EMAIL_REGEX, email):
-        return False, "Invalid email format."
+        return False, "Please enter a valid email address (e.g., name@example.com)"
+    return True, ""
+
+
+def validate_email_strict(email: str, required: bool = True) -> Tuple[bool, str]:
+    """
+    Validate email format with detailed error messages for real-time feedback.
+    
+    Args:
+        email: The email address to validate
+        required: If True, empty email is invalid. If False, empty email is valid.
+    
+    Returns:
+        Tuple of (is_valid, error_message)
+    """
+    if not email:
+        if required:
+            return False, "Email is required"
+        return True, ""
+    
+    email = email.strip()
+    
+    # Check for @ symbol
+    if "@" not in email:
+        return False, "Email must contain '@' symbol"
+    
+    # Split and validate parts
+    parts = email.split("@")
+    if len(parts) != 2:
+        return False, "Email must have exactly one '@' symbol"
+    
+    local_part, domain = parts
+    
+    if not local_part:
+        return False, "Email cannot start with '@'"
+    
+    if not domain:
+        return False, "Email must have a domain after '@'"
+    
+    # Check for valid domain with TLD
+    if "." not in domain:
+        return False, "Domain must include a valid extension (e.g., .com)"
+    
+    domain_parts = domain.rsplit(".", 1)
+    if len(domain_parts[1]) < 2:
+        return False, "Domain extension must be at least 2 characters"
+    
+    # Full regex validation
+    if not re.match(EMAIL_REGEX, email):
+        return False, "Please enter a valid email address (e.g., name@example.com)"
+    
     return True, ""
 
 
