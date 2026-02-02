@@ -329,23 +329,72 @@ class AssessmentResult(Base):
     Supported types: 'career_clarity', 'work_satisfaction', 'strengths'.
     """
     __tablename__ = 'assessment_results'
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False, index=True)
-    
+
     assessment_type = Column(String, nullable=False, index=True) # e.g. 'career_clarity'
     timestamp = Column(String, default=lambda: datetime.utcnow().isoformat(), index=True)
-    
+
     total_score = Column(Integer, nullable=False) # 0-100 or similar scale
     details = Column(Text, nullable=False) # JSON string: {"q1": "yes", "q2": 5, "raw_score": 85}
-    
+
     # Optional: Link to a specific Journal Entry if triggered by one
     journal_entry_id = Column(Integer, ForeignKey('journal_entries.id'), nullable=True)
 
     user = relationship("User")
-    
+
     __table_args__ = (
         Index('idx_assessment_user_type', 'user_id', 'assessment_type'),
+    )
+
+class JournalPrompt(Base):
+    """
+    Stores AI-generated journal prompts for personalized writing suggestions.
+    """
+    __tablename__ = 'journal_prompts'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    prompt_text = Column(Text, nullable=False)  # The actual prompt text
+    category = Column(String, nullable=False, index=True)  # e.g., 'reflection', 'gratitude', 'stress', 'growth'
+    emotional_context = Column(String, nullable=True, index=True)  # e.g., 'positive', 'negative', 'neutral'
+    eq_score_range = Column(String, nullable=True)  # JSON: {"min": 10, "max": 20}
+    target_emotions = Column(Text, nullable=True)  # JSON list: ["anxiety", "stress"]
+    difficulty_level = Column(String, default='medium')  # 'easy', 'medium', 'advanced'
+    is_active = Column(Boolean, default=True, index=True)
+    usage_count = Column(Integer, default=0, index=True)
+    success_rate = Column(Float, default=0.0)  # Based on user feedback
+    created_at = Column(String, default=lambda: datetime.utcnow().isoformat())
+    updated_at = Column(String, default=lambda: datetime.utcnow().isoformat())
+
+    __table_args__ = (
+        Index('idx_prompt_category_emotion', 'category', 'emotional_context'),
+        Index('idx_prompt_active_usage', 'is_active', 'usage_count'),
+    )
+
+class PromptUsage(Base):
+    """
+    Tracks how users interact with journal prompts for feedback and improvement.
+    """
+    __tablename__ = 'prompt_usage'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False, index=True)
+    prompt_id = Column(Integer, ForeignKey('journal_prompts.id'), nullable=False, index=True)
+    journal_entry_id = Column(Integer, ForeignKey('journal_entries.id'), nullable=True)
+    used_at = Column(String, default=lambda: datetime.utcnow().isoformat(), index=True)
+    feedback_rating = Column(Integer, nullable=True)  # 1-5 scale, null if not provided
+    was_helpful = Column(Boolean, nullable=True)  # User feedback on prompt effectiveness
+    time_spent = Column(Integer, nullable=True)  # Minutes spent writing after prompt
+    emotional_impact = Column(String, nullable=True)  # 'positive', 'neutral', 'negative'
+
+    user = relationship("User")
+    prompt = relationship("JournalPrompt")
+    journal_entry = relationship("JournalEntry")
+
+    __table_args__ = (
+        Index('idx_usage_user_prompt', 'user_id', 'prompt_id'),
+        Index('idx_usage_feedback', 'feedback_rating', 'was_helpful'),
     )
     
 
