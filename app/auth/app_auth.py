@@ -254,7 +254,7 @@ class AppAuth:
         tk.Label(ge_frame, text="⚧ Gender", font=("Segoe UI", 9, "bold"),
                  bg=self.app.colors.get("surface", "#FFFFFF"), fg=self.app.colors["text_primary"]).pack(anchor="w")
         gender_var = tk.StringVar(value="Prefer not to say")
-        gender_options = ["Male", "Female", "Other", "Prefer not to say"]
+        gender_options = ["M", "F", "Other", "Prefer not to say"]
         gender_menu = tk.OptionMenu(ge_frame, gender_var, *gender_options)
         gender_menu.config(font=("Segoe UI", 10), bg=self.app.colors.get("entry_bg", "#F8FAFC"), relief="flat", bd=0)
         gender_menu.pack(fill="x", ipady=2)

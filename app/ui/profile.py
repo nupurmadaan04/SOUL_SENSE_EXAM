@@ -1217,7 +1217,7 @@ class UserProfileView:
         gender_col.pack(side="left", fill="x", expand=True, padx=(10, 0))
         tk.Label(gender_col, text="Gender", font=("Segoe UI", 10, "bold"), bg=self.colors.get("card_bg"), fg="gray").pack(anchor="w")
         self.gender_var = tk.StringVar()
-        gender_opts = ["Prefer not to say", "Male", "Female", "Non-binary", "Other"]
+        gender_opts = ["Prefer not to say", "M", "F", "Non-binary", "Other"]
         self.gender_combo = ttk.Combobox(gender_col, textvariable=self.gender_var, values=gender_opts, state="readonly", font=("Segoe UI", 11))
         self.gender_combo.pack(fill="x", pady=5)
         

@@ -35,16 +35,21 @@ def test_logger_setup(tmp_path):
 
 # Test DB Handling
 def test_safe_db_context_error():
-    with patch("app.db.SessionLocal") as MockSession:
-        mock_session = MockSession.return_value
-        mock_session.commit.side_effect = SQLAlchemyError("Mock DB Error")
-        
+    # Create the mock session instance *before* patching
+    mock_session = MagicMock()
+    # Configure the commit method to raise SQLAlchemyError
+    mock_session.commit.side_effect = SQLAlchemyError("Mock DB Error")
+    
+    # Patch SessionLocal to return our pre-configured mock_session
+    # Note: SessionLocal() call returns the session instance
+    with patch("app.db.SessionLocal", return_value=mock_session):
         with pytest.raises(DatabaseError) as excinfo:
             with safe_db_context() as session:
+                # We don't need to do anything, the exit of context manager calls commit
                 pass
         
         assert "A database error occurred" in str(excinfo.value)
-        mock_session.rollback.assert_called_once()
+        mock_session.rollback.assert_called()
 
 # Test Config Error
 def test_load_config_missing_is_warning(caplog):

@@ -53,6 +53,8 @@ def test_show_login_screen_creation(mock_toplevel, mock_app_with_colors):
     mock_app_with_colors.root.winfo_y.return_value = 0
     mock_app_with_colors.root.winfo_width.return_value = 1000
     mock_app_with_colors.root.winfo_height.return_value = 800
+    mock_app_with_colors.root.winfo_screenwidth.return_value = 1920
+    mock_app_with_colors.root.winfo_screenheight.return_value = 1080
     
     with patch("app.auth.app_auth.AppAuth.start_login_flow"):
         auth = AppAuth(mock_app_with_colors)
@@ -71,6 +73,8 @@ def test_show_signup_screen_creation(mock_toplevel, mock_app_with_colors):
     mock_app_with_colors.root.winfo_y.return_value = 0
     mock_app_with_colors.root.winfo_width.return_value = 1000
     mock_app_with_colors.root.winfo_height.return_value = 800
+    mock_app_with_colors.root.winfo_screenwidth.return_value = 1920
+    mock_app_with_colors.root.winfo_screenheight.return_value = 1080
     
     with patch("app.auth.app_auth.AppAuth.start_login_flow"):
         auth = AppAuth(mock_app_with_colors)

@@ -19,28 +19,28 @@ def create_test_users():
             "name": "Alice Johnson",
             "email": "alice@example.com",
             "age": 25,
-            "gender": "Female",
+            "gender": "F",
             "password": "TestPass123!"
         },
         {
             "name": "Bob Smith",
             "email": "bob@example.com",
             "age": 30,
-            "gender": "Male",
+            "gender": "M",
             "password": "TestPass123!"
         },
         {
             "name": "Charlie Brown",
             "email": "charlie@example.com",
             "age": 22,
-            "gender": "Male",
+            "gender": "M",
             "password": "TestPass123!"
         },
         {
             "name": "Diana Prince",
             "email": "diana@example.com",
             "age": 28,
-            "gender": "Female",
+            "gender": "F",
             "password": "TestPass123!"
         }
     ]

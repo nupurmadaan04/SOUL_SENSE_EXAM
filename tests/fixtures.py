@@ -53,7 +53,7 @@ SAMPLE_STRENGTHS = ["Empathy", "Creativity", "Resilience", "Communication", "Lea
 SAMPLE_IMPROVEMENTS = ["Public Speaking", "Time Management", "Assertiveness", "Patience"]
 SAMPLE_BLOOD_TYPES = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]
 SAMPLE_OCCUPATIONS = ["Student", "Engineer", "Teacher", "Healthcare Worker", "Artist", "Manager"]
-SAMPLE_GENDERS = ["Male", "Female", "Non-binary", "Prefer not to say"]
+SAMPLE_GENDERS = ["M", "F", "Non-binary", "Prefer not to say"]
 
 
 # ==============================================================================

@@ -74,7 +74,7 @@ from app.questions import initialize_questions, _ALL_QUESTIONS
 import app.main
 import app.ui.styles
 
-def test_integrity_checks_pass():
+def test_integrity_checks_pass(temp_db):
     """
     Smoke Test: Verify that all startup integrity checks pass.
     This ensures config, required files, and DB schema are valid.
@@ -85,7 +85,7 @@ def test_integrity_checks_pass():
     for res in results:
         assert res.status != CheckStatus.FAILED, f"Check {res.name} failed: {res.message}"
 
-def test_database_connection():
+def test_database_connection(temp_db):
     """
     Smoke Test: Verify database connectivity.
     Ensures we can get a session and execute a simple query.

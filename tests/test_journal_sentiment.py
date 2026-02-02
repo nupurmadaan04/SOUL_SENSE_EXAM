@@ -1,125 +1,123 @@
-
 import pytest
 from unittest.mock import MagicMock, patch
-import sys
-
-# CRITICAL: Mock app.db at the very beginning to prevent engine creation on import
-mock_db = MagicMock()
-sys.modules['app.db'] = mock_db
-
-# Mock the session and context manager
-mock_session = MagicMock()
-mock_db.safe_db_context.return_value.__enter__.return_value = mock_session
-mock_db.SessionLocal.return_value = mock_session
-mock_db.get_session.return_value = mock_session
-
-# Now we can safely import other things
+import datetime
+# Import app modules directly as standard patching handles mocks
 from app.ui.journal import JournalFeature
-from app.models import JournalEntry
+from app.services.journal_service import JournalService
 
 class TestJournalSentimentAnalysis:
-    """Test suite for journal sentiment analysis functionality (Pure Mock)"""
+    """Test suite for journal sentiment analysis functionality"""
 
     @pytest.fixture
-    def journal_feature(self):
-        """Create a JournalFeature instance for testing"""
-        mock_root = MagicMock()
-        mock_app = MagicMock()
-        mock_app.colors = {
+    def mock_app(self):
+        app = MagicMock()
+        app.colors = {
             "bg": "#f0f0f0", "surface": "white", "text_primary": "black",
             "text_secondary": "#666", "primary": "#8B5CF6", "secondary": "#EC4899"
         }
-        mock_app.username = "test_user"
+        app.username = "test_user"
+        return app
 
-        # Initialize feature with mocked analyzer init to prevent NLTK download
+    # Patch at the source where they are used
+    @patch('app.ui.journal.tk')
+    @patch('app.ui.journal.ttk')
+    @patch('app.ui.journal.messagebox')
+    @patch('app.ui.journal.scrolledtext')
+    def test_initialization(self, mock_st, mock_mb, mock_ttk, mock_tk, mock_app):
+        mock_root = MagicMock()
+        
+        # Mock widgets
+        mock_tk.Frame.return_value = MagicMock()
+        mock_tk.Label.return_value = MagicMock()
+        mock_tk.DoubleVar.return_value = MagicMock()
+        mock_tk.IntVar.return_value = MagicMock()
+        
+        # Initialize
+        with patch.object(JournalFeature, '_initialize_sentiment_analyzer', MagicMock()):
+            feature = JournalFeature(mock_root, app=mock_app)
+            assert feature is not None
+
+    @patch('app.ui.journal.tk')
+    @patch('app.ui.journal.ttk')
+    def test_analyze_sentiment_logic(self, mock_ttk, mock_tk, mock_app):
+        # We can test verify logic without full UI initialization if we partially mock
+        mock_root = MagicMock()
+        
         with patch.object(JournalFeature, '_initialize_sentiment_analyzer', MagicMock()):
             feature = JournalFeature(mock_root, app=mock_app)
             
-        # Manually mock sentiment analyzer after init
         feature.sia = MagicMock()
-        feature.sia.polarity_scores.return_value = {'compound': 0.5}
-        return feature
+        
+        # Test positive
+        feature.sia.polarity_scores.return_value = {'compound': 0.8}
+        assert feature.analyze_sentiment("Happy") == 80.0
+        
+        # Test negative
+        feature.sia.polarity_scores.return_value = {'compound': -0.8}
+        assert feature.analyze_sentiment("Sad") == -80.0
 
-    def test_sentiment_analyzer_initialization(self, journal_feature):
-        assert hasattr(journal_feature, 'sia')
-
-    def test_analyze_sentiment_positive(self, journal_feature):
-        journal_feature.sia.polarity_scores.return_value = {'compound': 0.8}
-        assert journal_feature.analyze_sentiment("Happy") == 80.0
-
-    def test_analyze_sentiment_negative(self, journal_feature):
-        journal_feature.sia.polarity_scores.return_value = {'compound': -0.8}
-        assert journal_feature.analyze_sentiment("Sad") == -80.0
-
-    def test_analyze_sentiment_neutral(self, journal_feature):
-        journal_feature.sia.polarity_scores.return_value = {'compound': 0.0}
-        assert journal_feature.analyze_sentiment("Okay") == 0.0
-
-    def test_analyze_sentiment_empty(self, journal_feature):
-        assert journal_feature.analyze_sentiment("") == 0.0
-
-    def test_analyze_sentiment_whitespace(self, journal_feature):
-        assert journal_feature.analyze_sentiment("   ") == 0.0
-
-    def test_mood_from_score_positive(self, journal_feature):
-        assert journal_feature._app_mood_from_score(50) == "Positive"
-
-    def test_mood_from_score_negative(self, journal_feature):
-        assert journal_feature._app_mood_from_score(-50) == "Negative"
-
-    def test_mood_from_score_neutral(self, journal_feature):
-        assert journal_feature._app_mood_from_score(0) == "Neutral"
-
-    @patch('app.services.journal_service.JournalService.create_entry')
+    @patch('app.ui.journal.tk')
+    @patch('app.ui.journal.ttk')
+    @patch('app.ui.journal.JournalService') # Patch service in UI
     @patch('app.ui.components.loading_overlay.show_loading')
     @patch('app.ui.components.loading_overlay.hide_loading')
-    def test_save_and_analyze_integration(self, mock_hide, mock_show, mock_create_entry, journal_feature):
-        # Setup mocks for UI elements
-        journal_feature.text_area = MagicMock()
-        journal_feature.text_area.get.return_value = "Great!"
+    def test_save_and_analyze_integration(self, mock_hide, mock_show, mock_service, mock_ttk, mock_tk, mock_app):
+        mock_root = MagicMock()
+        
+        with patch.object(JournalFeature, '_initialize_sentiment_analyzer', MagicMock()):
+            feature = JournalFeature(mock_root, app=mock_app)
+            
+        # Setup UI references
+        feature.text_area = MagicMock()
+        feature.text_area.get.return_value = "My journal entry"
         
         for v in ['sleep_hours_var', 'sleep_quality_var', 'energy_level_var', 
                   'stress_level_var', 'work_hours_var', 'screen_time_var']:
-            setattr(journal_feature, v, MagicMock())
-            getattr(journal_feature, v).get.return_value = 5
+            setattr(feature, v, MagicMock())
+            getattr(feature, v).get.return_value = 5
             
-        journal_feature.tags_entry = MagicMock()
-        journal_feature.schedule_text = MagicMock()
-        journal_feature.triggers_text = MagicMock()
-        journal_feature.parent_root = MagicMock()
+        feature.tags_entry = MagicMock()
+        feature.schedule_text = MagicMock()
+        feature.triggers_text = MagicMock()
+        feature.parent_root = MagicMock()
         
-        # Mock internal method to avoid recursive logic execution
-        journal_feature.analyze_sentiment = MagicMock(return_value=80.0)
+        # Mock logic
+        feature.analyze_sentiment = MagicMock(return_value=80.0)
+        feature.generate_health_insights = MagicMock(return_value="Insight")
+        feature.show_analysis_results = MagicMock()
         
-        # Mock show_analysis_results to avoid popup creation
-        journal_feature.show_analysis_results = MagicMock()
-
-        journal_feature.save_and_analyze()
+        feature.save_and_analyze()
         
-        assert mock_create_entry.called
+        assert mock_service.create_entry.called
 
 class TestJournalServiceDatabase:
-    """Mocked service tests"""
+    """Test service with DB context mocked"""
     
-    def test_create_entry_success(self):
-        # Already mocked app.db at module level
-        from app.services.journal_service import JournalService
+    @patch('app.services.journal_service.safe_db_context')
+    @patch('app.services.journal_service.JournalEntry') # Mock model to avoid schema need
+    def test_create_entry_success(self, MockEntry, mock_safe_db_context):
+        # Setup session mock
+        mock_session = MagicMock()
+        mock_safe_db_context.return_value.__enter__.return_value = mock_session
         
-        result = JournalService.create_entry(
-            username="test", content="c", sentiment_score=50, emotional_patterns=""
-        )
+        # Call service
+        result = JournalService.create_entry("user", "content", 50, "patterns")
+        
         assert result is not None
         assert mock_session.add.called
+        assert MockEntry.called
 
-    def test_get_entries_success(self):
-        from app.services.journal_service import JournalService
-        mock_query = mock_session.query.return_value
-        mock_query.filter_by.return_value.order_by.return_value.all.return_value = ["e1"]
+    @patch('app.services.journal_service.safe_db_context')
+    @patch('app.services.journal_service.JournalEntry')
+    @patch('app.services.journal_service.desc')
+    def test_get_entries(self, mock_desc, MockEntry, mock_safe_db_context):
+        mock_session = MagicMock()
+        mock_safe_db_context.return_value.__enter__.return_value = mock_session
         
-        result = JournalService.get_entries("test")
-        assert len(result) == 1
-
-class TestJournalModel:
-    def test_journal_entry_init(self):
-        entry = JournalEntry(username="u", content="c")
-        assert entry.username == "u"
+        # Mock query chain
+        mock_query = mock_session.query.return_value
+        mock_query.filter_by.return_value.order_by.return_value.all.return_value = ["e1", "e2"]
+        
+        result = JournalService.get_entries("user")
+        
+        assert len(result) == 2

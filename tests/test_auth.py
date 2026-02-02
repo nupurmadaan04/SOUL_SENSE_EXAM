@@ -36,31 +36,31 @@ class TestAuth:
     def test_user_registration(self):
         # Test successful registration
         # Args: username, email, first_name, last_name, age, gender, password
-        success, message, code = self.auth_manager.register_user("testuser", "test@example.com", "First", "Last", 25, "Male", "TestPass123!")
+        success, message, code = self.auth_manager.register_user("testuser", "test@example.com", "First", "Last", 25, "M", "TestPass123!")
         assert success == True
         assert "successful" in message
         assert code is None
         
         # Test duplicate username
-        success, message, code = self.auth_manager.register_user("testuser", "test2@example.com", "Other", "User", 26, "Female", "TestPass456!")
+        success, message, code = self.auth_manager.register_user("testuser", "test2@example.com", "Other", "User", 26, "F", "TestPass456!")
         assert success == False
         # Auth.py now returns "Username already taken"
         assert "already taken" in message.lower()
         assert code == "REG001"
         
         # Test short username
-        success, message, code = self.auth_manager.register_user("a", "short@example.com", "Test", "User", 25, "Male", "TestPass123!")
+        success, message, code = self.auth_manager.register_user("a", "short@example.com", "Test", "User", 25, "M", "TestPass123!")
         assert success == False
         assert "at least 3 characters" in message
         
         # Test short password
-        success, message, code = self.auth_manager.register_user("newuser", "new@example.com", "Test", "User", 25, "Male", "123")
+        success, message, code = self.auth_manager.register_user("newuser", "new@example.com", "Test", "User", 25, "M", "123")
         assert success == False
         assert "at least 8 characters" in message
     
     def test_user_login(self):
         # Register a user first
-        self.auth_manager.register_user("testuser", "test@example.com", "First", "Last", 25, "Male", "TestPass123!")
+        self.auth_manager.register_user("testuser", "test@example.com", "First", "Last", 25, "M", "TestPass123!")
         
         # Test successful login
         success, message, code = self.auth_manager.login_user("testuser", "TestPass123!")
@@ -80,7 +80,7 @@ class TestAuth:
     
     def test_user_logout(self):
         # Register and login
-        self.auth_manager.register_user("testuser", "test@example.com", "First", "Last", 25, "Male", "TestPass123!")
+        self.auth_manager.register_user("testuser", "test@example.com", "First", "Last", 25, "M", "TestPass123!")
         self.auth_manager.login_user("testuser", "TestPass123!")
         
         # Verify logged in
