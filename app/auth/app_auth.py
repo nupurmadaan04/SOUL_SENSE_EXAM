@@ -59,6 +59,23 @@ class AppAuth:
         self.logger = get_logger(__name__)
         self.start_login_flow()
 
+    def _secure_password_entry(self, entry_widget):
+        """
+        SECURITY HARDENING:
+        Prevents Copy, Paste, Cut, and Right-Click Context Menu on password fields.
+        """
+        def block_event(event):
+            return "break"
+
+        # Block Ctrl+C, Ctrl+V, Ctrl+X
+        entry_widget.bind("<Control-c>", block_event)
+        entry_widget.bind("<Control-v>", block_event)
+        entry_widget.bind("<Control-x>", block_event)
+        
+        # Block Right Click (Button-3 on Windows/Linux, Button-2 on some Macs)
+        entry_widget.bind("<Button-3>", block_event) 
+        entry_widget.bind("<Button-2>", block_event)
+
     def show_login_screen(self):
         """Show login popup on startup"""
         login_win = tk.Toplevel(self.app.root)
@@ -129,6 +146,9 @@ class AppAuth:
         password_entry = tk.Entry(entry_frame, font=("Segoe UI", 12), show="*")
         password_entry.pack(fill="x", pady=(5, 15))
 
+        # --- APPLY SECURITY HARDENING (Login) ---
+        self._secure_password_entry(password_entry)
+
         # Show Password checkbox
         show_password_var = tk.BooleanVar()
         def toggle_password_visibility():
@@ -143,8 +163,8 @@ class AppAuth:
         # Remember Me checkbox
         remember_me_var = tk.BooleanVar()
         remember_me_cb = tk.Checkbutton(entry_frame, text="Remember me", variable=remember_me_var,
-                                        font=("Segoe UI", 10),
-                                        bg=self.app.colors["bg"], fg=self.app.colors["text_primary"])
+                                       font=("Segoe UI", 10),
+                                       bg=self.app.colors["bg"], fg=self.app.colors["text_primary"])
         remember_me_cb.pack(anchor="w", pady=(0, 10))
 
         def do_login(event=None):
@@ -333,6 +353,9 @@ class AppAuth:
         password_entry = tk.Entry(pw_frame, font=("Segoe UI", 10), show="*", bg=self.app.colors.get("entry_bg", "#F8FAFC"), relief="flat", highlightthickness=1)
         password_entry.pack(fill="x", ipady=4)
 
+        # --- APPLY SECURITY HARDENING (Signup) ---
+        self._secure_password_entry(password_entry)
+
         # Row 4: Confirm Password (spans both)
         cp_frame = tk.Frame(form_frame, bg=self.app.colors.get("surface", "#FFFFFF"))
         cp_frame.grid(row=4, column=0, columnspan=2, sticky="ew", pady=(0, 15))
@@ -341,6 +364,9 @@ class AppAuth:
         confirm_password_entry = tk.Entry(cp_frame, font=("Segoe UI", 10), show="*", bg=self.app.colors.get("entry_bg", "#F8FAFC"), relief="flat", highlightthickness=1)
         confirm_password_entry.pack(fill="x", ipady=4)
         
+        # --- APPLY SECURITY HARDENING (Confirm Signup) ---
+        self._secure_password_entry(confirm_password_entry)
+
         # Show Password for Confirm Password field
         show_confirm_var = tk.BooleanVar()
         def toggle_confirm_visibility():
