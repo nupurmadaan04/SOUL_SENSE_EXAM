@@ -7,6 +7,8 @@ from app.models import OTP, User
 
 logger = logging.getLogger(__name__)
 
+from typing import Optional
+
 class OTPManager:
     """
     Manages generation, storage, and verification of One-Time Passwords.
@@ -24,7 +26,7 @@ class OTPManager:
         return hashlib.sha256(code.encode()).hexdigest()
 
     @classmethod
-    def generate_otp(cls, user_id: int, purpose: str, db_session=None) -> tuple[str, str]:
+    def generate_otp(cls, user_id: int, purpose: str, db_session=None) -> tuple[Optional[str], Optional[str]]:
         """
         Generate a new OTP for a user.
         
