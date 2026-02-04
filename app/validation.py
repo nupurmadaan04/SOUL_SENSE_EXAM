@@ -239,3 +239,14 @@ def validate_required(text: str, label: str) -> Tuple[bool, str]:
         return False, f"{label} contains invalid characters."
     
     return True, ""
+
+
+def validate_password_match(password: str, confirm_password: str) -> Tuple[bool, str]:
+    """Validate that password and confirm password match."""
+    if not confirm_password:
+        return False, "Please confirm your password."
+    
+    if password != confirm_password:
+        return False, "Passwords do not match."
+    
+    return True, ""

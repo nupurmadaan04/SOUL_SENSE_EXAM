@@ -175,6 +175,11 @@ class AnalyticsDashboard:
         notebook.add(satisfaction_frame, text="💼 Satisfaction")
         self.show_satisfaction_analytics(satisfaction_frame)
 
+        # Progress Dashboard Tab
+        progress_frame = ttk.Frame(notebook)
+        notebook.add(progress_frame, text="📈 Progress")
+        self.show_progress_dashboard(progress_frame)
+
     def show_wellbeing_analytics(self, parent: tk.Widget) -> None:
         """Show comprehensive health and wellbeing analytics (PR #7)"""
         parent = self._create_scrollable_frame(parent)
@@ -1463,6 +1468,330 @@ class AnalyticsDashboard:
         else:
             insight_msg += "✨ Your sleep schedule (avg {:.1f}h) seems balanced.".format(avg_sleep)
 
-        tk.Label(insights_panel, text=insight_msg, 
+        tk.Label(insights_panel, text=insight_msg,
              font=("Arial", 11), bg=insights_panel["bg"], fg=text_color,
              wraplength=800, justify="left", padx=15, pady=15).pack(anchor="w")
+
+    def show_progress_dashboard(self, parent):
+        """Show comprehensive EQ growth progress dashboard"""
+        parent = self._create_scrollable_frame(parent)
+
+        # Title
+        tk.Label(parent, text="📈 EQ Growth Progress Dashboard",
+                font=("Arial", 18, "bold")).pack(pady=(20, 10))
+
+        tk.Label(parent,
+                text="Track your emotional intelligence development journey with interactive charts and personalized milestones.",
+                font=("Arial", 11), wraplength=600).pack(pady=(0, 20))
+
+        # Fetch data
+        eq_scores = []
+        eq_dates = []
+        journal_entries = []
+        journal_dates = []
+        sentiment_scores = []
+
+        try:
+            conn = get_connection()
+            cursor = conn.cursor()
+
+            # Get EQ scores
+            cursor.execute("""
+                SELECT total_score, timestamp, sentiment_score
+                FROM scores
+                WHERE username = ?
+                ORDER BY timestamp
+            """, (self.username,))
+            eq_data = cursor.fetchall()
+
+            for row in eq_data:
+                eq_scores.append(row[0])
+                eq_dates.append(datetime.fromisoformat(row[1]))
+                if row[2] is not None:
+                    sentiment_scores.append(row[2])
+
+            # Get journal entries
+            cursor.execute("""
+                SELECT entry_date, sentiment_score
+                FROM journal_entries
+                WHERE username = ?
+                ORDER BY entry_date
+            """, (self.username,))
+            journal_data = cursor.fetchall()
+
+            for row in journal_data:
+                journal_entries.append(row[1] if row[1] is not None else 0)
+                journal_dates.append(datetime.strptime(row[0].split(' ')[0], "%Y-%m-%d"))
+
+            conn.close()
+        except Exception as e:
+            tk.Label(parent, text=f"Error loading progress data: {str(e)}",
+                    font=("Arial", 12), fg="red").pack(pady=50)
+            return
+
+        if not eq_scores and not journal_entries:
+            tk.Label(parent, text="No progress data available yet.\n\nComplete assessments and journal entries to see your growth!",
+                    font=("Arial", 14)).pack(pady=50)
+            return
+
+        # --- 1. Progress Overview Cards ---
+        cards_frame = tk.Frame(parent, bg=self.colors["bg"])
+        cards_frame.pack(fill="x", padx=20, pady=10)
+
+        def create_progress_card(title, value, subtitle, color, icon):
+            card = tk.Frame(cards_frame, bg=self.colors["surface"], relief="ridge", bd=2)
+            card.pack(side="left", expand=True, fill="both", padx=5)
+
+            tk.Label(card, text=icon, font=("Arial", 24), bg=self.colors["surface"]).pack(pady=(15, 5))
+            tk.Label(card, text=title, font=("Arial", 10, "bold"), bg=self.colors["surface"],
+                    fg=self.colors["text_secondary"]).pack()
+            tk.Label(card, text=str(value), font=("Arial", 20, "bold"), bg=self.colors["surface"],
+                    fg=color).pack(pady=(5, 0))
+            tk.Label(card, text=subtitle, font=("Arial", 8), bg=self.colors["surface"],
+                    fg=self.colors["text_secondary"]).pack(pady=(0, 15))
+
+        # Calculate metrics
+        total_assessments = len(eq_scores)
+        total_journal_entries = len(journal_entries)
+        avg_score = sum(eq_scores)/len(eq_scores) if eq_scores else 0
+        avg_sentiment = sum(sentiment_scores)/len(sentiment_scores) if sentiment_scores else 0
+
+        create_progress_card("Assessments", total_assessments, "Completed", "#3B82F6", "🧠")
+        create_progress_card("Journal Entries", total_journal_entries, "Written", "#8B5CF6", "📝")
+        create_progress_card("Avg EQ Score", f"{avg_score:.1f}", "/25", "#22C55E", "📊")
+        create_progress_card("Emotional Tone", f"{avg_sentiment:+.1f}", "sentiment", "#F59E0B", "😊" if avg_sentiment > 0 else "😐")
+
+        # --- 2. EQ Score Progress Chart ---
+        if eq_scores:
+            progress_frame = tk.Frame(parent, bg=self.colors["surface"], relief="ridge", bd=2)
+            progress_frame.pack(fill="both", expand=True, padx=20, pady=10)
+
+            tk.Label(progress_frame, text="🎯 EQ Score Progress Over Time",
+                    font=("Arial", 14, "bold"), bg=self.colors["surface"]).pack(pady=10)
+
+            fig = Figure(figsize=(8, 4), dpi=100, facecolor=self.colors["surface"])
+            ax = fig.add_subplot(111)
+            ax.set_facecolor(self.colors["surface"])
+
+            # Plot EQ scores with milestone markers
+            x_vals = range(1, len(eq_scores) + 1)
+            ax.plot(x_vals, eq_scores, 'o-', color='#22C55E', linewidth=3, markersize=8,
+                   markerfacecolor='#22C55E', markeredgewidth=2, markeredgecolor='white')
+
+            # Add milestone markers for significant improvements
+            milestones = []
+            for i in range(1, len(eq_scores)):
+                if eq_scores[i] >= 20 and eq_scores[i-1] < 20:  # First score >= 20
+                    milestones.append((i+1, eq_scores[i], "🎯 EQ Milestone: 20+"))
+                elif eq_scores[i] >= 15 and eq_scores[i-1] < 15:  # First score >= 15
+                    milestones.append((i+1, eq_scores[i], "⭐ EQ Milestone: 15+"))
+
+            for x, y, label in milestones:
+                ax.scatter(x, y, s=200, c='#FFD700', marker='*', edgecolors='black', linewidths=2, zorder=5)
+                ax.annotate(label, (x, y), xytext=(10, 10), textcoords='offset points',
+                           bbox=dict(boxstyle='round,pad=0.3', facecolor='yellow', alpha=0.8),
+                           fontsize=9, fontweight='bold')
+
+            ax.set_xlabel('Assessment Number', fontsize=11, color=self.colors["text_secondary"])
+            ax.set_ylabel('EQ Score', fontsize=11, color='#22C55E')
+            ax.set_title('Your EQ Growth Journey', fontsize=12, fontweight='bold', pad=15)
+            ax.grid(True, alpha=0.3, linestyle='--')
+            ax.set_xticks(x_vals)
+
+            # Add trend line if enough data
+            if len(eq_scores) >= 3:
+                try:
+                    import numpy as np
+                    z = np.polyfit(x_vals, eq_scores, 1)
+                    p = np.poly1d(z)
+                    trend_line = p(x_vals)
+                    ax.plot(x_vals, trend_line, '--', color='#EF4444', alpha=0.7, linewidth=2,
+                           label=f'Trend: {z[0]:+.2f}/assessment')
+                    ax.legend(loc='upper left')
+                except:
+                    pass
+
+            fig.tight_layout()
+            canvas = FigureCanvasTkAgg(fig, progress_frame)
+            canvas.draw()
+            canvas.get_tk_widget().pack(fill="both", expand=True, padx=20, pady=10)
+
+        # --- 3. Journaling Frequency & Emotional Trends ---
+        if journal_entries:
+            trends_frame = tk.Frame(parent, bg=self.colors["surface"], relief="ridge", bd=2)
+            trends_frame.pack(fill="both", expand=True, padx=20, pady=10)
+
+            tk.Label(trends_frame, text="📝 Journaling Activity & Emotional Trends",
+                    font=("Arial", 14, "bold"), bg=self.colors["surface"]).pack(pady=10)
+
+            fig = Figure(figsize=(10, 6), dpi=100, facecolor=self.colors["surface"])
+
+            # Journaling frequency (bar chart)
+            ax1 = fig.add_subplot(211)
+            ax1.set_facecolor(self.colors["surface"])
+
+            # Group by week for frequency
+            weekly_counts = {}
+            for date in journal_dates:
+                week_start = date - timedelta(days=date.weekday())
+                week_key = week_start.strftime("%Y-%m-%d")
+                weekly_counts[week_key] = weekly_counts.get(week_key, 0) + 1
+
+            weeks = sorted(weekly_counts.keys())
+            counts = [weekly_counts[w] for w in weeks]
+
+            bars = ax1.bar(range(len(weeks)), counts, color='#8B5CF6', alpha=0.7, width=0.6)
+            ax1.set_xlabel('Week', fontsize=11, color=self.colors["text_secondary"])
+            ax1.set_ylabel('Journal Entries', fontsize=11, color='#8B5CF6')
+            ax1.set_title('Weekly Journaling Frequency', fontsize=12, fontweight='bold', pad=10)
+            ax1.grid(True, alpha=0.3, linestyle='--', axis='y')
+            ax1.set_xticks(range(len(weeks)))
+            ax1.set_xticklabels([w[-5:] for w in weeks], rotation=45, ha='right')  # Show MM-DD
+
+            # Add value labels on bars
+            for bar, count in zip(bars, counts):
+                height = bar.get_height()
+                ax1.text(bar.get_x() + bar.get_width()/2., height + 0.1, str(count),
+                        ha='center', va='bottom', fontsize=9, fontweight='bold')
+
+            # Emotional trends (line chart)
+            ax2 = fig.add_subplot(212)
+            ax2.set_facecolor(self.colors["surface"])
+
+            ax2.plot(range(len(journal_entries)), journal_entries, 'o-', color='#F59E0B',
+                    linewidth=2, markersize=6, markerfacecolor='#F59E0B',
+                    markeredgewidth=2, markeredgecolor='white')
+
+            ax2.set_xlabel('Journal Entry Number', fontsize=11, color=self.colors["text_secondary"])
+            ax2.set_ylabel('Sentiment Score', fontsize=11, color='#F59E0B')
+            ax2.set_title('Emotional Sentiment Trends', fontsize=12, fontweight='bold', pad=10)
+            ax2.grid(True, alpha=0.3, linestyle='--')
+            ax2.axhline(y=0, color='gray', linestyle='-', alpha=0.3)  # Neutral line
+
+            fig.tight_layout(pad=2.0)
+            canvas = FigureCanvasTkAgg(fig, trends_frame)
+            canvas.draw()
+            canvas.get_tk_widget().pack(fill="both", expand=True, padx=20, pady=10)
+
+        # --- 4. Personalized Milestones ---
+        milestones_frame = tk.Frame(parent, bg=self.colors["surface"], relief="ridge", bd=2)
+        milestones_frame.pack(fill="both", expand=True, padx=20, pady=10)
+
+        tk.Label(milestones_frame, text="🏆 Your EQ Growth Milestones",
+                font=("Arial", 14, "bold"), bg=self.colors["surface"]).pack(pady=10)
+
+        # Define milestones
+        milestones_data = [
+            {"name": "First Assessment", "description": "Completed your first EQ assessment",
+             "threshold": 1, "current": total_assessments, "icon": "🎯", "color": "#3B82F6"},
+            {"name": "EQ Explorer", "description": "Completed 5 assessments",
+             "threshold": 5, "current": total_assessments, "icon": "🧭", "color": "#8B5CF6"},
+            {"name": "EQ Achiever", "description": "Scored 20+ on an assessment",
+             "threshold": 20, "current": max(eq_scores) if eq_scores else 0, "icon": "⭐", "color": "#F59E0B"},
+            {"name": "EQ Master", "description": "Scored 22+ on an assessment",
+             "threshold": 22, "current": max(eq_scores) if eq_scores else 0, "icon": "👑", "color": "#EF4444"},
+            {"name": "Reflective Mind", "description": "Written 10 journal entries",
+             "threshold": 10, "current": total_journal_entries, "icon": "📝", "color": "#22C55E"},
+            {"name": "Emotional Chronicler", "description": "Written 25 journal entries",
+             "threshold": 25, "current": total_journal_entries, "icon": "📚", "color": "#06B6D4"},
+        ]
+
+        # Display milestones in a grid
+        milestones_container = tk.Frame(milestones_frame, bg=self.colors["surface"])
+        milestones_container.pack(fill="both", expand=True, padx=20, pady=10)
+
+        for i, milestone in enumerate(milestones_data):
+            row = i // 2
+            col = i % 2
+
+            # Create milestone card
+            card = tk.Frame(milestones_container, bg="#f8f9fa", relief="groove", bd=1)
+            card.grid(row=row, column=col, padx=10, pady=10, sticky="nsew")
+
+            # Configure grid weights
+            milestones_container.grid_rowconfigure(row, weight=1)
+            milestones_container.grid_columnconfigure(col, weight=1)
+
+            # Header with icon and progress
+            header_frame = tk.Frame(card, bg="#f8f9fa")
+            header_frame.pack(fill="x", padx=10, pady=10)
+
+            achieved = milestone["current"] >= milestone["threshold"]
+            icon_color = milestone["color"] if achieved else "#94A3B8"
+
+            tk.Label(header_frame, text=milestone["icon"], font=("Arial", 20),
+                    bg="#f8f9fa", fg=icon_color).pack(side="left")
+
+            progress_frame = tk.Frame(header_frame, bg="#f8f9fa")
+            progress_frame.pack(side="right")
+
+            tk.Label(progress_frame, text=f"{milestone['current']}/{milestone['threshold']}",
+                    font=("Arial", 10, "bold"), bg="#f8f9fa",
+                    fg=milestone["color"] if achieved else "#666").pack()
+
+            # Title and description
+            tk.Label(card, text=milestone["name"], font=("Arial", 12, "bold"),
+                    bg="#f8f9fa", fg=milestone["color"] if achieved else "#666").pack(anchor="w", padx=10)
+
+            tk.Label(card, text=milestone["description"], font=("Arial", 9),
+                    bg="#f8f9fa", fg="#666", wraplength=200, justify="left").pack(anchor="w", padx=10, pady=(0, 10))
+
+            # Progress bar
+            progress_value = min(100, (milestone["current"] / milestone["threshold"]) * 100)
+            progress_bar = tk.Canvas(card, width=200, height=8, bg="#E5E7EB", highlightthickness=0)
+            progress_bar.pack(pady=(0, 10))
+
+            # Draw progress bar
+            progress_bar.create_rectangle(0, 0, 200, 8, fill="#E5E7EB", outline="")
+            if progress_value > 0:
+                progress_bar.create_rectangle(0, 0, progress_value * 2, 8,
+                                            fill=milestone["color"] if achieved else "#CBD5E1", outline="")
+
+            # Achievement indicator
+            if achieved:
+                tk.Label(card, text="✅ ACHIEVED!", font=("Arial", 8, "bold"),
+                        bg="#f8f9fa", fg=milestone["color"]).pack(pady=(0, 10))
+            else:
+                remaining = milestone["threshold"] - milestone["current"]
+                tk.Label(card, text=f"{remaining} more to go!", font=("Arial", 8),
+                        bg="#f8f9fa", fg="#666").pack(pady=(0, 10))
+
+        # --- 5. Next Steps & Recommendations ---
+        if eq_scores or journal_entries:
+            recommendations_frame = tk.Frame(parent, bg="#E0F2FE", relief="ridge", bd=2)
+            recommendations_frame.pack(fill="x", padx=20, pady=20)
+
+            tk.Label(recommendations_frame, text="💡 Growth Recommendations",
+                    font=("Arial", 14, "bold"), bg="#E0F2FE").pack(pady=10)
+
+            recommendations = []
+
+            # EQ Score recommendations
+            if eq_scores:
+                latest_score = eq_scores[-1]
+                if latest_score < 15:
+                    recommendations.append("📈 Focus on building foundational EQ skills through regular assessments")
+                elif latest_score < 20:
+                    recommendations.append("🎯 You're progressing well! Continue practicing emotional awareness")
+                else:
+                    recommendations.append("⭐ Excellent EQ skills! Maintain consistency and help others learn")
+
+            # Journaling recommendations
+            if total_journal_entries < 5:
+                recommendations.append("📝 Start journaling regularly to track your emotional patterns")
+            elif total_journal_entries < 15:
+                recommendations.append("🔄 Great journaling habit! Try exploring different emotional triggers")
+            else:
+                recommendations.append("📚 You're building a rich emotional history - keep reflecting!")
+
+            # Overall progress
+            if total_assessments >= 3 and total_journal_entries >= 5:
+                recommendations.append("🚀 You're on a great growth journey! Consider sharing insights with others")
+            elif total_assessments < 3:
+                recommendations.append("🧠 Take more assessments to track your EQ development over time")
+
+            for rec in recommendations:
+                tk.Label(recommendations_frame, text=f"• {rec}", font=("Arial", 10),
+                        bg="#E0F2FE", wraplength=700, justify="left").pack(anchor="w", padx=20, pady=2)
+
+            tk.Label(recommendations_frame, text="", bg="#E0F2FE").pack(pady=10)  # Spacer

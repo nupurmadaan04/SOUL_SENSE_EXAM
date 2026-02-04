@@ -39,13 +39,21 @@ export function FormField<T extends FieldValues>({
     control,
   });
 
+  // Add error styling class when field has error
+  const inputClassName = cn(
+    className,
+    error && 'border-destructive focus-visible:ring-destructive'
+  );
+
   const fieldProps = {
     ...field,
     placeholder,
     type,
     required,
     disabled,
-    className,
+    className: inputClassName,
+    'aria-invalid': !!error,
+    'aria-describedby': error ? `${name}-error` : undefined,
   };
 
   return (
@@ -61,3 +69,4 @@ export function FormField<T extends FieldValues>({
     </div>
   );
 }
+

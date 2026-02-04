@@ -129,7 +129,12 @@ class AppAuth:
         tk.Label(entry_frame, text="Password", font=("Segoe UI", 10, "bold"),
                  bg=self.app.colors["bg"], fg=self.app.colors["text_primary"]).pack(anchor="w")
         password_entry = tk.Entry(entry_frame, font=("Segoe UI", 12), show="*")
-        password_entry.pack(fill="x", pady=(5, 15))
+        password_entry.pack(fill="x", pady=(5, 5))
+        
+        # Password error label for empty password feedback
+        login_password_error_label = tk.Label(entry_frame, text="", font=("Segoe UI", 8), 
+                                              bg=self.app.colors["bg"], fg="#EF4444")
+        login_password_error_label.pack(anchor="w", pady=(0, 10))
 
         # Show Password checkbox
         show_password_var = tk.BooleanVar()
@@ -152,9 +157,24 @@ class AppAuth:
         def do_login(event=None):
             user = username_entry.get().strip()
             pwd = password_entry.get().strip()
-
-            if not user or not pwd:
-                tmb.showerror("Error", "Please enter username and password")
+            
+            # Clear previous error messages
+            login_email_error_label.config(text="")
+            login_password_error_label.config(text="")
+            
+            # Field-specific validation with inline errors
+            has_error = False
+            if not user:
+                login_email_error_label.config(text="Email or Username is required")
+                username_entry.focus_set()
+                has_error = True
+            if not pwd:
+                login_password_error_label.config(text="Password is required")
+                if not has_error:
+                    password_entry.focus_set()
+                has_error = True
+            
+            if has_error:
                 return
 
             success, msg, err_code = self.auth_manager.login_user(user, pwd)
@@ -501,11 +521,34 @@ class AppAuth:
 
         # Row 4: Confirm Password (spans both)
         cp_frame = tk.Frame(form_frame, bg=self.app.colors.get("surface", "#FFFFFF"))
-        cp_frame.grid(row=4, column=0, columnspan=2, sticky="ew", pady=(0, 15))
+        cp_frame.grid(row=4, column=0, columnspan=2, sticky="ew", pady=(0, 8))
         tk.Label(cp_frame, text="🔒 Confirm Password", font=("Segoe UI", 9, "bold"),
                  bg=self.app.colors.get("surface", "#FFFFFF"), fg=self.app.colors["text_primary"]).pack(anchor="w")
         confirm_password_entry = tk.Entry(cp_frame, font=("Segoe UI", 10), show="*", bg=self.app.colors.get("entry_bg", "#F8FAFC"), relief="flat", highlightthickness=1)
         confirm_password_entry.pack(fill="x", ipady=4)
+        
+        # Password mismatch inline error label
+        password_mismatch_label = tk.Label(cp_frame, text="", font=("Segoe UI", 8), 
+                                           bg=self.app.colors.get("surface", "#FFFFFF"), fg="#EF4444")
+        password_mismatch_label.pack(anchor="w")
+        
+        # Real-time password match validation
+        def validate_password_match_realtime(event=None):
+            pwd = password_entry.get()
+            confirm_pwd = confirm_password_entry.get()
+            if not confirm_pwd:
+                password_mismatch_label.config(text="")
+                confirm_password_entry.config(highlightbackground=self.app.colors.get("border", "#E2E8F0"), highlightcolor=self.app.colors.get("border", "#E2E8F0"))
+            elif pwd == confirm_pwd:
+                password_mismatch_label.config(text="")
+                confirm_password_entry.config(highlightbackground="#10B981", highlightcolor="#10B981")
+            else:
+                password_mismatch_label.config(text="Passwords do not match")
+                confirm_password_entry.config(highlightbackground="#EF4444", highlightcolor="#EF4444")
+        
+        confirm_password_entry.bind("<KeyRelease>", validate_password_match_realtime)
+        confirm_password_entry.bind("<FocusOut>", validate_password_match_realtime)
+        password_entry.bind("<KeyRelease>", validate_password_match_realtime)
         
         # Show Password for Confirm Password field
         show_confirm_var = tk.BooleanVar()
