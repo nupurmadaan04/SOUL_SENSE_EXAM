@@ -18,9 +18,18 @@ type LoginFormData = z.infer<typeof loginSchema>;
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
-  const { login } = useAuth();
 
-  const handleSubmit = async (data: LoginFormData, methods: UseFormReturn<LoginFormData>) => {
+  // 2FA State
+  const [show2FA, setShow2FA] = useState(false);
+  const [preAuthToken, setPreAuthToken] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+  const [twoFaError, setTwoFaError] = useState('');
+
+  const { login } = useAuth(); // If we use context, we assume context logic might need update too,
+  // but here we are doing manual fetch first.
+  // Ideally useAuth should handle this, but for speed modifying Page first.
+
+  const handleLoginSubmit = async (data: LoginFormData, methods: UseFormReturn<LoginFormData>) => {
     setIsLoggingIn(true);
     try {
       const formData = new URLSearchParams();
@@ -35,6 +44,14 @@ export default function LoginPage() {
         },
         body: formData.toString(),
       });
+
+      if (response.status === 202) {
+        // 2FA Required
+        const result = await response.json();
+        setPreAuthToken(result.pre_auth_token);
+        setShow2FA(true);
+        return; // Stop here, wait for OTP
+      }
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -52,8 +69,8 @@ export default function LoginPage() {
 
       const result = await response.json();
       console.log('Login successful:', result);
-      // TODO: Use useAuth's session handling logic here if possible,
-      // but for now following the existing redirect logic
+      // Store token (Basic implementation) - useAuth should handle this
+      localStorage.setItem('token', result.access_token);
       window.location.href = '/dashboard';
     } catch (error) {
       console.error('Login error:', error);
@@ -63,11 +80,81 @@ export default function LoginPage() {
     }
   };
 
+  const handleVerifyOTP = async () => {
+    setIsLoggingIn(true);
+    setTwoFaError('');
+    try {
+      const response = await fetch('http://localhost:8000/api/v1/auth/login/2fa', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          pre_auth_token: preAuthToken,
+          code: otpCode,
+        }),
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.detail?.message || 'Verification failed');
+      }
+
+      const result = await response.json();
+      localStorage.setItem('token', result.access_token);
+      window.location.href = '/dashboard';
+    } catch (error) {
+      setTwoFaError(error instanceof Error ? error.message : 'Invalid Code');
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
   const isLoading = isLoggingIn; // Alias for the UI
+
+  if (show2FA) {
+    return (
+      <AuthLayout title="Two-Factor Authentication" subtitle="Enter the code sent to your email">
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+              Verification Code
+            </label>
+            <Input
+              value={otpCode}
+              onChange={(e) => setOtpCode(e.target.value)}
+              placeholder="123456"
+              className="text-center text-lg tracking-widest"
+              maxLength={6}
+            />
+            {twoFaError && (
+              <p className="text-sm font-medium text-destructive text-red-500">{twoFaError}</p>
+            )}
+          </div>
+
+          <Button
+            onClick={handleVerifyOTP}
+            className="w-full"
+            disabled={isLoading || otpCode.length !== 6}
+          >
+            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Verify Code'}
+          </Button>
+
+          <Button
+            variant="ghost"
+            onClick={() => setShow2FA(false)}
+            className="w-full text-muted-foreground"
+          >
+            Back to Login
+          </Button>
+        </div>
+      </AuthLayout>
+    );
+  }
 
   return (
     <AuthLayout title="Welcome back" subtitle="Enter your credentials to access your account">
-      <Form schema={loginSchema} onSubmit={handleSubmit} className="space-y-5">
+      <Form schema={loginSchema} onSubmit={handleLoginSubmit} className="space-y-5">
         {(methods) => (
           <>
             <FormKeyboardListener reset={methods.reset} />

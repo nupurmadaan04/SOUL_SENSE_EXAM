@@ -65,6 +65,7 @@ class SettingsManager:
         self._create_question_count_section(content_frame, colors)
         self._create_theme_section(content_frame, colors)
         self._create_sound_section(content_frame, colors)
+        self._create_security_section(content_frame, colors)
         self._create_backup_section(content_frame, colors)
         self._create_experimental_section(content_frame, colors)
         
@@ -317,6 +318,148 @@ class SettingsManager:
         manage_btn.pack(side="right")
         manage_btn.bind("<Enter>", lambda e: manage_btn.configure(bg=colors.get("primary_hover", "#2563EB")))
         manage_btn.bind("<Leave>", lambda e: manage_btn.configure(bg=colors.get("primary", "#3B82F6")))
+
+    def _create_security_section(self, parent, colors):
+        """Create security settings section (2FA)"""
+        section = tk.Frame(
+            parent,
+            bg=colors.get("surface", "#FFFFFF"),
+            highlightbackground=colors.get("border", "#E2E8F0"),
+            highlightthickness=1
+        )
+        section.pack(fill="x", pady=8)
+        
+        inner = tk.Frame(section, bg=colors.get("surface", "#FFFFFF"))
+        inner.pack(fill="x", padx=15, pady=12)
+        
+        # Header
+        header_frame = tk.Frame(inner, bg=colors.get("surface", "#FFFFFF"))
+        header_frame.pack(fill="x", mb=5)
+        
+        label = tk.Label(
+            header_frame,
+            text="🔒 Security",
+            font=self.app.ui_styles.get_font("sm", "bold"),
+            bg=colors.get("surface", "#FFFFFF"),
+            fg=colors.get("text_primary", "#0F172A")
+        )
+        label.pack(side="left")
+        
+        # Check current status
+        is_2fa_enabled = self.app.settings.get("is_2fa_enabled", False)
+        
+        status_text = "Enabled" if is_2fa_enabled else "Disabled"
+        status_color = colors.get("success", "#10B981") if is_2fa_enabled else colors.get("text_secondary", "#64748B")
+        
+        status_label = tk.Label(
+            header_frame,
+            text=f"• {status_text}",
+            font=self.app.ui_styles.get_font("xs", "bold"),
+            bg=colors.get("surface", "#FFFFFF"),
+            fg=status_color
+        )
+        status_label.pack(side="left", padx=10)
+        
+        # Description
+        desc = tk.Label(
+            inner,
+            text="Two-Factor Authentication (2FA) adds an extra layer of security.",
+            font=self.app.ui_styles.get_font("xs"),
+            bg=colors.get("surface", "#FFFFFF"),
+            fg=colors.get("text_secondary", "#475569")
+        )
+        desc.pack(anchor="w", pady=(2, 8))
+        
+        # Action Button
+        btn_text = "Disable 2FA" if is_2fa_enabled else "Enable 2FA"
+        btn_bg = colors.get("error", "#EF4444") if is_2fa_enabled else colors.get("primary", "#3B82F6")
+        btn_cmd = self._disable_2fa if is_2fa_enabled else self._initiate_2fa_setup
+        
+        action_btn = tk.Button(
+            inner,
+            text=btn_text,
+            command=btn_cmd,
+            font=self.app.ui_styles.get_font("xs", "bold"),
+            bg=btn_bg,
+            fg="#FFFFFF",
+            activebackground=btn_bg, # Simplified hover
+            activeforeground="#FFFFFF",
+            relief="flat",
+            cursor="hand2",
+            padx=10,
+            pady=5,
+            borderwidth=0
+        )
+        action_btn.pack(anchor="w")
+
+    def _initiate_2fa_setup(self):
+        """Start 2FA Setup Flow"""
+        try:
+            # Send OTP
+            success, msg = self.app.auth.auth_manager.send_2fa_setup_otp(self.app.username)
+            if success:
+                messagebox.showinfo("Verification Code Sent", msg)
+                self._show_2fa_verify_dialog()
+            else:
+                messagebox.showerror("Error", msg)
+        except Exception as e:
+            logging.error(f"2FA Init Error: {e}")
+            messagebox.showerror("Error", f"Failed to initiate 2FA: {e}")
+
+    def _show_2fa_verify_dialog(self):
+        """Show dialog to enter OTP for enabling 2FA"""
+        dialog = tk.Toplevel(self.settings_win)
+        dialog.title("Verify 2FA Setup")
+        dialog.geometry("350x250")
+        dialog.transient(self.settings_win)
+        dialog.grab_set()
+        
+        # Center
+        x = self.settings_win.winfo_x() + (self.settings_win.winfo_width() - 350) // 2
+        y = self.settings_win.winfo_y() + (self.settings_win.winfo_height() - 250) // 2
+        dialog.geometry(f"+{x}+{y}")
+        
+        tk.Label(dialog, text="Enter Verification Code", font=("Segoe UI", 12, "bold"), pady=15).pack()
+        tk.Label(dialog, text=f"Enter the code sent to your email", justify="center", fg="#666").pack(pady=(0, 15))
+        
+        code_var = tk.StringVar()
+        entry = tk.Entry(dialog, textvariable=code_var, font=("Segoe UI", 14), justify="center", width=10)
+        entry.pack(pady=5)
+        entry.focus()
+        
+        def on_verify():
+            code = code_var.get().strip()
+            if len(code) != 6 or not code.isdigit():
+                messagebox.showerror("Error", "Code must be 6 numeric digits", parent=dialog)
+                return
+                
+            success, msg = self.app.auth.auth_manager.enable_2fa(self.app.username, code)
+            
+            if success:
+                messagebox.showinfo("Success", msg, parent=dialog)
+                # Update local settings state
+                self.app.settings["is_2fa_enabled"] = True
+                dialog.destroy()
+                self.settings_win.destroy()
+                self.show_settings() # Re-open to refresh UI
+            else:
+                messagebox.showerror("Failed", msg, parent=dialog)
+                
+        tk.Button(dialog, text="Verify & Enable", command=on_verify, 
+                 bg=self.app.colors["primary"], fg="white", font=("Segoe UI", 10, "bold"), 
+                 padx=20, pady=5).pack(pady=15)
+                 
+    def _disable_2fa(self):
+        """Disable 2FA"""
+        if messagebox.askyesno("Disable 2FA", "Are you sure you want to disable Two-Factor Authentication? This will make your account less secure."):
+             success, msg = self.app.auth.auth_manager.disable_2fa(self.app.username)
+             if success:
+                 messagebox.showinfo("Success", msg)
+                 self.app.settings["is_2fa_enabled"] = False
+                 self.settings_win.destroy()
+                 self.show_settings()
+             else:
+                 messagebox.showerror("Error", msg)
     
     def _open_backup_manager(self):
         """Open the backup manager dialog"""

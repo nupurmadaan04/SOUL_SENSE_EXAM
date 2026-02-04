@@ -42,6 +42,24 @@ class UserLogin(BaseModel):
     password: str
 
 
+class TwoFactorLoginRequest(BaseModel):
+    """Schema for 2FA verification."""
+    pre_auth_token: str = Field(..., description="Temporary token from step 1")
+    code: str = Field(..., min_length=6, max_length=6, description="6-digit OTP code")
+
+
+class TwoFactorAuthRequiredResponse(BaseModel):
+    """Response when 2FA is required."""
+    message: str = "2FA Verification Required"
+    require_2fa: bool = True
+    pre_auth_token: str
+
+
+class TwoFactorConfirmRequest(BaseModel):
+    """Schema for enabling 2FA with verification code."""
+    code: str = Field(..., min_length=6, max_length=6)
+
+
 class PasswordResetRequest(BaseModel):
     """Schema for requesting a password reset."""
     email: EmailStr = Field(..., description="User's registered email")

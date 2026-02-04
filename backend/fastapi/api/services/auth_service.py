@@ -117,6 +117,134 @@ class AuthService:
         encoded_jwt = jwt.encode(to_encode, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
         return encoded_jwt
 
+    def create_pre_auth_token(self, user_id: int) -> str:
+        """
+        Create a temporary token for 2FA verification step.
+        Scope: 'pre_auth' - Cannot be used for normal API access.
+        """
+        from jose import jwt
+        expire = datetime.now(timezone.utc) + timedelta(minutes=5)
+        to_encode = {
+            "sub": str(user_id),
+            "exp": expire,
+            "scope": "pre_auth",
+            "type": "2fa_challenge"
+        }
+        return jwt.encode(to_encode, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
+
+    def initiate_2fa_login(self, user: User) -> str:
+        """
+        Generate OTP, send email, and return pre_auth_token.
+        """
+        from app.auth.otp_manager import OTPManager
+        from app.services.email_service import EmailService
+        
+        # 1. Generate OTP
+        code, _ = OTPManager.generate_otp(user.id, "LOGIN_CHALLENGE", db_session=self.db)
+        
+        # 2. Send Email
+        # Resolve email (User obj might not have it loaded if lazy)
+        email = None
+        # Try to find email from profile
+        profile = self.db.query(PersonalProfile).filter(PersonalProfile.user_id == user.id).first()
+        if profile:
+            email = profile.email
+            
+        if not email:
+            # Fallback or error? For MVP we log error but still return token (fail-close at send)
+            logger.error(f"2FA initiated but no email found for user {user.username}")
+        else:
+            if code:
+                EmailService.send_otp(email, code, "Login Verification")
+                self.db.commit() # Save OTP
+        
+        # 3. Create Pre-Auth Token
+        return self.create_pre_auth_token(user.id)
+
+    def verify_2fa_login(self, pre_auth_token: str, code: str) -> User:
+        """
+        Verify pre-auth token and OTP code.
+        Returns User if successful, raises AuthException otherwise.
+        """
+        from jose import jwt, JWTError
+        from app.auth.otp_manager import OTPManager
+        
+        try:
+            # 1. Verify Token
+            payload = jwt.decode(pre_auth_token, settings.jwt_secret_key, algorithms=[settings.jwt_algorithm])
+            user_id = payload.get("sub")
+            scope = payload.get("scope")
+            
+            if not user_id or scope != "pre_auth":
+                 raise AuthException(code=ErrorCode.AUTH_INVALID_TOKEN, message="Invalid token scope")
+                 
+            # 2. Verify OTP
+            user_id_int = int(user_id)
+            if not OTPManager.verify_otp(user_id_int, code, "LOGIN_CHALLENGE", db_session=self.db):
+                 raise AuthException(code=ErrorCode.AUTH_INVALID_CREDENTIALS, message="Invalid or expired code")
+                 
+            # 3. Success - Fetch User
+            user = self.db.query(User).filter(User.id == user_id_int).first()
+            if not user:
+                 raise AuthException(code=ErrorCode.AUTH_USER_NOT_FOUND, message="User not found")
+                 
+            # Audit success
+            self._record_login_attempt(user.username, True, "0.0.0.0") # IP not passed here, simplified
+            self.update_last_login(user.id)
+            self.db.commit() # Save OTP used state
+            
+            return user
+            
+        except JWTError:
+            raise AuthException(code=ErrorCode.AUTH_INVALID_TOKEN, message="Invalid or expired session")
+        except AuthException:
+            raise
+        except Exception as e:
+            logger.error(f"2FA Verify Error: {e}")
+            raise AuthException(code=ErrorCode.AUTH_INTERNAL_ERROR, message="Verification failed")
+
+    def send_2fa_setup_otp(self, user: User) -> bool:
+        """Generate and send OTP for 2FA setup."""
+        from app.auth.otp_manager import OTPManager
+        from app.services.email_service import EmailService
+        
+        code, _ = OTPManager.generate_otp(user.id, "2FA_SETUP", db_session=self.db)
+        if not code:
+            return False
+            
+        # Get Email
+        email = None
+        profile = self.db.query(PersonalProfile).filter(PersonalProfile.user_id == user.id).first()
+        if profile:
+            email = profile.email
+            
+        if email:
+             EmailService.send_otp(email, code, "Enable 2FA")
+             self.db.commit()
+             return True
+        return False
+
+    def enable_2fa(self, user_id: int, code: str) -> bool:
+        """Verify code and enable 2FA."""
+        from app.auth.otp_manager import OTPManager
+        
+        if OTPManager.verify_otp(user_id, code, "2FA_SETUP", db_session=self.db):
+            user = self.db.query(User).filter(User.id == user_id).first()
+            if user:
+                user.is_2fa_enabled = True
+                self.db.commit()
+                return True
+        return False
+
+    def disable_2fa(self, user_id: int) -> bool:
+        """Disable 2FA for user."""
+        user = self.db.query(User).filter(User.id == user_id).first()
+        if user:
+            user.is_2fa_enabled = False
+            self.db.commit()
+            return True
+        return False
+
     def update_last_login(self, user_id: int) -> None:
         """
         Update the last_login timestamp for a user.

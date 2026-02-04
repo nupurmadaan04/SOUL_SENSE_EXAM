@@ -207,19 +207,18 @@ export default function RegisterPage() {
                   />
                 )}
               </FormField>
-              <div className="flex items-center space-x-2 mb-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="text-sm"
-                >
-                  {showPassword ? 'Hide Password' : 'Show Password'}
-                </Button>
-              </div>
             </motion.div>
-
+            <div className="flex items-center space-x-2 mb-4">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowPassword(!showPassword)}
+                className="text-sm"
+              >
+                {showPassword ? 'Hide Password' : 'Show Password'}
+              </Button>
+            </div>
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -227,7 +226,7 @@ export default function RegisterPage() {
             >
               <FormField control={methods.control} name="acceptTerms">
                 {(fieldProps) => (
-                  <div className="flex items-start space-x-3">
+                  <div className="flex items-start space-x-3 mb-4">
                     <input
                       type="checkbox"
                       id="acceptTerms"

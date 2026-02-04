@@ -142,6 +142,7 @@ class AppInitializer:
                             "theme": user_obj.settings.theme,
                             "question_count": user_obj.settings.question_count,
                             "sound_enabled": user_obj.settings.sound_enabled,
+                            "is_2fa_enabled": user_obj.is_2fa_enabled,
                         }
 
                         # Apply Theme immediately

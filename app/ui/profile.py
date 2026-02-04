@@ -1635,6 +1635,9 @@ class UserProfileView:
                  command=self._save_settings,
                  bg=colors.get("primary"), fg="white", font=("Segoe UI", 12), pady=5).pack(pady=20, anchor="w")
 
+        # Security Section (2FA)
+        self._create_security_section(parent)
+
         # Data Management Section
         self._create_section_label(parent, "Data Management")
 
@@ -1811,6 +1814,136 @@ class UserProfileView:
             fg=colors.get("text_secondary", "gray"),
             justify="left"
         ).pack(anchor="w", pady=(10, 0))
+
+    def _create_security_section(self, parent):
+        """Create security settings section (2FA) in Settings View"""
+        colors = self.colors
+        
+        self._create_section_label(parent, "Security")
+        
+        # Check current status
+        is_2fa_enabled = self.app.settings.get("is_2fa_enabled", False)
+        
+        status_text = "Enabled" if is_2fa_enabled else "Disabled"
+        status_color = colors.get("success", "#10B981") if is_2fa_enabled else colors.get("text_secondary", "#64748B")
+        
+        # Status Row
+        status_frame = tk.Frame(parent, bg=colors.get("card_bg", "white"))
+        status_frame.pack(fill="x", pady=(0, 10))
+        
+        tk.Label(
+            status_frame,
+            text=f"Two-Factor Authentication: ",
+            font=("Segoe UI", 10),
+            bg=colors.get("card_bg", "white"),
+            fg=colors.get("text_primary")
+        ).pack(side="left")
+        
+        tk.Label(
+            status_frame,
+            text=status_text,
+            font=("Segoe UI", 10, "bold"),
+            bg=colors.get("card_bg", "white"),
+            fg=status_color
+        ).pack(side="left")
+
+        # Description
+        tk.Label(
+            parent,
+            text="Add an extra layer of security to your account.",
+            font=self.styles.get_font("xs"),
+            bg=colors.get("card_bg", "white"),
+            fg="gray"
+        ).pack(anchor="w", pady=(0, 10))
+        
+        # Action Button
+        btn_text = "Disable 2FA" if is_2fa_enabled else "Enable 2FA"
+        btn_bg = colors.get("error", "#EF4444") if is_2fa_enabled else colors.get("primary", "#3B82F6")
+        btn_cmd = self._disable_2fa if is_2fa_enabled else self._initiate_2fa_setup
+        
+        tk.Button(
+            parent,
+            text=btn_text,
+            command=btn_cmd,
+            font=("Segoe UI", 10, "bold"),
+            bg=btn_bg,
+            fg="white",
+            relief="flat",
+            padx=15,
+            pady=8
+        ).pack(anchor="w", pady=(0, 20))
+
+    def _initiate_2fa_setup(self):
+        """Start 2FA Setup Flow"""
+        try:
+            # Send OTP
+            success, msg = self.app.auth.send_2fa_setup_otp(self.app.username)
+            if success:
+                messagebox.showinfo("Verification Code Sent", msg)
+                self._show_2fa_verify_dialog()
+            else:
+                messagebox.showerror("Error", msg)
+        except Exception as e:
+            logging.error(f"2FA Init Error: {e}")
+            messagebox.showerror("Error", f"Failed to initiate 2FA: {e}")
+
+    def _show_2fa_verify_dialog(self):
+        """Show dialog to enter OTP for enabling 2FA"""
+        dialog = tk.Toplevel(self.window)
+        dialog.title("Verify 2FA Setup")
+        dialog.geometry("350x250")
+        dialog.transient(self.window)
+        dialog.grab_set()
+        
+        # Center
+        dialog.update_idletasks()
+        try:
+            x = self.window.winfo_rootx() + (self.window.winfo_width() - 350) // 2
+            y = self.window.winfo_rooty() + (self.window.winfo_height() - 250) // 2
+            dialog.geometry(f"+{x}+{y}")
+        except:
+             pass 
+        
+        tk.Label(dialog, text="Enter Verification Code", font=("Segoe UI", 12, "bold"), pady=15).pack()
+        tk.Label(dialog, text=f"Enter the code sent to your email", justify="center", fg="#666").pack(pady=(0, 15))
+        
+        code_var = tk.StringVar()
+        entry = tk.Entry(dialog, textvariable=code_var, font=("Segoe UI", 14), justify="center", width=10)
+        entry.pack(pady=5)
+        entry.focus()
+        
+        def on_verify():
+            code = code_var.get().strip()
+            if len(code) != 6 or not code.isdigit():
+                messagebox.showerror("Error", "Code must be 6 numeric digits", parent=dialog)
+                return
+                
+            success, msg = self.app.auth.enable_2fa(self.app.username, code)
+            
+            if success:
+                messagebox.showinfo("Success", msg, parent=dialog)
+                # Update local settings state
+                self.app.settings["is_2fa_enabled"] = True
+                dialog.destroy()
+                # Refresh Settings View
+                self.on_nav_change("settings")
+            else:
+                messagebox.showerror("Failed", msg, parent=dialog)
+                
+        tk.Button(dialog, text="Verify & Enable", command=on_verify, 
+                 bg=self.colors.get("primary"), fg="white", font=("Segoe UI", 10, "bold"), 
+                 padx=20, pady=5).pack(pady=15)
+
+    def _disable_2fa(self):
+        """Disable 2FA"""
+        if messagebox.askyesno("Disable 2FA", "Are you sure you want to disable Two-Factor Authentication?"):
+             success, msg = self.app.auth.disable_2fa(self.app.username)
+             if success:
+                 messagebox.showinfo("Success", msg)
+                 self.app.settings["is_2fa_enabled"] = False
+                 self.on_nav_change("settings")
+             else:
+                 messagebox.showerror("Error", msg)
 
     # --- UI Helpers ---
     def _create_section_label(self, parent, text):

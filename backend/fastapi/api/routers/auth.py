@@ -5,7 +5,7 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 
 from ..config import get_settings
-from ..schemas import UserCreate, Token, UserResponse, ErrorResponse, PasswordResetRequest, PasswordResetComplete
+from ..schemas import UserCreate, Token, UserResponse, ErrorResponse, PasswordResetRequest, PasswordResetComplete, TwoFactorLoginRequest, TwoFactorAuthRequiredResponse, TwoFactorConfirmRequest
 from ..services.db_service import get_db
 from ..services.auth_service import AuthService
 from ..constants.errors import ErrorCode
@@ -55,7 +55,7 @@ async def register(user: UserCreate, auth_service: AuthService = Depends()):
     )
 
 
-@router.post("/login", response_model=Token, responses={401: {"model": ErrorResponse}})
+@router.post("/login", response_model=None, responses={401: {"model": ErrorResponse}, 202: {"model": TwoFactorAuthRequiredResponse}, 200: {"model": Token}})
 async def login(
     response: Response,
     form_data: Annotated[OAuth2PasswordRequestForm, Depends()], 
@@ -65,6 +65,15 @@ async def login(
     ip = request.client.host
     user = auth_service.authenticate_user(form_data.username, form_data.password, ip_address=ip)
     
+    # PR 4: 2FA Check
+    if user.is_2fa_enabled:
+        pre_auth_token = auth_service.initiate_2fa_login(user)
+        response.status_code = status.HTTP_202_ACCEPTED
+        return TwoFactorAuthRequiredResponse(
+            pre_auth_token=pre_auth_token
+        )
+
+    # Standard Login
     access_token = auth_service.create_access_token(
         data={"sub": user.username}
     )
@@ -77,6 +86,36 @@ async def login(
         value=refresh_token,
         httponly=True,
         secure=False, # Set to True in production with HTTPS
+        samesite="lax",
+        max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60
+    )
+    
+    return Token(access_token=access_token, token_type="bearer", refresh_token=refresh_token)
+
+
+@router.post("/login/2fa", response_model=Token, responses={401: {"model": ErrorResponse}})
+async def verify_2fa(
+    login_request: TwoFactorLoginRequest,
+    response: Response,
+    auth_service: AuthService = Depends()
+):
+    """
+    Verify 2FA code and issue tokens.
+    """
+    user = auth_service.verify_2fa_login(login_request.pre_auth_token, login_request.code)
+    
+    # Issue Tokens
+    access_token = auth_service.create_access_token(
+        data={"sub": user.username}
+    )
+    
+    refresh_token = auth_service.create_refresh_token(user.id)
+    
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=False,
         samesite="lax",
         max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60
     )
@@ -168,3 +207,37 @@ async def complete_password_reset(
             detail=message
         )
     return {"message": message}
+
+
+@router.post("/2fa/setup/initiate")
+async def initiate_2fa_setup(
+    current_user: Annotated[User, Depends(get_current_user)],
+    auth_service: AuthService = Depends()
+):
+    """Send OTP to verify email before enabling 2FA."""
+    if auth_service.send_2fa_setup_otp(current_user):
+        return {"message": "OTP sent to your email"}
+    raise HTTPException(status_code=400, detail="Could not send OTP. Check email configuration.")
+
+
+@router.post("/2fa/enable")
+async def enable_2fa(
+    request: TwoFactorConfirmRequest,
+    current_user: Annotated[User, Depends(get_current_user)],
+    auth_service: AuthService = Depends()
+):
+    """Enable 2FA after verifying OTP."""
+    if auth_service.enable_2fa(current_user.id, request.code):
+        return {"message": "2FA enabled successfully"}
+    raise HTTPException(status_code=400, detail="Invalid code")
+
+
+@router.post("/2fa/disable")
+async def disable_2fa(
+    current_user: Annotated[User, Depends(get_current_user)],
+    auth_service: AuthService = Depends()
+):
+    """Disable 2FA."""
+    if auth_service.disable_2fa(current_user.id):
+        return {"message": "2FA disabled"}
+    raise HTTPException(status_code=400, detail="Action failed")

@@ -177,7 +177,8 @@ class AppAuth:
             if has_error:
                 return
 
-            success, msg, _ = self.auth_manager.login_user(user, pwd)
+            success, msg, err_code = self.auth_manager.login_user(user, pwd)
+            
             if success:
                 self.app.username = user
                 # Save session if Remember Me is checked
@@ -185,6 +186,10 @@ class AppAuth:
                 self._load_user_settings(user)
                 login_win.destroy()
                 self._post_login_init()
+            elif err_code == "AUTH_2FA_REQUIRED":
+                # 2FA Required
+                # Temporarily save session attempt?
+                self.show_2fa_login_dialog(user, login_win)
             else:
                 tmb.showerror("Login Failed", msg)
 
@@ -297,9 +302,9 @@ class AppAuth:
         tk.Entry(otp_window, textvariable=code_var, font=("Segoe UI", 14), width=10, justify="center").pack(pady=10)
         
         def on_verify():
-            code = code_var.get()
-            if len(code) != 6:
-                tmb.showerror("Error", "Code must be 6 digits.")
+            code = code_var.get().strip()
+            if len(code) != 6 or not code.isdigit():
+                tmb.showerror("Error", "Code must be 6 numeric digits.")
                 return
             
             # We don't verify against server just yet, we pass code to next step?
@@ -730,3 +735,74 @@ class AppAuth:
                     )
         except Exception as e:
             self.logger.error(f"Onboarding check failed: {e}")
+
+    def show_2fa_login_dialog(self, username, parent_window):
+        """Show OTP dialog for 2FA login"""
+        try:
+           parent_window.withdraw() # Hide login window
+        except: pass
+
+        dialog = tk.Toplevel(self.app.root)
+        dialog.title("2FA Verification")
+        dialog.geometry("350x250")
+        dialog.transient(self.app.root)
+        dialog.grab_set()
+        
+        # Center
+        screen_width = dialog.winfo_screenwidth()
+        screen_height = dialog.winfo_screenheight()
+        x = (screen_width - 350) // 2
+        y = (screen_height - 250) // 2
+        dialog.geometry(f"+{x}+{y}")
+        
+        tk.Label(dialog, text="Two-Factor Authentication", font=("Segoe UI", 12, "bold"), pady=15).pack()
+        tk.Label(dialog, text=f"Enter the verification code sent to your\nemail associated with {username}", 
+                 justify="center", fg="#666").pack(pady=(0, 15))
+        
+        code_var = tk.StringVar()
+        entry = tk.Entry(dialog, textvariable=code_var, font=("Segoe UI", 14), justify="center", width=10)
+        entry.pack(pady=5)
+        entry.focus()
+        
+        def on_verify(event=None):
+            code = code_var.get().strip()
+            if len(code) != 6 or not code.isdigit():
+                tmb.showerror("Error", "Code must be 6 numeric digits", parent=dialog)
+                return
+                
+            success, msg, _ = self.auth_manager.verify_2fa_login(username, code)
+            
+            if success:
+                self.app.username = username
+                # Note: Session storage needs update if we want to remember 2FA status?
+                # For now just proceed.
+                # If "Remember Me" was checked in previous screen? 
+                # We lost that state. Ideally pass it or save it before hiding.
+                # Assuming session was saved loosely or not at all if we didn't complete login.
+                self.auth_manager.current_user = username
+                self._load_user_settings(username)
+                
+                dialog.destroy()
+                try:
+                    parent_window.destroy()
+                except: pass
+                
+                self._post_login_init()
+            else:
+                tmb.showerror("Verification Failed", msg, parent=dialog)
+                
+        def on_cancel():
+            dialog.destroy()
+            try:
+                parent_window.deiconify() # Show login window again
+            except: 
+                self.show_login_screen()
+
+        tk.Button(dialog, text="Verify", command=on_verify, 
+                 bg=self.app.colors["primary"], fg="white", font=("Segoe UI", 10, "bold"), 
+                 padx=20, pady=5).pack(pady=15)
+                 
+        tk.Button(dialog, text="Cancel", command=on_cancel, relief="flat", fg="#666").pack()
+        
+        dialog.bind("<Return>", on_verify)
+        dialog.protocol("WM_DELETE_WINDOW", on_cancel)

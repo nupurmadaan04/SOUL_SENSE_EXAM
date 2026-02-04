@@ -89,6 +89,16 @@ class ViewManager:
                         .limit(3)\
                         .all()
 
+                    # Calculate average mood
+                    if recent_entries:
+                        avg_mood = sum(getattr(e, 'sentiment_score', 0) or 0 for e in recent_entries) / len(recent_entries)
+                        mood_text = "Positive" if avg_mood > 20 else "Neutral" if avg_mood > -20 else "Negative"
+                        mood_color = "#4CAF50" if avg_mood > 20 else "#FF9800" if avg_mood > -20 else "#F44336"
+                    else:
+                        avg_mood = 0
+                        mood_text = "None"
+                        mood_color = "gray"
+
                 if recent_entries:
                     summary_frame = tk.Frame(self.app.content_area, bg=self.app.colors["bg"], pady=10)
                     summary_frame.pack(fill="x", padx=30, pady=(10, 0))
@@ -96,11 +106,6 @@ class ViewManager:
                     tk.Label(summary_frame, text="📝 Recent Journal Insights",
                              font=("Segoe UI", 14, "bold"), bg=self.app.colors["bg"],
                              fg=self.app.colors["text_primary"]).pack(anchor="w")
-
-                    # Calculate average mood
-                    avg_mood = sum(getattr(e, 'sentiment_score', 0) or 0 for e in recent_entries) / len(recent_entries)
-                    mood_text = "Positive" if avg_mood > 20 else "Neutral" if avg_mood > -20 else "Negative"
-                    mood_color = "#4CAF50" if avg_mood > 20 else "#FF9800" if avg_mood > -20 else "#F44336"
 
                     tk.Label(summary_frame, text=f"Average mood over last {len(recent_entries)} entries: {mood_text}",
                              font=("Segoe UI", 11), bg=self.app.colors["bg"], fg=mood_color).pack(anchor="w", pady=(5, 0))
