@@ -11,7 +11,7 @@ echo [INFO] PYTHONPATH set to %PYTHONPATH%
 
 echo.
 echo [1/3] Running Type Checks (MyPy)...
-python -m mypy backend/fastapi/api/
+python -m mypy -p backend.fastapi.api
 IF %ERRORLEVEL% NEQ 0 (
     echo [FAIL] MyPy checks failed.
     exit /b %ERRORLEVEL%

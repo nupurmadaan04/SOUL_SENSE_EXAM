@@ -520,6 +520,8 @@ class WellbeingPoint(BaseModel):
 
 class UserTrendsResponse(BaseModel):
     """Combined trends to reduce API roundtrips."""
+    eq_scores: List[EQScorePoint]
+    wellbeing: List[WellbeingPoint]
 
 # ============================================================================
 # Deep Dive Schemas (PR 6.4)
