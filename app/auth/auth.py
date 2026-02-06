@@ -1,7 +1,7 @@
 import bcrypt
 import secrets
 import time
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta, UTC, timezone
 from app.db import get_session
 from app.models import User, UserSession
 from app.security_config import PASSWORD_HASH_ROUNDS, LOCKOUT_DURATION_MINUTES
