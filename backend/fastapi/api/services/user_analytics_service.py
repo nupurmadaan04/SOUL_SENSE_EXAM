@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from typing import List, Optional
 from sqlalchemy.orm import Session
 from sqlalchemy import func, desc
@@ -91,7 +91,7 @@ class UserAnalyticsService:
         Get EQ score history for charting.
         """
         # Calculate cut-off date
-        cutoff = datetime.utcnow() - timedelta(days=days)
+        cutoff = datetime.now(UTC) - timedelta(days=days)
         
         scores = db.query(Score).filter(
             Score.user_id == user_id,
@@ -114,7 +114,7 @@ class UserAnalyticsService:
         Get wellbeing metrics from Journal (Sleep, Stress, Energy).
         Handles sparse data by returning None for missing fields.
         """
-        cutoff = datetime.utcnow() - timedelta(days=days)
+        cutoff = datetime.now(UTC) - timedelta(days=days)
         # ISO format textual comparison works for YYYY-MM-DD
         cutoff_str = cutoff.strftime("%Y-%m-%d")
         

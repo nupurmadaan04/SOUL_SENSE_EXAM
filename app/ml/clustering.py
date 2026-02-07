@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import logging
 from typing import Dict, List, Optional, Tuple, Any
-from datetime import datetime
+from datetime import datetime, UTC
 from pathlib import Path
 import json
 import pickle
@@ -584,7 +584,7 @@ class EmotionalProfileClusterer:
                 'cluster_id': int(label),
                 'profile': profile_data,
                 'profile_name': profile_data['name'],
-                'assigned_at': datetime.utcnow().isoformat()
+                'assigned_at': datetime.now(UTC).isoformat()
             }
 
         # STEP 10: DIMENSIONALITY REDUCTION FOR VISUALIZATION
@@ -689,7 +689,7 @@ class EmotionalProfileClusterer:
                 'profile': profile,
                 'confidence': 1.0,  # Maximum confidence for training data
                 'features': {},
-                'predicted_at': cached.get('assigned_at', datetime.utcnow().isoformat())
+                'predicted_at': cached.get('assigned_at', datetime.now(UTC).isoformat())
             }
 
         # STEP 3: FEATURE EXTRACTION FROM DATABASE
@@ -734,7 +734,7 @@ class EmotionalProfileClusterer:
             'profile': profile,
             'confidence': float(confidence),
             'features': features,
-            'predicted_at': datetime.utcnow().isoformat()
+            'predicted_at': datetime.now(UTC).isoformat()
         }
 
         # Cache result for future predictions
@@ -780,7 +780,7 @@ class EmotionalProfileClusterer:
             'profile': profile,
             'confidence': float(confidence),
             'features': features,
-            'predicted_at': datetime.utcnow().isoformat()
+            'predicted_at': datetime.now(UTC).isoformat()
         }
         
         return result
@@ -1018,7 +1018,7 @@ class EmotionalProfileClusterer:
                 'user_profiles': self.user_profiles,
                 'n_clusters': self.n_clusters,
                 'feature_names': self.feature_extractor.feature_names,
-                'saved_at': datetime.utcnow().isoformat()
+                'saved_at': datetime.now(UTC).isoformat()
             }
             
             model_file = self.model_path / "emotional_profile_model.pkl"

@@ -141,11 +141,13 @@ def mock_tk_root():
         pass
 
 @pytest.fixture(autouse=True)
-def mock_tk_variables(mocker):
+def mock_tk_variables(monkeypatch):
     """
     Mock Tkinter variables (StringVar, IntVar) so they don't need a root window.
     This allows logic tests to run without Tcl/Tk.
     """
+    from unittest.mock import MagicMock
+    
     class MockVar:
         def __init__(self, value=None):
             self._value = value
@@ -154,25 +156,41 @@ def mock_tk_variables(mocker):
         def get(self):
             return self._value
             
-    mocker.patch("tkinter.StringVar", side_effect=MockVar)
-    mocker.patch("tkinter.IntVar", side_effect=MockVar)
-    mocker.patch("tkinter.BooleanVar", side_effect=MockVar)
-    mocker.patch("tkinter.DoubleVar", side_effect=MockVar)
+    monkeypatch.setattr("tkinter.StringVar", MockVar)
+    monkeypatch.setattr("tkinter.IntVar", MockVar)
+    monkeypatch.setattr("tkinter.BooleanVar", MockVar)
+    monkeypatch.setattr("tkinter.DoubleVar", MockVar)
     
     # Enhanced Mock Widget that supports cget and config
-    class MockWidget(mocker.MagicMock):
+    class MockWidget(MagicMock):
         def __init__(self, master=None, **kwargs):
             super().__init__()
-            self._config = kwargs
+            self.master = master  # Explicitly set to prevent infinite mock chain
+            self._config = {}
+            self.master = master  # Explicitly set master to prevent infinite traversal
+            # Add missing methods that are called during window operations
+            self.transient = MagicMock()
+            self.grab_set = MagicMock()
+            self.geometry = MagicMock()
+            self.title = MagicMock()
+            self.resizable = MagicMock()
+            self.protocol = MagicMock()
+            self.focus_set = MagicMock()
+            self.pack = MagicMock()
+            self.grid = MagicMock()
+            self.place = MagicMock()
+            self.update_idletasks = MagicMock()
             
         def cget(self, key):
             return self._config.get(key, "")
             
         def configure(self, **kwargs):
             self._config.update(kwargs)
+            return None
             
         def config(self, **kwargs):
             self.configure(**kwargs)
+            return None
             
         def __getitem__(self, key):
              return self._config.get(key, "")
@@ -181,27 +199,33 @@ def mock_tk_variables(mocker):
             self._config[key] = value
 
     # Mock core Tk classes to prevent display connection
-    mock_tk = mocker.patch("tkinter.Tk")
+    mock_tk = MagicMock()
     mock_tk.return_value.winfo_screenwidth.return_value = 1920
     mock_tk.return_value.winfo_screenheight.return_value = 1080
+    monkeypatch.setattr("tkinter.Tk", mock_tk)
     
-    mock_toplevel = mocker.patch("tkinter.Toplevel")
+    mock_toplevel = MagicMock()
     mock_toplevel.return_value.winfo_screenwidth.return_value = 1920
     mock_toplevel.return_value.winfo_screenheight.return_value = 1080
+    monkeypatch.setattr("tkinter.Toplevel", mock_toplevel)
     
-    mocker.patch("tkinter.Canvas", side_effect=MockWidget)
-    mocker.patch("tkinter.Frame", side_effect=MockWidget)
-    mocker.patch("tkinter.Label", side_effect=MockWidget)
-    mocker.patch("tkinter.Entry", side_effect=MockWidget)
-    mocker.patch("tkinter.Button", side_effect=MockWidget)
+    monkeypatch.setattr("tkinter.Canvas", MockWidget)
+    monkeypatch.setattr("tkinter.Frame", MockWidget)
+    monkeypatch.setattr("tkinter.Label", MockWidget)
+    monkeypatch.setattr("tkinter.Entry", MockWidget)
+    monkeypatch.setattr("tkinter.Button", MockWidget)
+    monkeypatch.setattr("tkinter.Checkbutton", MockWidget)  
+    monkeypatch.setattr("tkinter.OptionMenu", MockWidget)    
 
 @pytest.fixture
-def mock_app(mocker):
+def mock_app():
     """
     Create a mock SoulSenseApp controller for UI tests.
     """
+    from unittest.mock import MagicMock, Mock
+    
     # Create the mock object
-    mock_app = mocker.MagicMock()
+    mock_app = MagicMock()
     
     # Configure attributes using configure_mock to ensure they are concrete values
     mock_app.configure_mock(
@@ -221,7 +245,7 @@ def mock_app(mocker):
     )
     
     # Configure root as a separate mock
-    mock_app.root = mocker.Mock()
+    mock_app.root = Mock()
     # Ensure geometry methods return ints to verify math in logic
     mock_app.root.winfo_x.return_value = 0
     mock_app.root.winfo_y.return_value = 0

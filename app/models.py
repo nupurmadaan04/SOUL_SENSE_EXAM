@@ -8,7 +8,7 @@ from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Float, Text
 from sqlalchemy.orm import relationship, declarative_base, Session
 from sqlalchemy.engine import Engine, Connection
 from typing import List, Optional, Any, Dict, Tuple, Union
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 import logging
 
 # Define Base
@@ -29,7 +29,7 @@ class User(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     username = Column(String, unique=True, nullable=False)
     password_hash = Column(String, nullable=False)
-    created_at = Column(String, default=lambda: datetime.utcnow().isoformat())
+    created_at = Column(String, default=lambda: datetime.now(UTC).isoformat())
     last_login = Column(String, nullable=True)
     
     # PR 1: Security & Lifecycle Fields
@@ -46,8 +46,10 @@ class User(Base):
     strengths = relationship("UserStrengths", uselist=False, back_populates="user", cascade="all, delete-orphan")
     emotional_patterns = relationship("UserEmotionalPatterns", uselist=False, back_populates="user", cascade="all, delete-orphan")
     sync_settings = relationship("UserSyncSetting", back_populates="user", cascade="all, delete-orphan")
+    password_history = relationship("PasswordHistory", back_populates="user", cascade="all, delete-orphan")
     refresh_tokens = relationship("RefreshToken", back_populates="user", cascade="all, delete-orphan")
     audit_logs = relationship("AuditLog", back_populates="user", cascade="all, delete-orphan")
+    sessions = relationship("UserSession", back_populates="user", cascade="all, delete-orphan")
 
 
 class LoginAttempt(Base):
@@ -102,6 +104,20 @@ class OTP(Base):
     user = relationship("User")
 
 
+class PasswordHistory(Base):
+    """
+    Stores hashed previous passwords to prevent reuse.
+    Configurable via PASSWORD_HISTORY_LIMIT in security_config.
+    """
+    __tablename__ = 'password_history'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
+    password_hash = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", back_populates="password_history")
+
 class RefreshToken(Base):
     """
     Persistent storage for JWT refresh tokens.
@@ -121,6 +137,31 @@ class RefreshToken(Base):
     user = relationship("User", back_populates="refresh_tokens")
 
 
+class UserSession(Base):
+    """Track user login sessions with unique session IDs"""
+    __tablename__ = 'user_sessions'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    session_id = Column(String, unique=True, nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False, index=True)
+    username = Column(String, nullable=False, index=True)  # Denormalized for quick lookups
+    created_at = Column(String, default=lambda: datetime.now(UTC).isoformat(), index=True)
+    last_accessed = Column(String, default=lambda: datetime.now(UTC).isoformat())
+    ip_address = Column(String, nullable=True)  # Optional: track IP for security
+    user_agent = Column(String, nullable=True)  # Optional: track user agent
+    is_active = Column(Boolean, default=True, index=True)
+    logged_out_at = Column(String, nullable=True)
+
+    user = relationship("User", back_populates="sessions")
+
+    # Composite indexes for performance
+    __table_args__ = (
+        Index('idx_session_user_active', 'user_id', 'is_active'),
+        Index('idx_session_username_active', 'username', 'is_active'),
+        Index('idx_session_created', 'created_at'),
+    )
+
+
 class UserSyncSetting(Base):
     """Store user-specific sync settings as key-value pairs with version control for conflict detection."""
     __tablename__ = 'user_sync_settings'
@@ -130,8 +171,8 @@ class UserSyncSetting(Base):
     key = Column(String(100), nullable=False)
     value = Column(Text, nullable=True)  # JSON-serialized value
     version = Column(Integer, default=1, nullable=False)  # For optimistic locking
-    created_at = Column(String, default=lambda: datetime.utcnow().isoformat())
-    updated_at = Column(String, default=lambda: datetime.utcnow().isoformat())
+    created_at = Column(String, default=lambda: datetime.now(UTC).isoformat())
+    updated_at = Column(String, default=lambda: datetime.now(UTC).isoformat())
     
     user = relationship("User", back_populates="sync_settings")
     
@@ -149,6 +190,7 @@ class UserSettings(Base):
     sound_enabled = Column(Boolean, default=True)
     notifications_enabled = Column(Boolean, default=True) # Web-ready
     language = Column(String, default='en') # Web-ready
+    updated_at = Column(String, default=lambda: datetime.now(UTC).isoformat())
     
     # Wave 2 Phase 2.3 & 2.4: Calibration & Safety
     decision_making_style = Column(String, nullable=True) # Analytical/Intuitive/etc.
@@ -186,7 +228,7 @@ class MedicalProfile(Base):
     emergency_contact_name = Column(String, nullable=True)
     emergency_contact_phone = Column(String, nullable=True)
     
-    last_updated = Column(String, default=lambda: datetime.utcnow().isoformat())
+    last_updated = Column(String, default=lambda: datetime.now(UTC).isoformat())
 
     user = relationship("User", back_populates="medical_profile")
 
@@ -221,6 +263,7 @@ class PersonalProfile(Base):
     avatar_path = Column(String, nullable=True) # Path to local image file
     age = Column(Integer, nullable=True)
     
+    last_updated = Column(String, default=lambda: datetime.now(UTC).isoformat())
     # Wave 2 Phase 2.1: Lifestyle & Health
     support_system = Column(Text, nullable=True)     # friends/family/colleagues
     social_interaction_freq = Column(String, nullable=True) # Daily/Weekly/Rarely
@@ -253,6 +296,7 @@ class UserStrengths(Base):
     sharing_boundaries = Column(Text, default="[]") # JSON List
     goals = Column(Text, nullable=True)
     
+    last_updated = Column(String, default=lambda: datetime.now(UTC).isoformat())
     # Wave 2 Phase 2.2: Goals & Vision
     short_term_goals = Column(Text, nullable=True)
     long_term_vision = Column(Text, nullable=True)
@@ -285,7 +329,7 @@ class UserEmotionalPatterns(Base):
     # Preferred support style during distress
     preferred_support = Column(String, nullable=True)  # "Encouraging", "Problem-solving", "Just listen"
     
-    last_updated = Column(String, default=lambda: datetime.utcnow().isoformat())
+    last_updated = Column(String, default=lambda: datetime.now(UTC).isoformat())
     
     user = relationship("User", back_populates="emotional_patterns")
 
@@ -304,7 +348,7 @@ class Score(Base):
     detailed_age_group = Column(String, index=True)  # Added index
     user_id = Column(Integer, ForeignKey('users.id'), nullable=True, index=True)  # Added index
     session_id = Column(String, index=True, nullable=True) # PR 6.1: API Session ID
-    timestamp = Column(String, default=lambda: datetime.utcnow().isoformat(), index=True)  # Added timestamp and index
+    timestamp = Column(String, default=lambda: datetime.now(UTC).isoformat(), index=True)  # Added timestamp and index
 
     user = relationship("User", back_populates="scores")
 
@@ -325,7 +369,7 @@ class Response(Base):
     response_value = Column(Integer, index=True)  # Added index
     age_group = Column(String, index=True)  # Added index
     detailed_age_group = Column(String, index=True)  # Added index
-    timestamp = Column(String, default=lambda: datetime.utcnow().isoformat(), index=True)  # Added index
+    timestamp = Column(String, default=lambda: datetime.now(UTC).isoformat(), index=True)  # Added index
     session_id = Column(String, index=True, nullable=True) # PR 6.1: API Session ID
     user_id = Column(Integer, ForeignKey('users.id'), nullable=True, index=True)  # Added index
 
@@ -351,7 +395,7 @@ class Question(Base):
     max_age = Column(Integer, default=120)
     weight = Column(Float, default=1.0)
     tooltip = Column(Text, nullable=True)
-    created_at = Column(String, default=lambda: datetime.utcnow().isoformat())
+    created_at = Column(String, default=lambda: datetime.now(UTC).isoformat())
 
 class QuestionCategory(Base):
     __tablename__ = 'question_category'
@@ -364,7 +408,7 @@ class JournalEntry(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     username = Column(String)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=True)
-    entry_date = Column(String, default=lambda: datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"))
+    entry_date = Column(String, default=lambda: datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S"))
     content = Column(Text)
     sentiment_score = Column(Float)
     emotional_patterns = Column(Text)
@@ -395,7 +439,7 @@ class SatisfactionRecord(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey('users.id'), index=True, nullable=True)
     username = Column(String, index=True)
-    timestamp = Column(String, default=lambda: datetime.utcnow().isoformat(), index=True)
+    timestamp = Column(String, default=lambda: datetime.now(UTC).isoformat(), index=True)
     
     # Core satisfaction metrics
     satisfaction_score = Column(Integer, index=True)  # 1-10 scale
@@ -446,7 +490,7 @@ class AssessmentResult(Base):
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False, index=True)
     
     assessment_type = Column(String, nullable=False, index=True) # e.g. 'career_clarity'
-    timestamp = Column(String, default=lambda: datetime.utcnow().isoformat(), index=True)
+    timestamp = Column(String, default=lambda: datetime.now(UTC).isoformat(), index=True)
     
     total_score = Column(Integer, nullable=False) # 0-100 or similar scale
     details = Column(Text, nullable=False) # JSON string: {"q1": "yes", "q2": 5, "raw_score": 85}
@@ -534,7 +578,7 @@ class QuestionCache(Base):
     min_age = Column(Integer, default=0)
     max_age = Column(Integer, default=120)
     tooltip = Column(Text, nullable=True)
-    cached_at = Column(String, default=lambda: datetime.utcnow().isoformat())
+    cached_at = Column(String, default=lambda: datetime.now(UTC).isoformat())
     access_count = Column(Integer, default=0, index=True)
     
     __table_args__ = (
@@ -551,7 +595,7 @@ class StatisticsCache(Base):
     stat_name = Column(String, unique=True, index=True)  # e.g., 'avg_score_global', 'question_count'
     stat_value = Column(Float)
     stat_json = Column(Text)  # For complex statistics
-    calculated_at = Column(String, default=lambda: datetime.utcnow().isoformat())
+    calculated_at = Column(String, default=lambda: datetime.now(UTC).isoformat())
     valid_until = Column(String, index=True)
     
     __table_args__ = (
@@ -628,10 +672,10 @@ def preload_frequent_data(session: Session) -> None:
         ).scalar() or 0
         
         stats = [
-            ('avg_score_global', avg_score, datetime.utcnow().isoformat()),
-            ('question_count', question_count, datetime.utcnow().isoformat()),
+            ('avg_score_global', avg_score, datetime.now(UTC).isoformat()),
+            ('question_count', question_count, datetime.now(UTC).isoformat()),
             ('active_users', session.query(func.count(User.id)).scalar() or 0, 
-             datetime.utcnow().isoformat())
+             datetime.now(UTC).isoformat())
         ]
         
         for stat_name, stat_value, calculated_at in stats:
@@ -639,7 +683,7 @@ def preload_frequent_data(session: Session) -> None:
                 stat_name=stat_name,
                 stat_value=stat_value,
                 calculated_at=calculated_at,
-                valid_until=(datetime.utcnow() + timedelta(hours=24)).isoformat()
+                valid_until=(datetime.now(UTC) + timedelta(hours=24)).isoformat()
             )
             session.merge(cache_entry)
         

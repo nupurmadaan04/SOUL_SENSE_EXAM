@@ -165,9 +165,11 @@ class SoulSenseCLI:
                 if not user:
                     print(f"Creating new user profile for '{self.username}'...")
                     # Create new user with valid constraints
+                    import bcrypt
+                    _cli_hash = bcrypt.hashpw(b"implicit_cli_auth", bcrypt.gensalt(rounds=12)).decode()
                     user = User(
                         username=self.username, 
-                        password_hash="implicit_cli_auth" # Placeholder
+                        password_hash=_cli_hash
                     )
                     session.add(user)
                     session.commit()

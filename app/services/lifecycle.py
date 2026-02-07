@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from app.db import get_session
 from app.models import User
 
@@ -24,7 +24,7 @@ def deactivate_dormant_accounts(days: int = 90) -> int:
     deactivated_count = 0
     
     try:
-        cutoff_date = datetime.utcnow() - timedelta(days=days)
+        cutoff_date = datetime.now(UTC) - timedelta(days=days)
         
         # Fetch active users only
         # Note: We fetch all and filter in python to handle complex 'OR' logic 

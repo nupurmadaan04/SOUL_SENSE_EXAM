@@ -1,6 +1,6 @@
 import logging
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from typing import Optional, List, Dict, Any
 from sqlalchemy.orm import Session
 from app.db import get_session
@@ -62,7 +62,7 @@ class AuditService:
                 ip_address=ip_address,
                 user_agent=safe_ua,
                 details=safe_details,
-                timestamp=datetime.utcnow()
+                timestamp=datetime.now(UTC)
             )
             
             session.add(log_entry)
@@ -112,7 +112,7 @@ class AuditService:
         """
         session = get_session()
         try:
-            cutoff_date = datetime.utcnow() - timedelta(days=days)
+            cutoff_date = datetime.now(UTC) - timedelta(days=days)
             deleted_count = session.query(AuditLog).filter(
                 AuditLog.timestamp < cutoff_date
             ).delete()

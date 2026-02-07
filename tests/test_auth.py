@@ -51,7 +51,7 @@ class TestAuth:
         # Test short username
         success, message, code = self.auth_manager.register_user("a", "short@example.com", "Test", "User", 25, "M", "TestPass123!")
         assert success == False
-        assert "at least 3 characters" in message
+        assert "3-30 characters" in message
         
         # Test short password
         success, message, code = self.auth_manager.register_user("newuser", "new@example.com", "Test", "User", 25, "M", "123")

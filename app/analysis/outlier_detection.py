@@ -3,7 +3,7 @@
 import logging
 import numpy as np
 from typing import List, Dict, Tuple, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from sqlalchemy.orm import Session
 from app.models import Score, User
 from sqlalchemy import func

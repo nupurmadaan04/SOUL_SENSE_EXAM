@@ -1,6 +1,6 @@
 import logging
 import uuid
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import List, Tuple
 from sqlalchemy.orm import Session
 from ..schemas import ExamResponseCreate, ExamResultCreate
@@ -37,7 +37,7 @@ class ExamService:
                 response_value=data.value,
                 age_group=data.age_group,
                 session_id=session_id,
-                timestamp=datetime.utcnow().isoformat()
+                timestamp=datetime.now(UTC).isoformat()
             )
             db.add(new_response)
             db.commit()
@@ -75,7 +75,7 @@ class ExamService:
                 reflection_text=reflection,
                 is_rushed=data.is_rushed,
                 is_inconsistent=data.is_inconsistent,
-                timestamp=datetime.utcnow().isoformat(),
+                timestamp=datetime.now(UTC).isoformat(),
                 detailed_age_group=data.detailed_age_group,
                 session_id=session_id
             )

@@ -81,6 +81,7 @@ def test_global_exception_handler():
         args = mock_show.call_args[0]
         assert args[0] == "Unexpected Error"
 
+@pytest.mark.serial
 @pytest.mark.skipif(
     not os.environ.get('TEST_FULL_IMPORTS'),
     reason="Skipped to avoid heavy UI imports. Set TEST_FULL_IMPORTS=1 to run."

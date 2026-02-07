@@ -13,7 +13,7 @@ Key Features:
 """
 
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from collections import defaultdict
 from statistics import mean, stdev
 from typing import Dict, List, Tuple, Optional

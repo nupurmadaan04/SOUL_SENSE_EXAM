@@ -195,6 +195,7 @@ def test_config_recovery_logic():
         if os.path.exists(backup_path):
             os.remove(backup_path)
 
+@pytest.mark.serial
 def test_question_initialization_concurrency():
     """
     Edge Case: Verify thread safety of question initialization.

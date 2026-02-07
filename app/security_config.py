@@ -5,6 +5,7 @@ import os
 MIN_PASSWORD_LENGTH = 8
 MAX_PASSWORD_LENGTH = 128
 PASSWORD_HASH_ROUNDS = 12
+PASSWORD_HISTORY_LIMIT = 5  # Block reuse of last N passwords
 
 # Session Security
 SESSION_TIMEOUT_HOURS = 24

@@ -1,9 +1,11 @@
 import bcrypt
 import secrets
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, UTC, timezone
 from app.db import get_session
 from app.models import User
+from app.security_config import PASSWORD_HASH_ROUNDS, LOCKOUT_DURATION_MINUTES, PASSWORD_HISTORY_LIMIT
+from app.models import User, UserSession
 from app.security_config import PASSWORD_HASH_ROUNDS, LOCKOUT_DURATION_MINUTES
 from app.services.audit_service import AuditService
 from app.validation import validate_username, validate_email_strict, validate_password_security
@@ -14,9 +16,14 @@ class AuthManager:
         self.current_user = None
         self.session_token = None
         self.session_expiry = None
-        self.session_expiry = None
+        self.current_session_id = None
         self.failed_attempts = {}
         self.lockout_duration = LOCKOUT_DURATION_MINUTES * 60
+    
+    def _generate_session_id(self):
+        """Generate a secure random session ID using secrets module"""
+        # Generate a 32-byte (256-bit) secure random token
+        return secrets.token_urlsafe(32)
 
     def hash_password(self, password):
         """Hash password using bcrypt with configurable rounds."""
@@ -75,7 +82,7 @@ class AuthManager:
             new_user = User(
                 username=username_lower,
                 password_hash=password_hash,
-                created_at=datetime.utcnow().isoformat()
+                created_at=datetime.now(UTC).isoformat()
             )
             session.add(new_user)
             session.flush()  # Get the user id
@@ -88,9 +95,12 @@ class AuthManager:
                 last_name=last_name,
                 age=age,
                 gender=gender,
-                last_updated=datetime.utcnow().isoformat()
+                last_updated=datetime.now(UTC).isoformat()
             )
             session.add(profile)
+            
+            # Save initial password to history
+            self._save_password_to_history(new_user.id, password_hash, session)
             
             session.commit()
             
@@ -163,16 +173,32 @@ class AuthManager:
 
                 # Update last login
                 try:
+                    now_iso = datetime.now(UTC).isoformat()
                     now = datetime.now(timezone.utc)
                     now_iso = now.isoformat()
                     user.last_login = now_iso
-                    # PR 2: Update last_activity on login (Issue fix)
+                    # PR 2: Update last_ activity on login (Issue fix)
                     user.last_activity = now_iso
+                    
+                    # Generate unique session ID and create session record
+                    session_id = self._generate_session_id()
+                    new_session = UserSession(
+                        session_id=session_id,
+                        user_id=user.id,
+                        username=user.username,
+                        created_at=now_iso,
+                        last_accessed=now_iso,
+                        is_active=True
+                    )
+                    session.add(new_session)
                     
                     # Audit success (Legacy LoginAttempt + New AuditLog)
                     self._record_login_attempt(session, id_lower, True)
                     AuditService.log_event(user.id, "LOGIN", details={"method": "password"}, db_session=session)
                     session.commit()
+                    
+                    # Store session ID for this auth instance
+                    self.current_session_id = session_id
                 except Exception as e:
                     logging.error(f"Failed to update login metadata: {e}")
                     
@@ -197,6 +223,17 @@ class AuthManager:
                 session = get_session()
                 user = session.query(User).filter(User.username == self.current_user).first()
                 if user:
+                    user.last_activity = datetime.now(UTC).isoformat()
+                    
+                    # Invalidate current session if one exists
+                    if self.current_session_id:
+                        user_session = session.query(UserSession).filter_by(
+                            session_id=self.current_session_id
+                        ).first()
+                        if user_session:
+                            user_session.is_active = False
+                            user_session.logged_out_at = datetime.now(UTC).isoformat()
+                    
                     user.last_activity = datetime.now(timezone.utc).isoformat()
                     # Audit Logout
                     AuditService.log_event(user.id, "LOGOUT", db_session=session)
@@ -208,6 +245,7 @@ class AuthManager:
         self.current_user = None
         self.session_token = None
         self.session_expiry = None
+        self.current_session_id = None
         # Clear saved Remember Me session
         from app.auth import session_storage
         session_storage.clear_session()
@@ -215,7 +253,7 @@ class AuthManager:
     def is_logged_in(self):
         if self.current_user is None:
             return False
-        if self.session_expiry and datetime.now(timezone.utc) > self.session_expiry:
+        if self.session_expiry and datetime.now(UTC) > self.session_expiry:
             self.logout_user()
             return False
         return True
@@ -238,7 +276,7 @@ class AuthManager:
     def _generate_session_token(self):
         """Generate secure session token"""
         self.session_token = secrets.token_urlsafe(32)
-        self.session_expiry = datetime.utcnow() + timedelta(hours=24)
+        self.session_expiry = datetime.now(UTC) + timedelta(hours=24)
 
     def _is_locked_out(self, username):
         """Check if user is locked out based on recent failed attempts in DB."""
@@ -247,6 +285,7 @@ class AuthManager:
             from app.models import LoginAttempt
             
             # Count recent failed attempts
+            since_time = datetime.now(UTC) - timedelta(seconds=self.lockout_duration)
             # USE TIMEZONE-AWARE DATETIME TO PREVENT CRASH
             since_time = datetime.now(timezone.utc) - timedelta(seconds=self.lockout_duration)
             
@@ -272,7 +311,7 @@ class AuthManager:
         try:
             from app.models import LoginAttempt
             
-            since_time = datetime.utcnow() - timedelta(seconds=self.lockout_duration)
+            since_time = datetime.now(UTC) - timedelta(seconds=self.lockout_duration)
             
             # Get the most recent failed attempt
             recent_failures = session.query(LoginAttempt).filter(
@@ -284,6 +323,8 @@ class AuthManager:
             if len(recent_failures) >= 5:
                 # Find the 5th most recent failed attempt (the one that triggered lockout)
                 fifth_failure = recent_failures[4]
+                lockout_end = fifth_failure.timestamp + timedelta(seconds=self.lockout_duration)
+                remaining = (lockout_end - datetime.now(UTC)).total_seconds()
                 
                 # Ensure comparison is done with aware datetimes
                 failure_time = fifth_failure.timestamp
@@ -394,7 +435,7 @@ class AuthManager:
             # Verify Code
             if OTPManager.verify_otp(user.id, code, "LOGIN_CHALLENGE", db_session=session):
                 # Success!
-                user.last_login = datetime.utcnow().isoformat()
+                user.last_login = datetime.now(UTC).isoformat()
                 self._record_login_attempt(session, username_lower, True, reason="2fa_success")
                 AuditService.log_event(user.id, "LOGIN_2FA", details={"method": "totp"}, db_session=session)
                 session.commit()
@@ -421,6 +462,11 @@ class AuthManager:
         """
         from app.auth.otp_manager import OTPManager
         from app.models import PersonalProfile, User
+        from app.validation import is_weak_password
+        
+        # Block weak/common passwords
+        if is_weak_password(new_password):
+            return False, "This password is too common. Please choose a stronger password."
         
         # Validation
         if not self._validate_password_strength(new_password):
@@ -444,6 +490,17 @@ class AuthManager:
             if not OTPManager.verify_otp(user.id, otp_code, "RESET_PASSWORD", db_session=session):
                 return False, "Invalid or expired code."
             
+            # Check if new password matches current password
+            if self.verify_password(new_password, user.password_hash):
+                return False, "New password cannot be the same as your current password."
+
+            # Check password history
+            if self._is_password_in_history(user.id, new_password, session):
+                return False, f"This password was used recently. Please choose a password you haven't used in the last {PASSWORD_HISTORY_LIMIT} changes."
+
+            # Save current password to history before changing
+            self._save_password_to_history(user.id, user.password_hash, session)
+
             # Update Password
             # Now 'user' is still attached because verify_otp didn't close the session
             print(f"DEBUG: Updating password for user {user.username}")
@@ -558,5 +615,257 @@ class AuthManager:
             session.rollback()
             logging.error(f"Disable 2FA Error: {e}")
             return False, f"Error: {str(e)}"
+        finally:
+            session.close()
+
+    # ==================== PASSWORD HISTORY ====================
+
+    def _save_password_to_history(self, user_id, password_hash, db_session):
+        """Store a password hash in the user's password history."""
+        from app.models import PasswordHistory
+        try:
+            entry = PasswordHistory(
+                user_id=user_id,
+                password_hash=password_hash,
+                created_at=datetime.now(timezone.utc)
+            )
+            db_session.add(entry)
+
+            # Prune old entries beyond the configured limit
+            history = db_session.query(PasswordHistory).filter(
+                PasswordHistory.user_id == user_id
+            ).order_by(PasswordHistory.created_at.desc()).all()
+
+            if len(history) > PASSWORD_HISTORY_LIMIT:
+                for old_entry in history[PASSWORD_HISTORY_LIMIT:]:
+                    db_session.delete(old_entry)
+        except Exception as e:
+            logging.error(f"Failed to save password history: {e}")
+
+    def _is_password_in_history(self, user_id, new_password, db_session):
+        """Check if a plaintext password matches any of the user's recent password hashes."""
+        from app.models import PasswordHistory
+        try:
+            history = db_session.query(PasswordHistory).filter(
+                PasswordHistory.user_id == user_id
+            ).order_by(PasswordHistory.created_at.desc()).limit(PASSWORD_HISTORY_LIMIT).all()
+
+            for entry in history:
+                if self.verify_password(new_password, entry.password_hash):
+                    return True
+            return False
+        except Exception as e:
+            logging.error(f"Password history check failed: {e}")
+            return False
+
+    # ==================== CHANGE PASSWORD ====================
+
+    def change_password(self, username, current_password, new_password):
+        """
+        Change password for a logged-in user.
+        Validates current password, checks history, and updates.
+        Returns: (success: bool, message: str)
+        """
+        from app.models import User
+
+        # Validate new password strength
+        is_valid, error = validate_password_security(new_password)
+        if not is_valid:
+            return False, error
+
+        session = get_session()
+        try:
+            id_lower = username.strip().lower()
+            user = session.query(User).filter(User.username == id_lower).first()
+
+            # If not found by username, try by email (user may have logged in with email)
+            if not user:
+                from app.models import PersonalProfile
+                profile = session.query(PersonalProfile).filter(PersonalProfile.email == id_lower).first()
+                if profile:
+                    user = session.query(User).filter(User.id == profile.user_id).first()
+
+            if not user:
+                return False, "User not found."
+
+            # Verify current password
+            if not self.verify_password(current_password, user.password_hash):
+                return False, "Current password is incorrect."
+
+            # Check if new password matches current password
+            if self.verify_password(new_password, user.password_hash):
+                return False, f"New password cannot be the same as your current password."
+
+            # Check password history
+            if self._is_password_in_history(user.id, new_password, session):
+                return False, f"This password was used recently. Please choose a password you haven't used in the last {PASSWORD_HISTORY_LIMIT} changes."
+
+            # Save current password to history before changing
+            self._save_password_to_history(user.id, user.password_hash, session)
+
+            # Update password
+            user.password_hash = self.hash_password(new_password)
+
+            AuditService.log_event(user.id, "PASSWORD_CHANGE", details={"status": "success"}, db_session=session)
+            session.commit()
+
+            logging.info(f"Password changed successfully for user {username}")
+            return True, "Password changed successfully."
+
+        except Exception as e:
+            session.rollback()
+            logging.error(f"Change password failed: {e}")
+            return False, "An error occurred while changing your password."
+    
+    def validate_session(self, session_id):
+        """
+        Validate a session ID and check if it's still active.
+        Sessions expire after 24 hours of inactivity.
+        
+        Args:
+            session_id (str): The session ID to validate
+            
+        Returns:
+            tuple: (bool, str, dict|None) - (is_valid, message, session_data)
+        """
+        session = get_session()
+        try:
+            user_session = session.query(UserSession).filter_by(session_id=session_id).first()
+            
+            if not user_session:
+                return False, "Invalid session ID", None
+            
+            if not user_session.is_active:
+                return False, "Session has been terminated", None
+            
+            # Check if session is expired (24 hours)
+            last_accessed = datetime.fromisoformat(user_session.last_accessed)
+            if datetime.now(UTC) - last_accessed > timedelta(hours=24):
+                user_session.is_active = False
+                session.commit()
+                return False, "Session expired", None
+            
+            # Update last accessed time
+            user_session.last_accessed = datetime.now(UTC).isoformat()
+            session.commit()
+            
+            session_data = {
+                'session_id': user_session.session_id,
+                'username': user_session.username,
+                'user_id': user_session.user_id,
+                'created_at': user_session.created_at,
+                'last_accessed': user_session.last_accessed
+            }
+            
+            return True, "Session valid", session_data
+            
+        except Exception as e:
+            logging.error(f"Session validation error: {e}")
+            return False, "Validation error", None
+        finally:
+            session.close()
+    
+    def cleanup_old_sessions(self, hours=24):
+        """
+        Remove or mark as inactive sessions older than specified hours.
+        
+        Args:
+            hours (int): Age threshold in hours (default: 24)
+            
+        Returns:
+            int: Number of sessions cleaned up
+        """
+        session = get_session()
+        try:
+            cutoff_time = datetime.now(UTC) - timedelta(hours=hours)
+            cutoff_iso = cutoff_time.isoformat()
+            
+            old_sessions = session.query(UserSession).filter(
+                UserSession.last_accessed < cutoff_iso,
+                UserSession.is_active == True
+            ).all()
+            
+            count = len(old_sessions)
+            for old_session in old_sessions:
+                old_session.is_active = False
+                old_session.logged_out_at = datetime.now(UTC).isoformat()
+            
+            session.commit()
+            return count
+            
+        except Exception as e:
+            session.rollback()
+            logging.error(f"Cleanup error: {e}")
+            return 0
+        finally:
+            session.close()
+    
+    def get_active_sessions(self, username):
+        """
+        Get all active sessions for a user.
+        
+        Args:
+            username (str): Username to query
+            
+        Returns:
+            list: List of active session dictionaries
+        """
+        session = get_session()
+        try:
+            active_sessions = session.query(UserSession).filter_by(
+                username=username,
+                is_active=True
+            ).all()
+            
+            result = []
+            for sess in active_sessions:
+                result.append({
+                    'session_id': sess.session_id,
+                    'created_at': sess.created_at,
+                    'last_accessed': sess.last_accessed,
+                    'ip_address': sess.ip_address,
+                    'user_agent': sess.user_agent
+                })
+            
+            return result
+            
+        except Exception as e:
+            logging.error(f"Get sessions error: {e}")
+            return []
+        finally:
+            session.close()
+    
+    def invalidate_user_sessions(self, username):
+        """
+        Invalidate all active sessions for a user.
+        Useful for forcing re-authentication after password change or security breach.
+        
+        Args:
+            username (str): Username whose sessions to invalidate
+            
+        Returns:
+            int: Number of sessions invalidated
+        """
+        session = get_session()
+        try:
+            active_sessions = session.query(UserSession).filter_by(
+                username=username,
+                is_active=True
+            ).all()
+            
+            count = len(active_sessions)
+            now_iso = datetime.now(UTC).isoformat()
+            
+            for sess in active_sessions:
+                sess.is_active = False
+                sess.logged_out_at = now_iso
+            
+            session.commit()
+            return count
+            
+        except Exception as e:
+            session.rollback()
+            logging.error(f"Invalidate sessions error: {e}")
+            return 0
         finally:
             session.close()

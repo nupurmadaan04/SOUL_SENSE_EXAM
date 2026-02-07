@@ -1,7 +1,7 @@
 import logging
 import json
 from typing import Optional, Dict, Any, List
-from datetime import datetime
+from datetime import datetime, UTC
 from app.db import safe_db_context
 from app.models import (
     User, UserProfile, PersonalProfile, MedicalProfile, 
@@ -72,7 +72,7 @@ class ProfileService:
                     if hasattr(profile, key):
                         setattr(profile, key, value)
                 
-                profile.last_updated = datetime.utcnow().isoformat()
+                profile.last_updated = datetime.now(UTC).isoformat()
                 return True
         except Exception as e:
             logger.error(f"Failed to update personal profile: {e}")
@@ -96,7 +96,7 @@ class ProfileService:
                     if hasattr(profile, key):
                         setattr(profile, key, value)
                 
-                profile.last_updated = datetime.utcnow().isoformat()
+                profile.last_updated = datetime.now(UTC).isoformat()
                 return True
         except Exception as e:
             logger.error(f"Failed to update medical profile: {e}")
@@ -125,7 +125,7 @@ class ProfileService:
                     # Special check: Emotional Patterns might be mixed in `data` or separate?
                     # The UI separated them. We can have a separate method or shared.
                 
-                strengths.last_updated = datetime.utcnow().isoformat()
+                strengths.last_updated = datetime.now(UTC).isoformat()
                 return True
         except Exception as e:
             logger.error(f"Failed to update strengths: {e}")
@@ -149,7 +149,7 @@ class ProfileService:
                     if hasattr(ep, key):
                         setattr(ep, key, value)
                 
-                ep.last_updated = datetime.utcnow().isoformat()
+                ep.last_updated = datetime.now(UTC).isoformat()
                 return True
         except Exception as e:
             logger.error(f"Failed to update emotional patterns: {e}")

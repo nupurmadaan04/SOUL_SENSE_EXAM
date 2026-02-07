@@ -29,6 +29,8 @@ cryptography>=41.0.0
 pytest==8.4.0
 pytest-mock==3.14.0
 pytest-cov==6.0.0
+pytest-xdist==3.5.0
+pytest-timeout==2.2.0
 mypy==1.8.0
 types-aiofiles
 requests==2.32.3

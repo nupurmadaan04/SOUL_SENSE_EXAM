@@ -2,7 +2,10 @@ import pytest
 from unittest.mock import MagicMock, call
 from app.ui.exam import ExamManager
 
-pytestmark = pytest.mark.xfail(reason="Test harness issue: Mock object treated as Mock instead of int in arithmetic")
+pytestmark = [
+    pytest.mark.xfail(reason="Test harness issue: Mock object treated as Mock instead of int in arithmetic"),
+    pytest.mark.serial
+]
 
 def test_exam_manager_initialization(mock_app):
     exam = ExamManager(mock_app)

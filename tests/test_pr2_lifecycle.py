@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import MagicMock, patch, call
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from app.auth.idle_watcher import IdleWatcher
 from app.services.lifecycle import deactivate_dormant_accounts
 from app.models import User
@@ -46,7 +46,13 @@ def test_idle_watcher_warning():
     watcher = IdleWatcher(root, callback, timeout_seconds=60)
     
     with patch("app.auth.idle_watcher.time.time") as mock_time, \
-         patch("tkinter.Toplevel") as mock_toplevel:
+         patch("app.auth.idle_watcher.tk.Toplevel") as mock_toplevel, \
+         patch("app.auth.idle_watcher.tk.Label") as mock_label, \
+         patch("app.auth.idle_watcher.tk.Button") as mock_button:
+        
+        # Setup mock toplevel to prevent GUI issues
+        mock_warning = MagicMock()
+        mock_toplevel.return_value = mock_warning
         
         start_time = 1000.0
         mock_time.return_value = start_time
@@ -74,7 +80,8 @@ def test_deactivate_dormant_accounts(temp_db):
     session.close = MagicMock() # Prevent function from closing session
     
     # Create users with explicit IDs to avoid constraint issues during manual reassignment
-    old_date = (datetime.utcnow() - timedelta(days=100)).isoformat()
+    # Use timezone-aware datetimes to match lifecycle.py
+    old_date = (datetime.now(UTC) - timedelta(days=100)).isoformat()
     
     # ID 1 = Admin (exempt)
     admin_user = User(id=1, username="admin", password_hash="hash", 
@@ -86,7 +93,7 @@ def test_deactivate_dormant_accounts(temp_db):
                         
     # ID 3 = Active (should stay active)
     active_user = User(id=3, username="active", password_hash="hash", 
-                       is_active=True, last_activity=datetime.utcnow().isoformat())
+                       is_active=True, last_activity=datetime.now(UTC).isoformat())
                        
     session.add_all([admin_user, dormant_user, active_user])
     session.commit()
@@ -113,6 +120,10 @@ def test_login_updates_last_activity(mocker):
     mock_user = MagicMock()
     mock_user.password_hash = "hash"
     mock_user.username = "testuser"
+    mock_user.id = 1
+    mock_user.is_2fa_enabled = False  # Disable 2FA
+    mock_user.is_active = True  # Ensure account is active
+    mock_user.last_activity = None  # Initialize attribute
     mock_session.query.return_value.filter.return_value.first.return_value = mock_user
     
     auth = AuthManager()
@@ -120,12 +131,14 @@ def test_login_updates_last_activity(mocker):
     # Mock verify
     mocker.patch.object(auth, "verify_password", return_value=True)
     mocker.patch.object(auth, "_is_locked_out", return_value=False)
+    mocker.patch.object(auth, "_generate_session_id", return_value="fake-session-id")
     mocker.patch.object(auth, "_generate_session_token")
+    mocker.patch("app.auth.auth.AuditService.log_event")  # Mock audit logging
     
     auth.login_user("testuser", "pass")
     
-    # Check if last_activity was set
-    assert hasattr(mock_user, "last_activity")
+    # Verify last_activity was updated (not just that attribute exists)
+    assert mock_user.last_activity is not None
     # And session committed
     assert mock_session.commit.called
 

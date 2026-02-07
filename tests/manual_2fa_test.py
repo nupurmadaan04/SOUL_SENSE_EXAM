@@ -1,11 +1,13 @@
 import requests
 import time
+import pytest
 
 BASE_URL = "http://localhost:8000/api/v1/auth"
 USERNAME = "2fa_test_user_" + str(int(time.time()))
 PASSWORD = "Password123!"
 EMAIL = f"test_{int(time.time())}@example.com"
 
+@pytest.mark.skip(reason="Requires running FastAPI server on localhost:8000 - integration test only")
 def test_flow():
     print(f"--- Starting 2FA Flow Test for {USERNAME} ---")
     

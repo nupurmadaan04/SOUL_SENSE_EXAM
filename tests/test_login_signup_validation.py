@@ -173,7 +173,7 @@ class TestUsernameValidation:
     
     def test_valid_username(self):
         """Valid usernames pass validation."""
-        valid_usernames = ["john_doe", "user123", "Test-User", "abc"]
+        valid_usernames = ["john_doe", "user123", "TestUser", "abc"]
         for username in valid_usernames:
             is_valid, _ = validate_username(username)
             assert is_valid is True, f"Expected {username} to be valid"

@@ -555,6 +555,11 @@ class AuthService:
         2. Update Password.
         """
         from app.auth.otp_manager import OTPManager
+        from ..utils.weak_passwords import WEAK_PASSWORDS
+        
+        # Block weak/common passwords
+        if new_password.lower() in WEAK_PASSWORDS:
+            return False, "This password is too common. Please choose a stronger password."
         
         try:
             email_lower = email.lower().strip()

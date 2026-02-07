@@ -1,7 +1,7 @@
 import hashlib
 import secrets
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from app.db import get_session
 from app.models import OTP, User
 

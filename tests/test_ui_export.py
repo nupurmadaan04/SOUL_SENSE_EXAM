@@ -6,6 +6,7 @@ from app.ui.profile import UserProfileView
 from app.ui.results import ResultsManager
 from app.utils.file_validation import ValidationError
 
+@pytest.mark.serial
 class TestUIExportSecurity:
 
     @pytest.fixture

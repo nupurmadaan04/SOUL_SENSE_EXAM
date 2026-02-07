@@ -1,7 +1,7 @@
 import time
 import statistics
 import logging
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import List, Tuple, Optional, Any
 from sqlalchemy import desc
 from app.db import safe_db_context
@@ -48,7 +48,7 @@ class ExamService:
                     # The UI used datetime.now().timestamp() - 900 (15 mins) and compared.
                     # Model stores string.
                     from datetime import timedelta
-                    cutoff = (datetime.utcnow() - timedelta(minutes=minutes_lookback)).isoformat()
+                    cutoff = (datetime.now(UTC) - timedelta(minutes=minutes_lookback)).isoformat()
                     query = query.filter(AssessmentResult.timestamp >= cutoff)
                 
                 return query.order_by(desc(AssessmentResult.timestamp)).all()
@@ -70,7 +70,7 @@ class ExamService:
     ) -> bool:
         """Saves a completed exam score to the database."""
         try:
-            timestamp = datetime.utcnow().isoformat()
+            timestamp = datetime.now(UTC).isoformat()
             
             with safe_db_context() as session:
                 # Resolve User ID
@@ -119,7 +119,7 @@ class ExamService:
                     question_id=question_id,
                     response_value=value,
                     age_group=age_group,
-                    timestamp=datetime.utcnow().isoformat()
+                    timestamp=datetime.now(UTC).isoformat()
                 )
                 session.add(resp)
         except Exception as e:

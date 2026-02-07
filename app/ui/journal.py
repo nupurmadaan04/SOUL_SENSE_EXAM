@@ -122,9 +122,40 @@ class JournalFeature:
                  font=("Segoe UI", 12), bg=colors["bg"], 
                  fg=colors["text_secondary"]).pack(anchor="w", padx=20)
 
-        # Scrollable Content
-        container = tk.Frame(parent_frame, bg=colors["bg"])
-        container.pack(fill="both", expand=True, padx=20)
+        # Scrollable Content Container
+        scroll_container = tk.Frame(parent_frame, bg=colors["bg"])
+        scroll_container.pack(fill="both", expand=True)
+        
+        # Create canvas with scrollbar for vertical scrolling
+        canvas = tk.Canvas(scroll_container, bg=colors["bg"], highlightthickness=0)
+        scrollbar = ttk.Scrollbar(scroll_container, orient="vertical", command=canvas.yview)
+        container = tk.Frame(canvas, bg=colors["bg"])
+        
+        # Configure scrolling
+        container.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.create_window((0, 0), window=container, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        # Pack scrollbar and canvas
+        scrollbar.pack(side="right", fill="y")
+        canvas.pack(side="left", fill="both", expand=True, padx=20)
+        
+        # Enable mousewheel scrolling
+        def _on_mousewheel(event):
+            canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+        
+        canvas.bind("<MouseWheel>", _on_mousewheel)
+        container.bind("<MouseWheel>", _on_mousewheel)
+        
+        # Bind mouse enter/leave to enable/disable scrolling when hovering
+        def _bind_mousewheel(event):
+            canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        
+        def _unbind_mousewheel(event):
+            canvas.unbind_all("<MouseWheel>")
+        
+        canvas.bind("<Enter>", _bind_mousewheel)
+        canvas.bind("<Leave>", _unbind_mousewheel)
         
         # --- Metrics Section ---
         metrics_frame = tk.LabelFrame(container, text=self.i18n.get("journal.daily_assessment", "Daily Assessment"), 
@@ -241,6 +272,11 @@ class JournalFeature:
 
         tk.Button(btn_frame, text=self.i18n.get("journal.dashboard"), command=self.open_dashboard,
                  font=("Segoe UI", 11), bg=colors["surface"], fg=colors["text_primary"],
+                 relief="flat", padx=15).pack(side="left", padx=(0, 10))
+
+        # Smart Prompts Button (Issue #586)
+        tk.Button(btn_frame, text="✨ Smart Prompts", command=self.show_smart_prompts,
+                 font=("Segoe UI", 11), bg=colors.get("secondary", "#EC4899"), fg="white",
                  relief="flat", padx=15).pack(side="left", padx=(0, 10))
 
         # Toggle Search Section
@@ -1411,6 +1447,165 @@ class JournalFeature:
             insight_text = "Could not generate insights at this moment."
             
         return insight_text
+
+    def show_smart_prompts(self):
+        """Display AI-generated personalized prompts based on user context (Issue #586)."""
+        from backend.fastapi.api.services.smart_prompt_service import SmartPromptService, SMART_PROMPTS
+        import random
+        
+        colors = self.colors
+        
+        # Create popup window
+        prompt_window = tk.Toplevel(self.journal_window)
+        prompt_window.title("✨ Smart Journal Prompts")
+        
+        # Responsive sizing
+        screen_width = prompt_window.winfo_screenwidth()
+        screen_height = prompt_window.winfo_screenheight()
+        window_width = min(550, int(screen_width * 0.45))
+        window_height = min(500, int(screen_height * 0.55))
+        x = (screen_width - window_width) // 2
+        y = (screen_height - window_height) // 2
+        
+        prompt_window.geometry(f"{window_width}x{window_height}+{x}+{y}")
+        prompt_window.minsize(400, 350)
+        prompt_window.resizable(True, True)
+        prompt_window.configure(bg=colors.get("bg", "#f0f0f0"))
+        
+        main_frame = tk.Frame(prompt_window, bg=colors.get("bg", "#f0f0f0"))
+        main_frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+        
+        # Header
+        header_frame = tk.Frame(main_frame, bg=colors.get("bg", "#f0f0f0"))
+        header_frame.pack(fill="x", pady=(0, 15))
+        
+        tk.Label(header_frame, text="✨ Personalized Prompts", 
+                font=("Segoe UI", 18, "bold"), bg=colors.get("bg", "#f0f0f0"), 
+                fg=colors.get("text_primary", "#000")).pack(anchor="w")
+        
+        tk.Label(header_frame, text="AI-selected based on your recent journal entries and mood patterns", 
+                font=("Segoe UI", 10), bg=colors.get("bg", "#f0f0f0"), 
+                fg=colors.get("text_secondary", "#666")).pack(anchor="w")
+        
+        # Get smart prompts (simplified local version for GUI)
+        # In production, this could call the API endpoint
+        selected_prompts = []
+        
+        try:
+            # Simple context-based selection for standalone GUI
+            # Get prompts from multiple categories for variety
+            categories = ["gratitude", "reflection", "general", "positivity", "stress"]
+            random.shuffle(categories)
+            
+            for category in categories[:3]:
+                cat_prompts = SMART_PROMPTS.get(category, [])
+                if cat_prompts:
+                    prompt = random.choice(cat_prompts)
+                    selected_prompts.append({
+                        "prompt": prompt["prompt"],
+                        "category": category.title(),
+                        "description": prompt.get("description", ""),
+                        "context_reason": f"Selected for {category} reflection"
+                    })
+        except Exception as e:
+            logging.error(f"Failed to get smart prompts: {e}")
+            # Fallback prompts
+            selected_prompts = [
+                {"prompt": "What are you grateful for today?", "category": "Gratitude", 
+                 "description": "Focus on positives", "context_reason": "A great way to start journaling"},
+                {"prompt": "How are you really feeling right now?", "category": "Reflection", 
+                 "description": "Emotional check-in", "context_reason": "Connect with your emotions"},
+                {"prompt": "What's one thing you could do today to feel better?", "category": "Wellness", 
+                 "description": "Action-oriented", "context_reason": "Small steps matter"}
+            ]
+        
+        # Prompts container with scroll
+        prompts_canvas = tk.Canvas(main_frame, bg=colors.get("bg", "#f0f0f0"), highlightthickness=0)
+        prompts_frame = tk.Frame(prompts_canvas, bg=colors.get("bg", "#f0f0f0"))
+        
+        scrollbar = ttk.Scrollbar(main_frame, orient="vertical", command=prompts_canvas.yview)
+        prompts_canvas.configure(yscrollcommand=scrollbar.set)
+        
+        scrollbar.pack(side="right", fill="y")
+        prompts_canvas.pack(side="left", fill="both", expand=True)
+        prompts_canvas.create_window((0, 0), window=prompts_frame, anchor="nw")
+        
+        def use_prompt(prompt_text, category, window):
+            """Insert prompt into text area and auto-fill tag, then close window."""
+            self.text_area.delete("1.0", tk.END)
+            self.text_area.insert("1.0", f"{prompt_text}\n\n")
+            # Auto-fill the tag based on prompt category
+            if hasattr(self, 'tags_entry'):
+                current_tags = self.tags_entry.get().strip()
+                tag = category.lower()
+                if current_tags:
+                    if tag not in current_tags.lower():
+                        self.tags_entry.delete(0, tk.END)
+                        self.tags_entry.insert(0, f"{current_tags}, {tag}")
+                else:
+                    self.tags_entry.delete(0, tk.END)
+                    self.tags_entry.insert(0, tag)
+            window.destroy()
+        
+        # Render prompt cards
+        for i, prompt_data in enumerate(selected_prompts):
+            card = tk.Frame(prompts_frame, bg=colors.get("surface", "#fff"), 
+                           relief="flat", highlightbackground=colors.get("border", "#e0e0e0"),
+                           highlightthickness=1)
+            card.pack(fill="x", pady=8, padx=5)
+            
+            # Category label
+            cat_frame = tk.Frame(card, bg=colors.get("surface", "#fff"))
+            cat_frame.pack(fill="x", padx=15, pady=(12, 5))
+            
+            tk.Label(cat_frame, text=f"📌 {prompt_data['category']}", 
+                    font=("Segoe UI", 9, "bold"), 
+                    bg=colors.get("surface", "#fff"),
+                    fg=colors.get("secondary", "#EC4899")).pack(side="left")
+            
+            # Prompt text
+            tk.Label(card, text=prompt_data["prompt"], 
+                    font=("Segoe UI", 12), 
+                    bg=colors.get("surface", "#fff"),
+                    fg=colors.get("text_primary", "#000"),
+                    wraplength=window_width - 80,
+                    justify="left").pack(fill="x", padx=15, pady=5)
+            
+            # Context reason (why selected)
+            tk.Label(card, text=f"💡 {prompt_data['context_reason']}", 
+                    font=("Segoe UI", 9, "italic"), 
+                    bg=colors.get("surface", "#fff"),
+                    fg=colors.get("text_secondary", "#888")).pack(fill="x", padx=15, pady=(0, 5))
+            
+            # Use button
+            btn_frame = tk.Frame(card, bg=colors.get("surface", "#fff"))
+            btn_frame.pack(fill="x", padx=15, pady=(5, 12))
+            
+            tk.Button(btn_frame, text="Use This Prompt", 
+                     command=lambda p=prompt_data["prompt"], c=prompt_data["category"]: use_prompt(p, c, prompt_window),
+                     font=("Segoe UI", 10), 
+                     bg=colors.get("primary", "#8B5CF6"), 
+                     fg="white",
+                     relief="flat", padx=12, pady=4).pack(side="right")
+        
+        # Update scroll region
+        prompts_frame.update_idletasks()
+        prompts_canvas.configure(scrollregion=prompts_canvas.bbox("all"))
+        
+        # Enable mousewheel scrolling
+        def _on_mousewheel(event):
+            prompts_canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+        
+        prompts_canvas.bind("<MouseWheel>", _on_mousewheel)
+        
+        # Close button
+        close_frame = tk.Frame(prompt_window, bg=colors.get("bg", "#f0f0f0"))
+        close_frame.pack(fill="x", padx=20, pady=(0, 15))
+        
+        tk.Button(close_frame, text="Close", command=prompt_window.destroy,
+                 font=("Segoe UI", 10), bg=colors.get("surface", "#e0e0e0"),
+                 fg=colors.get("text_primary", "#000"),
+                 relief="flat", padx=15).pack(side="right")
 
 
 # Standalone test function

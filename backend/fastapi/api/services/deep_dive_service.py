@@ -1,7 +1,7 @@
 import json
 import logging
 from typing import List, Dict, Optional
-from datetime import datetime
+from datetime import datetime, UTC
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 
@@ -156,7 +156,7 @@ class DeepDiveService:
             assessment_type=assess_type,
             total_score=normalized,
             details=json.dumps(submission.responses),
-            timestamp=datetime.utcnow().isoformat()
+            timestamp=datetime.now(UTC).isoformat()
         )
         db.add(result)
         db.commit()

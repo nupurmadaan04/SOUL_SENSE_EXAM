@@ -12,6 +12,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - uses: actions/checkout@v4
@@ -26,7 +27,7 @@ jobs:
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
           if [ -f backend/fastapi/requirements.txt ]; then pip install -r backend/fastapi/requirements.txt; fi
-          pip install pytest pytest-mock pytest-cov flake8
+          pip install pytest pytest-mock pytest-cov pytest-xdist pytest-timeout flake8
 
       - name: Type Check Root App
         run: mypy app/ --exclude backend/
@@ -42,11 +43,17 @@ jobs:
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
       - name: Test Root App
+        timeout-minutes: 20
         env:
           DISPLAY: ":0.0"
-        run: pytest tests/
+        run: |
+          # Run parallel tests with 2 workers (conservative for CI stability)
+          pytest tests/ -n 2 --maxfail=5 -m "not serial" --timeout=120 -v
+          # Run serial tests sequentially with per-test timeout
+          pytest tests/ -m "serial" --maxfail=5 --timeout=180
 
-      - name: Test Backend App
+      - timeout-minutes: 10
+        name: Test Backend App
         run: |
           mkdir -p ../../data
           nohup python start_server.py --host 127.0.0.1 --port 8000 --no-reload --y > server.log 2>&1 &

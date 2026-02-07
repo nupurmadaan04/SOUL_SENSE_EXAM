@@ -3,6 +3,8 @@ from unittest.mock import MagicMock, patch
 from app.ui.profile import UserProfileView
 from app.models import User
 
+pytestmark = pytest.mark.serial
+
 def test_delete_user_data_ui_success(mock_app, temp_db, mocker):
     """Test successful user data deletion through UI."""
     # Create test user

@@ -5,8 +5,8 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Loader2, Lock, ShieldCheck } from 'lucide-react';
 import { Form, FormField } from '@/components/forms';
-import { Button } from '@/components/ui';
-import { AuthLayout } from '@/components/auth';
+import { Button, Input } from '@/components/ui';
+import { AuthLayout, PasswordStrengthIndicator } from '@/components/auth';
 import { resetPasswordSchema } from '@/lib/validation';
 import { authApi } from '@/lib/api/auth';
 import { z } from 'zod';
@@ -96,9 +96,20 @@ export default function VerifyResetPage() {
               control={methods.control}
               name="password"
               label="New Password"
-              placeholder="Enter new password"
-              type="password"
-            />
+              required
+            >
+              {(fieldProps) => (
+                <div className="relative space-y-2">
+                  <Input
+                    {...fieldProps}
+                    type="password"
+                    placeholder="Enter new password"
+                    autoComplete="new-password"
+                  />
+                  <PasswordStrengthIndicator password={fieldProps.value || ''} />
+                </div>
+              )}
+            </FormField>
 
             <FormField
               control={methods.control}

@@ -146,7 +146,7 @@ def update_user_settings(user_id: int, **kwargs: Any) -> bool:
         **kwargs: Key-value pairs of settings to update
     """
     from app.models import UserSettings
-    from datetime import datetime
+    from datetime import datetime, UTC
 
     with safe_db_context() as session:
         settings = session.query(UserSettings).filter_by(user_id=user_id).first()
@@ -160,7 +160,7 @@ def update_user_settings(user_id: int, **kwargs: Any) -> bool:
             if hasattr(settings, key):
                 setattr(settings, key, value) # type: ignore
 
-        settings.updated_at = datetime.utcnow().isoformat() # type: ignore
+        settings.updated_at = datetime.now(UTC).isoformat() # type: ignore
         session.commit()
         return True
 
