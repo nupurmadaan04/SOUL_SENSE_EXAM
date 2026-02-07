@@ -4,7 +4,7 @@ import time
 from datetime import datetime, timedelta, timezone
 from app.db import get_session
 from app.models import User
-from app.security_config import PASSWORD_HASH_ROUNDS, LOCKOUT_DURATION_MINUTES
+from app.security_config import PASSWORD_HASH_ROUNDS, LOCKOUT_DURATION_MINUTES, PASSWORD_HISTORY_LIMIT
 from app.services.audit_service import AuditService
 from app.validation import validate_username, validate_email_strict, validate_password_security
 import logging
@@ -91,6 +91,9 @@ class AuthManager:
                 last_updated=datetime.utcnow().isoformat()
             )
             session.add(profile)
+            
+            # Save initial password to history
+            self._save_password_to_history(new_user.id, password_hash, session)
             
             session.commit()
             
@@ -444,6 +447,17 @@ class AuthManager:
             if not OTPManager.verify_otp(user.id, otp_code, "RESET_PASSWORD", db_session=session):
                 return False, "Invalid or expired code."
             
+            # Check if new password matches current password
+            if self.verify_password(new_password, user.password_hash):
+                return False, "New password cannot be the same as your current password."
+
+            # Check password history
+            if self._is_password_in_history(user.id, new_password, session):
+                return False, f"This password was used recently. Please choose a password you haven't used in the last {PASSWORD_HISTORY_LIMIT} changes."
+
+            # Save current password to history before changing
+            self._save_password_to_history(user.id, user.password_hash, session)
+
             # Update Password
             # Now 'user' is still attached because verify_otp didn't close the session
             print(f"DEBUG: Updating password for user {user.username}")
@@ -558,5 +572,106 @@ class AuthManager:
             session.rollback()
             logging.error(f"Disable 2FA Error: {e}")
             return False, f"Error: {str(e)}"
+        finally:
+            session.close()
+
+    # ==================== PASSWORD HISTORY ====================
+
+    def _save_password_to_history(self, user_id, password_hash, db_session):
+        """Store a password hash in the user's password history."""
+        from app.models import PasswordHistory
+        try:
+            entry = PasswordHistory(
+                user_id=user_id,
+                password_hash=password_hash,
+                created_at=datetime.now(timezone.utc)
+            )
+            db_session.add(entry)
+
+            # Prune old entries beyond the configured limit
+            history = db_session.query(PasswordHistory).filter(
+                PasswordHistory.user_id == user_id
+            ).order_by(PasswordHistory.created_at.desc()).all()
+
+            if len(history) > PASSWORD_HISTORY_LIMIT:
+                for old_entry in history[PASSWORD_HISTORY_LIMIT:]:
+                    db_session.delete(old_entry)
+        except Exception as e:
+            logging.error(f"Failed to save password history: {e}")
+
+    def _is_password_in_history(self, user_id, new_password, db_session):
+        """Check if a plaintext password matches any of the user's recent password hashes."""
+        from app.models import PasswordHistory
+        try:
+            history = db_session.query(PasswordHistory).filter(
+                PasswordHistory.user_id == user_id
+            ).order_by(PasswordHistory.created_at.desc()).limit(PASSWORD_HISTORY_LIMIT).all()
+
+            for entry in history:
+                if self.verify_password(new_password, entry.password_hash):
+                    return True
+            return False
+        except Exception as e:
+            logging.error(f"Password history check failed: {e}")
+            return False
+
+    # ==================== CHANGE PASSWORD ====================
+
+    def change_password(self, username, current_password, new_password):
+        """
+        Change password for a logged-in user.
+        Validates current password, checks history, and updates.
+        Returns: (success: bool, message: str)
+        """
+        from app.models import User
+
+        # Validate new password strength
+        is_valid, error = validate_password_security(new_password)
+        if not is_valid:
+            return False, error
+
+        session = get_session()
+        try:
+            id_lower = username.strip().lower()
+            user = session.query(User).filter(User.username == id_lower).first()
+
+            # If not found by username, try by email (user may have logged in with email)
+            if not user:
+                from app.models import PersonalProfile
+                profile = session.query(PersonalProfile).filter(PersonalProfile.email == id_lower).first()
+                if profile:
+                    user = session.query(User).filter(User.id == profile.user_id).first()
+
+            if not user:
+                return False, "User not found."
+
+            # Verify current password
+            if not self.verify_password(current_password, user.password_hash):
+                return False, "Current password is incorrect."
+
+            # Check if new password matches current password
+            if self.verify_password(new_password, user.password_hash):
+                return False, f"New password cannot be the same as your current password."
+
+            # Check password history
+            if self._is_password_in_history(user.id, new_password, session):
+                return False, f"This password was used recently. Please choose a password you haven't used in the last {PASSWORD_HISTORY_LIMIT} changes."
+
+            # Save current password to history before changing
+            self._save_password_to_history(user.id, user.password_hash, session)
+
+            # Update password
+            user.password_hash = self.hash_password(new_password)
+
+            AuditService.log_event(user.id, "PASSWORD_CHANGE", details={"status": "success"}, db_session=session)
+            session.commit()
+
+            logging.info(f"Password changed successfully for user {username}")
+            return True, "Password changed successfully."
+
+        except Exception as e:
+            session.rollback()
+            logging.error(f"Change password failed: {e}")
+            return False, "An error occurred while changing your password."
         finally:
             session.close()

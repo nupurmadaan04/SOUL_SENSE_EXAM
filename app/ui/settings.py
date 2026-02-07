@@ -375,14 +375,18 @@ class SettingsManager:
         btn_bg = colors.get("error", "#EF4444") if is_2fa_enabled else colors.get("primary", "#3B82F6")
         btn_cmd = self._disable_2fa if is_2fa_enabled else self._initiate_2fa_setup
         
+        # Button row for 2FA and Change Password
+        btn_row = tk.Frame(inner, bg=colors.get("surface", "#FFFFFF"))
+        btn_row.pack(anchor="w", fill="x", pady=(0, 0))
+
         action_btn = tk.Button(
-            inner,
+            btn_row,
             text=btn_text,
             command=btn_cmd,
             font=self.app.ui_styles.get_font("xs", "bold"),
             bg=btn_bg,
             fg="#FFFFFF",
-            activebackground=btn_bg, # Simplified hover
+            activebackground=btn_bg,
             activeforeground="#FFFFFF",
             relief="flat",
             cursor="hand2",
@@ -390,7 +394,27 @@ class SettingsManager:
             pady=5,
             borderwidth=0
         )
-        action_btn.pack(anchor="w")
+        action_btn.pack(side="left")
+
+        # Change Password Button
+        change_pw_btn = tk.Button(
+            btn_row,
+            text="Change Password",
+            command=self._show_change_password_dialog,
+            font=self.app.ui_styles.get_font("xs", "bold"),
+            bg=colors.get("warning", "#F59E0B"),
+            fg="#FFFFFF",
+            activebackground=colors.get("warning", "#F59E0B"),
+            activeforeground="#FFFFFF",
+            relief="flat",
+            cursor="hand2",
+            padx=10,
+            pady=5,
+            borderwidth=0
+        )
+        change_pw_btn.pack(side="left", padx=(10, 0))
+        change_pw_btn.bind("<Enter>", lambda e: change_pw_btn.configure(bg="#D97706"))
+        change_pw_btn.bind("<Leave>", lambda e: change_pw_btn.configure(bg=colors.get("warning", "#F59E0B")))
 
     def _initiate_2fa_setup(self):
         """Start 2FA Setup Flow"""
@@ -461,6 +485,180 @@ class SettingsManager:
              else:
                  messagebox.showerror("Error", msg)
     
+    def _show_change_password_dialog(self):
+        """Show Change Password dialog with current password verification and history check."""
+        from app.auth.app_auth import PasswordStrengthMeter
+        from app.security_config import PASSWORD_HISTORY_LIMIT
+        
+        colors = self.app.colors
+        
+        dialog = tk.Toplevel(self.settings_win)
+        dialog.title("Change Password")
+        dialog.geometry("420x520")
+        dialog.resizable(False, False)
+        dialog.configure(bg=colors["bg"])
+        dialog.transient(self.settings_win)
+        dialog.grab_set()
+        
+        # Center on settings window
+        dialog.update_idletasks()
+        x = self.settings_win.winfo_x() + (self.settings_win.winfo_width() - 420) // 2
+        y = self.settings_win.winfo_y() + (self.settings_win.winfo_height() - 520) // 2
+        dialog.geometry(f"+{x}+{y}")
+        
+        # Header
+        header = tk.Frame(dialog, bg=colors.get("primary", "#3B82F6"), height=55)
+        header.pack(fill="x")
+        header.pack_propagate(False)
+        tk.Label(
+            header, text="Change Password",
+            font=("Segoe UI", 14, "bold"),
+            bg=colors.get("primary", "#3B82F6"), fg="#FFFFFF"
+        ).pack(pady=14)
+        
+        # Content
+        content = tk.Frame(dialog, bg=colors["bg"])
+        content.pack(fill="both", expand=True, padx=30, pady=20)
+        
+        # Info label
+        tk.Label(
+            content,
+            text=f"Your new password must not match any of your\nlast {PASSWORD_HISTORY_LIMIT} passwords.",
+            font=("Segoe UI", 9),
+            bg=colors["bg"], fg=colors.get("text_secondary", "#475569"),
+            justify="left"
+        ).pack(anchor="w", pady=(0, 15))
+        
+        # Current Password
+        tk.Label(
+            content, text="Current Password",
+            font=("Segoe UI", 10, "bold"),
+            bg=colors["bg"], fg=colors.get("text_primary", "#0F172A")
+        ).pack(anchor="w")
+        current_pw_var = tk.StringVar()
+        current_pw_entry = tk.Entry(
+            content, textvariable=current_pw_var, show="*",
+            font=("Segoe UI", 11), width=32
+        )
+        current_pw_entry.pack(fill="x", pady=(4, 12))
+        current_pw_entry.focus()
+        
+        # New Password
+        tk.Label(
+            content, text="New Password",
+            font=("Segoe UI", 10, "bold"),
+            bg=colors["bg"], fg=colors.get("text_primary", "#0F172A")
+        ).pack(anchor="w")
+        new_pw_var = tk.StringVar()
+        new_pw_entry = tk.Entry(
+            content, textvariable=new_pw_var, show="*",
+            font=("Segoe UI", 11), width=32
+        )
+        new_pw_entry.pack(fill="x", pady=(4, 4))
+        
+        # Strength meter
+        meter = PasswordStrengthMeter(content, colors)
+        meter.pack(fill="x", pady=(0, 12))
+        
+        def on_new_pw_change(*args):
+            meter.update_strength(new_pw_var.get())
+        new_pw_var.trace_add("write", on_new_pw_change)
+        
+        # Confirm New Password
+        tk.Label(
+            content, text="Confirm New Password",
+            font=("Segoe UI", 10, "bold"),
+            bg=colors["bg"], fg=colors.get("text_primary", "#0F172A")
+        ).pack(anchor="w")
+        confirm_pw_var = tk.StringVar()
+        confirm_pw_entry = tk.Entry(
+            content, textvariable=confirm_pw_var, show="*",
+            font=("Segoe UI", 11), width=32
+        )
+        confirm_pw_entry.pack(fill="x", pady=(4, 4))
+        
+        # Error / status label
+        status_label = tk.Label(
+            content, text="",
+            font=("Segoe UI", 9),
+            bg=colors["bg"], fg=colors.get("error", "#EF4444"),
+            wraplength=360, justify="left"
+        )
+        status_label.pack(anchor="w", pady=(4, 10))
+        
+        def do_change_password(event=None):
+            current_pw = current_pw_var.get()
+            new_pw = new_pw_var.get()
+            confirm_pw = confirm_pw_var.get()
+            
+            # Local validations
+            if not current_pw:
+                status_label.config(text="Current password is required.", fg=colors.get("error", "#EF4444"))
+                current_pw_entry.focus_set()
+                return
+            if not new_pw:
+                status_label.config(text="New password is required.", fg=colors.get("error", "#EF4444"))
+                new_pw_entry.focus_set()
+                return
+            if new_pw != confirm_pw:
+                status_label.config(text="New passwords do not match.", fg=colors.get("error", "#EF4444"))
+                confirm_pw_entry.focus_set()
+                return
+            
+            # Call backend
+            status_label.config(text="Changing password...", fg=colors.get("text_secondary", "#475569"))
+            dialog.update_idletasks()
+            
+            success, msg = self.app.auth.auth_manager.change_password(
+                self.app.username, current_pw, new_pw
+            )
+            
+            if success:
+                status_label.config(text="", fg=colors.get("success", "#10B981"))
+                messagebox.showinfo("Success", msg, parent=dialog)
+                dialog.destroy()
+            else:
+                status_label.config(text=msg, fg=colors.get("error", "#EF4444"))
+        
+        # Buttons
+        btn_frame = tk.Frame(content, bg=colors["bg"])
+        btn_frame.pack(fill="x", pady=(5, 0))
+        
+        change_btn = tk.Button(
+            btn_frame, text="Change Password",
+            command=do_change_password,
+            font=("Segoe UI", 10, "bold"),
+            bg=colors.get("primary", "#3B82F6"), fg="#FFFFFF",
+            activebackground=colors.get("primary_hover", "#2563EB"),
+            activeforeground="#FFFFFF",
+            relief="flat", cursor="hand2",
+            padx=15, pady=7, borderwidth=0
+        )
+        change_btn.pack(side="left")
+        change_btn.bind("<Enter>", lambda e: change_btn.configure(bg=colors.get("primary_hover", "#2563EB")))
+        change_btn.bind("<Leave>", lambda e: change_btn.configure(bg=colors.get("primary", "#3B82F6")))
+        
+        cancel_btn = tk.Button(
+            btn_frame, text="Cancel",
+            command=dialog.destroy,
+            font=("Segoe UI", 10),
+            bg=colors.get("surface", "#FFFFFF"), fg=colors.get("text_secondary", "#475569"),
+            activebackground=colors.get("surface_hover", "#F8FAFC"),
+            relief="flat", cursor="hand2",
+            padx=15, pady=7, borderwidth=1,
+            highlightbackground=colors.get("border", "#E2E8F0")
+        )
+        cancel_btn.pack(side="left", padx=(10, 0))
+        
+        # Bind Enter key
+        dialog.bind("<Return>", do_change_password)
+        
+        # Secure password fields
+        if hasattr(self.app, 'auth') and hasattr(self.app.auth, '_secure_password_entry'):
+            self.app.auth._secure_password_entry(current_pw_entry)
+            self.app.auth._secure_password_entry(new_pw_entry)
+            self.app.auth._secure_password_entry(confirm_pw_entry)
+
     def _open_backup_manager(self):
         """Open the backup manager dialog"""
         from app.ui.backup_manager import BackupManager

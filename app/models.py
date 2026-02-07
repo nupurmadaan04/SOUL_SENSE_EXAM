@@ -46,6 +46,7 @@ class User(Base):
     strengths = relationship("UserStrengths", uselist=False, back_populates="user", cascade="all, delete-orphan")
     emotional_patterns = relationship("UserEmotionalPatterns", uselist=False, back_populates="user", cascade="all, delete-orphan")
     sync_settings = relationship("UserSyncSetting", back_populates="user", cascade="all, delete-orphan")
+    password_history = relationship("PasswordHistory", back_populates="user", cascade="all, delete-orphan")
     refresh_tokens = relationship("RefreshToken", back_populates="user", cascade="all, delete-orphan")
     audit_logs = relationship("AuditLog", back_populates="user", cascade="all, delete-orphan")
 
@@ -101,6 +102,20 @@ class OTP(Base):
 
     user = relationship("User")
 
+
+class PasswordHistory(Base):
+    """
+    Stores hashed previous passwords to prevent reuse.
+    Configurable via PASSWORD_HISTORY_LIMIT in security_config.
+    """
+    __tablename__ = 'password_history'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
+    password_hash = Column(String, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("User", back_populates="password_history")
 
 class RefreshToken(Base):
     """
