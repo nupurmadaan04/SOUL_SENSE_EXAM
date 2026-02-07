@@ -78,6 +78,10 @@ class MockTkinterParent:
         """Handle string concatenation for widget paths"""
         return str(self._w) + str(other)
     
+    def bind(self, sequence, func, add=None):
+        """Mock bind method for event bindings"""
+        pass
+    
     def __radd__(self, other):
         """Handle reverse string concatenation"""
         return str(other) + str(self._w)

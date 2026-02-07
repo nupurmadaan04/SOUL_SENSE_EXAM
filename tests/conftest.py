@@ -161,12 +161,13 @@ def mock_tk_variables(monkeypatch):
     monkeypatch.setattr("tkinter.BooleanVar", MockVar)
     monkeypatch.setattr("tkinter.DoubleVar", MockVar)
     
-        # Enhanced Mock Widget that supports cget and config
+    # Enhanced Mock Widget that supports cget and config
     class MockWidget(MagicMock):
         def __init__(self, master=None, **kwargs):
             super().__init__()
             self.master = master  # Explicitly set to prevent infinite mock chain
             self._config = {}
+            self.master = master  # Explicitly set master to prevent infinite traversal
             # Add missing methods that are called during window operations
             self.transient = MagicMock()
             self.grab_set = MagicMock()
