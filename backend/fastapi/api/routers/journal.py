@@ -25,9 +25,12 @@ from ..schemas import (
     JournalAnalytics,
     # JournalSearchParams,
     JournalPromptsResponse,
-    JournalPrompt
+    JournalPrompt,
+    SmartPromptsResponse,
+    SmartPrompt
 )
 from ..services.journal_service import JournalService, get_journal_prompts
+from ..services.smart_prompt_service import SmartPromptService
 from ..services.db_service import get_db
 from ..routers.auth import get_current_user
 from api.root_models import User
@@ -123,6 +126,37 @@ async def list_prompts(
     return JournalPromptsResponse(
         prompts=[JournalPrompt(**p) for p in prompts],
         category=category
+    )
+
+
+@router.get("/smart-prompts", response_model=SmartPromptsResponse, summary="Get Smart AI Prompts")
+async def get_smart_prompts(
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Session = Depends(get_db),
+    count: int = Query(3, ge=1, le=5, description="Number of prompts to return")
+):
+    """
+    Get AI-personalized journal prompts based on user's emotional context.
+    
+    **Factors considered:**
+    - Recent EQ assessment scores
+    - Journal sentiment trends (last 7 days)
+    - Detected emotional patterns
+    - Time of day
+    
+    **Authentication Required**
+    """
+    smart_service = SmartPromptService(db)
+    result = smart_service.get_smart_prompts(
+        user_id=current_user.id,
+        count=count
+    )
+    
+    return SmartPromptsResponse(
+        prompts=[SmartPrompt(**p) for p in result["prompts"]],
+        user_mood=result["user_mood"],
+        detected_patterns=result["detected_patterns"],
+        sentiment_avg=result["sentiment_avg"]
     )
 
 

@@ -5,7 +5,7 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 
 from ..config import get_settings
-from ..schemas import UserCreate, Token, UserResponse, ErrorResponse, PasswordResetRequest, PasswordResetComplete, TwoFactorLoginRequest, TwoFactorAuthRequiredResponse, TwoFactorConfirmRequest
+from ..schemas import UserCreate, Token, UserResponse, ErrorResponse, PasswordResetRequest, PasswordResetComplete, TwoFactorLoginRequest, TwoFactorAuthRequiredResponse, TwoFactorConfirmRequest, UsernameAvailabilityResponse
 from ..services.db_service import get_db
 from ..services.auth_service import AuthService
 from ..constants.errors import ErrorCode
@@ -13,6 +13,7 @@ from ..constants.security_constants import REFRESH_TOKEN_EXPIRE_DAYS
 from ..exceptions import AuthException
 from api.root_models import User
 from sqlalchemy.orm import Session
+from cachetools import TTLCache
 
 router = APIRouter()
 settings = get_settings()
@@ -42,6 +43,32 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: Se
     if user is None:
         raise credentials_exception
     return user
+
+
+# Rate limiter cache for username checks (20 per minute per IP)
+availability_limiter_cache = TTLCache(maxsize=1000, ttl=60)
+
+@router.get("/check-username", response_model=UsernameAvailabilityResponse)
+async def check_username_availability(
+    username: str,
+    request: Request,
+    auth_service: AuthService = Depends()
+):
+    """
+    Check if a username is available.
+    Rate limited to 20 requests per minute per IP.
+    """
+    client_ip = request.client.host
+    count = availability_limiter_cache.get(client_ip, 0)
+    if count >= 20:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many availability checks. Please wait a minute."
+        )
+    availability_limiter_cache[client_ip] = count + 1
+    
+    available, message = auth_service.check_username_available(username)
+    return UsernameAvailabilityResponse(available=available, message=message)
 
 
 @router.post("/register", response_model=UserResponse, responses={400: {"model": ErrorResponse}, 500: {"model": ErrorResponse}})

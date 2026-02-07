@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isWeakPassword } from './weak-passwords';
 
 // Base schemas
 // Enhanced email validation with stricter pattern requiring valid domain and TLD
@@ -18,7 +19,10 @@ export const passwordSchema = z
   .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
   .regex(/[a-z]/, 'Password must contain at least one lowercase letter')
   .regex(/[0-9]/, 'Password must contain at least one number')
-  .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character');
+  .regex(/[^A-Za-z0-9]/, 'Password must contain at least one special character')
+  .refine((val) => !isWeakPassword(val), {
+    message: 'This password is too common. Please choose a stronger password.',
+  });
 
 const reservedUsernames = ['admin', 'root', 'support', 'soulsense', 'system', 'official'];
 

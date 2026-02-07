@@ -457,6 +457,11 @@ class AuthManager:
         """
         from app.auth.otp_manager import OTPManager
         from app.models import PersonalProfile, User
+        from app.validation import is_weak_password
+        
+        # Block weak/common passwords
+        if is_weak_password(new_password):
+            return False, "This password is too common. Please choose a stronger password."
         
         # Validation
         if not self._validate_password_strength(new_password):

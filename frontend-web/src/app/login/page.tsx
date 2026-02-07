@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Eye, EyeOff, Loader2 } from 'lucide-react';
+import { Eye, EyeOff, Loader2, AlertCircle } from 'lucide-react';
 import { Form, FormField } from '@/components/forms';
 import { Button, Input } from '@/components/ui';
 import { AuthLayout, SocialLogin } from '@/components/auth';
@@ -16,6 +17,7 @@ import { useAuth } from '@/hooks/useAuth';
 type LoginFormData = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
+  const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
@@ -71,10 +73,12 @@ export default function LoginPage() {
       console.log('Login successful:', result);
       // Store token (Basic implementation) - useAuth should handle this
       localStorage.setItem('token', result.access_token);
-      window.location.href = '/dashboard';
+      router.push('/dashboard');
     } catch (error) {
       console.error('Login error:', error);
-      alert(error instanceof Error ? error.message : 'Invalid credentials');
+      methods.setError('root', {
+        message: error instanceof Error ? error.message : 'Invalid credentials',
+      });
     } finally {
       setIsLoggingIn(false);
     }
@@ -126,6 +130,7 @@ export default function LoginPage() {
               placeholder="123456"
               className="text-center text-lg tracking-widest"
               maxLength={6}
+              disabled={isLoading}
             />
             {twoFaError && (
               <p className="text-sm font-medium text-destructive text-red-500">{twoFaError}</p>
@@ -144,6 +149,7 @@ export default function LoginPage() {
             variant="ghost"
             onClick={() => setShow2FA(false)}
             className="w-full text-muted-foreground"
+            disabled={isLoading}
           >
             Back to Login
           </Button>
@@ -154,9 +160,19 @@ export default function LoginPage() {
 
   return (
     <AuthLayout title="Welcome back" subtitle="Enter your credentials to access your account">
-      <Form schema={loginSchema} onSubmit={handleLoginSubmit} className="space-y-5">
+      <Form
+        schema={loginSchema}
+        onSubmit={handleLoginSubmit}
+        className={`space-y-5 transition-opacity duration-200 ${isLoading ? 'opacity-60 pointer-events-none' : ''}`}
+      >
         {(methods) => (
           <>
+            {methods.formState.errors.root && (
+              <div className="bg-destructive/10 border border-destructive/20 text-destructive text-xs p-3 rounded-md flex items-center mb-5">
+                <AlertCircle className="h-4 w-4 mr-2 flex-shrink-0" />
+                {methods.formState.errors.root.message}
+              </div>
+            )}
             <FormKeyboardListener reset={methods.reset} />
             <motion.div
               initial={{ opacity: 0, x: -20 }}
@@ -170,6 +186,7 @@ export default function LoginPage() {
                 placeholder="you@example.com or username"
                 type="text"
                 required
+                disabled={isLoading}
               />
             </motion.div>
 
@@ -186,6 +203,7 @@ export default function LoginPage() {
                       type={showPassword ? 'text' : 'password'}
                       placeholder="Enter your password"
                       className="pr-10"
+                      disabled={isLoading}
                       // SECURITY HARDENING START
                       autoComplete="off"
                       onPaste={(e) => {
@@ -204,7 +222,6 @@ export default function LoginPage() {
                         e.preventDefault();
                         return false;
                       }}
-                      
                     />
                     <button
                       type="button"
@@ -229,7 +246,8 @@ export default function LoginPage() {
                 <input
                   type="checkbox"
                   {...methods.register('rememberMe')}
-                  className="h-4 w-4 rounded border-input text-brand-primary focus:ring-brand-primary transition-colors cursor-pointer"
+                  disabled={isLoading}
+                  className="h-4 w-4 rounded border-input text-brand-primary focus:ring-brand-primary transition-colors cursor-pointer disabled:cursor-not-allowed"
                 />
                 <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">
                   Remember me

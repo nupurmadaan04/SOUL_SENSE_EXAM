@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from app.validation import (
     sanitize_text, validate_required, validate_length,
     validate_email, validate_email_strict, validate_phone, validate_age,
-    validate_range, validate_dob,
+    validate_range, validate_dob, suggest_email_domain,
     AGE_MIN, AGE_MAX
 )
 
@@ -115,3 +115,46 @@ def test_validate_dob():
     assert validate_dob(today)[0] is False # Too young/Future
     assert validate_dob("invalid")[0] is False
     assert validate_dob("")[0] is True
+
+
+def test_suggest_email_domain():
+    """Test email domain suggestion for common typos (Issue #617)."""
+    
+    # Gmail typos
+    assert suggest_email_domain("user@gmial.com") == "user@gmail.com"
+    assert suggest_email_domain("user@gmal.com") == "user@gmail.com"
+    assert suggest_email_domain("user@gmali.com") == "user@gmail.com"
+    assert suggest_email_domain("user@gnail.com") == "user@gmail.com"
+    
+    # Yahoo typos
+    assert suggest_email_domain("user@yaho.com") == "user@yahoo.com"
+    assert suggest_email_domain("user@yahooo.com") == "user@yahoo.com"
+    assert suggest_email_domain("user@tahoo.com") == "user@yahoo.com"
+    
+    # Hotmail typos
+    assert suggest_email_domain("user@hotmal.com") == "user@hotmail.com"
+    assert suggest_email_domain("user@hotmai.com") == "user@hotmail.com"
+    assert suggest_email_domain("user@hotmial.com") == "user@hotmail.com"
+    
+    # Outlook typos
+    assert suggest_email_domain("user@outlok.com") == "user@outlook.com"
+    assert suggest_email_domain("user@outloo.com") == "user@outlook.com"
+    
+    # Valid domains should return None (no suggestion needed)
+    assert suggest_email_domain("user@gmail.com") is None
+    assert suggest_email_domain("user@yahoo.com") is None
+    assert suggest_email_domain("user@hotmail.com") is None
+    assert suggest_email_domain("user@outlook.com") is None
+    assert suggest_email_domain("user@icloud.com") is None
+    
+    # Unknown/custom domains should return None
+    assert suggest_email_domain("user@company.com") is None
+    assert suggest_email_domain("user@mydomain.org") is None
+    
+    # Edge cases
+    assert suggest_email_domain("") is None
+    assert suggest_email_domain("invalid") is None
+    assert suggest_email_domain("user@") is None
+    assert suggest_email_domain("@domain.com") is None
+    assert suggest_email_domain("user@@gmail.com") is None
+

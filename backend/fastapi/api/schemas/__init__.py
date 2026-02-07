@@ -4,6 +4,8 @@ from datetime import datetime
 import json
 from pydantic import BaseModel, EmailStr, Field, ConfigDict, field_validator
 
+from ..utils.sanitization import sanitize_string, clean_identifier
+
 
 class ServiceStatus(BaseModel):
     """Status of an individual service."""
@@ -37,10 +39,9 @@ class UserCreate(BaseModel):
 
     @field_validator('username', 'email', mode='before')
     @classmethod
-    def normalize_identifiers(cls, v: str) -> str:
+    def sanitize_identifiers(cls, v: str) -> str:
         if isinstance(v, str):
-            v_norm = v.strip().lower()
-            return v_norm
+            return clean_identifier(v)
         return v
 
     @field_validator('username')
@@ -55,11 +56,19 @@ class UserCreate(BaseModel):
             raise ValueError('This username is reserved')
         return v
 
+    @field_validator('password')
+    @classmethod
+    def reject_weak_password(cls, v: str) -> str:
+        from ..utils.weak_passwords import WEAK_PASSWORDS
+        if v.lower() in WEAK_PASSWORDS:
+            raise ValueError('This password is too common. Please choose a stronger password.')
+        return v
+
     @field_validator('first_name', 'last_name', mode='before')
     @classmethod
-    def trim_names(cls, v: Optional[str]) -> Optional[str]:
+    def sanitize_personal_info(cls, v: Optional[str]) -> Optional[str]:
         if isinstance(v, str):
-            return v.strip()
+            return sanitize_string(v)
         return v
 
 
@@ -70,9 +79,9 @@ class UserLogin(BaseModel):
 
     @field_validator('username', mode='before')
     @classmethod
-    def normalize_username(cls, v: str) -> str:
+    def sanitize_username(cls, v: str) -> str:
         if isinstance(v, str):
-            return v.strip().lower()
+            return clean_identifier(v)
         return v
 
 
@@ -100,10 +109,16 @@ class PasswordResetRequest(BaseModel):
 
     @field_validator('email', mode='before')
     @classmethod
-    def normalize_email(cls, v: str) -> str:
+    def sanitize_email(cls, v: str) -> str:
         if isinstance(v, str):
-            return v.strip().lower()
+            return clean_identifier(v)
         return v
+
+
+class UsernameAvailabilityResponse(BaseModel):
+    """Response for username availability check."""
+    available: bool
+    message: str
 
 
 class PasswordResetComplete(BaseModel):
@@ -114,9 +129,17 @@ class PasswordResetComplete(BaseModel):
 
     @field_validator('email', mode='before')
     @classmethod
-    def normalize_email(cls, v: str) -> str:
+    def sanitize_email(cls, v: str) -> str:
         if isinstance(v, str):
-            return v.strip().lower()
+            return clean_identifier(v)
+        return v
+
+    @field_validator('new_password')
+    @classmethod
+    def reject_weak_password(cls, v: str) -> str:
+        from ..utils.weak_passwords import WEAK_PASSWORDS
+        if v.lower() in WEAK_PASSWORDS:
+            raise ValueError('This password is too common. Please choose a stronger password.')
         return v
 
 
@@ -303,6 +326,16 @@ class UserUpdate(BaseModel):
             return v.strip()
         return v
 
+    @field_validator('password')
+    @classmethod
+    def reject_weak_password(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        from ..utils.weak_passwords import WEAK_PASSWORDS
+        if v.lower() in WEAK_PASSWORDS:
+            raise ValueError('This password is too common. Please choose a stronger password.')
+        return v
+
 
 class UserDetail(BaseModel):
     """Detailed user information including relationships."""
@@ -331,6 +364,19 @@ class UserSettingsCreate(BaseModel):
     sound_enabled: bool = True
     notifications_enabled: bool = True
     language: str = Field(default='en', min_length=2, max_length=5)
+    
+    # Wave 2 Phase 2.3 & 2.4
+    decision_making_style: Optional[str] = None
+    risk_tolerance: Optional[int] = Field(None, ge=1, le=10)
+    readiness_for_change: Optional[int] = Field(None, ge=1, le=10)
+    advice_frequency: Optional[str] = None
+    reminder_style: Optional[str] = Field(default='Gentle', pattern='^(Gentle|Motivational)$')
+    advice_boundaries: Optional[List[str]] = Field(default=[])
+    ai_trust_level: Optional[int] = Field(None, ge=1, le=10)
+    
+    data_usage_consent: bool = False
+    emergency_disclaimer_accepted: bool = False
+    crisis_support_preference: bool = True
 
 
 class UserSettingsUpdate(BaseModel):
@@ -340,6 +386,19 @@ class UserSettingsUpdate(BaseModel):
     sound_enabled: Optional[bool] = None
     notifications_enabled: Optional[bool] = None
     language: Optional[str] = Field(None, min_length=2, max_length=5)
+    
+    # Wave 2 Phase 2.3 & 2.4
+    decision_making_style: Optional[str] = None
+    risk_tolerance: Optional[int] = Field(None, ge=1, le=10)
+    readiness_for_change: Optional[int] = Field(None, ge=1, le=10)
+    advice_frequency: Optional[str] = None
+    reminder_style: Optional[str] = Field(None, pattern='^(Gentle|Motivational)$')
+    advice_boundaries: Optional[List[str]] = None
+    ai_trust_level: Optional[int] = Field(None, ge=1, le=10)
+    
+    data_usage_consent: Optional[bool] = None
+    emergency_disclaimer_accepted: Optional[bool] = None
+    crisis_support_preference: Optional[bool] = None
 
 
 class UserSettingsResponse(BaseModel):
@@ -351,6 +410,20 @@ class UserSettingsResponse(BaseModel):
     sound_enabled: bool
     notifications_enabled: bool
     language: str
+    
+    # Wave 2 Phase 2.3 & 2.4
+    decision_making_style: Optional[str]
+    risk_tolerance: Optional[int]
+    readiness_for_change: Optional[int]
+    advice_frequency: Optional[str]
+    reminder_style: str
+    advice_boundaries: List[str]
+    ai_trust_level: Optional[int]
+    
+    data_usage_consent: bool
+    emergency_disclaimer_accepted: bool
+    crisis_support_preference: bool
+    
     updated_at: str
 
     model_config = ConfigDict(from_attributes=True)
@@ -425,6 +498,12 @@ class PersonalProfileCreate(BaseModel):
     life_pov: Optional[str] = None
     high_pressure_events: Optional[str] = None
     avatar_path: Optional[str] = None
+    
+    # Wave 2 Phase 2.1
+    support_system: Optional[str] = None
+    social_interaction_freq: Optional[str] = None
+    exercise_freq: Optional[str] = None
+    dietary_patterns: Optional[str] = None
 
 
 class PersonalProfileUpdate(BaseModel):
@@ -444,12 +523,25 @@ class PersonalProfileUpdate(BaseModel):
     life_pov: Optional[str] = None
     high_pressure_events: Optional[str] = None
     avatar_path: Optional[str] = None
+    
+    # Wave 2 Phase 2.1
+    support_system: Optional[str] = None
+    social_interaction_freq: Optional[str] = None
+    exercise_freq: Optional[str] = None
+    dietary_patterns: Optional[str] = None
 
     @field_validator('email', mode='before')
     @classmethod
     def normalize_email(cls, v: Optional[str]) -> Optional[str]:
         if isinstance(v, str):
             return v.strip().lower()
+        return v
+
+    @field_validator('occupation', 'education', 'marital_status', 'hobbies', 'bio', 'life_events', 'phone', 'date_of_birth', 'gender', 'address', 'society_contribution', 'life_pov', 'high_pressure_events', mode='before')
+    @classmethod
+    def sanitize_profile_info(cls, v: Optional[str]) -> Optional[str]:
+        if isinstance(v, str):
+            return sanitize_string(v)
         return v
 
 
@@ -472,6 +564,13 @@ class PersonalProfileResponse(BaseModel):
     life_pov: Optional[str]
     high_pressure_events: Optional[str]
     avatar_path: Optional[str]
+    
+    # Wave 2 Phase 2.1
+    support_system: Optional[str]
+    social_interaction_freq: Optional[str]
+    exercise_freq: Optional[str]
+    dietary_patterns: Optional[str]
+    
     last_updated: str
 
     model_config = ConfigDict(from_attributes=True)
@@ -491,6 +590,12 @@ class UserStrengthsCreate(BaseModel):
     comm_style: Optional[str] = None
     sharing_boundaries: str = "[]"
     goals: Optional[str] = None
+    
+    # Wave 2 Phase 2.1 & 2.2
+    relationship_stress: Optional[int] = Field(None, ge=1, le=10)
+    short_term_goals: Optional[str] = None
+    long_term_vision: Optional[str] = None
+    primary_help_area: Optional[str] = None
 
 
 class UserStrengthsUpdate(BaseModel):
@@ -503,6 +608,12 @@ class UserStrengthsUpdate(BaseModel):
     comm_style: Optional[str] = None
     sharing_boundaries: Optional[str] = None
     goals: Optional[str] = None
+    
+    # Wave 2 Phase 2.1 & 2.2
+    relationship_stress: Optional[int] = Field(None, ge=1, le=10)
+    short_term_goals: Optional[str] = None
+    long_term_vision: Optional[str] = None
+    primary_help_area: Optional[str] = None
 
 
 class UserStrengthsResponse(BaseModel):
@@ -517,6 +628,13 @@ class UserStrengthsResponse(BaseModel):
     comm_style: Optional[str]
     sharing_boundaries: str
     goals: Optional[str]
+    
+    # Wave 2 Phase 2.1 & 2.2
+    relationship_stress: Optional[int]
+    short_term_goals: Optional[str]
+    long_term_vision: Optional[str]
+    primary_help_area: Optional[str]
+    
     last_updated: str
 
     model_config = ConfigDict(from_attributes=True)
@@ -835,6 +953,30 @@ class JournalPromptsResponse(BaseModel):
     """Schema for list of journal prompts."""
     prompts: List[JournalPrompt]
     category: Optional[str] = None
+
+
+# ============================================================================
+# Smart Journal Prompts Schemas (Issue #586)
+# ============================================================================
+
+class SmartPrompt(BaseModel):
+    """Schema for a personalized AI journal prompt."""
+    id: int
+    prompt: str
+    category: str = Field(description="Prompt category (anxiety, stress, gratitude, etc.)")
+    context_reason: str = Field(description="Why this prompt was selected for the user")
+    description: Optional[str] = Field(None, description="Brief description of prompt purpose")
+
+
+class SmartPromptsResponse(BaseModel):
+    """Response with AI-personalized journal prompts."""
+    prompts: List[SmartPrompt] = Field(description="Personalized prompts (usually 3)")
+    user_mood: str = Field(description="Detected mood: positive, neutral, or low")
+    detected_patterns: List[str] = Field(
+        default=[], 
+        description="Emotional patterns detected from recent entries"
+    )
+    sentiment_avg: float = Field(description="Average sentiment from last 7 days")
 
 
 # ============================================================================

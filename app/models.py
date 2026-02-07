@@ -176,6 +176,21 @@ class UserSettings(Base):
     notifications_enabled = Column(Boolean, default=True) # Web-ready
     language = Column(String, default='en') # Web-ready
     updated_at = Column(String, default=lambda: datetime.now(UTC).isoformat())
+    
+    # Wave 2 Phase 2.3 & 2.4: Calibration & Safety
+    decision_making_style = Column(String, nullable=True) # Analytical/Intuitive/etc.
+    risk_tolerance = Column(Integer, nullable=True)     # 1-10 slider
+    readiness_for_change = Column(Integer, nullable=True) # 1-10 scale
+    advice_frequency = Column(String, nullable=True)     # Daily/Weekly/Rarely
+    reminder_style = Column(String, default='Gentle')    # Gentle/Motivational
+    advice_boundaries = Column(Text, default="[]")       # JSON multi-select
+    ai_trust_level = Column(Integer, nullable=True)      # 1-10 slider
+    
+    data_usage_consent = Column(Boolean, default=False)
+    emergency_disclaimer_accepted = Column(Boolean, default=False)
+    crisis_support_preference = Column(Boolean, default=True)
+    
+    updated_at = Column(String, default=lambda: datetime.utcnow().isoformat())
 
     user = relationship("User", back_populates="settings")
 
@@ -234,6 +249,13 @@ class PersonalProfile(Base):
     age = Column(Integer, nullable=True)
     
     last_updated = Column(String, default=lambda: datetime.now(UTC).isoformat())
+    # Wave 2 Phase 2.1: Lifestyle & Health
+    support_system = Column(Text, nullable=True)     # friends/family/colleagues
+    social_interaction_freq = Column(String, nullable=True) # Daily/Weekly/Rarely
+    exercise_freq = Column(String, nullable=True)     # Daily/Weekly/Monthly/None
+    dietary_patterns = Column(String, nullable=True)  # Balanced/Unbalanced/Vegetarian/etc.
+    
+    last_updated = Column(String, default=lambda: datetime.utcnow().isoformat())
 
     user = relationship("User", back_populates="personal_profile")
 
@@ -260,6 +282,15 @@ class UserStrengths(Base):
     goals = Column(Text, nullable=True)
     
     last_updated = Column(String, default=lambda: datetime.now(UTC).isoformat())
+    # Wave 2 Phase 2.2: Goals & Vision
+    short_term_goals = Column(Text, nullable=True)
+    long_term_vision = Column(Text, nullable=True)
+    primary_help_area = Column(String, nullable=True)
+
+    # Wave 2 Phase 2.1: Calibration
+    relationship_stress = Column(Integer, nullable=True) # 1-10 slider
+    
+    last_updated = Column(String, default=lambda: datetime.utcnow().isoformat())
 
     user = relationship("User", back_populates="strengths")
 
