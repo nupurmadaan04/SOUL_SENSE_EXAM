@@ -433,7 +433,8 @@ class AuthManager:
                 return False, "User not found", None
                 
             # Verify Code
-            if OTPManager.verify_otp(user.id, code, "LOGIN_CHALLENGE", db_session=session):
+            success, verify_msg = OTPManager.verify_otp(user.id, code, "LOGIN_CHALLENGE", db_session=session)
+            if success:
                 # Success!
                 user.last_login = datetime.now(UTC).isoformat()
                 self._record_login_attempt(session, username_lower, True, reason="2fa_success")
@@ -447,7 +448,7 @@ class AuthManager:
                 # Failed
                 self._record_login_attempt(session, username_lower, False, reason="2fa_failed")
                 session.commit()
-                return False, "Invalid code", None
+                return False, verify_msg, None
                 
         except Exception as e:
             session.rollback()
@@ -522,8 +523,9 @@ class AuthManager:
                 
             # Verify OTP
             # PASS THE SESSION so OTPManager doesn't close it!
-            if not OTPManager.verify_otp(user.id, otp_code, "RESET_PASSWORD", db_session=session):
-                return False, "Invalid or expired code."
+            success, verify_msg = OTPManager.verify_otp(user.id, otp_code, "RESET_PASSWORD", db_session=session)
+            if not success:
+                return False, verify_msg
             
             # Check if new password matches current password
             if self.verify_password(new_password, user.password_hash):
@@ -615,7 +617,8 @@ class AuthManager:
                 return False, "User not found"
 
             # Verify Code
-            if OTPManager.verify_otp(user.id, code, "2FA_SETUP", db_session=session):
+            success, verify_msg = OTPManager.verify_otp(user.id, code, "2FA_SETUP", db_session=session)
+            if success:
                 user.is_2fa_enabled = True
                 
                 AuditService.log_event(user.id, "2FA_ENABLE", details={"method": "OTP"}, db_session=session)
@@ -623,7 +626,7 @@ class AuthManager:
                 session.commit()
                 return True, "Two-Factor Authentication Enabled!"
             else:
-                return False, "Invalid validation code"
+                return False, verify_msg
         except Exception as e:
             session.rollback()
             logging.error(f"Enable 2FA Error: {e}")

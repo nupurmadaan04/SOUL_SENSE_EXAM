@@ -423,7 +423,39 @@ class AppAuth:
                 font=("Segoe UI", 9), bg=self.app.colors["bg"], fg=self.app.colors["text_secondary"]).pack(pady=(0, 20))
         
         code_var = tk.StringVar()
-        tk.Entry(otp_window, textvariable=code_var, font=("Segoe UI", 14), width=10, justify="center").pack(pady=10)
+        entry = tk.Entry(otp_window, textvariable=code_var, font=("Segoe UI", 14), width=10, justify="center")
+        entry.pack(pady=10)
+        
+        # Attempts counter label
+        attempts_label = tk.Label(otp_window, text="3 attempts remaining", font=("Segoe UI", 9),
+                                  bg=self.app.colors["bg"], fg=self.app.colors["text_secondary"])
+        attempts_label.pack(pady=(0, 5))
+        
+        def update_attempts_label():
+            """Update the attempts label based on remaining attempts."""
+            try:
+                from app.db import get_session
+                from app.models import User, PersonalProfile
+                from app.auth.otp_manager import OTPManager
+                session = get_session()
+                # Find user by email
+                profile = session.query(PersonalProfile).filter_by(email=email.lower().strip()).first()
+                if profile:
+                    user = session.query(User).filter_by(id=profile.user_id).first()
+                    if user:
+                        remaining = OTPManager.get_remaining_attempts(user.id, "RESET_PASSWORD", db_session=session)
+                        if remaining > 0:
+                            attempts_label.config(text=f"{remaining} attempt(s) remaining", fg="#F59E0B")
+                        else:
+                            attempts_label.config(text="Code locked - Please resend", fg="#EF4444")
+                            entry.config(state="disabled")
+                    else:
+                        pass
+                else:
+                    pass
+                session.close()
+            except Exception:
+                pass
         
         def on_verify():
             code = code_var.get().strip()
@@ -431,15 +463,46 @@ class AppAuth:
                 tmb.showerror("Error", "Code must be 6 numeric digits.")
                 return
             
-            # We don't verify against server just yet, we pass code to next step?
-            # Security: Best to verify here?
-            # The AuthManager.complete_password_reset verification happens in next step along with new password.
-            # But UX is better if we verify code first.
-            # To verify code without password, we need a new method verify_otp_only?
-            # Or we just pass it to next step.
-            # Let's pass to next step.
-            otp_window.destroy()
-            self.show_reset_password_dialog(email, code)
+            # Verify OTP before proceeding
+            try:
+                from app.db import get_session
+                from app.models import User, PersonalProfile
+                from app.auth.otp_manager import OTPManager
+                session = get_session()
+                # Find user by email
+                profile = session.query(PersonalProfile).filter_by(email=email.lower().strip()).first()
+                if not profile:
+                    tmb.showerror("Error", "Invalid request.", parent=otp_window)
+                    session.close()
+                    return
+                
+                user = session.query(User).filter_by(id=profile.user_id).first()
+                if not user:
+                    tmb.showerror("Error", "Invalid request.", parent=otp_window)
+                    session.close()
+                    return
+                
+                # Check if OTP is locked first
+                is_locked, lock_msg = OTPManager.is_otp_locked(user.id, "RESET_PASSWORD", db_session=session)
+                if is_locked:
+                    tmb.showerror("Code Locked", lock_msg, parent=otp_window)
+                    update_attempts_label()
+                    session.close()
+                    return
+                
+                # Verify the OTP
+                success, verify_msg = OTPManager.verify_otp(user.id, code, "RESET_PASSWORD", db_session=session)
+                session.close()
+                
+                if success:
+                    otp_window.destroy()
+                    self.show_reset_password_dialog(email, code)
+                else:
+                    tmb.showerror("Verification Failed", verify_msg, parent=otp_window)
+                    update_attempts_label()
+                    
+            except Exception as e:
+                tmb.showerror("Error", f"Verification error: {e}", parent=otp_window)
 
         tk.Button(otp_window, text="Verify", command=on_verify, 
                  bg=self.app.colors["primary"], fg="white", font=("Segoe UI", 10, "bold"), 
@@ -953,6 +1016,29 @@ class AppAuth:
         entry.pack(pady=5)
         entry.focus()
         
+        # Attempts counter label
+        attempts_label = tk.Label(dialog, text="3 attempts remaining", font=("Segoe UI", 9), fg="#666")
+        attempts_label.pack(pady=(0, 5))
+        
+        def update_attempts_label():
+            """Update the attempts label based on remaining attempts."""
+            try:
+                from app.db import get_session
+                from app.models import User
+                session = get_session()
+                user = session.query(User).filter_by(username=username).first()
+                if user:
+                    from app.auth.otp_manager import OTPManager
+                    remaining = OTPManager.get_remaining_attempts(user.id, "LOGIN_CHALLENGE", db_session=session)
+                    if remaining > 0:
+                        attempts_label.config(text=f"{remaining} attempt(s) remaining", fg="#F59E0B")
+                    else:
+                        attempts_label.config(text="Code locked - Please resend", fg="#EF4444")
+                        entry.config(state="disabled")
+                session.close()
+            except Exception:
+                pass
+        
         def on_verify(event=None):
             code = code_var.get().strip()
             if len(code) != 6 or not code.isdigit():
@@ -963,11 +1049,6 @@ class AppAuth:
             
             if success:
                 self.app.username = username
-                # Note: Session storage needs update if we want to remember 2FA status?
-                # For now just proceed.
-                # If "Remember Me" was checked in previous screen? 
-                # We lost that state. Ideally pass it or save it before hiding.
-                # Assuming session was saved loosely or not at all if we didn't complete login.
                 self.auth_manager.current_user = username
                 self._load_user_settings(username)
                 
@@ -979,6 +1060,7 @@ class AppAuth:
                 self._post_login_init()
             else:
                 tmb.showerror("Verification Failed", msg, parent=dialog)
+                update_attempts_label()
                 
         def on_cancel():
             dialog.destroy()

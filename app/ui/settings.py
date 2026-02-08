@@ -451,6 +451,29 @@ class SettingsManager:
         entry.pack(pady=5)
         entry.focus()
         
+        # Attempts counter label
+        attempts_label = tk.Label(dialog, text="3 attempts remaining", font=("Segoe UI", 9), fg="#666")
+        attempts_label.pack(pady=(0, 5))
+        
+        def update_attempts_label():
+            """Update the attempts label based on remaining attempts."""
+            try:
+                from app.db import get_session
+                from app.models import User
+                session = get_session()
+                user = session.query(User).filter_by(username=self.app.username).first()
+                if user:
+                    from app.auth.otp_manager import OTPManager
+                    remaining = OTPManager.get_remaining_attempts(user.id, "2FA_SETUP", db_session=session)
+                    if remaining > 0:
+                        attempts_label.config(text=f"{remaining} attempt(s) remaining", fg="#F59E0B")
+                    else:
+                        attempts_label.config(text="Code locked - Please resend", fg="#EF4444")
+                        entry.config(state="disabled")
+                session.close()
+            except Exception:
+                pass
+        
         def on_verify():
             code = code_var.get().strip()
             if len(code) != 6 or not code.isdigit():
@@ -468,6 +491,7 @@ class SettingsManager:
                 self.show_settings() # Re-open to refresh UI
             else:
                 messagebox.showerror("Failed", msg, parent=dialog)
+                update_attempts_label()
                 
         tk.Button(dialog, text="Verify & Enable", command=on_verify, 
                  bg=self.app.colors["primary"], fg="white", font=("Segoe UI", 10, "bold"), 

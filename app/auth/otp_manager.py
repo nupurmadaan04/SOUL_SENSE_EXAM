@@ -12,7 +12,7 @@ from typing import Optional
 class OTPManager:
     """
     Manages generation, storage, and verification of One-Time Passwords.
-    Implements rate limiting, secure hashing, and expiry.
+    Implements rate limiting, secure hashing, expiry, and attempt locking.
     """
     
     OTP_LENGTH = 6
@@ -67,7 +67,8 @@ class OTPManager:
                 created_at=datetime.utcnow(),
                 expires_at=datetime.utcnow() + timedelta(minutes=cls.OTP_EXPIRY_MINUTES),
                 is_used=False,
-                attempts=0
+                attempts=0,
+                is_locked=False
             )
             session.add(new_otp)
             # Only commit if we own the session or if explicitly needed?
@@ -82,6 +83,45 @@ class OTPManager:
             session.rollback()
             logger.error(f"Failed to generate OTP: {e}")
             return None, "Internal error generating code."
+        finally:
+            if should_close:
+                session.close()
+
+    @classmethod
+    def is_otp_locked(cls, user_id: int, purpose: str, db_session=None) -> tuple[bool, str]:
+        """
+        Check if the OTP is locked due to too many failed attempts.
+        
+        Returns:
+            tuple: (is_locked, message)
+        """
+        session = db_session if db_session else get_session()
+        should_close = db_session is None
+        
+        try:
+            otp = session.query(OTP).filter(
+                OTP.user_id == user_id,
+                OTP.type == purpose,
+                OTP.is_used == False,
+                OTP.expires_at > datetime.utcnow()
+            ).order_by(OTP.created_at.desc()).first()
+            
+            if not otp:
+                return False, "No active OTP found."
+            
+            if otp.is_locked:
+                return True, "Too many failed attempts. Please request a new code."
+            
+            if otp.attempts >= cls.MAX_VERIFY_ATTEMPTS:
+                otp.is_locked = True
+                session.commit()
+                return True, "Too many failed attempts. Please request a new code."
+            
+            return False, f"{cls.MAX_VERIFY_ATTEMPTS - otp.attempts} attempts remaining."
+            
+        except Exception as e:
+            logger.error(f"Error checking OTP lock status: {e}")
+            return False, "Error checking OTP status."
         finally:
             if should_close:
                 session.close()
@@ -113,11 +153,46 @@ class OTPManager:
                 session.close()
 
     @classmethod
-    def verify_otp(cls, user_id: int, code: str, purpose: str, db_session=None) -> bool:
+    def get_remaining_attempts(cls, user_id: int, purpose: str, db_session=None) -> int:
+        """
+        Return remaining verification attempts for the current OTP.
+        Returns 0 if no active OTP or OTP is locked.
+        """
+        session = db_session if db_session else get_session()
+        should_close = db_session is None
+        
+        try:
+            otp = session.query(OTP).filter(
+                OTP.user_id == user_id,
+                OTP.type == purpose,
+                OTP.is_used == False,
+                OTP.is_locked == False,
+                OTP.expires_at > datetime.utcnow()
+            ).order_by(OTP.created_at.desc()).first()
+            
+            if not otp:
+                return 0
+            
+            remaining = max(0, cls.MAX_VERIFY_ATTEMPTS - otp.attempts)
+            return remaining
+            
+        except Exception as e:
+            logger.error(f"Error getting remaining attempts: {e}")
+            return 0
+        finally:
+            if should_close:
+                session.close()
+
+    @classmethod
+    def verify_otp(cls, user_id: int, code: str, purpose: str, db_session=None) -> tuple[bool, str]:
         """
         Verify an OTP code.
         INVALIDATES the OTP if successful (is_used=True).
         Increments attempt count on failure.
+        Locks OTP after MAX_VERIFY_ATTEMPTS failed attempts.
+        
+        Returns:
+            tuple: (success, message)
         """
         session = db_session if db_session else get_session()
         should_close = db_session is None
@@ -135,31 +210,44 @@ class OTPManager:
             
             if not otp:
                 logger.info(f"OTP verification failed: No valid code found for user {user_id}")
-                return False
+                return False, "Invalid or expired code."
                 
-            # Check attempts
+            # Check if already locked
+            if otp.is_locked:
+                logger.warning(f"OTP verification blocked: OTP is locked for user {user_id}")
+                return False, "Too many failed attempts. Please request a new code."
+                
+            # Check attempts and lock if needed
             if otp.attempts >= cls.MAX_VERIFY_ATTEMPTS:
+                otp.is_locked = True
+                session.commit()
                 logger.warning(f"OTP verification blocked: Max attempts exceeded for user {user_id}")
-                return False
+                return False, "Too many failed attempts. Please request a new code."
                 
             # Verify Hash
             if otp.code_hash == input_hash:
                 otp.is_used = True
                 session.commit()
                 logger.info(f"OTP Verified successfully for user {user_id}")
-                return True
+                return True, "Verification successful."
             else:
                 otp.attempts += 1
-                session.commit()
-                logger.info(f"OTP verification failed: Invalid code for user {user_id}")
-                return False
+                # Lock if this was the last attempt
+                if otp.attempts >= cls.MAX_VERIFY_ATTEMPTS:
+                    otp.is_locked = True
+                    session.commit()
+                    logger.warning(f"OTP locked after max attempts for user {user_id}")
+                    return False, "Too many failed attempts. This code is now locked. Please request a new code."
+                else:
+                    remaining = cls.MAX_VERIFY_ATTEMPTS - otp.attempts
+                    session.commit()
+                    logger.info(f"OTP verification failed: Invalid code for user {user_id} ({remaining} attempts remaining)")
+                    return False, f"Invalid code. {remaining} attempt(s) remaining."
                 
         except Exception as e:
-            # Only roll back our transaction part? 
-            # If we share session, rollback rolls back everything.
             session.rollback()
             logger.error(f"Error validating OTP: {e}")
-            return False
+            return False, "Verification failed due to an error."
         finally:
             if should_close:
                 session.close()

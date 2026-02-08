@@ -100,6 +100,7 @@ class OTP(Base):
     expires_at = Column(DateTime, nullable=False)
     is_used = Column(Boolean, default=False)
     attempts = Column(Integer, default=0)
+    is_locked = Column(Boolean, default=False)
 
     user = relationship("User")
 
