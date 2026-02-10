@@ -2,6 +2,8 @@ import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import '@/styles/globals.css';
 import { ThemeProvider, NavbarController } from '@/components/layout';
+import { NetworkErrorBanner } from '@/components/common';
+import { AuthProvider } from '@/hooks/useAuth';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans' });
 
@@ -18,8 +20,6 @@ export const metadata: Metadata = {
   ],
 };
 
-import { AuthProvider } from '@/hooks/useAuth';
-
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
@@ -31,6 +31,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           disableTransitionOnChange
         >
           <AuthProvider>
+            <NetworkErrorBanner />
             <NavbarController />
             {children}
           </AuthProvider>

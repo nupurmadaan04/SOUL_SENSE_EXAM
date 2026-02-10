@@ -8,6 +8,7 @@ export class ApiError extends Error {
   status: number;
   data: any;
   detail?: ApiErrorDetail;
+  isNetworkError?: boolean;
 
   constructor(status: number, data: any) {
     // Try to extract a meaningful message
@@ -29,9 +30,12 @@ export class ApiError extends Error {
     this.status = status;
     this.data = data;
 
-    // Helper to access structured detail if available
     if (data?.detail && typeof data.detail === 'object') {
       this.detail = data.detail as ApiErrorDetail;
+    }
+
+    if (data?.isNetworkError) {
+      this.isNetworkError = true;
     }
   }
 }
