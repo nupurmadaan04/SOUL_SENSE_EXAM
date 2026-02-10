@@ -5,9 +5,10 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 
 from ..config import get_settings
-from ..schemas import UserCreate, Token, UserResponse, ErrorResponse, PasswordResetRequest, PasswordResetComplete, TwoFactorLoginRequest, TwoFactorAuthRequiredResponse, TwoFactorConfirmRequest, UsernameAvailabilityResponse
+from ..schemas import UserCreate, Token, UserResponse, ErrorResponse, PasswordResetRequest, PasswordResetComplete, TwoFactorLoginRequest, TwoFactorAuthRequiredResponse, TwoFactorConfirmRequest, UsernameAvailabilityResponse, CaptchaResponse, LoginRequest
 from ..services.db_service import get_db
 from ..services.auth_service import AuthService
+from ..services.captcha_service import captcha_service
 from ..constants.errors import ErrorCode
 from ..constants.security_constants import REFRESH_TOKEN_EXPIRE_DAYS
 from ..exceptions import AuthException, APIException, RateLimitException
@@ -99,10 +100,24 @@ async def register(
     return {"message": message}
 
 
+@router.get("/captcha", response_model=CaptchaResponse)
+async def get_captcha(request: Request):
+    """
+    Generate and return a new CAPTCHA for login.
+    Returns CAPTCHA code and session ID.
+    """
+    import uuid
+    session_id = str(uuid.uuid4())
+
+    captcha_code = captcha_service.generate_captcha(session_id)
+
+    return CaptchaResponse(captcha_code=captcha_code, session_id=session_id)
+
+
 @router.post("/login", response_model=None, responses={401: {"model": ErrorResponse}, 202: {"model": TwoFactorAuthRequiredResponse}, 200: {"model": Token}})
 async def login(
     response: Response,
-    form_data: Annotated[OAuth2PasswordRequestForm, Depends()], 
+    login_data: LoginRequest,
     request: Request,
     auth_service: AuthService = Depends()
 ):
@@ -110,7 +125,17 @@ async def login(
     ip = request.client.host
     user_agent = request.headers.get("user-agent", "Unknown")
 
-    # 1. Rate Limit by IP
+    # 1. Validate CAPTCHA first
+    if not captcha_service.validate_captcha(login_data.session_id, login_data.captcha_input):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail={
+                "code": "AUTH003",
+                "message": "Invalid CAPTCHA. Please try again!"
+            }
+        )
+
+    # 2. Rate Limit by IP
     is_limited, wait_time = login_limiter.is_rate_limited(ip)
     if is_limited:
          raise HTTPException(
@@ -118,15 +143,20 @@ async def login(
             detail=f"Too many login attempts. Please try again in {wait_time}s."
         )
 
-    # 2. Rate Limit by Username (Identifier)
-    is_limited, wait_time = login_limiter.is_rate_limited(f"login_{form_data.username}")
+    # 3. Rate Limit by Username (Identifier)
+    is_limited, wait_time = login_limiter.is_rate_limited(f"login_{login_data.identifier}")
     if is_limited:
          raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail=f"Account temporarily restricted due to multiple login attempts. Please try again in {wait_time}s."
         )
 
-    user = auth_service.authenticate_user(form_data.username, form_data.password, ip_address=ip, user_agent=user_agent)
+    user = auth_service.authenticate_user(login_data.identifier, login_data.password, ip_address=ip, user_agent=user_agent)
+    
+    # PR 4: 2FA Check
+    if user.is_2fa_enabled:
+        pre_auth_token = auth_service.initiate_2fa_login(user)
+        response.status_code = status.HTTP_202_ACCEPTED
     
     # PR 4: 2FA Check
     if user.is_2fa_enabled:

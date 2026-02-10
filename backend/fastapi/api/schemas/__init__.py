@@ -150,6 +150,20 @@ class Token(BaseModel):
     refresh_token: Optional[str] = None
 
 
+class CaptchaResponse(BaseModel):
+    """Schema for CAPTCHA generation response."""
+    captcha_code: str = Field(..., description="The CAPTCHA code to display")
+    session_id: str = Field(..., description="Session ID for CAPTCHA validation")
+
+
+class LoginRequest(BaseModel):
+    """Schema for login request with CAPTCHA."""
+    identifier: str = Field(..., description="Username or email")
+    password: str = Field(..., description="User password")
+    captcha_input: str = Field(..., description="User's CAPTCHA input")
+    session_id: str = Field(..., description="Session ID from CAPTCHA generation")
+
+
 class TokenData(BaseModel):
     """Schema for decoded token data."""
     username: Optional[str] = None

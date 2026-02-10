@@ -88,6 +88,23 @@ class AppAuth:
 
     def show_login_screen(self):
         """Show login popup on startup"""
+        import requests
+        import uuid
+        
+        # Fetch CAPTCHA
+        captcha_code = ""
+        session_id = ""
+        try:
+            response = requests.get('http://localhost:8000/api/v1/auth/captcha', timeout=5)
+            if response.status_code == 200:
+                data = response.json()
+                captcha_code = data.get('captcha_code', '')
+                session_id = data.get('session_id', '')
+        except Exception as e:
+            self.logger.error(f"Failed to fetch CAPTCHA: {e}")
+            captcha_code = "ERROR"
+            session_id = str(uuid.uuid4())
+        
         login_win = tk.Toplevel(self.app.root)
         self.login_window = login_win # Store reference for other methods
         login_win.title("SoulSense Login")
@@ -231,6 +248,41 @@ class AppAuth:
         # --- APPLY SECURITY HARDENING (Login) ---
         self._secure_password_entry(password_entry)
 
+        # CAPTCHA Section
+        tk.Label(entry_frame, text="CAPTCHA Verification", font=("Segoe UI", 10, "bold"),
+                 bg=self.app.colors["bg"], fg=self.app.colors["text_primary"]).pack(anchor="w", pady=(10, 5))
+        
+        captcha_frame = tk.Frame(entry_frame, bg=self.app.colors["bg"])
+        captcha_frame.pack(fill="x", pady=(0, 5))
+        
+        captcha_display = tk.Label(captcha_frame, text=captcha_code, font=("Courier", 16, "bold"),
+                                  bg="#F3F4F6", fg="#1F2937", relief="solid", width=8)
+        captcha_display.pack(side="left", padx=(0, 5))
+        
+        def refresh_captcha():
+            nonlocal captcha_code, session_id
+            try:
+                response = requests.get('http://localhost:8000/api/v1/auth/captcha', timeout=5)
+                if response.status_code == 200:
+                    data = response.json()
+                    captcha_code = data.get('captcha_code', '')
+                    session_id = data.get('session_id', '')
+                    captcha_display.config(text=captcha_code)
+                    captcha_entry.delete(0, tk.END)
+            except Exception as e:
+                self.logger.error(f"Failed to refresh CAPTCHA: {e}")
+        
+        refresh_btn = tk.Button(captcha_frame, text="🔄", command=refresh_captcha,
+                               font=("Segoe UI", 10), bg=self.app.colors["bg"], fg=self.app.colors["text_primary"])
+        refresh_btn.pack(side="left")
+        
+        captcha_entry = tk.Entry(entry_frame, font=("Segoe UI", 12))
+        captcha_entry.pack(fill="x", pady=(5, 5))
+        
+        captcha_error_label = tk.Label(entry_frame, text="", font=("Segoe UI", 8), 
+                                      bg=self.app.colors["bg"], fg="#EF4444")
+        captcha_error_label.pack(anchor="w", pady=(0, 5))
+
         # Show Password checkbox
         show_password_var = tk.BooleanVar()
         def toggle_password_visibility():
@@ -272,10 +324,12 @@ class AppAuth:
         def do_login(event=None):
             user = username_entry.get().strip()
             pwd = password_entry.get().strip()
+            captcha_input = captcha_entry.get().strip()
             
             # Clear previous error messages
             login_email_error_label.config(text="")
             login_password_error_label.config(text="")
+            captcha_error_label.config(text="")
             
             # Field-specific validation with inline errors
             has_error = False
@@ -288,33 +342,71 @@ class AppAuth:
                 if not has_error:
                     password_entry.focus_set()
                 has_error = True
+            if not captcha_input:
+                captcha_error_label.config(text="CAPTCHA is required")
+                if not has_error:
+                    captcha_entry.focus_set()
+                has_error = True
             
             if has_error:
                 return
 
-            success, msg, err_code = self.auth_manager.login_user(user, pwd)
-            
-            if success:
-                self.app.username = user
-                # Save session if Remember Me is checked
-                session_storage.save_session(user, remember_me_var.get())
-                self._load_user_settings(user)
-                login_win.destroy()
-                self._post_login_init()
-            elif err_code == "AUTH_2FA_REQUIRED":
-                # 2FA Required
-                # Temporarily save session attempt?
-                self.show_2fa_login_dialog(user, login_win)
-            elif err_code == "AUTH002":
-                # Rate limit exceeded - show countdown (Issue #565)
-                remaining = self.auth_manager.get_lockout_remaining_seconds(user)
-                if remaining > 0:
-                    update_countdown(remaining, login_btn)
+            # Validate CAPTCHA and login via backend API
+            try:
+                response = requests.post('http://localhost:8000/api/v1/auth/login', 
+                                       json={
+                                           'identifier': user,
+                                           'password': pwd,
+                                           'captcha_input': captcha_input,
+                                           'session_id': session_id
+                                       }, timeout=10)
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    # Store token for session management
+                    self.session_token = data.get('access_token')
+                    self.app.username = user
+                    # Save session if Remember Me is checked
+                    session_storage.save_session(user, remember_me_var.get())
+                    self._load_user_settings(user)
+                    login_win.destroy()
+                    self._post_login_init()
+                elif response.status_code == 401:
+                    error_data = response.json()
+                    code = error_data.get('detail', {}).get('code')
+                    if code == 'AUTH003':
+                        captcha_error_label.config(text="Invalid CAPTCHA. Please try again!")
+                        refresh_captcha()  # Regenerate CAPTCHA
+                    else:
+                        tmb.showerror("Login Failed", error_data.get('detail', {}).get('message', 'Invalid credentials'))
                 else:
-                    # Fallback: show error if can't determine remaining time
-                    rate_limit_label.config(text="⏳ Too many attempts. Please wait and try again.")
-            else:
-                tmb.showerror("Login Failed", msg)
+                    error_data = response.json()
+                    tmb.showerror("Login Failed", error_data.get('detail', {}).get('message', 'Login failed'))
+                    
+            except requests.exceptions.RequestException as e:
+                self.logger.error(f"Login request failed: {e}")
+                # Fallback to local auth if backend is unavailable
+                success, msg, err_code = self.auth_manager.login_user(user, pwd)
+                
+                if success:
+                    self.app.username = user
+                    # Save session if Remember Me is checked
+                    session_storage.save_session(user, remember_me_var.get())
+                    self._load_user_settings(user)
+                    login_win.destroy()
+                    self._post_login_init()
+                elif err_code == "AUTH_2FA_REQUIRED":
+                    # 2FA Required
+                    self.show_2fa_login_dialog(user, login_win)
+                elif err_code == "AUTH002":
+                    # Rate limit exceeded - show countdown
+                    remaining = self.auth_manager.get_lockout_remaining_seconds(user)
+                    if remaining > 0:
+                        update_countdown(remaining, login_btn)
+                    else:
+                        rate_limit_label.config(text="⏳ Too many attempts. Please wait and try again.")
+                else:
+                    tmb.showerror("Login Failed", msg)
 
         # Added this function for the Esc key
         def clear_fields(event=None):

@@ -50,6 +50,8 @@ export const nameSchema = z
 export const loginSchema = z.object({
   identifier: z.string().trim().toLowerCase().min(1, 'Email or Username is required'),
   password: z.string().min(1, 'Password is required'),
+  captchaInput: z.string().min(1, 'CAPTCHA is required'),
+  sessionId: z.string().min(1, 'Session ID is required'),
   rememberMe: z.boolean().optional(),
 });
 

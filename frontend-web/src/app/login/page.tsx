@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Eye, EyeOff, Loader2, AlertCircle } from 'lucide-react';
+import { Eye, EyeOff, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 import { Form, FormField } from '@/components/forms';
 import { Button, Input } from '@/components/ui';
 import { AuthLayout, SocialLogin } from '@/components/auth';
@@ -30,21 +30,112 @@ export default function LoginPage() {
   // Lockout State
   const [lockoutTime, setLockoutTime] = useState<number>(0);
 
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (lockoutTime > 0) {
-      timer = setInterval(() => {
-        setLockoutTime((prev) => {
-          if (prev <= 1) {
-            clearInterval(timer);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
+  // CAPTCHA State
+  const [captchaCode, setCaptchaCode] = useState('');
+  const [userCaptchaInput, setUserCaptchaInput] = useState('');
+  const [captchaVerified, setCaptchaVerified] = useState(false);
+  const [captchaError, setCaptchaError] = useState('');
+  const [captchaAttempts, setCaptchaAttempts] = useState(0);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  const generateCaptcha = () => {
+    const chars = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+    let result = '';
+    for (let i = 0; i < 5; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
-    return () => clearInterval(timer);
-  }, [lockoutTime]);
+    setCaptchaCode(result);
+    setUserCaptchaInput('');
+    setCaptchaVerified(false);
+    setCaptchaError('');
+    drawCaptcha(result);
+  };
+
+  useEffect(() => {
+    generateCaptcha();
+  }, []);
+
+  const drawCaptcha = (text: string) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Background
+    ctx.fillStyle = '#f8f9fa';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Add noise dots
+    for (let i = 0; i < 50; i++) {
+      ctx.fillStyle = `rgba(${Math.random() * 100 + 155}, ${Math.random() * 100 + 155}, ${Math.random() * 100 + 155}, 0.3)`;
+      ctx.beginPath();
+      ctx.arc(Math.random() * canvas.width, Math.random() * canvas.height, Math.random() * 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Add noise lines
+    for (let i = 0; i < 3; i++) {
+      ctx.strokeStyle = `rgba(${Math.random() * 100 + 155}, ${Math.random() * 100 + 155}, ${Math.random() * 100 + 155}, 0.2)`;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(Math.random() * canvas.width, Math.random() * canvas.height);
+      ctx.lineTo(Math.random() * canvas.width, Math.random() * canvas.height);
+      ctx.stroke();
+    }
+
+    // Draw text
+    const fontSizes = [24, 26, 28, 30];
+    const fonts = ['Arial', 'Verdana', 'Georgia', 'Times New Roman'];
+
+    for (let i = 0; i < text.length; i++) {
+      const char = text[i];
+      const x = 20 + (i * 25) + Math.random() * 10 - 5;
+      const y = 35 + Math.random() * 10 - 5;
+
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate((Math.random() - 0.5) * 0.3); // Slight rotation
+
+      ctx.font = `${fontSizes[Math.floor(Math.random() * fontSizes.length)]}px ${fonts[Math.floor(Math.random() * fonts.length)]}`;
+      ctx.fillStyle = `hsl(${Math.random() * 360}, 70%, 40%)`;
+      ctx.fillText(char, 0, 0);
+
+      ctx.restore();
+    }
+  };
+
+  const validateCaptcha = () => {
+    if (captchaAttempts >= 3) {
+      setCaptchaError('Too many failed attempts. CAPTCHA regenerated.');
+      generateCaptcha();
+      setCaptchaAttempts(0);
+      return false;
+    }
+
+    if (userCaptchaInput.toLowerCase() === captchaCode.toLowerCase()) {
+      setCaptchaVerified(true);
+      setCaptchaError('');
+      return true;
+    } else {
+      setCaptchaAttempts(prev => prev + 1);
+      setCaptchaError('Invalid CAPTCHA. Please try again.');
+      setCaptchaVerified(false);
+      return false;
+    }
+  };
+
+  const handleCaptchaInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setUserCaptchaInput(e.target.value);
+    setCaptchaError('');
+  };
+
+  const handleCaptchaSubmit = () => {
+    validateCaptcha();
+  };
 
   const { login } = useAuth(); // If we use context, we assume context logic might need update too,
   // but here we are doing manual fetch first.
@@ -55,19 +146,25 @@ export default function LoginPage() {
 
     if (lockoutTime > 0) return;
 
+    // Validate CAPTCHA first
+    if (!captchaVerified) {
+      setCaptchaError('Please verify the CAPTCHA first.');
+      return;
+    }
+
     setIsLoggingIn(true);
     try {
-      const formData = new URLSearchParams();
-      // loginSchema uses 'identifier'
-      formData.append('username', data.identifier);
-      formData.append('password', data.password);
-
       const response = await fetch('http://localhost:8000/api/v1/auth/login', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
+          'Content-Type': 'application/json',
         },
-        body: formData.toString(),
+        body: JSON.stringify({
+          identifier: data.identifier,
+          password: data.password,
+          captcha_input: data.captchaInput,
+          session_id: data.sessionId,
+        }),
       });
 
       if (response.status === 202) {
@@ -81,6 +178,14 @@ export default function LoginPage() {
       if (!response.ok) {
         const errorData = await response.json();
         const code = errorData.detail?.code;
+
+        // Handle CAPTCHA error
+        if (code === 'AUTH003') {
+          methods.setError('captchaInput', { message: 'Invalid CAPTCHA. Please try again!' });
+          // Regenerate CAPTCHA
+          generateCaptcha();
+          return;
+        }
 
         // Map login-specific error codes
         if (code === 'AUTH001') {
@@ -272,6 +377,66 @@ export default function LoginPage() {
               </FormField>
             </motion.div>
 
+            {/* CAPTCHA Section */}
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.275 }}
+              className="space-y-3"
+            >
+              <label className="text-sm font-medium leading-none">
+                CAPTCHA Verification
+              </label>
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <canvas
+                    ref={canvasRef}
+                    width={150}
+                    height={50}
+                    className="border border-input rounded-md bg-muted"
+                    style={{ imageRendering: 'pixelated' }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={generateCaptcha}
+                    className="px-3"
+                  >
+                    <RefreshCw className="h-4 w-4" />
+                  </Button>
+                </div>
+                
+                <div className="flex gap-2">
+                  <Input
+                    value={userCaptchaInput}
+                    onChange={handleCaptchaInputChange}
+                    placeholder="Enter CAPTCHA"
+                    className="flex-1"
+                    maxLength={5}
+                  />
+                  <Button
+                    type="button"
+                    onClick={handleCaptchaSubmit}
+                    disabled={!userCaptchaInput || captchaVerified}
+                    variant={captchaVerified ? "default" : "outline"}
+                    size="sm"
+                  >
+                    {captchaVerified ? "✓" : "Verify"}
+                  </Button>
+                </div>
+
+                {captchaError && (
+                  <p className="text-sm text-destructive">{captchaError}</p>
+                )}
+                {captchaVerified && (
+                  <p className="text-sm text-green-600 flex items-center gap-1">
+                    ✓ CAPTCHA verified successfully
+                  </p>
+                )}
+              </div>
+            </motion.div>
+
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -362,6 +527,7 @@ function FormKeyboardListener({ reset }: { reset: (values?: any) => void }) {
         reset({
           identifier: '',
           password: '',
+          captchaInput: '',
           rememberMe: false,
         });
       }
