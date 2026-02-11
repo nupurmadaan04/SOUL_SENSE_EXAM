@@ -512,5 +512,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Community**: Thanks to all contributors and users for their feedback and support
 
 ---
+Contribution note: Beginner-friendly issue resolved.
+---
 
 **Built with ❤️ for emotional intelligence and personal growth**
+
