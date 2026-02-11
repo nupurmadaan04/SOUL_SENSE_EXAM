@@ -34,6 +34,7 @@ pytest-timeout==2.2.0
 mypy==1.8.0
 types-aiofiles
 requests==2.32.3
+types-requests
 
 # PDF Generation
 reportlab==4.2.5
