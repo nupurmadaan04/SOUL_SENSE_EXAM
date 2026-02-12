@@ -41,6 +41,9 @@ class BaseAppSettings(BaseSettings):
     database_type: str = Field(default="sqlite", description="Database type")
     database_url: str = Field(default="sqlite:///../../data/soulsense.db", description="Database URL")
 
+    # Deletion Grace Period
+    deletion_grace_period_days: int = Field(default=30, ge=0, description="Grace period for account deletion in days")
+
     # JWT configuration
     jwt_secret_key: str = Field(default_factory=lambda: secrets.token_urlsafe(32), description="JWT secret key")
     jwt_algorithm: str = Field(default="HS256", description="JWT algorithm")

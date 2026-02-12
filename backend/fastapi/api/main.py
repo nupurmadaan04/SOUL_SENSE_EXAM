@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Request
+import asyncio
 from fastapi.responses import JSONResponse
 # Triggering reload for new community routes
 from fastapi.middleware.cors import CORSMiddleware
@@ -100,9 +101,28 @@ def create_app() -> FastAPI:
         
         # Initialize database tables
         try:
-            from .services.db_service import Base, engine
+            from .services.db_service import Base, engine, SessionLocal
             Base.metadata.create_all(bind=engine)
             print("[OK] Database tables initialized/verified")
+            
+            # Start background task for soft-delete cleanup
+            async def purge_task_loop():
+                while True:
+                    try:
+                        print("[CLEANUP] Starting scheduled purge of expired accounts...")
+                        with SessionLocal() as db:
+                            from .services.user_service import UserService
+                            user_service = UserService(db)
+                            user_service.purge_deleted_users(settings.deletion_grace_period_days)
+                    except Exception as e:
+                        print(f"[ERROR] Soft-delete cleanup task failed: {e}")
+                    
+                    # Run once every 24 hours
+                    await asyncio.sleep(24 * 3600)
+            
+            asyncio.create_task(purge_task_loop())
+            print("[OK] Soft-delete cleanup task scheduled (runs every 24h)")
+            
         except Exception as e:
             print(f"[ERROR] Database initialization failed: {e}")
             

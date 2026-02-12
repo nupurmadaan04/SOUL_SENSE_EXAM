@@ -4,8 +4,8 @@ User Service Layer
 Handles CRUD operations for users with proper authorization and validation.
 """
 
-from typing import Optional, List
-from datetime import datetime
+from typing import Optional, List, Tuple
+from datetime import datetime, timedelta, UTC
 
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
@@ -27,17 +27,26 @@ class UserService:
     def __init__(self, db: Session):
         self.db = db
 
-    def get_user_by_id(self, user_id: int) -> Optional[User]:
+    def get_user_by_id(self, user_id: int, include_deleted: bool = False) -> Optional[User]:
         """Retrieve a user by ID."""
-        return self.db.query(User).filter(User.id == user_id).first()
+        query = self.db.query(User).filter(User.id == user_id)
+        if not include_deleted:
+            query = query.filter(User.is_deleted == False)
+        return query.first()
 
-    def get_user_by_username(self, username: str) -> Optional[User]:
+    def get_user_by_username(self, username: str, include_deleted: bool = False) -> Optional[User]:
         """Retrieve a user by username."""
-        return self.db.query(User).filter(User.username == username).first()
+        query = self.db.query(User).filter(User.username == username)
+        if not include_deleted:
+            query = query.filter(User.is_deleted == False)
+        return query.first()
 
-    def get_all_users(self, skip: int = 0, limit: int = 100) -> List[User]:
+    def get_all_users(self, skip: int = 0, limit: int = 100, include_deleted: bool = False) -> List[User]:
         """Retrieve all users with pagination."""
-        return self.db.query(User).offset(skip).limit(limit).all()
+        query = self.db.query(User)
+        if not include_deleted:
+            query = query.filter(User.is_deleted == False)
+        return query.offset(skip).limit(limit).all()
 
     def create_user(self, username: str, password: str) -> User:
         """
@@ -56,8 +65,8 @@ class UserService:
         # Normalize username
         username = username.strip().lower()
 
-        # Check if username already exists
-        if self.get_user_by_username(username):
+        # Check if username already exists (including soft-deleted for collision prevention)
+        if self.get_user_by_username(username, include_deleted=True):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Username already registered"
@@ -110,8 +119,8 @@ class UserService:
         if username:
             username = username.strip().lower()
             if username != user.username:
-                # Check if new username is already taken
-                if self.get_user_by_username(username):
+                # Check if new username is already taken (including soft-deleted)
+                if self.get_user_by_username(username, include_deleted=True):
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
                         detail="Username already taken"
@@ -133,12 +142,13 @@ class UserService:
                 detail="Failed to update user"
             )
 
-    def delete_user(self, user_id: int) -> bool:
+    def delete_user(self, user_id: int, permanent: bool = False) -> bool:
         """
-        Delete a user and all related data (cascaded).
+        Delete a user. Supports soft delete by default.
         
         Args:
             user_id: ID of user to delete
+            permanent: If True, performs physical deletion immediately
             
         Returns:
             True if deleted successfully
@@ -146,7 +156,7 @@ class UserService:
         Raises:
             HTTPException: If user not found
         """
-        user = self.get_user_by_id(user_id)
+        user = self.get_user_by_id(user_id, include_deleted=permanent)
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -154,7 +164,13 @@ class UserService:
             )
 
         try:
-            self.db.delete(user)
+            if permanent:
+                self.db.delete(user)
+            else:
+                user.is_deleted = True
+                user.is_active = False
+                user.deleted_at = datetime.now(UTC)
+                
             self.db.commit()
             return True
         except Exception as e:
@@ -163,6 +179,61 @@ class UserService:
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to delete user: {str(e)}"
             )
+
+    def reactivate_user(self, user_id: int) -> User:
+        """
+        Restore a soft-deleted user.
+        """
+        user = self.get_user_by_id(user_id, include_deleted=True)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        
+        user.is_deleted = False
+        user.is_active = True
+        user.deleted_at = None
+        
+        try:
+            self.db.commit()
+            self.db.refresh(user)
+            return user
+        except Exception as e:
+            self.db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to reactivate user: {str(e)}"
+            )
+
+    def purge_deleted_users(self, grace_period_days: int) -> int:
+        """
+        Permanently delete users whose grace period has expired.
+        
+        Returns:
+            Number of users purged
+        """
+        cutoff_date = datetime.now(UTC) - timedelta(days=grace_period_days)
+        
+        expired_users = self.db.query(User).filter(
+            User.is_deleted == True,
+            User.deleted_at <= cutoff_date
+        ).all()
+        
+        count = 0
+        for user in expired_users:
+            try:
+                # Cascading delete will handle all related tables
+                self.db.delete(user)
+                count += 1
+            except Exception as e:
+                print(f"[ERROR] Failed to purge user {user.id}: {e}")
+        
+        if count > 0:
+            self.db.commit()
+            print(f"[CLEANUP] Purged {count} expired accounts")
+            
+        return count
 
     def get_user_detail(self, user_id: int) -> dict:
         """

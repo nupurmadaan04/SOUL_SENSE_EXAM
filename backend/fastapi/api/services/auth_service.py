@@ -130,6 +130,14 @@ class AuthService:
                 message="Incorrect username or password"
             )
         
+        # 6.5 Reactivate account if soft-deleted
+        if getattr(user, "is_deleted", False):
+            logger.info(f"♻️ Reactivating soft-deleted account: {user.username}")
+            user.is_deleted = False
+            user.deleted_at = None
+            user.is_active = True
+            # Database will be committed below in update_last_login or explicitly
+        
         # 7. Success - Update last login & Audit
         self._record_login_attempt(identifier_lower, True, ip_address)
         self.update_last_login(user.id)
