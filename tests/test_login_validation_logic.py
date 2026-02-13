@@ -154,15 +154,15 @@ class TestLoginLockout:
             "lockuser", "lock@example.com", "First", "Last", 25, "M", "SecurePass1!"
         )
 
-    def test_lockout_after_five_failures(self):
-        """Account is locked after 5 consecutive failed login attempts."""
-        for _ in range(5):
+    def test_lockout_after_three_failures(self):
+        """Account is locked after 3 consecutive failed login attempts."""
+        for _ in range(3):
             self.auth.login_user("lockuser", "WrongPass1!")
 
         success, msg, code = self.auth.login_user("lockuser", "SecurePass1!")
         assert success is False
         assert code == "AUTH002"
-        assert "locked" in msg.lower()
+        assert "locked" in msg.lower() or "too many failed attempts" in msg.lower()
 
     def test_lockout_remaining_seconds(self):
         """get_lockout_remaining_seconds returns >= 0 when locked.
@@ -170,9 +170,9 @@ class TestLoginLockout:
         Note: Due to a known timezone-aware vs naive datetime issue in
         get_lockout_remaining_seconds, the method may return 0 even when
         locked. We verify it does not raise and returns an int >= 0.
-        The actual lockout enforcement is tested via test_lockout_after_five_failures.
+        The actual lockout enforcement is tested via test_lockout_after_three_failures.
         """
-        for _ in range(5):
+        for _ in range(3):
             self.auth.login_user("lockuser", "WrongPass1!")
 
         remaining = self.auth.get_lockout_remaining_seconds("lockuser")
@@ -180,12 +180,43 @@ class TestLoginLockout:
         assert remaining >= 0
 
     def test_no_lockout_below_threshold(self):
-        """Fewer than 5 failures should not trigger lockout."""
-        for _ in range(4):
+        """Fewer than 3 failures should not trigger lockout."""
+        for _ in range(2):
             self.auth.login_user("lockuser", "WrongPass1!")
 
         success, msg, code = self.auth.login_user("lockuser", "SecurePass1!")
         assert success is True
+
+    def test_progressive_lockout_durations(self):
+        """Test that lockout duration increases with more failed attempts."""
+        # Test 3-4 attempts: should be locked with 30 second duration
+        for _ in range(4):
+            self.auth.login_user("lockuser", "WrongPass1!")
+
+        remaining = self.auth.get_lockout_remaining_seconds("lockuser")
+        assert remaining > 0 and remaining <= 30
+
+        # Test 5-6 attempts: should be locked with 120 second duration
+        # Create a new user for this test to avoid interference
+        self.auth.register_user(
+            "lockuser2", "lock2@example.com", "First", "Last", 25, "M", "SecurePass1!"
+        )
+        for _ in range(6):
+            self.auth.login_user("lockuser2", "WrongPass1!")
+
+        remaining = self.auth.get_lockout_remaining_seconds("lockuser2")
+        assert remaining > 0 and remaining <= 120
+
+        # Test 7+ attempts: should be locked with 300 second duration
+        # Create another new user for this test
+        self.auth.register_user(
+            "lockuser3", "lock3@example.com", "First", "Last", 25, "M", "SecurePass1!"
+        )
+        for _ in range(8):
+            self.auth.login_user("lockuser3", "WrongPass1!")
+
+        remaining = self.auth.get_lockout_remaining_seconds("lockuser3")
+        assert remaining > 0 and remaining <= 300
 
 
 # ============================================================

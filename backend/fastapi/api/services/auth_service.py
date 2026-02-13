@@ -330,39 +330,46 @@ class AuthService:
     def _is_account_locked(self, username: str) -> Tuple[bool, Optional[str], int]:
         """
         Check if an account is locked based on recent failed attempts.
-        A hard lockout occurs after 5 failures in 15 minutes.
-        A soft delay (jitter) is added after 3 failures.
+        Implements progressive lockout with increasing durations:
+        - 3-4 failed attempts: 30 seconds lockout
+        - 5-6 failed attempts: 120 seconds lockout
+        - 7+ failed attempts: 300 seconds lockout
         """
-        fifteen_mins_ago = datetime.now(timezone.utc) - timedelta(minutes=15)
-        
-        # Count failed attempts since fifteen_mins_ago
+        # Check failed attempts within the last 30 minutes
+        thirty_mins_ago = datetime.now(timezone.utc) - timedelta(minutes=30)
+
+        # Count failed attempts since thirty_mins_ago
         failed_attempts = self.db.query(LoginAttempt).filter(
             LoginAttempt.username == username,
             LoginAttempt.is_successful == False,
-            LoginAttempt.timestamp >= fifteen_mins_ago
+            LoginAttempt.timestamp >= thirty_mins_ago
         ).order_by(LoginAttempt.timestamp.desc()).all()
-        
+
         count = len(failed_attempts)
-        
-        if count >= 5:
+
+        # Determine lockout duration based on attempt count
+        lockout_duration = 0
+        if count >= 7:
+            lockout_duration = 300  # 5 minutes
+        elif count >= 5:
+            lockout_duration = 120  # 2 minutes
+        elif count >= 3:
+            lockout_duration = 30   # 30 seconds
+
+        if lockout_duration > 0:
             # Find when the last attempt happened to calculate remaining lockout
             last_attempt = failed_attempts[0].timestamp
             # Ensure it has timezone info if it came from DB as naive
             if last_attempt.tzinfo is None:
                 last_attempt = last_attempt.replace(tzinfo=timezone.utc)
-            
+
             elapsed = datetime.now(timezone.utc) - last_attempt
-            remaining = int(900 - elapsed.total_seconds()) # 15 mins = 900s
-            
+            remaining = int(lockout_duration - elapsed.total_seconds())
+
             if remaining > 0:
-                logger.warning(f"Account locked: {username} (IP rate limiting should have caught this first)")
-                return True, f"Account locked due to too many failed attempts. Please try again in {remaining} seconds.", remaining
-        
-        if count >= 3:
-            # Artificial delay to slow down brute force (Jitter)
-            import random
-            time.sleep(random.uniform(1.0, 3.0))
-            
+                logger.warning(f"Account locked: {username} ({count} failed attempts, {remaining}s remaining)")
+                return True, "Too many failed attempts. Try again later.", remaining
+
         return False, None, 0
 
     def _record_login_attempt(self, username: str, success: bool, ip_address: str, reason: Optional[str] = None):

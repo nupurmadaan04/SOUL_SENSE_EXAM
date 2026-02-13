@@ -279,23 +279,41 @@ class AuthManager:
         self.session_expiry = datetime.now(UTC) + timedelta(hours=24)
 
     def _is_locked_out(self, username):
-        """Check if user is locked out based on recent failed attempts in DB."""
+        """Check if user is locked out based on recent failed attempts in DB with progressive lockout."""
         session = get_session()
         try:
             from app.models import LoginAttempt
-            
-            # Count recent failed attempts
-            since_time = datetime.now(UTC) - timedelta(seconds=self.lockout_duration)
-            # USE TIMEZONE-AWARE DATETIME TO PREVENT CRASH
-            since_time = datetime.now(timezone.utc) - timedelta(seconds=self.lockout_duration)
-            
+
+            # Check failed attempts within the last 30 minutes
+            thirty_mins_ago = datetime.now(timezone.utc) - timedelta(minutes=30)
+
             recent_failures = session.query(LoginAttempt).filter(
                 LoginAttempt.username == username,
                 LoginAttempt.is_successful == False,
-                LoginAttempt.timestamp >= since_time
-            ).count()
-            
-            return recent_failures >= 5
+                LoginAttempt.timestamp >= thirty_mins_ago
+            ).order_by(LoginAttempt.timestamp.desc()).all()
+
+            count = len(recent_failures)
+
+            # Determine if locked out based on attempt count
+            if count >= 3:
+                # Find when the last attempt happened
+                last_attempt = recent_failures[0].timestamp
+                if last_attempt.tzinfo is None:
+                    last_attempt = last_attempt.replace(tzinfo=timezone.utc)
+
+                # Determine lockout duration based on count
+                if count >= 7:
+                    lockout_duration = 300
+                elif count >= 5:
+                    lockout_duration = 120
+                else:  # count >= 3
+                    lockout_duration = 30
+
+                elapsed = datetime.now(timezone.utc) - last_attempt
+                return elapsed.total_seconds() < lockout_duration
+
+            return False
         except Exception as e:
             logging.error(f"Lockout check failed: {e}")
             return False
@@ -310,30 +328,36 @@ class AuthManager:
         session = get_session()
         try:
             from app.models import LoginAttempt
-            
-            since_time = datetime.now(UTC) - timedelta(seconds=self.lockout_duration)
-            
-            # Get the most recent failed attempt
+
+            # Check failed attempts within the last 30 minutes
+            thirty_mins_ago = datetime.now(timezone.utc) - timedelta(minutes=30)
+
             recent_failures = session.query(LoginAttempt).filter(
                 LoginAttempt.username == username,
                 LoginAttempt.is_successful == False,
-                LoginAttempt.timestamp >= since_time
+                LoginAttempt.timestamp >= thirty_mins_ago
             ).order_by(LoginAttempt.timestamp.desc()).all()
-            
-            if len(recent_failures) >= 5:
-                # Find the 5th most recent failed attempt (the one that triggered lockout)
-                fifth_failure = recent_failures[4]
-                lockout_end = fifth_failure.timestamp + timedelta(seconds=self.lockout_duration)
-                remaining = (lockout_end - datetime.now(UTC)).total_seconds()
-                
-                # Ensure comparison is done with aware datetimes
-                failure_time = fifth_failure.timestamp
-                if failure_time.tzinfo is None:
-                    failure_time = failure_time.replace(tzinfo=timezone.utc)
-                
-                lockout_end = failure_time + timedelta(seconds=self.lockout_duration)
-                remaining = (lockout_end - datetime.now(timezone.utc)).total_seconds()
+
+            count = len(recent_failures)
+
+            if count >= 3:
+                # Get the most recent failed attempt
+                last_attempt = recent_failures[0].timestamp
+                if last_attempt.tzinfo is None:
+                    last_attempt = last_attempt.replace(tzinfo=timezone.utc)
+
+                # Determine lockout duration based on count
+                if count >= 7:
+                    lockout_duration = 300
+                elif count >= 5:
+                    lockout_duration = 120
+                else:  # count >= 3
+                    lockout_duration = 30
+
+                elapsed = datetime.now(timezone.utc) - last_attempt
+                remaining = lockout_duration - elapsed.total_seconds()
                 return max(0, int(remaining))
+
             return 0
         except Exception as e:
             logging.error(f"Lockout remaining check failed: {e}")
