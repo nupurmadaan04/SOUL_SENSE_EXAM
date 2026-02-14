@@ -6,3 +6,4 @@ export * from './skeleton';
 export * from './tooltip';
 export * from './checkbox';
 export * from './progress';
+export * from './slider';
