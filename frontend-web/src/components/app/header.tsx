@@ -117,7 +117,7 @@ export const Header = React.forwardRef<HTMLHeaderElement, HeaderProps>(
 
               {/* Dropdown Menu */}
               {isDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-48 rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-900">
+                <div className="absolute right-0 mt-2 w-48 rounded-lg border border-gray-200 bg-white shadow-lg z-50 dark:border-gray-700 dark:bg-gray-900">
                   {/* User Info */}
                   <div className="border-b border-gray-200 px-4 py-3 dark:border-gray-700">
                     <p className="text-sm font-semibold text-gray-900 dark:text-white">
