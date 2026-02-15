@@ -4,9 +4,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { MessageSquare } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-
+import { Button, Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui';
 const MAX_CHARACTERS = 500;
 
 const fadeInVariants = {
