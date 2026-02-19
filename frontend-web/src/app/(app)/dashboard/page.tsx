@@ -285,6 +285,9 @@ export default function DashboardPage() {
                 }));
               }}
               onAction={(ins) => console.log('Action for:', ins.title)}
+              title={insight.title}
+              description={insight.description}
+              type={insight.type as any}
               className="md:col-span-1"
             />
           </SectionWrapper>
@@ -298,6 +301,9 @@ export default function DashboardPage() {
               content: "Your data is encrypted and only accessible by you. We prioritize your privacy.",
               type: "safety" as any, // safety is handled by the component or defaults
             }}
+            title="Security & Privacy"
+            description="Your data is encrypted and only accessible by you. We prioritize your privacy."
+            type="safety"
             className="md:col-span-1"
           />
         </SectionWrapper>
