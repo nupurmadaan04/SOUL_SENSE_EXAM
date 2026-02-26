@@ -1,6 +1,6 @@
 """API router for assessment endpoints."""
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 from ..services.db_service import get_db, AssessmentService
 from ..schemas import (
@@ -19,7 +19,7 @@ async def get_assessments(
     age_group: Optional[str] = Query(None, description="Filter by age group"),
     page: int = Query(1, ge=1, description="Page number"),
     page_size: int = Query(10, ge=1, le=100, description="Items per page"),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     """
     Get a paginated list of assessments.
@@ -31,7 +31,7 @@ async def get_assessments(
     """
     skip = (page - 1) * page_size
     
-    assessments, total = AssessmentService.get_assessments(
+    assessments, total = await AssessmentService.get_assessments(
         db=db,
         skip=skip,
         limit=page_size,
@@ -50,7 +50,7 @@ async def get_assessments(
 @router.get("/stats", response_model=AssessmentStatsResponse)
 async def get_assessment_stats(
     username: Optional[str] = Query(None, description="Filter stats by username"),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     """
     Get statistical summary of assessments.
@@ -63,7 +63,7 @@ async def get_assessment_stats(
     - Average sentiment score
     - Distribution by age group
     """
-    stats = AssessmentService.get_assessment_stats(db=db, username=username)
+    stats = await AssessmentService.get_assessment_stats(db=db, username=username)
     
     return AssessmentStatsResponse(**stats)
 
@@ -71,20 +71,20 @@ async def get_assessment_stats(
 @router.get("/{assessment_id}", response_model=AssessmentDetailResponse)
 async def get_assessment(
     assessment_id: int,
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     """
     Get detailed information for a specific assessment.
     
     - **assessment_id**: The ID of the assessment to retrieve
     """
-    assessment = AssessmentService.get_assessment_by_id(db=db, assessment_id=assessment_id)
+    assessment = await AssessmentService.get_assessment_by_id(db=db, assessment_id=assessment_id)
     
     if not assessment:
         raise HTTPException(status_code=404, detail="Assessment not found")
     
     # Get response count
-    responses = AssessmentService.get_assessment_responses(db=db, assessment_id=assessment_id)
+    responses = await AssessmentService.get_assessment_responses(db=db, assessment_id=assessment_id)
     
     # Convert to response model
     assessment_dict = {

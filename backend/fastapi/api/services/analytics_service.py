@@ -1,10 +1,10 @@
-"""Analytics service for aggregated, non-sensitive data analysis."""
-from sqlalchemy import func, case, distinct
-from sqlalchemy.orm import Session
+"""Analytics service for aggregated, non-sensitive data analysis (Async)."""
+from sqlalchemy import func, case, distinct, select, desc
+from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Dict, Tuple, Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 
-# Import models from root_models module (handles namespace collision)
+# Import models from root_models module
 from ..root_models import Score, User, AnalyticsEvent
 
 
@@ -16,11 +16,10 @@ class AnalyticsService:
     """
     
     @staticmethod
-    def log_event(db: Session, event_data: dict, ip_address: Optional[str] = None) -> AnalyticsEvent:
+    async def log_event(db: AsyncSession, event_data: dict, ip_address: Optional[str] = None) -> AnalyticsEvent:
         """
         Log a user behavior event.
         """
-        print(f"DEBUG: log_event called with event_data keys: {list(event_data.keys())}")
         import json
         
         # Serialize event_data JSON
@@ -32,22 +31,22 @@ class AnalyticsService:
             event_name=event_data['event_name'],
             event_data=data_payload,
             ip_address=ip_address,
-            timestamp=datetime.utcnow()
+            timestamp=datetime.now(UTC)
         )
         
         db.add(event)
-        db.commit()
-        db.refresh(event)
+        await db.commit()
+        await db.refresh(event)
         return event
 
     @staticmethod
-    def get_age_group_statistics(db: Session) -> List[Dict]:
+    async def get_age_group_statistics(db: AsyncSession) -> List[Dict]:
         """
         Get aggregated statistics by age group.
         
         Returns only aggregated data - no individual records.
         """
-        stats = db.query(
+        stmt = select(
             Score.detailed_age_group,
             func.count(Score.id).label('total'),
             func.avg(Score.total_score).label('avg_score'),
@@ -58,7 +57,10 @@ class AnalyticsService:
             Score.detailed_age_group.isnot(None)
         ).group_by(
             Score.detailed_age_group
-        ).all()
+        )
+        
+        result = await db.execute(stmt)
+        stats = result.all()
         
         return [
             {
@@ -73,13 +75,15 @@ class AnalyticsService:
         ]
     
     @staticmethod
-    def get_score_distribution(db: Session) -> List[Dict]:
+    async def get_score_distribution(db: AsyncSession) -> List[Dict]:
         """
         Get score distribution across ranges.
         
         Returns aggregated distribution - no individual scores.
         """
-        total_count = db.query(func.count(Score.id)).scalar() or 0
+        total_stmt = select(func.count(Score.id))
+        total_result = await db.execute(total_stmt)
+        total_count = total_result.scalar() or 0
         
         if total_count == 0:
             return []
@@ -94,10 +98,12 @@ class AnalyticsService:
         
         distribution = []
         for range_name, min_score, max_score in ranges:
-            count = db.query(func.count(Score.id)).filter(
+            range_stmt = select(func.count(Score.id)).filter(
                 Score.total_score >= min_score,
                 Score.total_score <= max_score
-            ).scalar() or 0
+            )
+            range_result = await db.execute(range_stmt)
+            count = range_result.scalar() or 0
             
             percentage = (count / total_count * 100) if total_count > 0 else 0
             
@@ -110,31 +116,35 @@ class AnalyticsService:
         return distribution
     
     @staticmethod
-    def get_overall_summary(db: Session) -> Dict:
+    async def get_overall_summary(db: AsyncSession) -> Dict:
         """
         Get overall analytics summary.
         
         Returns aggregated metrics only - no individual user data.
         """
         # Overall statistics
-        overall_stats = db.query(
+        overall_stmt = select(
             func.count(Score.id).label('total'),
             func.count(distinct(Score.username)).label('unique_users'),
             func.avg(Score.total_score).label('avg_score'),
             func.avg(Score.sentiment_score).label('avg_sentiment')
-        ).first()
+        )
+        overall_result = await db.execute(overall_stmt)
+        overall_stats = overall_result.first()
         
         # Quality metrics (aggregated counts)
-        quality_metrics = db.query(
+        quality_stmt = select(
             func.sum(case((Score.is_rushed == True, 1), else_=0)).label('rushed_count'),
             func.sum(case((Score.is_inconsistent == True, 1), else_=0)).label('inconsistent_count')
-        ).first()
+        )
+        quality_result = await db.execute(quality_stmt)
+        quality_metrics = quality_result.first()
         
         # Age group stats
-        age_group_stats = AnalyticsService.get_age_group_statistics(db)
+        age_group_stats = await AnalyticsService.get_age_group_statistics(db)
         
         # Score distribution
-        score_dist = AnalyticsService.get_score_distribution(db)
+        score_dist = await AnalyticsService.get_score_distribution(db)
         
         return {
             'total_assessments': overall_stats.total or 0,
@@ -150,8 +160,8 @@ class AnalyticsService:
         }
     
     @staticmethod
-    def get_trend_analytics(
-        db: Session,
+    async def get_trend_analytics(
+        db: AsyncSession,
         period_type: str = 'monthly',
         limit: int = 12
     ) -> Dict:
@@ -167,15 +177,18 @@ class AnalyticsService:
         # For simplicity, we'll do monthly trends
         # In production, you'd want more sophisticated date handling
         
-        trends = db.query(
+        trend_stmt = select(
             func.substr(Score.timestamp, 1, 7).label('period'),  # YYYY-MM
             func.avg(Score.total_score).label('avg_score'),
             func.count(Score.id).label('count')
         ).group_by(
             func.substr(Score.timestamp, 1, 7)
         ).order_by(
-            func.substr(Score.timestamp, 1, 7).desc()
-        ).limit(limit).all()
+            desc(func.substr(Score.timestamp, 1, 7))
+        ).limit(limit)
+        
+        trend_result = await db.execute(trend_stmt)
+        trends = trend_result.all()
         
         data_points = [
             {
@@ -207,21 +220,24 @@ class AnalyticsService:
         }
     
     @staticmethod
-    def get_benchmark_comparison(db: Session) -> List[Dict]:
+    async def get_benchmark_comparison(db: AsyncSession) -> List[Dict]:
         """
         Get benchmark comparison data.
         
         Returns percentile-based benchmarks - no individual data.
         """
         # Get all scores for percentile calculation
-        scores = db.query(Score.total_score).filter(
+        score_stmt = select(Score.total_score).filter(
             Score.total_score.isnot(None)
-        ).order_by(Score.total_score).all()
+        ).order_by(Score.total_score)
+        
+        score_result = await db.execute(score_stmt)
+        scores = score_result.scalars().all()
         
         if not scores:
             return []
         
-        score_list = [s.total_score for s in scores]
+        score_list = [float(s) for s in scores]
         n = len(score_list)
         
         def percentile(p):
@@ -245,14 +261,14 @@ class AnalyticsService:
         }]
     
     @staticmethod
-    def get_population_insights(db: Session) -> Dict:
+    async def get_population_insights(db: AsyncSession) -> Dict:
         """
         Get population-level insights.
         
         Returns aggregated population metrics - no individual data.
         """
         # Most common age group
-        most_common = db.query(
+        common_stmt = select(
             Score.detailed_age_group,
             func.count(Score.id).label('count')
         ).filter(
@@ -260,11 +276,14 @@ class AnalyticsService:
         ).group_by(
             Score.detailed_age_group
         ).order_by(
-            func.count(Score.id).desc()
-        ).first()
+            desc(func.count(Score.id))
+        ).limit(1)
+        
+        common_result = await db.execute(common_stmt)
+        most_common = common_result.first()
         
         # Highest performing age group
-        highest_performing = db.query(
+        highest_stmt = select(
             Score.detailed_age_group,
             func.avg(Score.total_score).label('avg')
         ).filter(
@@ -272,12 +291,20 @@ class AnalyticsService:
         ).group_by(
             Score.detailed_age_group
         ).order_by(
-            func.avg(Score.total_score).desc()
-        ).first()
+            desc(func.avg(Score.total_score))
+        ).limit(1)
+        
+        highest_result = await db.execute(highest_stmt)
+        highest_performing = highest_result.first()
         
         # Total population
-        total_users = db.query(func.count(distinct(Score.username))).scalar() or 0
-        total_assessments = db.query(func.count(Score.id)).scalar() or 0
+        users_stmt = select(func.count(distinct(Score.username)))
+        users_result = await db.execute(users_stmt)
+        total_users = users_result.scalar() or 0
+        
+        assess_stmt = select(func.count(Score.id))
+        assess_result = await db.execute(assess_stmt)
+        total_assessments = assess_result.scalar() or 0
         
         # Completion rate (simplified - assumes all scores are completed)
         completion_rate = 100.0 if total_assessments > 0 else None

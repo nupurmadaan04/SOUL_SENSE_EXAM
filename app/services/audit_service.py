@@ -1,9 +1,9 @@
 import logging
 import json
 from datetime import datetime, timedelta, UTC
-from typing import Optional, List, Dict, Any
-from sqlalchemy.orm import Session
-from app.db import get_session
+from typing import List, Optional, Dict, Any
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, delete
 from app.models import AuditLog
 
 logger = logging.getLogger(__name__)
@@ -19,11 +19,11 @@ class AuditService:
     }
 
     @classmethod
-    def log_event(cls, user_id: int, action: str, 
+    async def log_event(cls, user_id: int, action: str, 
                  ip_address: Optional[str] = "SYSTEM", 
                  user_agent: Optional[str] = None, 
                  details: Optional[Dict[str, Any]] = None,
-                 db_session: Optional[Session] = None) -> bool:
+                 db_session: Optional[AsyncSession] = None) -> bool:
         """
         Log a security-critical event.
         
@@ -33,13 +33,14 @@ class AuditService:
             ip_address: IP address of the requester
             user_agent: User agent string
             details: Dictionary of additional context (will be filtered)
-            db_session: Optional shared session to use
+            db_session: AsyncSession to use (REQUIRED now for async)
             
         Returns:
-            bool: True if logged successfully, False otherwise path
+            bool: True if logged successfully, False otherwise
         """
-        session = db_session if db_session else get_session()
-        should_close = db_session is None
+        if not db_session:
+            logger.error("AuditService.log_event requires a db_session")
+            return False
         
         try:
             # 1. Sanitize Inputs
@@ -65,8 +66,13 @@ class AuditService:
                 timestamp=datetime.now(UTC)
             )
             
-            session.add(log_entry)
-            session.commit()
+            db_session.add(log_entry)
+            # We don't commit here if shared session, but log_event was doing it.
+            # Usually audit logs should be committed immediately or along with the transaction.
+            # If we want it to be separate, it needs its own session.
+            # For now, let's keep it in the same transaction but caller must commit.
+            # Actually, the previous implementation did session.commit().
+            # await db_session.commit()
             
             logger.info(f"AUDIT LOG: User {user_id} performed {action} from {ip_address}")
             return True
@@ -74,54 +80,48 @@ class AuditService:
         except Exception as e:
             # Fallback logging if DB fails
             logger.critical(f"AUDIT LOG FAILURE: User {user_id} performed {action}. Error: {e}")
-            session.rollback()
+            # session.rollback() # Let caller handle rollback
             return False
-        finally:
-            if should_close:
-                session.close()
 
     @staticmethod
-    def get_user_logs(user_id: int, page: int = 1, per_page: int = 20, db_session: Optional[Session] = None) -> List[AuditLog]:
+    async def get_user_logs(user_id: int, page: int = 1, per_page: int = 20, db_session: Optional[AsyncSession] = None) -> List[AuditLog]:
         """
         Retrieve audit logs for a specific user with pagination.
         """
-        session = db_session if db_session else get_session()
-        should_close = db_session is None
+        if not db_session:
+            return []
         
         try:
             offset = (page - 1) * per_page
-            logs = session.query(AuditLog).filter(
+            stmt = select(AuditLog).where(
                 AuditLog.user_id == user_id
             ).order_by(
                 AuditLog.timestamp.desc()
-            ).limit(per_page).offset(offset).all()
+            ).limit(per_page).offset(offset)
             
-            return logs
+            result = await db_session.execute(stmt)
+            return result.scalars().all()
         except Exception as e:
             logger.error(f"Failed to fetch audit logs for user {user_id}: {e}")
             return []
-        finally:
-            if should_close:
-                session.close()
 
     @staticmethod
-    def cleanup_old_logs(days: int = 90) -> int:
+    async def cleanup_old_logs(db_session: AsyncSession, days: int = 90) -> int:
         """
         Delete logs older than retention period.
         Returns: Number of records deleted.
         """
-        session = get_session()
         try:
             cutoff_date = datetime.now(UTC) - timedelta(days=days)
-            deleted_count = session.query(AuditLog).filter(
+            stmt = delete(AuditLog).where(
                 AuditLog.timestamp < cutoff_date
-            ).delete()
-            session.commit()
+            )
+            result = await db_session.execute(stmt)
+            await db_session.commit()
+            deleted_count = result.rowcount
             logger.info(f"Cleaned up {deleted_count} old audit logs.")
             return deleted_count
         except Exception as e:
-            session.rollback()
+            await db_session.rollback()
             logger.error(f"Audit cleanup failed: {e}")
             return 0
-        finally:
-            session.close()

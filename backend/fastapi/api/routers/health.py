@@ -11,7 +11,7 @@ from typing import Optional, Dict, Any
 from fastapi import APIRouter, Depends, Query, Response
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..schemas import HealthResponse, ServiceStatus
 from ..services.db_service import get_db
@@ -73,11 +73,11 @@ _readiness_cache = HealthCache(ttl_seconds=5.0)
 
 
 # --- Health Check Helpers ---
-def check_database(db: Session) -> ServiceStatus:
+async def check_database(db: AsyncSession) -> ServiceStatus:
     """Check database connectivity and measure latency."""
     start = time.perf_counter()
     try:
-        db.execute(text("SELECT 1"))
+        await db.execute(text("SELECT 1"))
         latency = (time.perf_counter() - start) * 1000  # ms
         return ServiceStatus(status="healthy", latency_ms=round(latency, 2), message=None)
     except Exception as e:
@@ -129,7 +129,7 @@ async def health_check() -> HealthResponse:
 async def readiness_check(
     response: Response,
     full: bool = Query(False, description="Include detailed diagnostics"),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ) -> HealthResponse:
     """
     Readiness probe - checks if the application can serve traffic.
@@ -143,7 +143,7 @@ async def readiness_check(
         return HealthResponse(**cached)
     
     # Perform health checks
-    db_status = check_database(db)
+    db_status = await check_database(db)
     
     # Determine overall status
     services = {"database": db_status}
@@ -173,14 +173,14 @@ async def readiness_check(
 
 
 @router.get("/startup", response_model=HealthResponse, tags=["Health"])
-async def startup_check(db: Session = Depends(get_db)) -> HealthResponse:
+async def startup_check(db: AsyncSession = Depends(get_db)) -> HealthResponse:
     """
     Startup probe - checks if the application has completed initialization.
     
     Use this for Kubernetes startupProbe to give the app time to initialize.
     """
     # For startup, we just check if we can connect to DB
-    db_status = check_database(db)
+    db_status = await check_database(db)
     
     return HealthResponse(
         status="healthy" if db_status.status == "healthy" else "unhealthy",

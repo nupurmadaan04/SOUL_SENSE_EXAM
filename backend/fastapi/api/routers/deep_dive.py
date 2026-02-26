@@ -1,6 +1,6 @@
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..services.db_service import get_db
 from ..services.deep_dive_service import DeepDiveService
@@ -23,13 +23,13 @@ async def get_deep_dive_types():
 @router.get("/recommendations", response_model=List[str])
 async def get_recommendations(
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     """
     Get recommended deep dives based on user's recent performance.
     Returns list of Deep Dive IDs (e.g. ['strengths_deep_dive']).
     """
-    return DeepDiveService.get_recommendations(db, current_user)
+    return await DeepDiveService.get_recommendations(db, current_user)
 
 @router.get("/{assessment_type}/questions", response_model=List[DeepDiveQuestion])
 async def get_questions(
@@ -48,18 +48,18 @@ async def get_questions(
 async def submit_deep_dive(
     submission: DeepDiveSubmission,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     """
     Submit answers for a deep dive assessment.
     """
     # Rate limiting could be added here (omitted for MVP speed, covered in plan audit as 'strict' but doing basic impl first)
-    return DeepDiveService.submit_assessment(db, current_user, submission)
+    return await DeepDiveService.submit_assessment(db, current_user, submission)
 
 @router.get("/history", response_model=List[DeepDiveResultResponse])
 async def get_deep_dive_history(
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     """Get past deep dive results."""
-    return DeepDiveService.get_history(db, current_user)
+    return await DeepDiveService.get_history(db, current_user)

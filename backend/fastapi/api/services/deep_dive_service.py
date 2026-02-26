@@ -2,7 +2,8 @@ import json
 import logging
 from typing import List, Dict, Optional
 from datetime import datetime, UTC
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, desc
 from fastapi import HTTPException
 
 from app.models import AssessmentResult, User
@@ -105,7 +106,7 @@ class DeepDiveService:
         ]
 
     @classmethod
-    def submit_assessment(cls, db: Session, user: User, submission: DeepDiveSubmission) -> DeepDiveResultResponse:
+    async def submit_assessment(cls, db: AsyncSession, user: User, submission: DeepDiveSubmission) -> DeepDiveResultResponse:
         """
         Process a deep dive submission.
         - Validates type.
@@ -139,14 +140,11 @@ class DeepDiveService:
         # 2. Check Completeness
         # We enforce at least 50% completeness to be valid (arbitrary logic for data quality)
         total_questions = len(valid_questions)
-        # Note: Frontend might send varying 'counts', but we validate against the bank.
-        # If user requested 5 questions but bank has 10, we accept 5.
         
         if response_count == 0:
              raise HTTPException(status_code=400, detail="Submission cannot be empty")
              
         # 3. Calculate Normalized Score (0-100)
-        # Max per question is 5.
         max_possible = response_count * 5
         normalized = int((raw_score / max_possible) * 100)
         
@@ -159,8 +157,8 @@ class DeepDiveService:
             timestamp=datetime.now(UTC).isoformat()
         )
         db.add(result)
-        db.commit()
-        db.refresh(result)
+        await db.commit()
+        await db.refresh(result)
         
         return DeepDiveResultResponse(
             id=result.id,
@@ -172,17 +170,20 @@ class DeepDiveService:
         )
 
     @classmethod
-    def get_history(cls, db: Session, user: User) -> List[DeepDiveResultResponse]:
+    async def get_history(cls, db: AsyncSession, user: User) -> List[DeepDiveResultResponse]:
         """Get past deep dive results for the user."""
-        results = db.query(AssessmentResult).filter(
+        stmt = select(AssessmentResult).filter(
             AssessmentResult.user_id == user.id
-        ).order_by(AssessmentResult.id.desc()).all()
+        ).order_by(AssessmentResult.id.desc())
+        
+        result = await db.execute(stmt)
+        results = result.scalars().all()
         
         return [
             DeepDiveResultResponse(
                 id=r.id,
                 assessment_type=r.assessment_type,
-                total_score=0, # We store normalized only in DB main column for now, or need to parse details
+                total_score=0, 
                 normalized_score=r.total_score,
                 timestamp=r.timestamp,
                 details=json.loads(r.details) if r.details else {}
@@ -191,20 +192,15 @@ class DeepDiveService:
         ]
 
     @classmethod
-    def get_recommendations(cls, db: Session, user: User) -> List[str]:
+    async def get_recommendations(cls, db: AsyncSession, user: User) -> List[str]:
         """
         Recommend Deep Dives based on EQ stats.
-        Ported from QuestionCurator.recommend_tests logic.
         """
         from ..services.user_analytics_service import UserAnalyticsService
         
-        stats = UserAnalyticsService.get_dashboard_summary(db, user.id)
+        stats = await UserAnalyticsService.get_dashboard_summary(db, user.id)
         
-        # Logic ported from legacy app
         recommendations = []
-        
-        # Age-based logic requires profile, assuming user profile fetch separately or passed
-        # Simplification: Use available stats
         
         # If score low (<50 avg or latest), suggest Strengths
         if stats.average_score > 0 and stats.average_score < 50:

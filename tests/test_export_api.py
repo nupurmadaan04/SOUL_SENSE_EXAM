@@ -7,7 +7,7 @@ from backend.fastapi.api.main import app
 from backend.fastapi.api.root_models import User, Score
 from app.auth.auth import AuthManager
 from backend.fastapi.api.services.export_service import ExportService
-from backend.fastapi.api.routers.export import _last_export_request, _export_jobs
+from backend.fastapi.api.routers.export import _export_rate_limits
 
 # Setup client
 client = TestClient(app)
@@ -45,9 +45,8 @@ def clean_exports():
         if f.is_file():
             f.unlink()
             
-    # Clear rate limits and jobs
-    _last_export_request.clear()
-    _export_jobs.clear()
+    # Clear rate limits
+    _export_rate_limits.clear()
             
     yield
     
@@ -56,8 +55,7 @@ def clean_exports():
         if f.is_file():
             f.unlink()
     
-    _last_export_request.clear()
-    _export_jobs.clear()
+    _export_rate_limits.clear()
 
 def test_export_json_flow(auth_headers, temp_db, clean_exports):
     """Test generating and downloading a JSON export."""

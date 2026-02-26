@@ -10,10 +10,10 @@ Provides AI-personalized journal prompts based on:
 
 import json
 import random
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from typing import List, Optional, Dict, Any
-from sqlalchemy.orm import Session
-from sqlalchemy import func, desc
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, desc
 
 from app.models import Score, JournalEntry, UserEmotionalPatterns
 
@@ -111,12 +111,12 @@ SMART_PROMPTS = {
 # ============================================================================
 
 class SmartPromptService:
-    """Service for generating AI-personalized journal prompts."""
+    """Service for generating AI-personalized journal prompts (Async)."""
     
-    def __init__(self, db: Session):
+    def __init__(self, db: AsyncSession):
         self.db = db
     
-    def get_user_context(self, user_id: int) -> Dict[str, Any]:
+    async def get_user_context(self, user_id: int) -> Dict[str, Any]:
         """
         Gather user's emotional context from multiple data sources.
         
@@ -140,21 +140,25 @@ class SmartPromptService:
         }
         
         # 1. Get latest EQ score
-        latest_score = self.db.query(Score).filter(
+        latest_score_stmt = select(Score).filter(
             Score.user_id == user_id
-        ).order_by(desc(Score.timestamp)).first()
+        ).order_by(desc(Score.timestamp)).limit(1)
+        latest_score_res = await self.db.execute(latest_score_stmt)
+        latest_score = latest_score_res.scalar_one_or_none()
         
         if latest_score:
             context["latest_eq_score"] = latest_score.total_score
         
         # 2. Get journal sentiment trends (last 7 days)
-        week_ago = (datetime.utcnow() - timedelta(days=7)).strftime("%Y-%m-%d")
+        week_ago = (datetime.now(UTC) - timedelta(days=7)).strftime("%Y-%m-%d")
         
-        recent_entries = self.db.query(JournalEntry).filter(
+        recent_entries_stmt = select(JournalEntry).filter(
             JournalEntry.user_id == user_id,
             JournalEntry.entry_date >= week_ago,
             JournalEntry.is_deleted == False
-        ).order_by(desc(JournalEntry.entry_date)).all()
+        ).order_by(desc(JournalEntry.entry_date))
+        recent_entries_res = await self.db.execute(recent_entries_stmt)
+        recent_entries = recent_entries_res.scalars().all()
         
         context["entry_count_7d"] = len(recent_entries)
         
@@ -190,9 +194,11 @@ class SmartPromptService:
                             context["detected_patterns"].append(entry.emotional_patterns)
         
         # 3. Get user's stored emotional patterns if available
-        user_patterns = self.db.query(UserEmotionalPatterns).filter(
+        user_patterns_stmt = select(UserEmotionalPatterns).filter(
             UserEmotionalPatterns.user_id == user_id
-        ).first()
+        )
+        user_patterns_res = await self.db.execute(user_patterns_stmt)
+        user_patterns = user_patterns_res.scalar_one_or_none()
         
         if user_patterns and user_patterns.common_emotions:
             try:
@@ -208,7 +214,7 @@ class SmartPromptService:
     
     def _get_time_category(self) -> str:
         """Determine time category for context-aware prompts."""
-        hour = datetime.now().hour
+        hour = datetime.now(UTC).hour
         if 5 <= hour < 12:
             return "morning"
         elif 12 <= hour < 17:
@@ -267,7 +273,7 @@ class SmartPromptService:
         
         return list(dict.fromkeys(categories))  # Dedupe while preserving order
     
-    def get_smart_prompts(
+    async def get_smart_prompts(
         self, 
         user_id: int, 
         count: int = 3
@@ -285,7 +291,7 @@ class SmartPromptService:
             - user_mood: Detected mood category
             - detected_patterns: List of patterns found
         """
-        context = self.get_user_context(user_id)
+        context = await self.get_user_context(user_id)
         categories = self._determine_prompt_categories(context)
         
         # Determine overall mood label
@@ -362,6 +368,6 @@ class SmartPromptService:
         return reasons.get(category, "Selected to support your journaling practice")
 
 
-def get_smart_prompt_service(db: Session) -> SmartPromptService:
-    """Dependency injection helper for FastAPI."""
+async def get_smart_prompt_service(db: AsyncSession) -> SmartPromptService:
+    """Dependency injection helper for FastAPI (Async)."""
     return SmartPromptService(db)

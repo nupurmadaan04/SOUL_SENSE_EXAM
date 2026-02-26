@@ -20,7 +20,8 @@ settings = get_settings_instance()
 class VersionHeaderMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         response = await call_next(request)
-        response.headers["X-API-Version"] = "1.0"
+        if "X-API-Version" not in response.headers:
+            response.headers["X-API-Version"] = "1.0"
         return response
 
 
@@ -80,10 +81,6 @@ def create_app() -> FastAPI:
 
     # CORS middleware
     origins = settings.BACKEND_CORS_ORIGINS
-    # If in production, ensure we are not allowing all origins blindly unless intended
-    origins = settings.BACKEND_CORS_ORIGINS
-    
-    origins = settings.cors_origins
     
     app.add_middleware(
         CORSMiddleware,
@@ -101,29 +98,6 @@ def create_app() -> FastAPI:
     # Register V1 API Router
     app.include_router(api_v1_router, prefix="/api/v1")
 
-    # Register Health endpoints at root level for orchestration
-    app.include_router(health_router, tags=["Health"])
-
-    # Version header middleware
-    app.add_middleware(VersionHeaderMiddleware)
-
-    # CORS middleware (Outer-most)
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=origins,
-        allow_credentials=True,
-        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-        allow_headers=["Content-Type", "Authorization", "Accept", "Origin", "X-Requested-With"],
-        expose_headers=["X-API-Version"],
-        max_age=3600,  # Cache preflight requests for 1 hour
-    )
-    
-    # Version header middleware
-    app.add_middleware(VersionHeaderMiddleware)
-    
-    # Register V1 API Router
-    app.include_router(api_v1_router, prefix="/api/v1")
- 
     # Register Health endpoints at root level for orchestration
     app.include_router(health_router, tags=["Health"])
 
@@ -187,8 +161,9 @@ def create_app() -> FastAPI:
         
         # Initialize database tables
         try:
-            from .services.db_service import Base, engine, SessionLocal
-            Base.metadata.create_all(bind=engine)
+            from .services.db_service import Base, engine, AsyncSessionLocal
+            async with engine.begin() as conn:
+                await conn.run_sync(Base.metadata.create_all)
             print("[OK] Database tables initialized/verified")
             
             # Start background task for soft-delete cleanup
@@ -196,10 +171,10 @@ def create_app() -> FastAPI:
                 while True:
                     try:
                         print("[CLEANUP] Starting scheduled purge of expired accounts...")
-                        with SessionLocal() as db:
+                        async with AsyncSessionLocal() as db:
                             from .services.user_service import UserService
                             user_service = UserService(db)
-                            user_service.purge_deleted_users(settings.deletion_grace_period_days)
+                            await user_service.purge_deleted_users(settings.deletion_grace_period_days)
                     except Exception as e:
                         print(f"[ERROR] Soft-delete cleanup task failed: {e}")
                     

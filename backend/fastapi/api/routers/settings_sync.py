@@ -14,6 +14,7 @@ Endpoints:
 
 from typing import Annotated, List
 from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..schemas import (
     SyncSettingCreate,
@@ -31,13 +32,9 @@ from ..root_models import User
 router = APIRouter(tags=["Settings Sync"])
 
 
-def get_settings_sync_service():
+async def get_settings_sync_service(db: Annotated[AsyncSession, Depends(get_db)]):
     """Dependency to get SettingsSyncService with database session."""
-    db = next(get_db())
-    try:
-        yield SettingsSyncService(db)
-    finally:
-        db.close()
+    return SettingsSyncService(db)
 
 
 # ============================================================================
@@ -56,7 +53,7 @@ async def get_all_settings(
     
     **Authentication Required**
     """
-    settings = service.get_all_settings(current_user.id)
+    settings = await service.get_all_settings(current_user.id)
     return [
         SyncSettingResponse(
             key=s.key,
@@ -82,7 +79,7 @@ async def get_setting(
     
     **Authentication Required**
     """
-    setting = service.get_setting(current_user.id, key)
+    setting = await service.get_setting(current_user.id, key)
     if not setting:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -122,7 +119,7 @@ async def upsert_setting(
     
     **Authentication Required**
     """
-    setting, success, error = service.upsert_setting(
+    setting, success, error = await service.upsert_setting(
         user_id=current_user.id,
         key=key,
         value=update.value,
@@ -163,7 +160,7 @@ async def delete_setting(
     
     **Authentication Required**
     """
-    deleted = service.delete_setting(current_user.id, key)
+    deleted = await service.delete_setting(current_user.id, key)
     if not deleted:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -196,7 +193,7 @@ async def batch_upsert_settings(
         for s in batch.settings
     ]
     
-    successful, conflicts = service.batch_upsert_settings(
+    successful, conflicts = await service.batch_upsert_settings(
         user_id=current_user.id,
         settings=settings_data
     )

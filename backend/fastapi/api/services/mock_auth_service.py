@@ -20,14 +20,12 @@ from ..config import get_settings
 from ..services.db_service import get_db
 from ..schemas import UserCreate
 from ..root_models import User
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
 
 # Mock users for testing
-# Note: User model only has: id, username, password_hash, created_at, last_login, is_active, is_2fa_enabled
-# Email, first_name, last_name, age, gender are in PersonalProfile
 MOCK_USERS = {
     "test@example.com": {
         "id": 1,
@@ -58,7 +56,7 @@ MOCK_USERS = {
     },
 }
 
-# Mock user profiles (separate from User model)
+# Mock user profiles
 MOCK_PROFILES = {
     1: {"email": "test@example.com", "first_name": "Test", "last_name": "User", "age": 25, "gender": "M"},
     2: {"email": "admin@example.com", "first_name": "Admin", "last_name": "User", "age": 30, "gender": "F"},
@@ -78,18 +76,18 @@ MOCK_REFRESH_TOKENS: Dict[str, int] = {}
 
 class MockAuthService:
     """
-    Mock authentication service for testing and development.
+    Mock authentication service for testing and development (Async).
     
     This service simulates authentication without requiring a database or real credentials.
     It maintains the same interface as AuthService for easy swapping.
     """
 
-    def __init__(self, db: Optional[Session] = None):
+    def __init__(self, db: Optional[AsyncSession] = None):
         """Initialize mock auth service."""
         self.db = db
-        logger.info("🎭 Mock Authentication Service initialized")
+        logger.info("🎭 Mock Authentication Service initialized (Async)")
 
-    def authenticate_user(
+    async def authenticate_user(
         self, 
         identifier: str, 
         password: str, 
@@ -98,15 +96,6 @@ class MockAuthService:
     ) -> Optional[User]:
         """
         Mock user authentication.
-        
-        Args:
-            identifier: Username or email
-            password: Any non-empty password (not validated in mock mode)
-            ip_address: Client IP address (logged but not used)
-            user_agent: Client user agent (logged but not used)
-            
-        Returns:
-            User object if authentication succeeds, None otherwise
         """
         logger.info(f"🎭 Mock authentication attempt for: {identifier}")
         
@@ -135,20 +124,13 @@ class MockAuthService:
             message="Incorrect username or password"
         )
 
-    def create_access_token(
+    async def create_access_token(
         self, 
         data: dict, 
         expires_delta: Optional[timedelta] = None
     ) -> str:
         """
         Create a mock JWT access token.
-        
-        Args:
-            data: Token payload data
-            expires_delta: Optional expiration time delta
-            
-        Returns:
-            JWT token string
         """
         to_encode = data.copy()
         
@@ -172,15 +154,9 @@ class MockAuthService:
         logger.debug(f"🎭 Created mock access token for user_id: {data.get('sub')}")
         return encoded_jwt
 
-    def create_pre_auth_token(self, user_id: int) -> str:
+    async def create_pre_auth_token(self, user_id: int) -> str:
         """
         Create a mock pre-authentication token for 2FA flow.
-        
-        Args:
-            user_id: User ID
-            
-        Returns:
-            Pre-auth JWT token
         """
         expire = datetime.now(timezone.utc) + timedelta(minutes=5)
         to_encode = {
@@ -200,17 +176,11 @@ class MockAuthService:
         logger.debug(f"🎭 Created mock pre-auth token for user_id: {user_id}")
         return encoded_jwt
 
-    def initiate_2fa_login(self, user: User) -> Tuple[str, str]:
+    async def initiate_2fa_login(self, user: User) -> Tuple[str, str]:
         """
         Mock 2FA login initiation.
-        
-        Args:
-            user: User object
-            
-        Returns:
-            Tuple of (pre_auth_token, mock_otp_code)
         """
-        pre_auth_token = self.create_pre_auth_token(cast(Any, user.id))
+        pre_auth_token = await self.create_pre_auth_token(cast(Any, user.id))
         
         # Get email from profile
         profile = MOCK_PROFILES.get(cast(Any, user.id), {})
@@ -220,16 +190,9 @@ class MockAuthService:
         logger.info(f"🎭 Mock 2FA initiated for {email}. OTP: {otp_code}")
         return pre_auth_token, otp_code
 
-    def verify_2fa_login(self, pre_auth_token: str, code: str) -> Optional[User]:
+    async def verify_2fa_login(self, pre_auth_token: str, code: str) -> Optional[User]:
         """
         Mock 2FA verification.
-        
-        Args:
-            pre_auth_token: Pre-authentication token
-            code: OTP code
-            
-        Returns:
-            User object if verification succeeds, None otherwise
         """
         try:
             payload = jwt.decode(
@@ -267,15 +230,9 @@ class MockAuthService:
             logger.error(f"🎭 Mock 2FA verification error: {e}")
             return None
 
-    def register_user(self, user_data: UserCreate) -> tuple[bool, Optional[User], str]:
+    async def register_user(self, user_data: UserCreate) -> tuple[bool, Optional[User], str]:
         """
         Mock user registration.
-        
-        Args:
-            user_data: User creation data
-            
-        Returns:
-            Created user object
         """
         new_user_id = len(MOCK_USERS) + 1
         
@@ -306,16 +263,9 @@ class MockAuthService:
         user.email = user_data.email
         return True, user, "User registered successfully (Mock)"
 
-    def create_refresh_token(self, user_id: int, commit: bool = True) -> str:
+    async def create_refresh_token(self, user_id: int, commit: bool = True) -> str:
         """
         Create a mock refresh token.
-        
-        Args:
-            user_id: User ID
-            commit: Ignored in mock implementation
-            
-        Returns:
-            Refresh token string
         """
         import secrets
         token = secrets.token_urlsafe(32)
@@ -324,15 +274,9 @@ class MockAuthService:
         logger.debug(f"🎭 Created mock refresh token for user_id: {user_id}")
         return token
 
-    def refresh_access_token(self, refresh_token: str) -> Tuple[str, str]:
+    async def refresh_access_token(self, refresh_token: str) -> Tuple[str, str]:
         """
         Mock refresh token validation and rotation.
-        
-        Args:
-            refresh_token: Current refresh token
-            
-        Returns:
-            Tuple of (new_access_token, new_refresh_token)
         """
         user_id = MOCK_REFRESH_TOKENS.get(refresh_token)
         
@@ -343,8 +287,8 @@ class MockAuthService:
         for user_data in MOCK_USERS.values():
             if user_data["id"] == user_id:
                 # Create new tokens
-                access_token = self.create_access_token({"sub": str(user_id)})
-                new_refresh_token = self.create_refresh_token(user_id)
+                access_token = await self.create_access_token({"sub": str(user_id)})
+                new_refresh_token = await self.create_refresh_token(user_id)
                 
                 # Invalidate old refresh token
                 del MOCK_REFRESH_TOKENS[refresh_token]
@@ -354,32 +298,23 @@ class MockAuthService:
         
         raise ValueError("User not found")
 
-    def revoke_refresh_token(self, refresh_token: str) -> None:
+    async def revoke_refresh_token(self, refresh_token: str) -> None:
         """
         Mock refresh token revocation.
-        
-        Args:
-            refresh_token: Token to revoke
         """
         if refresh_token in MOCK_REFRESH_TOKENS:
             del MOCK_REFRESH_TOKENS[refresh_token]
             logger.info("🎭 Mock refresh token revoked")
 
-    def initiate_password_reset(self, email: str) -> str:
+    async def initiate_password_reset(self, email: str) -> str:
         """
         Mock password reset initiation.
-        
-        Args:
-            email: User email
-            
-        Returns:
-            Mock OTP code
         """
         otp_code = MOCK_OTP_CODES.get(email.lower(), "123456")
         logger.info(f"🎭 Mock password reset initiated for {email}. OTP: {otp_code}")
         return otp_code
 
-    def complete_password_reset(
+    async def complete_password_reset(
         self, 
         email: str, 
         otp_code: str, 
@@ -387,14 +322,6 @@ class MockAuthService:
     ) -> bool:
         """
         Mock password reset completion.
-        
-        Args:
-            email: User email
-            otp_code: OTP code
-            new_password: New password
-            
-        Returns:
-            True if successful, False otherwise
         """
         expected_code = MOCK_OTP_CODES.get(email.lower(), "123456")
         
@@ -405,15 +332,9 @@ class MockAuthService:
             logger.warning(f"❌ Mock password reset failed for {email}")
             return False
 
-    def send_2fa_setup_otp(self, user: User) -> str:
+    async def send_2fa_setup_otp(self, user: User) -> str:
         """
         Mock 2FA setup OTP generation.
-        
-        Args:
-            user: User object
-            
-        Returns:
-            Mock OTP code
         """
         otp_code = "888888"  # Fixed code for 2FA setup
         profile = MOCK_PROFILES.get(cast(Any, user.id), {})
@@ -421,16 +342,9 @@ class MockAuthService:
         logger.info(f"🎭 Mock 2FA setup OTP for {email}: {otp_code}")
         return otp_code
 
-    def enable_2fa(self, user_id: int, code: str) -> bool:
+    async def enable_2fa(self, user_id: int, code: str) -> bool:
         """
         Mock 2FA enablement.
-        
-        Args:
-            user_id: User ID
-            code: OTP code
-            
-        Returns:
-            True if successful, False otherwise
         """
         if code == "888888":
             logger.info(f"✅ Mock 2FA enabled for user_id: {user_id}")
@@ -439,20 +353,14 @@ class MockAuthService:
             logger.warning(f"❌ Mock 2FA enable failed for user_id: {user_id}")
             return False
 
-    def disable_2fa(self, user_id: int) -> None:
+    async def disable_2fa(self, user_id: int) -> None:
         """
         Mock 2FA disablement.
-        
-        Args:
-            user_id: User ID
         """
         logger.info(f"🎭 Mock 2FA disabled for user_id: {user_id}")
 
-    def update_last_login(self, user_id: int) -> None:
+    async def update_last_login(self, user_id: int) -> None:
         """
         Mock last login update.
-        
-        Args:
-            user_id: User ID
         """
         logger.debug(f"🎭 Mock last login updated for user_id: {user_id}")

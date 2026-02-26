@@ -1,6 +1,7 @@
 import logging
 from typing import List, Optional, Any, cast
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, join
 from ..root_models import Score, Response, Question, QuestionCategory
 from ..schemas import DetailedExamResult, CategoryScore, Recommendation
 
@@ -8,26 +9,31 @@ logger = logging.getLogger(__name__)
 
 class AssessmentResultsService:
     @staticmethod
-    def get_detailed_results(db: Session, assessment_id: int, user_id: int) -> Optional[DetailedExamResult]:
+    async def get_detailed_results(db: AsyncSession, assessment_id: int, user_id: int) -> Optional[DetailedExamResult]:
         """
         Fetches a comprehensive breakdown of an assessment.
         Security: Strictly filters by user_id to prevent unauthorized access.
         """
         # 1. Fetch the main score record
-        score = db.query(Score).filter(Score.id == assessment_id, Score.user_id == user_id).first()
+        result = await db.execute(
+            select(Score).filter(Score.id == assessment_id, Score.user_id == user_id)
+        )
+        score = result.scalar_one_or_none()
+        
         if not score:
             logger.warning(f"Assessment {assessment_id} not found for user_id={user_id}")
             return None
 
         # 2. Get all responses for this session/user
         # Join with Question and Category to get rich data for the breakdown
-        responses = (
-            db.query(Response, Question, QuestionCategory)
+        stmt = (
+            select(Response, Question, QuestionCategory)
             .join(Question, Response.question_id == Question.id)
             .join(QuestionCategory, Question.category_id == QuestionCategory.id)
             .filter(Response.session_id == score.session_id)
-            .all()
         )
+        responses_result = await db.execute(stmt)
+        responses = responses_result.all()
 
         if not responses:
             logger.info(f"No detailed responses found for assessment session {score.session_id}")
@@ -90,8 +96,6 @@ class AssessmentResultsService:
                     priority="low"
                 ))
 
-        # Calculate overall percentage based on aggregates if needed, 
-        # or use the one stored in score if available. 
         total_max = sum(d["max"] for d in category_stats.values())
         overall_pct = (score.total_score / total_max * 100.0) if total_max > 0 else 0.0
 

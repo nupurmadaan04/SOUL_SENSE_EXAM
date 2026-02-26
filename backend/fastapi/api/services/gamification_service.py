@@ -2,8 +2,8 @@ from datetime import datetime, UTC, timedelta
 import json
 import logging
 from typing import List, Dict, Any, Optional
-from sqlalchemy.orm import Session
-from sqlalchemy import func, desc
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func, desc, delete
 
 from ..root_models import (
     User, Achievement, UserAchievement, UserStreak, UserXP, 
@@ -14,16 +14,18 @@ logger = logging.getLogger(__name__)
 
 class GamificationService:
     @staticmethod
-    def award_xp(db: Session, user_id: int, amount: int, reason: str) -> UserXP:
+    async def award_xp(db: AsyncSession, user_id: int, amount: int, reason: str) -> UserXP:
         """Award XP to a user and handle leveling up."""
-        user_xp = db.query(UserXP).filter(UserXP.user_id == user_id).first()
+        result = await db.execute(select(UserXP).filter(UserXP.user_id == user_id))
+        user_xp = result.scalar_one_or_none()
+        
         if not user_xp:
             user_xp = UserXP(user_id=user_id, total_xp=0, current_level=1, xp_to_next_level=500)
             db.add(user_xp)
-            db.flush()
+            await db.flush()
 
         user_xp.total_xp += amount
-        user_xp.last_xp_awarded_at = datetime.utcnow()
+        user_xp.last_xp_awarded_at = datetime.now(UTC)
 
         # Check for level up
         while user_xp.total_xp >= user_xp.xp_to_next_level:
@@ -32,16 +34,19 @@ class GamificationService:
             user_xp.xp_to_next_level = int(user_xp.xp_to_next_level * 1.2)
             logger.info(f"User {user_id} leveled up to {user_xp.current_level}!")
 
-        db.commit()
+        await db.commit()
         return user_xp
 
     @staticmethod
-    def update_streak(db: Session, user_id: int, activity_type: str = "combined") -> UserStreak:
+    async def update_streak(db: AsyncSession, user_id: int, activity_type: str = "combined") -> UserStreak:
         """Update user activity streak."""
-        streak = db.query(UserStreak).filter(
-            UserStreak.user_id == user_id, 
-            UserStreak.activity_type == activity_type
-        ).first()
+        result = await db.execute(
+            select(UserStreak).filter(
+                UserStreak.user_id == user_id, 
+                UserStreak.activity_type == activity_type
+            )
+        )
+        streak = result.scalar_one_or_none()
 
         now = datetime.now(UTC)
         today = now.date()
@@ -79,31 +84,35 @@ class GamificationService:
                     streak.current_streak = 1
                     streak.last_activity_date = now
 
-        db.commit()
+        await db.commit()
         
         # Award XP for streak milestones (every 7 days)
         if streak.current_streak % 7 == 0:
-            GamificationService.award_xp(db, user_id, 200, f"{streak.current_streak} day streak milestone")
+            await GamificationService.award_xp(db, user_id, 200, f"{streak.current_streak} day streak milestone")
             
         return streak
 
     @staticmethod
-    def check_achievements(db: Session, user_id: int, activity: str) -> List[UserAchievement]:
+    async def check_achievements(db: AsyncSession, user_id: int, activity: str) -> List[UserAchievement]:
         """Check if any achievements are unlocked by the recent activity."""
         # Get all potential achievements for the category/activity
-        # Filtering by category in a real app, here we just check all non-unlocked
-        unlocked_achievements = db.query(UserAchievement).filter(
-            UserAchievement.user_id == user_id,
-            UserAchievement.unlocked == True
-        ).all()
+        ua_result = await db.execute(
+            select(UserAchievement).filter(
+                UserAchievement.user_id == user_id,
+                UserAchievement.unlocked == True
+            )
+        )
+        unlocked_achievements = ua_result.scalars().all()
         unlocked_ids = [ua.achievement_id for ua in unlocked_achievements]
         
-        potential_achievements = db.query(Achievement).filter(
-            ~Achievement.achievement_id.in_(unlocked_ids)
-        ).all()
+        ach_result = await db.execute(
+            select(Achievement).filter(
+                ~Achievement.achievement_id.in_(unlocked_ids) if unlocked_ids else True
+            )
+        )
+        potential_achievements = ach_result.scalars().all()
         
         new_unlocks = []
-        user = db.query(User).filter(User.id == user_id).first()
         
         for ach in potential_achievements:
             requirements = ach.requirements
@@ -120,21 +129,25 @@ class GamificationService:
                 met = True
             elif ach.achievement_id == "MONTHLY_MASTER":
                 # Check journal count in last 30 days
-                thirty_days_ago = (datetime.now(UTC) - timedelta(days=30)).isoformat()
-                count = db.query(JournalEntry).filter(
-                    JournalEntry.user_id == user_id,
-                    JournalEntry.timestamp >= thirty_days_ago
-                ).count()
+                thirty_days_ago = (datetime.now(UTC) - timedelta(days=30))
+                count_result = await db.execute(
+                    select(func.count(JournalEntry.id)).filter(
+                        JournalEntry.user_id == user_id,
+                        JournalEntry.timestamp >= thirty_days_ago
+                    )
+                )
+                count = count_result.scalar_one()
                 if count >= 30:
                     met = True
             
-            # In a real system, we'd have a more robust requirement engine
-            
             if met:
-                ua = db.query(UserAchievement).filter(
-                    UserAchievement.user_id == user_id,
-                    UserAchievement.achievement_id == ach.achievement_id
-                ).first()
+                ua_sub_result = await db.execute(
+                    select(UserAchievement).filter(
+                        UserAchievement.user_id == user_id,
+                        UserAchievement.achievement_id == ach.achievement_id
+                    )
+                )
+                ua = ua_sub_result.scalar_one_or_none()
                 
                 if not ua:
                     ua = UserAchievement(
@@ -142,51 +155,64 @@ class GamificationService:
                         achievement_id=ach.achievement_id,
                         progress=100,
                         unlocked=True,
-                        unlocked_at=datetime.utcnow()
+                        unlocked_at=datetime.now(UTC)
                     )
                     db.add(ua)
                 else:
                     ua.progress = 100
                     ua.unlocked = True
-                    ua.unlocked_at = datetime.utcnow()
+                    ua.unlocked_at = datetime.now(UTC)
                 
                 new_unlocks.append(ua)
-                GamificationService.award_xp(db, user_id, ach.points_reward, f"Unlocked achievement: {ach.name}")
+                await GamificationService.award_xp(db, user_id, ach.points_reward, f"Unlocked achievement: {ach.name}")
 
-        db.commit()
+        await db.commit()
         return new_unlocks
 
     @staticmethod
-    def get_user_summary(db: Session, user_id: int) -> Dict[str, Any]:
+    async def get_user_summary(db: AsyncSession, user_id: int) -> Dict[str, Any]:
         """Get a summary of user gamification stats."""
-        xp = db.query(UserXP).filter(UserXP.user_id == user_id).first()
+        xp_result = await db.execute(select(UserXP).filter(UserXP.user_id == user_id))
+        xp = xp_result.scalar_one_or_none()
+        
         if not xp:
             xp = UserXP(user_id=user_id, total_xp=0, current_level=1, xp_to_next_level=500)
             db.add(xp)
-            db.commit()
+            await db.commit()
             
-        streaks = db.query(UserStreak).filter(UserStreak.user_id == user_id).all()
+        streak_result = await db.execute(select(UserStreak).filter(UserStreak.user_id == user_id))
+        streaks = streak_result.scalars().all()
         
         # Recent achievements
-        recent_ua = db.query(UserAchievement).filter(
-            UserAchievement.user_id == user_id,
-            UserAchievement.unlocked == True
-        ).order_by(desc(UserAchievement.unlocked_at)).limit(5).all()
+        recent_ua_result = await db.execute(
+            select(UserAchievement).filter(
+                UserAchievement.user_id == user_id,
+                UserAchievement.unlocked == True
+            ).order_by(desc(UserAchievement.unlocked_at)).limit(5)
+        )
+        recent_ua = recent_ua_result.scalars().all()
         
+        ach_ids = [ua.achievement_id for ua in recent_ua]
         achievements = []
-        for ua in recent_ua:
-            ach = db.query(Achievement).filter(Achievement.achievement_id == ua.achievement_id).first()
-            if ach:
-                achievements.append({
-                    "achievement_id": ach.achievement_id,
-                    "name": ach.name,
-                    "description": ach.description,
-                    "icon": ach.icon,
-                    "category": ach.category,
-                    "rarity": ach.rarity,
-                    "unlocked": True,
-                    "unlocked_at": ua.unlocked_at
-                })
+        if ach_ids:
+            ach_lookup_result = await db.execute(
+                select(Achievement).filter(Achievement.achievement_id.in_(ach_ids))
+            )
+            ach_map = {a.achievement_id: a for a in ach_lookup_result.scalars().all()}
+            
+            for ua in recent_ua:
+                ach = ach_map.get(ua.achievement_id)
+                if ach:
+                    achievements.append({
+                        "achievement_id": ach.achievement_id,
+                        "name": ach.name,
+                        "description": ach.description,
+                        "icon": ach.icon,
+                        "category": ach.category,
+                        "rarity": ach.rarity,
+                        "unlocked": True,
+                        "unlocked_at": ua.unlocked_at
+                    })
                 
         return {
             "xp": {
@@ -208,9 +234,15 @@ class GamificationService:
         }
 
     @staticmethod
-    def get_leaderboard(db: Session, limit: int = 10) -> List[Dict[str, Any]]:
+    async def get_leaderboard(db: AsyncSession, limit: int = 10) -> List[Dict[str, Any]]:
         """Get the global anonymized leaderboard."""
-        results = db.query(UserXP, User.username).join(User, UserXP.user_id == User.id).order_by(desc(UserXP.total_xp)).limit(limit).all()
+        result = await db.execute(
+            select(UserXP, User.username)
+            .join(User, UserXP.user_id == User.id)
+            .order_by(desc(UserXP.total_xp))
+            .limit(limit)
+        )
+        results = result.all()
         
         leaderboard = []
         for i, (xp, username) in enumerate(results):
@@ -223,7 +255,7 @@ class GamificationService:
         return leaderboard
 
     @staticmethod
-    def seed_initial_achievements(db: Session):
+    async def seed_initial_achievements(db: AsyncSession):
         """Seed the database with initial achievements if they don't exist."""
         initial_achievements = [
             {
@@ -256,8 +288,11 @@ class GamificationService:
         ]
         
         for ach_data in initial_achievements:
-            exists = db.query(Achievement).filter(Achievement.achievement_id == ach_data["achievement_id"]).first()
+            exists_result = await db.execute(
+                select(Achievement).filter(Achievement.achievement_id == ach_data["achievement_id"])
+            )
+            exists = exists_result.scalar_one_or_none()
             if not exists:
                 ach = Achievement(**ach_data)
                 db.add(ach)
-        db.commit()
+        await db.commit()

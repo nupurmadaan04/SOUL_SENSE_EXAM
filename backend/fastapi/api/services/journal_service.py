@@ -1,5 +1,5 @@
 """
-Journal Service Layer
+Journal Service Layer (Async)
 
 Handles business logic for journal entries including:
 - CRUD operations with ownership validation
@@ -9,24 +9,23 @@ Handles business logic for journal entries including:
 """
 
 import json
-import os
-from datetime import datetime, timedelta
-from typing import List, Optional, Tuple
+import logging
+from datetime import datetime, timedelta, UTC
+from typing import List, Optional, Tuple, Dict, Any
 
-from sqlalchemy import func, and_, or_
-from sqlalchemy.orm import Session
+from sqlalchemy import func, and_, or_, select, desc
+from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException, status
 
-# Import models from root_models module (handles namespace collision)
+# Import models from root_models module
 from ..root_models import JournalEntry, User
 from .gamification_service import GamificationService
 
 
 # ============================================================================
-# Sentiment Analysis
+# Sentiment Analysis (Sync Utilities)
 # ============================================================================
 
-# Global analyzer instance
 _sia = None
 
 def get_analyzer():
@@ -42,16 +41,11 @@ def get_analyzer():
                 nltk.download('vader_lexicon', quiet=True)
             _sia = SentimentIntensityAnalyzer()
         except Exception:
-            # Return None if NLTK fails
             return None
     return _sia
 
 def analyze_sentiment(content: str) -> float:
-    """
-    Analyze sentiment using NLTK VADER.
-    Returns score from 0-100 (50 = neutral).
-    Falls back to 50 if NLTK unavailable.
-    """
+    """Analyze sentiment using NLTK VADER."""
     if not content or len(content.strip()) < 10:
         return 50.0
     
@@ -61,22 +55,15 @@ def analyze_sentiment(content: str) -> float:
 
     try:
         scores = analyzer.polarity_scores(content)
-        # Convert compound score (-1 to 1) to 0-100 scale
         return round((scores['compound'] + 1) * 50, 2)
     except Exception:
         return 50.0
 
-
 def detect_emotional_patterns(content: str, sentiment_score: float) -> str:
-    """
-    Detect emotional patterns in content.
-    Returns JSON string of detected patterns.
-    """
+    """Detect emotional patterns in content."""
     patterns = []
-    
     content_lower = content.lower()
     
-    # Detect common emotional keywords
     if any(word in content_lower for word in ['happy', 'joy', 'excited', 'grateful']):
         patterns.append('positivity')
     if any(word in content_lower for word in ['sad', 'depressed', 'down', 'unhappy']):
@@ -90,14 +77,12 @@ def detect_emotional_patterns(content: str, sentiment_score: float) -> str:
     if any(word in content_lower for word in ['hopeful', 'optimistic', 'looking forward']):
         patterns.append('hope')
     
-    # Add sentiment-based pattern
     if sentiment_score >= 70:
         patterns.append('high_positive')
     elif sentiment_score <= 30:
         patterns.append('high_negative')
     
     return json.dumps(patterns)
-
 
 def calculate_word_count(content: str) -> int:
     """Calculate the number of words in a string."""
@@ -107,13 +92,13 @@ def calculate_word_count(content: str) -> int:
 
 
 # ============================================================================
-# Journal Service Class
+# Journal Service Class (Async)
 # ============================================================================
 
 class JournalService:
     """Service for managing journal entries."""
 
-    def __init__(self, db: Session):
+    def __init__(self, db: AsyncSession):
         self.db = db
 
     def _validate_ownership(self, entry: JournalEntry, current_user: User) -> None:
@@ -128,7 +113,7 @@ class JournalService:
         """Convert tags list to JSON string for storage."""
         if tags is None:
             return None
-        return json.dumps(tags[:20])  # Limit to 20 tags
+        return json.dumps(tags[:20])
 
     def _load_tags(self, tags_str: Optional[str]) -> List[str]:
         """Convert stored JSON string to tags list."""
@@ -139,7 +124,7 @@ class JournalService:
         except json.JSONDecodeError:
             return []
 
-    def create_entry(
+    async def create_entry(
         self,
         current_user: User,
         content: str,
@@ -156,12 +141,10 @@ class JournalService:
     ) -> JournalEntry:
         """Create a new journal entry with sentiment analysis."""
         
-        # Analyze sentiment and word count
         sentiment_score = analyze_sentiment(content)
         emotional_patterns = detect_emotional_patterns(content, sentiment_score)
         word_count = calculate_word_count(content)
         
-        # Create entry
         entry = JournalEntry(
             username=current_user.username,
             user_id=current_user.id,
@@ -171,7 +154,7 @@ class JournalService:
             word_count=word_count,
             tags=self._parse_tags(tags),
             privacy_level=privacy_level,
-            entry_date=datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
+            entry_date=datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S"),
             sleep_hours=sleep_hours,
             sleep_quality=sleep_quality,
             energy_level=energy_level,
@@ -184,27 +167,25 @@ class JournalService:
         
         try:
             self.db.add(entry)
-            self.db.commit()
-            self.db.refresh(entry)
+            await self.db.commit()
+            await self.db.refresh(entry)
         except Exception as e:
-            self.db.rollback()
+            await self.db.rollback()
             raise e
         
-        # Attach dynamic fields
         entry.reading_time_mins = round(entry.word_count / 200, 2)
         
         # Trigger Gamification
         try:
-            GamificationService.award_xp(self.db, current_user.id, 50, "Journal entry")
-            GamificationService.update_streak(self.db, current_user.id, "journal")
-            GamificationService.check_achievements(self.db, current_user.id, "journal")
+            await GamificationService.award_xp(self.db, current_user.id, 50, "Journal entry")
+            await GamificationService.update_streak(self.db, current_user.id, "journal")
+            await GamificationService.check_achievements(self.db, current_user.id, "journal")
         except Exception as e:
-            # Don't fail the whole request if gamification fails
-            print(f"Gamification update failed: {e}")
+            logger.error(f"Gamification update failed: {e}")
             
         return entry
 
-    def get_entries(
+    async def get_entries(
         self,
         current_user: User,
         skip: int = 0,
@@ -213,39 +194,41 @@ class JournalService:
         end_date: Optional[str] = None
     ) -> Tuple[List[JournalEntry], int]:
         """Get paginated journal entries for the current user."""
-        
-        # Cap limit at 100
         limit = min(limit, 100)
         
-        query = self.db.query(JournalEntry).filter(
+        query = select(JournalEntry).filter(
             JournalEntry.user_id == current_user.id,
             JournalEntry.is_deleted == False
         )
         
-        # Date filtering
         if start_date:
             query = query.filter(JournalEntry.entry_date >= start_date)
         if end_date:
             query = query.filter(JournalEntry.entry_date <= end_date)
         
-        # Get total count
-        total = query.count()
+        # Count total
+        count_stmt = select(func.count()).select_from(query.subquery())
+        count_result = await self.db.execute(count_stmt)
+        total = count_result.scalar_one()
         
-        # Get paginated entries
-        entries = query.order_by(JournalEntry.entry_date.desc()).offset(skip).limit(limit).all()
+        # Get entries
+        stmt = query.order_by(JournalEntry.entry_date.desc()).offset(skip).limit(limit)
+        result = await self.db.execute(stmt)
+        entries = result.scalars().all()
         
-        # Attach dynamic fields
         for entry in entries:
             entry.reading_time_mins = round(entry.word_count / 200, 2)
         
-        return entries, total
+        return list(entries), total
 
-    def get_entry_by_id(self, entry_id: int, current_user: User) -> JournalEntry:
+    async def get_entry_by_id(self, entry_id: int, current_user: User) -> JournalEntry:
         """Get a specific journal entry by ID."""
-        entry = self.db.query(JournalEntry).filter(
+        stmt = select(JournalEntry).filter(
             JournalEntry.id == entry_id,
             JournalEntry.is_deleted == False
-        ).first()
+        )
+        result = await self.db.execute(stmt)
+        entry = result.scalar_one_or_none()
         
         if not entry:
             raise HTTPException(
@@ -253,13 +236,11 @@ class JournalService:
                 detail="Journal entry not found"
             )
         
-        # Attach dynamic fields
         entry.reading_time_mins = round(entry.word_count / 200, 2)
-        
         self._validate_ownership(entry, current_user)
         return entry
 
-    def update_entry(
+    async def update_entry(
         self,
         entry_id: int,
         current_user: User,
@@ -268,47 +249,38 @@ class JournalService:
         privacy_level: Optional[str] = None,
         **wellbeing_fields
     ) -> JournalEntry:
-        """Update a journal entry. Re-analyzes sentiment if content changes."""
+        """Update a journal entry."""
+        entry = await self.get_entry_by_id(entry_id, current_user)
         
-        entry = self.get_entry_by_id(entry_id, current_user)
-        
-        # Update content and re-analyze sentiment/word count
         if content is not None:
             entry.content = content
             entry.sentiment_score = analyze_sentiment(content)
             entry.emotional_patterns = detect_emotional_patterns(content, entry.sentiment_score)
             entry.word_count = calculate_word_count(content)
         
-        # Update tags
         if tags is not None:
             entry.tags = self._parse_tags(tags)
         
-        # Update wellbeing fields
         for field, value in wellbeing_fields.items():
             if value is not None and hasattr(entry, field):
                 setattr(entry, field, value)
         
-        self.db.commit()
-        self.db.refresh(entry)
-        
-        # Attach dynamic fields
+        await self.db.commit()
+        await self.db.refresh(entry)
         entry.reading_time_mins = round(entry.word_count / 200, 2)
-        
         return entry
 
-    def delete_entry(self, entry_id: int, current_user: User) -> bool:
+    async def delete_entry(self, entry_id: int, current_user: User) -> bool:
         """Soft delete a journal entry."""
-        entry = self.get_entry_by_id(entry_id, current_user)
-        
+        entry = await self.get_entry_by_id(entry_id, current_user)
         entry.is_deleted = True
-        self.db.commit()
-        
+        await self.db.commit()
         return True
 
-    def search_entries(
+    async def search_entries(
         self,
         current_user: User,
-        query: Optional[str] = None,
+        query_text: Optional[str] = None,
         tags: Optional[List[str]] = None,
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
@@ -318,64 +290,60 @@ class JournalService:
         limit: int = 20
     ) -> Tuple[List[JournalEntry], int]:
         """Search journal entries with filters."""
-        
         limit = min(limit, 100)
         
-        db_query = self.db.query(JournalEntry).filter(
+        db_query = select(JournalEntry).filter(
             JournalEntry.user_id == current_user.id,
             JournalEntry.is_deleted == False
         )
         
-        # Content search (case-insensitive LIKE)
-        if query:
-            db_query = db_query.filter(
-                JournalEntry.content.ilike(f"%{query}%")
-            )
+        if query_text:
+            db_query = db_query.filter(JournalEntry.content.ilike(f"%{query_text}%"))
         
-        # Tag filtering
         if tags:
             for tag in tags:
-                db_query = db_query.filter(
-                    JournalEntry.tags.ilike(f"%{tag}%")
-                )
+                db_query = db_query.filter(JournalEntry.tags.ilike(f"%{tag}%"))
         
-        # Date filtering
         if start_date:
             db_query = db_query.filter(JournalEntry.entry_date >= start_date)
         if end_date:
             db_query = db_query.filter(JournalEntry.entry_date <= end_date)
         
-        # Sentiment filtering
         if min_sentiment is not None:
             db_query = db_query.filter(JournalEntry.sentiment_score >= min_sentiment)
         if max_sentiment is not None:
             db_query = db_query.filter(JournalEntry.sentiment_score <= max_sentiment)
         
-        total = db_query.count()
-        entries = db_query.order_by(JournalEntry.entry_date.desc()).offset(skip).limit(limit).all()
+        count_stmt = select(func.count()).select_from(db_query.subquery())
+        count_result = await self.db.execute(count_stmt)
+        total = count_result.scalar_one()
         
-        # Attach dynamic fields
+        stmt = db_query.order_by(JournalEntry.entry_date.desc()).offset(skip).limit(limit)
+        result = await self.db.execute(stmt)
+        entries = result.scalars().all()
+        
         for entry in entries:
             entry.reading_time_mins = round(entry.word_count / 200, 2)
         
-        return entries, total
+        return list(entries), total
 
-    def get_analytics(self, current_user: User) -> dict:
-        """Get journal analytics for the current user using optimized DB queries."""
-        
-        # Base query filter
+    async def get_analytics(self, current_user: User) -> dict:
+        """Get journal analytics for the current user."""
         base_filter = and_(
             JournalEntry.user_id == current_user.id,
             JournalEntry.is_deleted == False
         )
         
-        # 1. Basic Stats (Count, Avg Sentiment, Max/Min)
-        stats = self.db.query(
+        # Basic Stats
+        stmt = select(
             func.count(JournalEntry.id).label('total'),
             func.avg(JournalEntry.sentiment_score).label('avg_sentiment'),
             func.avg(JournalEntry.stress_level).label('avg_stress'),
             func.avg(JournalEntry.sleep_quality).label('avg_sleep')
-        ).filter(base_filter).first()
+        ).filter(base_filter)
+        
+        result = await self.db.execute(stmt)
+        stats = result.first()
         
         total_entries = stats.total or 0
         avg_sentiment = stats.avg_sentiment or 50.0
@@ -394,20 +362,20 @@ class JournalService:
                 "entries_this_month": 0
             }
 
-        # 2. Trend Analysis (Last 7 days vs Previous 7 days)
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         week_ago_date = (now - timedelta(days=7)).strftime("%Y-%m-%d")
         two_weeks_ago_date = (now - timedelta(days=14)).strftime("%Y-%m-%d")
 
-        # Recent Average (Last 7 days)
-        recent_avg = self.db.query(func.avg(JournalEntry.sentiment_score))\
-            .filter(base_filter, JournalEntry.entry_date >= week_ago_date).scalar() or 50.0
+        # Trends
+        recent_avg_stmt = select(func.avg(JournalEntry.sentiment_score))\
+            .filter(base_filter, JournalEntry.entry_date >= week_ago_date)
+        recent_avg_result = await self.db.execute(recent_avg_stmt)
+        recent_avg = recent_avg_result.scalar() or 50.0
             
-        # Previous Average (7-14 days ago)
-        older_avg = self.db.query(func.avg(JournalEntry.sentiment_score))\
-            .filter(base_filter, 
-                   JournalEntry.entry_date >= two_weeks_ago_date,
-                   JournalEntry.entry_date < week_ago_date).scalar() or 50.0
+        older_avg_stmt = select(func.avg(JournalEntry.sentiment_score))\
+            .filter(base_filter, JournalEntry.entry_date >= two_weeks_ago_date, JournalEntry.entry_date < week_ago_date)
+        older_avg_result = await self.db.execute(older_avg_stmt)
+        older_avg = older_avg_result.scalar() or 50.0
         
         if recent_avg > older_avg + 5:
             trend = "improving"
@@ -416,23 +384,23 @@ class JournalService:
         else:
             trend = "stable"
 
-        # 3. Counts for periods
         month_ago_date = (now - timedelta(days=30)).strftime("%Y-%m-%d")
         
-        entries_this_week = self.db.query(func.count(JournalEntry.id))\
-            .filter(base_filter, JournalEntry.entry_date >= week_ago_date).scalar() or 0
+        week_count_stmt = select(func.count(JournalEntry.id)).filter(base_filter, JournalEntry.entry_date >= week_ago_date)
+        week_count_result = await self.db.execute(week_count_stmt)
+        entries_this_week = week_count_result.scalar() or 0
             
-        entries_this_month = self.db.query(func.count(JournalEntry.id))\
-            .filter(base_filter, JournalEntry.entry_date >= month_ago_date).scalar() or 0
+        month_count_stmt = select(func.count(JournalEntry.id)).filter(base_filter, JournalEntry.entry_date >= month_ago_date)
+        month_count_result = await self.db.execute(month_count_stmt)
+        entries_this_month = month_count_result.scalar() or 0
 
-        # 4. Most Common Tags (Still requires some string parsing due to JSON storage, 
-        # but we can at least limit the fetch if needed, 
-        # or accepting that for now we fetch all tags until we normalize the schema)
-        # For now, we fetch only the tags column to save memory
-        tag_entries = self.db.query(JournalEntry.tags).filter(base_filter).all()
+        # Tags
+        tags_stmt = select(JournalEntry.tags).filter(base_filter)
+        tags_result = await self.db.execute(tags_stmt)
+        tag_entries = tags_result.scalars().all()
         
         all_tags = []
-        for (t_str,) in tag_entries:
+        for t_str in tag_entries:
              all_tags.extend(self._load_tags(t_str))
              
         from collections import Counter
@@ -450,17 +418,16 @@ class JournalService:
             "entries_this_month": entries_this_month
         }
 
-    def export_entries(
+    async def export_entries(
         self,
         current_user: User,
-        format: str = "json",
+        export_format: str = "json",
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
         limit: int = 1000
     ) -> str:
-        """Export journal entries in specified format."""
-        
-        entries, _ = self.get_entries(
+        """Export journal entries."""
+        entries, _ = await self.get_entries(
             current_user,
             skip=0,
             limit=limit,
@@ -468,7 +435,7 @@ class JournalService:
             end_date=end_date
         )
         
-        if format == "json":
+        if export_format == "json":
             return json.dumps([
                 {
                     "id": e.id,
@@ -484,7 +451,7 @@ class JournalService:
                 for e in entries
             ], indent=2)
         
-        elif format == "txt":
+        elif export_format == "txt":
             lines = []
             for e in entries:
                 lines.append(f"=== {e.entry_date} ===")
@@ -500,8 +467,32 @@ class JournalService:
         else:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Unsupported format: {format}. Use 'json' or 'txt'"
+                detail=f"Unsupported format: {export_format}. Use 'json' or 'txt'"
             )
+
+
+# ============================================================================
+# AI Journal Prompts
+# ============================================================================
+
+JOURNAL_PROMPTS = [
+    {"id": 1, "category": "gratitude", "prompt": "What are three things you're grateful for today?", "description": "Focus on positive aspects of your day"},
+    {"id": 2, "category": "gratitude", "prompt": "Who made a positive impact on your life recently?", "description": "Reflect on supportive relationships"},
+    {"id": 3, "category": "reflection", "prompt": "What lesson did you learn this week?", "description": "Extract wisdom from recent experiences"},
+    {"id": 4, "category": "reflection", "prompt": "How have you grown as a person in the last month?", "description": "Track personal development"},
+    {"id": 5, "category": "goals", "prompt": "What's one small step you can take tomorrow toward your biggest goal?", "description": "Break down big goals into actions"},
+    {"id": 6, "category": "goals", "prompt": "What would you attempt if you knew you couldn't fail?", "description": "Explore ambitions without fear"},
+    {"id": 7, "category": "emotions", "prompt": "How are you really feeling right now? Describe it in detail.", "description": "Deep emotional check-in"},
+    {"id": 8, "category": "emotions", "prompt": "What's been weighing on your mind lately?", "description": "Release mental burdens"},
+    {"id": 9, "category": "creativity", "prompt": "If you could live anywhere for a year, where would you go and why?", "description": "Explore dreams and desires"},
+    {"id": 10, "category": "creativity", "prompt": "Describe your perfect day from start to finish.", "description": "Envision your ideal life"},
+]
+
+def get_journal_prompts(category: Optional[str] = None) -> List[dict]:
+    """Get journal prompts, optionally filtered by category."""
+    if category:
+        return [p for p in JOURNAL_PROMPTS if p["category"] == category]
+    return JOURNAL_PROMPTS
 
 
 # ============================================================================

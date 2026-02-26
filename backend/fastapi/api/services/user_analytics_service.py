@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, UTC
 from typing import List, Optional
-from sqlalchemy.orm import Session
-from sqlalchemy import func, desc
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import func, desc, select
 
 from app.models import Score, JournalEntry
 from ..schemas import (
@@ -13,53 +13,59 @@ from ..schemas import (
 
 class UserAnalyticsService:
     @classmethod
-    def get_dashboard_summary(cls, db: Session, user_id: int) -> UserAnalyticsSummary:
+    async def get_dashboard_summary(cls, db: AsyncSession, user_id: int) -> UserAnalyticsSummary:
         """
         Calculate headline stats for the user dashboard.
         Handles edge cases like zero data gracefully.
         """
         # 1. Basic Aggregates
-        stats = db.query(
+        stmt = select(
             func.count(Score.id),
             func.avg(Score.total_score),
             func.max(Score.total_score)
-        ).filter(Score.user_id == user_id).first()
+        ).filter(Score.user_id == user_id)
+        
+        result = await db.execute(stmt)
+        stats = result.first()
         
         total_exams = stats[0] or 0
         average_score = float(stats[1]) if stats[1] is not None else 0.0
         best_score = stats[2] or 0
         
         # 2. Latest Score
-        latest_exam = db.query(Score).filter(
+        latest_stmt = select(Score).filter(
             Score.user_id == user_id
-        ).order_by(Score.id.desc()).first()
+        ).order_by(Score.id.desc()).limit(1)
+        
+        latest_result = await db.execute(latest_stmt)
+        latest_exam = latest_result.scalar_one_or_none()
         
         latest_score = latest_exam.total_score if latest_exam else 0
         
         # 3. Consistency Score (Coefficient of Variation)
-        # CV = (StdDev / Mean) * 100. Lower is more consistent.
         consistency_score = None
         if total_exams >= 2 and average_score > 0:
-            # Check if database supports stddev, otherwise calc in python
-            # SQLite doesn't strictly support STDDEV in all versions, 
-            # so we fetch scores to be safe and portable.
-            scores = db.query(Score.total_score).filter(Score.user_id == user_id).all()
-            score_values = [s[0] for s in scores]
+            scores_stmt = select(Score.total_score).filter(Score.user_id == user_id)
+            scores_result = await db.execute(scores_stmt)
+            score_values = scores_result.scalars().all()
             
             import statistics
             if len(score_values) > 1:
-                stdev = statistics.stdev(score_values)
+                stdev = statistics.stdev([float(s) for s in score_values])
                 consistency_score = (stdev / average_score) * 100
         
         # 4. Sentiment Trend (Slope of last 5)
         sentiment_trend = "stable"
         if total_exams >= 3:
-            recent_scores = db.query(Score.total_score).filter(
+            recent_stmt = select(Score.total_score).filter(
                 Score.user_id == user_id
-            ).order_by(Score.id.desc()).limit(5).all()
+            ).order_by(Score.id.desc()).limit(5)
+            
+            recent_result = await db.execute(recent_stmt)
+            recent_scores = recent_result.scalars().all()
             
             # Reverse to chronological order [oldest ... newest]
-            recent_values = [s[0] for s in recent_scores][::-1]
+            recent_values = [float(s) for s in recent_scores][::-1]
             
             if len(recent_values) >= 2:
                 # Simple rise/fall check
@@ -70,10 +76,7 @@ class UserAnalyticsService:
                     sentiment_trend = "declining"
                     
         # 5. Streak (Consecutive days with activity)
-        # Using Journal or Exams
         streak_days = 0 
-        # (Simplified streak logic: check last login or just hardcode 0 for now as specified in plan)
-        # A real implementation would require complex date queries.
         
         return UserAnalyticsSummary(
             total_exams=total_exams,
@@ -86,17 +89,20 @@ class UserAnalyticsService:
         )
 
     @classmethod
-    def get_eq_trends(cls, db: Session, user_id: int, days: int = 30) -> List[EQScorePoint]:
+    async def get_eq_trends(cls, db: AsyncSession, user_id: int, days: int = 30) -> List[EQScorePoint]:
         """
         Get EQ score history for charting.
         """
         # Calculate cut-off date
         cutoff = datetime.now(UTC) - timedelta(days=days)
         
-        scores = db.query(Score).filter(
+        stmt = select(Score).filter(
             Score.user_id == user_id,
             Score.timestamp >= cutoff.isoformat()
-        ).order_by(Score.timestamp.asc()).all()
+        ).order_by(Score.timestamp.asc())
+        
+        result = await db.execute(stmt)
+        scores = result.scalars().all()
         
         return [
             EQScorePoint(
@@ -109,7 +115,7 @@ class UserAnalyticsService:
         ]
 
     @classmethod
-    def get_wellbeing_trends(cls, db: Session, user_id: int, days: int = 30) -> List[WellbeingPoint]:
+    async def get_wellbeing_trends(cls, db: AsyncSession, user_id: int, days: int = 30) -> List[WellbeingPoint]:
         """
         Get wellbeing metrics from Journal (Sleep, Stress, Energy).
         Handles sparse data by returning None for missing fields.
@@ -118,10 +124,13 @@ class UserAnalyticsService:
         # ISO format textual comparison works for YYYY-MM-DD
         cutoff_str = cutoff.strftime("%Y-%m-%d")
         
-        entries = db.query(JournalEntry).filter(
+        stmt = select(JournalEntry).filter(
             JournalEntry.user_id == user_id,
             JournalEntry.entry_date >= cutoff_str
-        ).order_by(JournalEntry.entry_date.asc()).all()
+        ).order_by(JournalEntry.entry_date.asc())
+        
+        result = await db.execute(stmt)
+        entries = result.scalars().all()
         
         points = []
         for entry in entries:

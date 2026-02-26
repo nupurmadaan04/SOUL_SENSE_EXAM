@@ -66,24 +66,14 @@ class UserFactory:
     _counter = 0
     
     @classmethod
-    def create(
+    async def create(
         cls,
         session=None,
         username: Optional[str] = None,
         password_hash: str = "test_hash_bcrypt",
         commit: bool = True
     ) -> User:
-        """Create a new test user.
-        
-        Args:
-            session: Database session (optional, for persistence)
-            username: Custom username (auto-generated if None)
-            password_hash: Password hash string
-            commit: Whether to commit to database
-            
-        Returns:
-            User instance
-        """
+        """Create a new test user."""
         cls._counter += 1
         user = User(
             username=username or f"test_user_{cls._counter}_{datetime.utcnow().timestamp():.0f}",
@@ -93,12 +83,12 @@ class UserFactory:
         if session:
             session.add(user)
             if commit:
-                session.commit()
+                await session.commit()
                 
         return user
     
     @classmethod
-    def create_with_profiles(
+    async def create_with_profiles(
         cls,
         session,
         username: Optional[str] = None,
@@ -108,21 +98,8 @@ class UserFactory:
         include_strengths: bool = True,
         include_emotional: bool = True
     ) -> User:
-        """Create a user with all associated profile records.
-        
-        Args:
-            session: Database session (required)
-            username: Custom username
-            include_settings: Include UserSettings
-            include_medical: Include MedicalProfile
-            include_personal: Include PersonalProfile
-            include_strengths: Include UserStrengths
-            include_emotional: Include UserEmotionalPatterns
-            
-        Returns:
-            User with all specified profiles attached
-        """
-        user = cls.create(session, username, commit=True)
+        """Create a user with all associated profile records."""
+        user = await cls.create(session, username, commit=True)
         
         if include_settings:
             settings = UserSettings(
@@ -182,8 +159,8 @@ class UserFactory:
             )
             session.add(emotional)
         
-        session.commit()
-        session.refresh(user)
+        await session.commit()
+        await session.refresh(user)
         return user
     
     @classmethod
@@ -196,7 +173,7 @@ class ScoreFactory:
     """Factory for creating test Score instances."""
     
     @classmethod
-    def create(
+    async def create(
         cls,
         session=None,
         user: Optional[User] = None,
@@ -212,25 +189,7 @@ class ScoreFactory:
         session_id: Optional[str] = None,
         commit: bool = True
     ) -> Score:
-        """Create a test score record.
-        
-        Args:
-            session: Database session
-            user: Associated User (optional)
-            username: Username string
-            total_score: EQ score (0-100)
-            sentiment_score: Sentiment analysis score (-1 to 1)
-            age: User's age
-            detailed_age_group: Age group classification
-            is_rushed: Rushed answering flag
-            is_inconsistent: Inconsistent answering flag
-            reflection_text: Open-ended reflection
-            timestamp: Custom timestamp (auto-generated if None)
-            commit: Whether to commit
-            
-        Returns:
-            Score instance
-        """
+        """Create a test score record."""
         score = Score(
             username=user.username if user else username,
             user_id=user.id if user else None,
@@ -248,12 +207,12 @@ class ScoreFactory:
         if session:
             session.add(score)
             if commit:
-                session.commit()
+                await session.commit()
                 
         return score
     
     @classmethod
-    def create_batch(
+    async def create_batch(
         cls,
         session,
         user: User,
@@ -261,18 +220,7 @@ class ScoreFactory:
         score_range: tuple = (50, 100),
         days_span: int = 30
     ) -> List[Score]:
-        """Create multiple scores with realistic distributions.
-        
-        Args:
-            session: Database session
-            user: Associated User
-            count: Number of scores to create
-            score_range: (min, max) score range
-            days_span: Number of days to spread scores over
-            
-        Returns:
-            List of Score instances
-        """
+        """Create multiple scores with realistic distributions."""
         scores = []
         np.random.seed(42)
         
@@ -282,7 +230,7 @@ class ScoreFactory:
             total_score = np.random.randint(score_range[0], score_range[1])
             sentiment = np.random.uniform(-0.5, 1.0)
             
-            score = cls.create(
+            score = await cls.create(
                 session=session,
                 user=user,
                 total_score=total_score,
@@ -292,7 +240,7 @@ class ScoreFactory:
             )
             scores.append(score)
         
-        session.commit()
+        await session.commit()
         return scores
 
 
@@ -300,7 +248,7 @@ class ResponseFactory:
     """Factory for creating test Response instances."""
     
     @classmethod
-    def create(
+    async def create(
         cls,
         session=None,
         user: Optional[User] = None,
@@ -326,29 +274,19 @@ class ResponseFactory:
         if session:
             session.add(response)
             if commit:
-                session.commit()
+                await session.commit()
                 
         return response
     
     @classmethod
-    def create_batch(
+    async def create_batch(
         cls,
         session,
         user: User,
         question_count: int = 10,
         response_pattern: str = "varied"
     ) -> List[Response]:
-        """Create a batch of responses simulating a complete assessment.
-        
-        Args:
-            session: Database session
-            user: Associated User
-            question_count: Number of questions answered
-            response_pattern: "varied", "consistent_high", "consistent_low", "random"
-            
-        Returns:
-            List of Response instances
-        """
+        """Create a batch of responses simulating a complete assessment."""
         responses = []
         np.random.seed(42)
         
@@ -362,7 +300,7 @@ class ResponseFactory:
             else:  # random
                 value = np.random.randint(1, 6)
             
-            response = cls.create(
+            response = await cls.create(
                 session=session,
                 user=user,
                 question_id=q_id,
@@ -371,7 +309,7 @@ class ResponseFactory:
             )
             responses.append(response)
         
-        session.commit()
+        await session.commit()
         return responses
 
 
@@ -387,7 +325,7 @@ class JournalEntryFactory:
     ]
     
     @classmethod
-    def create(
+    async def create(
         cls,
         session=None,
         username: str = "test_user",
@@ -419,7 +357,7 @@ class JournalEntryFactory:
         if session:
             session.add(entry)
             if commit:
-                session.commit()
+                await session.commit()
                 
         return entry
 
@@ -436,7 +374,7 @@ class QuestionFactory:
     ]
     
     @classmethod
-    def create(
+    async def create(
         cls,
         session=None,
         question_text: Optional[str] = None,
@@ -464,12 +402,12 @@ class QuestionFactory:
         if session:
             session.add(question)
             if commit:
-                session.commit()
+                await session.commit()
                 
         return question
     
     @classmethod
-    def create_question_bank(cls, session, count: int = 20) -> List[Question]:
+    async def create_question_bank(cls, session, count: int = 20) -> List[Question]:
         """Create a full question bank for testing."""
         questions = []
         
@@ -477,7 +415,7 @@ class QuestionFactory:
             idx = i % len(cls.SAMPLE_QUESTIONS)
             text, cat, diff = cls.SAMPLE_QUESTIONS[idx]
             
-            question = cls.create(
+            question = await cls.create(
                 session=session,
                 question_text=f"{text} (Q{i+1})",
                 category_id=cat,
@@ -486,7 +424,7 @@ class QuestionFactory:
             )
             questions.append(question)
         
-        session.commit()
+        await session.commit()
         return questions
 
 
@@ -703,45 +641,45 @@ class MockMLComponents:
 # ==============================================================================
 
 @pytest.fixture
-def sample_user(temp_db):
+async def sample_user(temp_db):
     """Create a basic test user."""
-    return UserFactory.create(session=temp_db)
+    return await UserFactory.create(session=temp_db)
 
 
 @pytest.fixture
-def sample_user_with_profiles(temp_db):
+async def sample_user_with_profiles(temp_db):
     """Create a test user with all associated profiles."""
-    return UserFactory.create_with_profiles(session=temp_db)
+    return await UserFactory.create_with_profiles(session=temp_db)
 
 
 @pytest.fixture
-def sample_score(temp_db, sample_user):
+async def sample_score(temp_db, sample_user):
     """Create a test score for the sample user."""
-    return ScoreFactory.create(session=temp_db, user=sample_user)
+    return await ScoreFactory.create(session=temp_db, user=sample_user)
 
 
 @pytest.fixture
-def sample_scores_batch(temp_db, sample_user):
+async def sample_scores_batch(temp_db, sample_user):
     """Create a batch of 10 test scores."""
-    return ScoreFactory.create_batch(session=temp_db, user=sample_user, count=10)
+    return await ScoreFactory.create_batch(session=temp_db, user=sample_user, count=10)
 
 
 @pytest.fixture
-def sample_responses(temp_db, sample_user):
+async def sample_responses(temp_db, sample_user):
     """Create a batch of test responses."""
-    return ResponseFactory.create_batch(session=temp_db, user=sample_user)
+    return await ResponseFactory.create_batch(session=temp_db, user=sample_user)
 
 
 @pytest.fixture
-def sample_journal_entry(temp_db, sample_user):
+async def sample_journal_entry(temp_db, sample_user):
     """Create a test journal entry."""
-    return JournalEntryFactory.create(session=temp_db, username=sample_user.username)
+    return await JournalEntryFactory.create(session=temp_db, username=sample_user.username)
 
 
 @pytest.fixture
-def sample_question_bank(temp_db):
+async def sample_question_bank(temp_db):
     """Create a test question bank with 20 questions."""
-    return QuestionFactory.create_question_bank(session=temp_db, count=20)
+    return await QuestionFactory.create_question_bank(session=temp_db, count=20)
 
 
 @pytest.fixture
@@ -791,45 +729,44 @@ def mock_risk_predictor():
 # ==============================================================================
 
 @pytest.fixture
-def isolated_db():
-    """Create a completely isolated in-memory database.
+async def isolated_db():
+    """Create a completely isolated in-memory database."""
+    from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
     
-    This creates a fresh database for each test, independent of other fixtures.
-    Useful when you need complete isolation without the temp_db patching.
-    """
-    engine = create_engine('sqlite:///:memory:')
-    Base.metadata.create_all(engine)
-    Session = sessionmaker(bind=engine)
-    session = Session()
-    yield session
-    session.close()
-    engine.dispose()
+    engine = create_async_engine('sqlite+aiosqlite:///:memory:')
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+        
+    TestSessionLocal = async_sessionmaker(
+        autocommit=False, 
+        autoflush=False, 
+        bind=engine,
+        class_=AsyncSession,
+        expire_on_commit=False
+    )
+    
+    async with TestSessionLocal() as session:
+        yield session
+        
+    await engine.dispose()
 
 
 @pytest.fixture
-def populated_db(isolated_db):
-    """Create an isolated database with sample data pre-populated.
-    
-    Includes:
-    - 3 users with full profiles
-    - 10 scores per user
-    - 10 responses per user
-    - 5 journal entries per user
-    - 20 questions
-    """
+async def populated_db(isolated_db):
+    """Create an isolated database with sample data pre-populated."""
     session = isolated_db
     
     # Create question bank first
-    QuestionFactory.create_question_bank(session, count=20)
+    await QuestionFactory.create_question_bank(session, count=20)
     
     # Create 3 users with full data
     for i in range(3):
-        user = UserFactory.create_with_profiles(session, username=f"populated_user_{i}")
-        ScoreFactory.create_batch(session, user, count=10)
-        ResponseFactory.create_batch(session, user, question_count=10)
+        user = await UserFactory.create_with_profiles(session, username=f"populated_user_{i}")
+        await ScoreFactory.create_batch(session, user, count=10)
+        await ResponseFactory.create_batch(session, user, question_count=10)
         
         for _ in range(5):
-            JournalEntryFactory.create(session, username=user.username, commit=False)
+            await JournalEntryFactory.create(session, username=user.username, commit=False)
     
-    session.commit()
+    await session.commit()
     yield session

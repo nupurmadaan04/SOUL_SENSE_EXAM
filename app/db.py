@@ -7,6 +7,7 @@ from typing import Iterator, Dict, Any, Optional, Generator
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import scoped_session, sessionmaker, Session
 from sqlalchemy.engine import Engine
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.pool import StaticPool
 
@@ -30,12 +31,31 @@ engine = create_engine(
 )
 SessionLocal = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
 
+# Async support
+async_engine = create_async_engine(
+    DATABASE_URL.replace("sqlite:///", "sqlite+aiosqlite:///"),
+    echo=False,
+    poolclass=StaticPool,
+    connect_args={"check_same_thread": False}
+)
+AsyncSessionLocal = async_sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    bind=async_engine,
+    class_=AsyncSession,
+    expire_on_commit=False
+)
+
 def get_engine() -> Engine:
     return engine
 
 def get_session() -> Session:
     """Get a new database session"""
     return SessionLocal()
+
+async def get_async_session() -> AsyncSession:
+    """Get a new async database session"""
+    return AsyncSessionLocal()
 
 @contextmanager
 def safe_db_context() -> Generator[Session, None, None]:
@@ -54,6 +74,26 @@ def safe_db_context() -> Generator[Session, None, None]:
         raise DatabaseError("An unexpected database error occurred.", original_exception=e)
     finally:
         session.close()
+
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def async_db_context() -> AsyncSession:
+    """Async context manager for safe database operations"""
+    async with AsyncSessionLocal() as session:
+        try:
+            yield session
+            await session.commit()
+        except SQLAlchemyError as e:
+            await session.rollback()
+            logger.error(f"Database async error: {str(e)}", exc_info=True)
+            raise DatabaseError("A database async error occurred.", original_exception=e)
+        except Exception as e:
+            await session.rollback()
+            logger.error(f"Unexpected error in DB async context: {str(e)}", exc_info=True)
+            raise DatabaseError("An unexpected database async error occurred.", original_exception=e)
+        finally:
+            await session.close()
 
 def check_db_state() -> bool:
     """Check and create database tables if needed"""

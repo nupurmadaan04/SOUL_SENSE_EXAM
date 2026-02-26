@@ -5,7 +5,7 @@ Provides authenticated CRUD endpoints for user management.
 """
 
 from typing import Annotated, List
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from ..schemas import (
@@ -26,22 +26,14 @@ from ..root_models import User
 router = APIRouter(tags=["Users"])
 
 
-def get_user_service():
+async def get_user_service(db: Annotated[AsyncSession, Depends(get_db)]):
     """Dependency to get UserService with database session."""
-    db = next(get_db())
-    try:
-        yield UserService(db)
-    finally:
-        db.close()
+    return UserService(db)
 
 
-def get_profile_service():
+async def get_profile_service(db: Annotated[AsyncSession, Depends(get_db)]):
     """Dependency to get ProfileService with database session."""
-    db = next(get_db())
-    try:
-        yield ProfileService(db)
-    finally:
-        db.close()
+    return ProfileService(db)
 
 
 # ============================================================================
@@ -76,7 +68,7 @@ async def get_current_user_details(
     
     **Authentication Required**
     """
-    detail = user_service.get_user_detail(current_user.id)
+    detail = await user_service.get_user_detail(current_user.id)
     return UserDetail(**detail)
 
 
@@ -95,7 +87,7 @@ async def get_complete_user_profile(
     
     **Authentication Required**
     """
-    return profile_service.get_complete_profile(current_user.id)
+    return await profile_service.get_complete_profile(current_user.id)
 
 
 @router.put("/me", response_model=UserResponse, summary="Update Current User")
@@ -113,7 +105,7 @@ async def update_current_user(
     
     **Authentication Required**
     """
-    updated_user = user_service.update_user(
+    updated_user = await user_service.update_user(
         user_id=current_user.id,
         username=user_update.username,
         password=user_update.password
@@ -141,14 +133,14 @@ async def delete_current_user(
     
     **Authentication Required**
     """
-    user_service.delete_user(current_user.id)
+    await user_service.delete_user(current_user.id)
     return None
 
 
 @router.get("/me/audit-logs", response_model=List[AuditLogResponse], summary="Get Current User Audit Logs")
 async def get_my_audit_logs(
     current_user: Annotated[User, Depends(get_current_user)],
-    db: Annotated[Session, Depends(get_db)],
+    db: Annotated[AsyncSession, Depends(get_db)],
     page: int = 1,
     per_page: int = 20
 ):
@@ -158,7 +150,7 @@ async def get_my_audit_logs(
     if per_page > 50:
         per_page = 50
         
-    return AuditService.get_user_logs(current_user.id, page=page, per_page=per_page, db_session=db)
+    return await AuditService.get_user_logs(current_user.id, page=page, per_page=per_page, db_session=db)
 
 
 # ============================================================================
@@ -187,7 +179,7 @@ async def list_users(
     if limit > 100:
         limit = 100
         
-    users = user_service.get_all_users(skip=skip, limit=limit)
+    users = await user_service.get_all_users(skip=skip, limit=limit)
     return [
         UserResponse(
             id=user.id,
@@ -213,7 +205,7 @@ async def get_user(
     
     **Authentication Required**
     """
-    user = user_service.get_user_by_id(user_id)
+    user = await user_service.get_user_by_id(user_id)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -242,5 +234,5 @@ async def get_user_detail(
     
     **Authentication Required**
     """
-    detail = user_service.get_user_detail(user_id)
+    detail = await user_service.get_user_detail(user_id)
     return UserDetail(**detail)

@@ -29,8 +29,7 @@ Usage:
 import pytest
 import os
 import sys
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.pool import StaticPool
 from backend.fastapi.api.root_models import Base
 import backend.fastapi.api.root_models as backend_models
@@ -64,69 +63,104 @@ from tests.fixtures import (
 # --- DATABASE FIXTURES ---
 
 @pytest.fixture(scope="function")
-def temp_db(monkeypatch):
+async def temp_db(monkeypatch):
     """
     Creates a temporary in-memory database for each test.
-    Patches app.db.SessionLocal and app.db.engine to use this isolate DB.
+    Patches backend.fastapi.api.services.db_service.AsyncSessionLocal to use this isolate DB.
     """
-    # Create valid in-memory DB URL for SQLite
-    test_url = "sqlite:///:memory:"
+    # Create valid in-memory DB URL for SQLite (async version)
+    test_url = "sqlite+aiosqlite:///:memory:"
     
     # Create engine with StaticPool for in-memory DB in multi-threaded tests
-    test_engine = create_engine(
+    test_engine = create_async_engine(
         test_url, 
         connect_args={"check_same_thread": False},
         poolclass=StaticPool
     )
     
-    # Create tables on both Base instances (if they differ due to importlib)
-    Base.metadata.create_all(bind=test_engine)
-    if hasattr(backend_models, "Base") and backend_models.Base is not Base:
-        backend_models.Base.metadata.create_all(bind=test_engine)
+    # Create tables
+    async with test_engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+        if hasattr(backend_models, "Base") and backend_models.Base is not Base:
+            await conn.run_sync(backend_models.Base.metadata.create_all)
     
-    # Create session factory
-    TestSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+    # Create async session factory
+    TestSessionLocal = async_sessionmaker(
+        autocommit=False, 
+        autoflush=False, 
+        bind=test_engine,
+        class_=AsyncSession,
+        expire_on_commit=False
+    )
     
-    # Monkeypatch the REAL app.db objects
-    monkeypatch.setattr("app.db.engine", test_engine)
-    monkeypatch.setattr("app.db.SessionLocal", TestSessionLocal)
-    monkeypatch.setattr("app.db.get_session", lambda: TestSessionLocal())
+    # Create the shared session for this test
+    shared_session = TestSessionLocal()
     
-    # Mock raw sqlite connection for legacy queries
-    def mock_get_conn():
-        return test_engine.raw_connection()
-    monkeypatch.setattr("app.db.get_connection", mock_get_conn)
-    
-    # Patch get_session in consuming modules that used 'from app.db import get_session'
+    class AsyncSessionProxy:
+        """A proxy that prevents closing the shared session in 'async with' blocks."""
+        def __init__(self, session):
+            self._session = session
+        async def __aenter__(self):
+            return self._session
+        async def __aexit__(self, exc_type, exc_val, exc_tb):
+            # Do nothing to keep the shared session open
+            pass
+        def __getattr__(self, name):
+            return getattr(self._session, name)
+        def __aiter__(self):
+             return self._session.__aiter__()
+
+    # Patch app.db (Main application)
     try:
-        monkeypatch.setattr("app.questions.get_session", lambda: TestSessionLocal())
-    except Exception:
-        pass
+        import app.db as app_db
+        monkeypatch.setattr(app_db, "async_engine", test_engine)
+        monkeypatch.setattr(app_db, "AsyncSessionLocal", TestSessionLocal)
         
-    try:
-        monkeypatch.setattr("app.ml.clustering.get_session", lambda: TestSessionLocal())
-    except Exception:
+        # Override get_async_session to return the proxy
+        async def override_get_async_session():
+            return AsyncSessionProxy(shared_session)
+        
+        monkeypatch.setattr(app_db, "get_async_session", override_get_async_session)
+    except ImportError:
         pass
-    
+
+    # Patch app.auth.auth
+    try:
+        import app.auth.auth as app_auth
+        monkeypatch.setattr(app_auth, "get_async_session", override_get_async_session)
+    except ImportError:
+        pass
+
     # Patch backend db_service (FastAPI)
     try:
         import backend.fastapi.api.services.db_service as backend_db
         monkeypatch.setattr(backend_db, "engine", test_engine)
-        monkeypatch.setattr(backend_db, "SessionLocal", TestSessionLocal)
+        monkeypatch.setattr(backend_db, "AsyncSessionLocal", TestSessionLocal)
+        
+        # Also patch get_db dependency
+        async def override_get_db():
+            # For FastAPI dependency, we might want a nested session or just the shared one
+            # Given these are integration tests, using the shared one is usually safer for state checks
+            yield shared_session
+        
+        monkeypatch.setattr(backend_db, "get_db", override_get_db)
     except ImportError:
         pass
     
     # Clear application caches (memory + disk)
-    from app.questions import clear_all_caches
-    clear_all_caches()
+    try:
+        from app.questions import clear_all_caches
+        clear_all_caches()
+    except ImportError:
+        pass
 
-    # Provide session to test
-    session = TestSessionLocal()
-    yield session
+    # Provide shared session to test
+    try:
+        yield shared_session
+    finally:
+        await shared_session.close()
     
-    # Cleanup
-    session.close()
-    test_engine.dispose()
+    await test_engine.dispose()
 
 
 # --- UI MOCKING FIXTURES ---

@@ -1,13 +1,7 @@
-"""
-Settings Synchronization Service
-
-Provides key-value based settings storage with conflict-safe updates using optimistic locking.
-Implements Issue #396: Create Settings Synchronization API
-"""
-
 from typing import List, Optional, Tuple, Any, Dict
-from sqlalchemy.orm import Session
-from datetime import datetime
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, delete
+from datetime import datetime, UTC
 import json
 
 # Import models from root_models module (handles namespace collision)
@@ -15,9 +9,9 @@ from ..root_models import UserSyncSetting
 
 
 class SettingsSyncService:
-    """Service for managing user sync settings with conflict detection."""
+    """Service for managing user sync settings with conflict detection (Async)."""
     
-    def __init__(self, db: Session):
+    def __init__(self, db: AsyncSession):
         self.db = db
     
     def _serialize_value(self, value: Any) -> str:
@@ -33,37 +27,28 @@ class SettingsSyncService:
         except (json.JSONDecodeError, TypeError):
             return value
     
-    def get_setting(self, user_id: int, key: str) -> Optional[UserSyncSetting]:
+    async def get_setting(self, user_id: int, key: str) -> Optional[UserSyncSetting]:
         """
         Get a single setting by key for a user.
-        
-        Args:
-            user_id: User ID
-            key: Setting key
-            
-        Returns:
-            UserSyncSetting or None if not found
         """
-        return self.db.query(UserSyncSetting).filter(
+        stmt = select(UserSyncSetting).filter(
             UserSyncSetting.user_id == user_id,
             UserSyncSetting.key == key
-        ).first()
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
     
-    def get_all_settings(self, user_id: int) -> List[UserSyncSetting]:
+    async def get_all_settings(self, user_id: int) -> List[UserSyncSetting]:
         """
         Get all settings for a user.
-        
-        Args:
-            user_id: User ID
-            
-        Returns:
-            List of UserSyncSetting objects
         """
-        return self.db.query(UserSyncSetting).filter(
+        stmt = select(UserSyncSetting).filter(
             UserSyncSetting.user_id == user_id
-        ).order_by(UserSyncSetting.key).all()
+        ).order_by(UserSyncSetting.key)
+        result = await self.db.execute(stmt)
+        return result.scalars().all()
     
-    def upsert_setting(
+    async def upsert_setting(
         self, 
         user_id: int, 
         key: str, 
@@ -72,19 +57,11 @@ class SettingsSyncService:
     ) -> Tuple[UserSyncSetting, bool, Optional[str]]:
         """
         Create or update a setting with optimistic locking.
-        
-        Args:
-            user_id: User ID
-            key: Setting key
-            value: Setting value (will be JSON serialized)
-            expected_version: If provided, update only if current version matches
-            
-        Returns:
-            Tuple of (setting, success, error_message)
-            - success is False if there's a version conflict
         """
-        existing = self.get_setting(user_id, key)
+        existing = await self.get_setting(user_id, key)
         serialized_value = self._serialize_value(value)
+        
+        now_iso = datetime.now(UTC).isoformat()
         
         if existing:
             # Check for version conflict
@@ -94,9 +71,9 @@ class SettingsSyncService:
             # Update existing setting
             existing.value = serialized_value
             existing.version += 1
-            existing.updated_at = datetime.utcnow().isoformat()
-            self.db.commit()
-            self.db.refresh(existing)
+            existing.updated_at = now_iso
+            await self.db.commit()
+            await self.db.refresh(existing)
             return existing, True, None
         else:
             # Create new setting
@@ -105,62 +82,43 @@ class SettingsSyncService:
                 key=key,
                 value=serialized_value,
                 version=1,
-                created_at=datetime.utcnow().isoformat(),
-                updated_at=datetime.utcnow().isoformat()
+                created_at=now_iso,
+                updated_at=now_iso
             )
             self.db.add(new_setting)
-            self.db.commit()
-            self.db.refresh(new_setting)
+            await self.db.commit()
+            await self.db.refresh(new_setting)
             return new_setting, True, None
     
-    def delete_setting(self, user_id: int, key: str) -> bool:
+    async def delete_setting(self, user_id: int, key: str) -> bool:
         """
         Delete a setting by key.
-        
-        Args:
-            user_id: User ID
-            key: Setting key
-            
-        Returns:
-            True if deleted, False if not found
         """
-        existing = self.get_setting(user_id, key)
+        existing = await self.get_setting(user_id, key)
         if existing:
-            self.db.delete(existing)
-            self.db.commit()
+            await self.db.delete(existing)
+            await self.db.commit()
             return True
         return False
     
-    def batch_get_settings(self, user_id: int, keys: List[str]) -> List[UserSyncSetting]:
+    async def batch_get_settings(self, user_id: int, keys: List[str]) -> List[UserSyncSetting]:
         """
         Get multiple settings by keys.
-        
-        Args:
-            user_id: User ID
-            keys: List of setting keys
-            
-        Returns:
-            List of UserSyncSetting objects (may be fewer than keys if some don't exist)
         """
-        return self.db.query(UserSyncSetting).filter(
+        stmt = select(UserSyncSetting).filter(
             UserSyncSetting.user_id == user_id,
             UserSyncSetting.key.in_(keys)
-        ).all()
+        )
+        result = await self.db.execute(stmt)
+        return result.scalars().all()
     
-    def batch_upsert_settings(
+    async def batch_upsert_settings(
         self, 
         user_id: int, 
         settings: List[Dict[str, Any]]
     ) -> Tuple[List[UserSyncSetting], List[str]]:
         """
         Batch upsert settings. Continues on conflict, recording conflicting keys.
-        
-        Args:
-            user_id: User ID
-            settings: List of dicts with 'key' and 'value' fields
-            
-        Returns:
-            Tuple of (successful settings, list of conflicting keys)
         """
         successful = []
         conflicts = []
@@ -173,7 +131,7 @@ class SettingsSyncService:
             if not key:
                 continue
             
-            setting, success, error = self.upsert_setting(
+            setting, success, error = await self.upsert_setting(
                 user_id=user_id,
                 key=key,
                 value=value,
@@ -187,18 +145,13 @@ class SettingsSyncService:
         
         return successful, conflicts
     
-    def delete_all_settings(self, user_id: int) -> int:
+    async def delete_all_settings(self, user_id: int) -> int:
         """
         Delete all settings for a user.
-        
-        Args:
-            user_id: User ID
-            
-        Returns:
-            Number of settings deleted
         """
-        count = self.db.query(UserSyncSetting).filter(
+        stmt = delete(UserSyncSetting).filter(
             UserSyncSetting.user_id == user_id
-        ).delete()
-        self.db.commit()
-        return count
+        )
+        result = await self.db.execute(stmt)
+        await self.db.commit()
+        return result.rowcount

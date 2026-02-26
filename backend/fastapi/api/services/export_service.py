@@ -3,10 +3,11 @@ import json
 import csv
 import uuid
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from typing import List, Optional, Tuple, Dict, Any
 from pathlib import Path
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from ..root_models import User, Score
 from app.utils.file_validation import sanitize_filename, validate_file_path
 from app.utils.atomic import atomic_write
@@ -15,12 +16,11 @@ logger = logging.getLogger(__name__)
 
 class ExportService:
     """
-    Service for securely exporting user data.
+    Service for securely exporting user data (Async).
     Handles data fetching, formatting, injection prevention, and safe file writing.
     """
     
     # Base directory for exports - relative to backend root or configured path
-    # For now, we use a directory inside the backend structure
     EXPORT_DIR = Path("exports")
 
     @classmethod
@@ -49,7 +49,7 @@ class ExportService:
         """
         cls.ensure_export_dir()
         
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
         short_id = uuid.uuid4().hex[:8]
         safe_username = sanitize_filename(username)
         
@@ -66,12 +66,14 @@ class ExportService:
         )
 
     @staticmethod
-    def _fetch_user_scores(db: Session, user_id: int) -> List[Score]:
+    async def _fetch_user_scores(db: AsyncSession, user_id: int) -> List[Score]:
         """Fetch all scores for a user."""
-        return db.query(Score).filter(Score.user_id == user_id).order_by(Score.timestamp.desc()).all()
+        stmt = select(Score).filter(Score.user_id == user_id).order_by(Score.timestamp.desc())
+        result = await db.execute(stmt)
+        return result.scalars().all()
 
     @classmethod
-    def generate_export(cls, db: Session, user: User, format: str) -> Tuple[str, str]:
+    async def generate_export(cls, db: AsyncSession, user: User, format: str) -> Tuple[str, str]:
         """
         Generates an export file for the given user in the specified format.
         
@@ -90,10 +92,10 @@ class ExportService:
         if format.lower() not in ('json', 'csv'):
             raise ValueError(f"Invalid format '{format}'. Supported: json, csv")
 
-        scores = cls._fetch_user_scores(db, user.id)
+        scores = await cls._fetch_user_scores(db, user.id)
         
         # We use the short_id part of the filename as the Job ID for now
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
         job_id = uuid.uuid4().hex[:8]
         safe_username = sanitize_filename(user.username)
         ext = format.lower()
@@ -138,7 +140,7 @@ class ExportService:
             "meta": {
                 "username": user.username,
                 "user_id": user.id,
-                "exported_at": datetime.now().isoformat(),
+                "exported_at": datetime.now(UTC).isoformat(),
                 "record_count": len(scores),
                 "version": "1.0"
             },
@@ -147,10 +149,7 @@ class ExportService:
                     "timestamp": s.timestamp,
                     "total_score": s.total_score,
                     "sentiment_score": s.sentiment_score,
-                    "reflection_text": s.reflection_text, # Decryption handled at display layer usually, keeping raw/encrypted here? 
-                                                          # Plan implies data ownership, if encrypted, user can't read.
-                                                          # TODO: Consider decryption if we have the key access here.
-                                                          # For now, export as stored (raw/encrypted).
+                    "reflection_text": s.reflection_text,
                     "is_rushed": s.is_rushed,
                     "is_inconsistent": s.is_inconsistent,
                     "age_group_snapshot": s.detailed_age_group
@@ -190,10 +189,6 @@ class ExportService:
         Verify that a user is authorized to access the given filename.
         Strict ownership check based on filename convention: username_...
         """
-        # 1. Sanity check: Filename must exist in export dir 
-        # (This prevents simple spoofing if we just checked string logic)
-        # But for access control, logic check is primary.
-        
         safe_username = sanitize_filename(user.username)
         # Check if filename starts with safe_username + "_"
         if not filename.startswith(f"{safe_username}_"):
@@ -209,12 +204,12 @@ class ExportService:
             if not cls.EXPORT_DIR.exists():
                 return
                 
-            cutoff = datetime.now() - timedelta(hours=max_age_hours)
+            cutoff = datetime.now(UTC) - timedelta(hours=max_age_hours)
             
             for p in cls.EXPORT_DIR.glob("*"):
                 if p.is_file():
                     try:
-                        mtime = datetime.fromtimestamp(p.stat().st_mtime)
+                        mtime = datetime.fromtimestamp(p.stat().st_mtime, UTC)
                         if mtime < cutoff:
                             p.unlink()
                             logger.info(f"Deleted old export: {p.name}")

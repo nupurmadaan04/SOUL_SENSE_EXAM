@@ -2,7 +2,8 @@ import logging
 import uuid
 from datetime import datetime, UTC
 from typing import List, Tuple
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func
 from ..schemas import ExamResponseCreate, ExamResultCreate
 from ..root_models import User, Score, Response
 from .db_service import get_db
@@ -17,39 +18,39 @@ logger = logging.getLogger(__name__)
 
 class ExamService:
     """
-    Service for handling Exam write operations via API.
+    Service for handling Exam write operations via API (Async).
     Uses 'Storage-First' approach: Client calculates, API validates and saves.
     """
 
     @staticmethod
-    def start_exam(db: Session, user: User):
+    async def start_exam(db: AsyncSession, user: User):
         """Standardizes session initiation and returns a new session_id."""
         session_id = str(uuid.uuid4())
         logger.info(f"Exam session started for user_id={user.id}: {session_id}")
         return session_id
 
     @staticmethod
-    def save_response(db: Session, user: User, session_id: str, data: ExamResponseCreate):
+    async def save_response(db: AsyncSession, user: User, session_id: str, data: ExamResponseCreate):
         """Saves a single question response linked to the user and session."""
         try:
             new_response = Response(
                 username=user.username,
                 question_id=data.question_id,
                 response_value=data.value,
-                age_group=data.age_group,
+                detailed_age_group=getattr(data, "age_group", None), # Usegetattr for safety
                 session_id=session_id,
                 timestamp=datetime.now(UTC).isoformat()
             )
             db.add(new_response)
-            db.commit()
+            await db.commit()
             return True
         except Exception as e:
             logger.error(f"Failed to save response for user_id={user.id}: {e}")
-            db.rollback()
+            await db.rollback()
             raise e
 
     @staticmethod
-    def save_score(db: Session, user: User, session_id: str, data: ExamResultCreate):
+    async def save_score(db: AsyncSession, user: User, session_id: str, data: ExamResultCreate):
         """
         Saves the final exam score.
         Encrypts reflection_text if crypto is available.
@@ -62,9 +63,6 @@ class ExamService:
                     reflection = EncryptionManager.encrypt(reflection)
                 except Exception as ce:
                     logger.error(f"Encryption failed for reflection: {ce}")
-                    # Fallback to plain text or empty depending on policy? 
-                    # For now, log error and save plain (or maybe fail safe)
-                    # Let's fallback to plain but log warning
                     pass
 
             new_score = Score(
@@ -81,14 +79,14 @@ class ExamService:
                 session_id=session_id
             )
             db.add(new_score)
-            db.commit()
-            db.refresh(new_score)
+            await db.commit()
+            await db.refresh(new_score)
             
-            # Trigger Gamification
+            # Trigger Gamification (Assuming these are also made async)
             try:
-                GamificationService.award_xp(db, user.id, 100, "Assessment completion")
-                GamificationService.update_streak(db, user.id, "assessment")
-                GamificationService.check_achievements(db, user.id, "assessment")
+                await GamificationService.award_xp(db, user.id, 100, "Assessment completion")
+                await GamificationService.update_streak(db, user.id, "assessment")
+                await GamificationService.check_achievements(db, user.id, "assessment")
             except Exception as e:
                 logger.error(f"Gamification update failed for user_id={user.id}: {e}")
 
@@ -97,14 +95,23 @@ class ExamService:
             
         except Exception as e:
             logger.error(f"Failed to save exam score for user_id={user.id}: {e}")
-            db.rollback()
+            await db.rollback()
             raise e
 
     @staticmethod
-    def get_history(db: Session, user: User, skip: int = 0, limit: int = 10) -> Tuple[List[Score], int]:
+    async def get_history(db: AsyncSession, user: User, skip: int = 0, limit: int = 10) -> Tuple[List[Score], int]:
         """Retrieves paginated exam history for the specified user."""
-        limit = min(limit, 100)  # Guard: cap at 100 to prevent unbounded queries
-        query = db.query(Score).filter(Score.user_id == user.id)
-        total = query.count()
-        results = query.order_by(Score.timestamp.desc()).offset(skip).limit(limit).all()
+        limit = min(limit, 100)
+        query = select(Score).filter(Score.user_id == user.id)
+        
+        # Get total count
+        count_query = select(func.count()).select_from(query.subquery())
+        total_result = await db.execute(count_query)
+        total = total_result.scalar_one()
+        
+        # Get results
+        query = query.order_by(Score.timestamp.desc()).offset(skip).limit(limit)
+        result = await db.execute(query)
+        results = result.scalars().all()
+        
         return results, total

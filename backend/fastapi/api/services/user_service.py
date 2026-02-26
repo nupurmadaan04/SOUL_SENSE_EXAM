@@ -7,7 +7,9 @@ Handles CRUD operations for users with proper authorization and validation.
 from typing import Optional, List, Tuple
 from datetime import datetime, timedelta, UTC
 
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func
+from sqlalchemy.orm import selectinload
 from sqlalchemy.exc import IntegrityError
 from fastapi import HTTPException, status
 
@@ -24,31 +26,39 @@ def hash_password(password: str) -> str:
 class UserService:
     """Service for managing user CRUD operations."""
 
-    def __init__(self, db: Session):
+    def __init__(self, db: AsyncSession):
         self.db = db
 
-    def get_user_by_id(self, user_id: int, include_deleted: bool = False) -> Optional[User]:
-        """Retrieve a user by ID."""
-        query = self.db.query(User).filter(User.id == user_id)
+    async def get_user_by_id(self, user_id: int, include_deleted: bool = False, eager_load: Optional[List] = None) -> Optional[User]:
+        """Retrieve a user by ID with optional eager loading."""
+        stmt = select(User).filter(User.id == user_id)
+        if eager_load:
+            for attr in eager_load:
+                stmt = stmt.options(selectinload(attr))
+        
         if not include_deleted:
-            query = query.filter(User.is_deleted == False)
-        return query.first()
+            stmt = stmt.filter(User.is_deleted == False)
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
 
-    def get_user_by_username(self, username: str, include_deleted: bool = False) -> Optional[User]:
+    async def get_user_by_username(self, username: str, include_deleted: bool = False) -> Optional[User]:
         """Retrieve a user by username."""
-        query = self.db.query(User).filter(User.username == username)
+        stmt = select(User).filter(User.username == username)
         if not include_deleted:
-            query = query.filter(User.is_deleted == False)
-        return query.first()
+            stmt = stmt.filter(User.is_deleted == False)
+        result = await self.db.execute(stmt)
+        return result.scalar_one_or_none()
 
-    def get_all_users(self, skip: int = 0, limit: int = 100, include_deleted: bool = False) -> List[User]:
+    async def get_all_users(self, skip: int = 0, limit: int = 100, include_deleted: bool = False) -> List[User]:
         """Retrieve all users with pagination."""
-        query = self.db.query(User)
+        stmt = select(User)
         if not include_deleted:
-            query = query.filter(User.is_deleted == False)
-        return query.offset(skip).limit(limit).all()
+            stmt = stmt.filter(User.is_deleted == False)
+        stmt = stmt.offset(skip).limit(limit)
+        result = await self.db.execute(stmt)
+        return result.scalars().all()
 
-    def create_user(self, username: str, password: str) -> User:
+    async def create_user(self, username: str, password: str) -> User:
         """
         Create a new user with hashed password.
         
@@ -66,7 +76,7 @@ class UserService:
         username = username.strip().lower()
 
         # Check if username already exists (including soft-deleted for collision prevention)
-        if self.get_user_by_username(username, include_deleted=True):
+        if await self.get_user_by_username(username, include_deleted=True):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Username already registered"
@@ -83,17 +93,17 @@ class UserService:
 
         try:
             self.db.add(new_user)
-            self.db.commit()
-            self.db.refresh(new_user)
+            await self.db.commit()
+            await self.db.refresh(new_user)
             return new_user
         except IntegrityError:
-            self.db.rollback()
+            await self.db.rollback()
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Failed to create user"
             )
 
-    def update_user(self, user_id: int, username: Optional[str] = None, password: Optional[str] = None) -> User:
+    async def update_user(self, user_id: int, username: Optional[str] = None, password: Optional[str] = None) -> User:
         """
         Update user information.
         
@@ -108,7 +118,7 @@ class UserService:
         Raises:
             HTTPException: If user not found or username conflict
         """
-        user = self.get_user_by_id(user_id)
+        user = await self.get_user_by_id(user_id)
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -120,7 +130,7 @@ class UserService:
             username = username.strip().lower()
             if username != user.username:
                 # Check if new username is already taken (including soft-deleted)
-                if self.get_user_by_username(username, include_deleted=True):
+                if await self.get_user_by_username(username, include_deleted=True):
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
                         detail="Username already taken"
@@ -132,17 +142,17 @@ class UserService:
             user.password_hash = hash_password(password)
 
         try:
-            self.db.commit()
-            self.db.refresh(user)
+            await self.db.commit()
+            await self.db.refresh(user)
             return user
         except IntegrityError:
-            self.db.rollback()
+            await self.db.rollback()
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Failed to update user"
             )
 
-    def delete_user(self, user_id: int, permanent: bool = False) -> bool:
+    async def delete_user(self, user_id: int, permanent: bool = False) -> bool:
         """
         Delete a user. Supports soft delete by default.
         
@@ -156,7 +166,7 @@ class UserService:
         Raises:
             HTTPException: If user not found
         """
-        user = self.get_user_by_id(user_id, include_deleted=permanent)
+        user = await self.get_user_by_id(user_id, include_deleted=permanent)
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -171,20 +181,20 @@ class UserService:
                 user.is_active = False
                 user.deleted_at = datetime.now(UTC)
                 
-            self.db.commit()
+            await self.db.commit()
             return True
         except Exception as e:
-            self.db.rollback()
+            await self.db.rollback()
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to delete user: {str(e)}"
             )
 
-    def reactivate_user(self, user_id: int) -> User:
+    async def reactivate_user(self, user_id: int) -> User:
         """
         Restore a soft-deleted user.
         """
-        user = self.get_user_by_id(user_id, include_deleted=True)
+        user = await self.get_user_by_id(user_id, include_deleted=True)
         if not user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -196,17 +206,17 @@ class UserService:
         user.deleted_at = None
         
         try:
-            self.db.commit()
-            self.db.refresh(user)
+            await self.db.commit()
+            await self.db.refresh(user)
             return user
         except Exception as e:
-            self.db.rollback()
+            await self.db.rollback()
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 detail=f"Failed to reactivate user: {str(e)}"
             )
 
-    def purge_deleted_users(self, grace_period_days: int) -> int:
+    async def purge_deleted_users(self, grace_period_days: int) -> int:
         """
         Permanently delete users whose grace period has expired.
         
@@ -215,10 +225,12 @@ class UserService:
         """
         cutoff_date = datetime.now(UTC) - timedelta(days=grace_period_days)
         
-        expired_users = self.db.query(User).filter(
+        stmt = select(User).filter(
             User.is_deleted == True,
             User.deleted_at <= cutoff_date
-        ).all()
+        )
+        result = await self.db.execute(stmt)
+        expired_users = result.scalars().all()
         
         count = 0
         for user in expired_users:
@@ -230,12 +242,12 @@ class UserService:
                 print(f"[ERROR] Failed to purge user {user.id}: {e}")
         
         if count > 0:
-            self.db.commit()
+            await self.db.commit()
             print(f"[CLEANUP] Purged {count} expired accounts")
             
         return count
 
-    def get_user_detail(self, user_id: int) -> dict:
+    async def get_user_detail(self, user_id: int) -> dict:
         """
         Get detailed user information including relationship status.
         
@@ -248,32 +260,43 @@ class UserService:
         Raises:
             HTTPException: If user not found
         """
-        user = self.get_user_by_id(user_id)
-        if not user:
+        detail_user = await self.get_user_by_id(
+            user_id, 
+            eager_load=[
+                User.settings, 
+                User.medical_profile, 
+                User.personal_profile, 
+                User.strengths, 
+                User.emotional_patterns
+            ]
+        )
+        if not detail_user:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="User not found"
             )
 
         # Count total assessments
-        total_assessments = self.db.query(Score).filter(Score.user_id == user_id).count()
+        stmt = select(func.count(Score.id)).filter(Score.user_id == user_id)
+        result = await self.db.execute(stmt)
+        total_assessments = result.scalar()
 
         return {
-            "id": user.id,
-            "username": user.username,
-            "created_at": user.created_at,
-            "last_login": user.last_login,
-            "has_settings": user.settings is not None,
-            "has_medical_profile": user.medical_profile is not None,
-            "has_personal_profile": user.personal_profile is not None,
-            "has_strengths": user.strengths is not None,
-            "has_emotional_patterns": user.emotional_patterns is not None,
+            "id": detail_user.id,
+            "username": detail_user.username,
+            "created_at": detail_user.created_at,
+            "last_login": detail_user.last_login,
+            "has_settings": detail_user.settings is not None,
+            "has_medical_profile": detail_user.medical_profile is not None,
+            "has_personal_profile": detail_user.personal_profile is not None,
+            "has_strengths": detail_user.strengths is not None,
+            "has_emotional_patterns": detail_user.emotional_patterns is not None,
             "total_assessments": total_assessments
         }
 
-    def update_last_login(self, user_id: int) -> None:
+    async def update_last_login(self, user_id: int) -> None:
         """Update user's last login timestamp."""
-        user = self.get_user_by_id(user_id)
+        user = await self.get_user_by_id(user_id)
         if user:
-            user.last_login = datetime.utcnow().isoformat()
-            self.db.commit()
+            user.last_login = datetime.now(UTC).isoformat()
+            await self.db.commit()

@@ -3,13 +3,15 @@ import time
 import logging
 import secrets
 import hashlib
+import random
 from typing import Optional, Dict, TYPE_CHECKING, Tuple
 
 if TYPE_CHECKING:
     from ..schemas import UserCreate
 
 from fastapi import Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func, update
 from sqlalchemy.exc import OperationalError
 import bcrypt
 
@@ -25,12 +27,10 @@ settings = get_settings()
 logger = logging.getLogger(__name__)
 
 class AuthService:
-    def __init__(self, db: Session = Depends(get_db)):
+    def __init__(self, db: AsyncSession = Depends(get_db)):
         self.db = db
 
-    
-
-    def check_username_available(self, username: str) -> tuple[bool, str]:
+    async def check_username_available(self, username: str) -> tuple[bool, str]:
         """
         Check if a username is available for registration.
         Includes normalization, regex validation, reserved list check, and DB lookup.
@@ -54,7 +54,8 @@ class AuthService:
             return False, "This username is reserved"
             
         # 4. DB Lookup
-        if self.db.query(User).filter(User.username == username_norm).first():
+        result = await self.db.execute(select(User).filter(User.username == username_norm))
+        if result.scalar_one_or_none():
             return False, "Username is already taken"
             
         return True, "Username is available"
@@ -76,7 +77,7 @@ class AuthService:
             logger.error(f"Error verifying password: {e}")
             return False
 
-    def authenticate_user(self, identifier: str, password: str, ip_address: str = "0.0.0.0", user_agent: str = "Unknown") -> Optional[User]:
+    async def authenticate_user(self, identifier: str, password: str, ip_address: str = "0.0.0.0", user_agent: str = "Unknown") -> Optional[User]:
         """
         Authenticate a user by username OR email and password.
         
@@ -91,12 +92,8 @@ class AuthService:
         identifier_lower = identifier.lower().strip()
 
         # 2. Check for Lockout (Pre-Auth)
-        # Check if account is locked due to too many failed attempts
-        is_locked, lockdown_msg, wait_seconds = self._is_account_locked(identifier_lower)
+        is_locked, lockdown_msg, wait_seconds = await self._is_account_locked(identifier_lower)
         if is_locked:
-            # Timing mitigation: even if locked, we want to simulate some work
-            # to match the time taken by bcrypt roughly (though bcrypt is way slower)
-            # Actually, the best way is to return immediately but with a consistent message.
             raise AuthException(
                 code=ErrorCode.AUTH_ACCOUNT_LOCKED,
                 message=lockdown_msg,
@@ -104,19 +101,22 @@ class AuthService:
             )
 
         # 3. Try fetching by username first
-        user = self.db.query(User).filter(User.username == identifier_lower).first()
+        result = await self.db.execute(select(User).filter(User.username == identifier_lower))
+        user = result.scalar_one_or_none()
         
         # 4. If not found, try fetching by email (via PersonalProfile)
         if not user:
-            profile = self.db.query(PersonalProfile).filter(PersonalProfile.email == identifier_lower).first()
+            profile_result = await self.db.execute(select(PersonalProfile).filter(PersonalProfile.email == identifier_lower))
+            profile = profile_result.scalar_one_or_none()
             if profile:
-                user = self.db.query(User).filter(User.id == profile.user_id).first()
+                user_result = await self.db.execute(select(User).filter(User.id == profile.user_id))
+                user = user_result.scalar_one_or_none()
         
         # 5. Timing attack protection: Always hash something even if user not found
         if not user:
             # Dummy verify to consume time
             self.verify_password("dummy", "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW")
-            self._record_login_attempt(identifier_lower, False, ip_address, reason="User not found")
+            await self._record_login_attempt(identifier_lower, False, ip_address, reason="User not found")
             raise AuthException(
                 code=ErrorCode.AUTH_INVALID_CREDENTIALS,
                 message="Incorrect username or password"
@@ -124,7 +124,7 @@ class AuthService:
 
         # 6. Verify password
         if not self.verify_password(password, user.password_hash):
-            self._record_login_attempt(identifier_lower, False, ip_address, reason="Invalid password")
+            await self._record_login_attempt(identifier_lower, False, ip_address, reason="Invalid password")
             raise AuthException(
                 code=ErrorCode.AUTH_INVALID_CREDENTIALS,
                 message="Incorrect username or password"
@@ -136,15 +136,15 @@ class AuthService:
             user.is_deleted = False
             user.deleted_at = None
             user.is_active = True
-            # Database will be committed below in update_last_login or explicitly
         
         # 7. Success - Update last login & Audit
-        self._record_login_attempt(identifier_lower, True, ip_address)
-        self.update_last_login(user.id)
+        await self._record_login_attempt(identifier_lower, True, ip_address)
+        await self.update_last_login(user.id)
         
         # SoulSense Audit Log
         from app.services.audit_service import AuditService
-        AuditService.log_event(
+        # AuditService needs to be async or made to handle AsyncSession
+        await AuditService.log_event(
             user.id,
             "LOGIN",
             ip_address=ip_address,
@@ -157,17 +157,6 @@ class AuthService:
 
     def create_access_token(self, data: dict, expires_delta: Optional[timedelta] = None) -> str:
         """Create a new JWT access token."""
-        # Use python-jose or similar if previously installed, but since we are refactoring,
-        # we will assume generic token generation logic or stick to what was likely there.
-        # Wait, the plan mentioned create_access_token. I need to check how it was implemented.
-        # For now, I will import the logic from the old auth router if possible, or use a placeholder
-        # since I need to see the imports in the original file. 
-        # Actually, let's stick to generating a secure random token if JWT library isn't confirmed, 
-        # BUT the schemas.Token suggests JWT. 
-        # Let's check imports in original auth.py first to be safe.
-        
-        # For now, simplistic JWT construction using standard libraries or jwt library if available
-        # I'll check imports later. I will implement a placeholder that is structurally correct.
         from jose import jwt
 
         to_encode = data.copy()
@@ -177,7 +166,6 @@ class AuthService:
             expire = datetime.now(timezone.utc) + timedelta(minutes=settings.access_token_expire_minutes)
             
         to_encode.update({"exp": expire})
-        # Use correct settings attributes as seen in router
         encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.jwt_algorithm)
         return encoded_jwt
 
@@ -196,7 +184,7 @@ class AuthService:
         }
         return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.jwt_algorithm)
 
-    def initiate_2fa_login(self, user: User) -> str:
+    async def initiate_2fa_login(self, user: User) -> str:
         """
         Generate OTP, send email, and return pre_auth_token.
         """
@@ -204,28 +192,26 @@ class AuthService:
         from app.services.email_service import EmailService
         
         # 1. Generate OTP
-        code, _ = OTPManager.generate_otp(user.id, "LOGIN_CHALLENGE", db_session=self.db)
+        code, _ = await OTPManager.generate_otp(user.id, "LOGIN_CHALLENGE", db_session=self.db)
         
         # 2. Send Email
-        # Resolve email (User obj might not have it loaded if lazy)
         email = None
-        # Try to find email from profile
-        profile = self.db.query(PersonalProfile).filter(PersonalProfile.user_id == user.id).first()
+        profile_result = await self.db.execute(select(PersonalProfile).filter(PersonalProfile.user_id == user.id))
+        profile = profile_result.scalar_one_or_none()
         if profile:
             email = profile.email
             
         if not email:
-            # Fallback or error? For MVP we log error but still return token (fail-close at send)
             logger.error(f"2FA initiated but no email found for user {user.username}")
         else:
             if code:
-                EmailService.send_otp(email, code, "Login Verification")
-                self.db.commit() # Save OTP
+                await EmailService.send_otp(email, code, "Login Verification")
+                await self.db.commit() # Save OTP
         
         # 3. Create Pre-Auth Token
         return self.create_pre_auth_token(user.id)
 
-    def verify_2fa_login(self, pre_auth_token: str, code: str) -> User:
+    async def verify_2fa_login(self, pre_auth_token: str, code: str) -> User:
         """
         Verify pre-auth token and OTP code.
         Returns User if successful, raises AuthException otherwise.
@@ -244,18 +230,19 @@ class AuthService:
                  
             # 2. Verify OTP
             user_id_int = int(user_id)
-            if not OTPManager.verify_otp(user_id_int, code, "LOGIN_CHALLENGE", db_session=self.db):
+            if not await OTPManager.verify_otp(user_id_int, code, "LOGIN_CHALLENGE", db_session=self.db):
                  raise AuthException(code=ErrorCode.AUTH_INVALID_CREDENTIALS, message="Invalid or expired code")
                  
             # 3. Success - Fetch User
-            user = self.db.query(User).filter(User.id == user_id_int).first()
+            result = await self.db.execute(select(User).filter(User.id == user_id_int))
+            user = result.scalar_one_or_none()
             if not user:
                  raise AuthException(code=ErrorCode.AUTH_USER_NOT_FOUND, message="User not found")
                  
             # Audit success
-            self._record_login_attempt(user.username, True, "0.0.0.0") # IP not passed here, simplified
-            self.update_last_login(user.id)
-            self.db.commit() # Save OTP used state
+            await self._record_login_attempt(user.username, True, "0.0.0.0")
+            await self.update_last_login(user.id)
+            await self.db.commit() # Save OTP used state
             
             return user
             
@@ -267,99 +254,97 @@ class AuthService:
             logger.error(f"2FA Verify Error: {e}")
             raise AuthException(code=ErrorCode.AUTH_INTERNAL_ERROR, message="Verification failed")
 
-    def send_2fa_setup_otp(self, user: User) -> bool:
+    async def send_2fa_setup_otp(self, user: User) -> bool:
         """Generate and send OTP for 2FA setup."""
         from app.auth.otp_manager import OTPManager
         from app.services.email_service import EmailService
         
-        code, _ = OTPManager.generate_otp(user.id, "2FA_SETUP", db_session=self.db)
+        code, _ = await OTPManager.generate_otp(user.id, "2FA_SETUP", db_session=self.db)
         if not code:
             return False
             
         # Get Email
         email = None
-        profile = self.db.query(PersonalProfile).filter(PersonalProfile.user_id == user.id).first()
+        profile_result = await self.db.execute(select(PersonalProfile).filter(PersonalProfile.user_id == user.id))
+        profile = profile_result.scalar_one_or_none()
         if profile:
             email = profile.email
             
         if email:
-             EmailService.send_otp(email, code, "Enable 2FA")
-             self.db.commit()
+             await EmailService.send_otp(email, code, "Enable 2FA")
+             await self.db.commit()
              return True
         return False
 
-    def enable_2fa(self, user_id: int, code: str) -> bool:
+    async def enable_2fa(self, user_id: int, code: str) -> bool:
         """Verify code and enable 2FA."""
         from app.auth.otp_manager import OTPManager
         
-        if OTPManager.verify_otp(user_id, code, "2FA_SETUP", db_session=self.db):
-            user = self.db.query(User).filter(User.id == user_id).first()
+        if await OTPManager.verify_otp(user_id, code, "2FA_SETUP", db_session=self.db):
+            result = await self.db.execute(select(User).filter(User.id == user_id))
+            user = result.scalar_one_or_none()
             if user:
                 user.is_2fa_enabled = True
-                self.db.commit()
+                await self.db.commit()
                 return True
         return False
 
-    def disable_2fa(self, user_id: int) -> bool:
+    async def disable_2fa(self, user_id: int) -> bool:
         """Disable 2FA for user."""
-        user = self.db.query(User).filter(User.id == user_id).first()
+        result = await self.db.execute(select(User).filter(User.id == user_id))
+        user = result.scalar_one_or_none()
         if user:
             user.is_2fa_enabled = False
-            self.db.commit()
+            await self.db.commit()
             return True
         return False
 
-    def update_last_login(self, user_id: int) -> None:
+    async def update_last_login(self, user_id: int) -> None:
         """
         Update the last_login timestamp for a user.
         Safe against database locks (fail-open).
         """
         try:
-            user = self.db.query(User).filter(User.id == user_id).first()
+            result = await self.db.execute(select(User).filter(User.id == user_id))
+            user = result.scalar_one_or_none()
             if user:
                 user.last_login = datetime.now(timezone.utc).isoformat()
-                self.db.commit()
+                await self.db.commit()
                 logger.info(f"Updated last_login for user_id={user_id}")
         except OperationalError:
-            self.db.rollback()
+            await self.db.rollback()
             logger.warning(f"Could not update last_login for user_id={user_id} due to database lock.")
         except Exception as e:
-            self.db.rollback()
+            await self.db.rollback()
             logger.error(f"Failed to update last_login: {e}")
 
-    def _is_account_locked(self, username: str) -> Tuple[bool, Optional[str], int]:
+    async def _is_account_locked(self, username: str) -> Tuple[bool, Optional[str], int]:
         """
         Check if an account is locked based on recent failed attempts.
-        Implements progressive lockout with increasing durations:
-        - 3-4 failed attempts: 30 seconds lockout
-        - 5-6 failed attempts: 120 seconds lockout
-        - 7+ failed attempts: 300 seconds lockout
+        Implements progressive lockout with increasing durations.
         """
-        # Check failed attempts within the last 30 minutes
         thirty_mins_ago = datetime.now(timezone.utc) - timedelta(minutes=30)
 
-        # Count failed attempts since thirty_mins_ago
-        failed_attempts = self.db.query(LoginAttempt).filter(
-            LoginAttempt.username == username,
-            LoginAttempt.is_successful == False,
-            LoginAttempt.timestamp >= thirty_mins_ago
-        ).order_by(LoginAttempt.timestamp.desc()).all()
-
+        result = await self.db.execute(
+            select(LoginAttempt).filter(
+                LoginAttempt.username == username,
+                LoginAttempt.is_successful == False,
+                LoginAttempt.timestamp >= thirty_mins_ago
+            ).order_by(LoginAttempt.timestamp.desc())
+        )
+        failed_attempts = result.scalars().all()
         count = len(failed_attempts)
 
-        # Determine lockout duration based on attempt count
         lockout_duration = 0
         if count >= 7:
-            lockout_duration = 300  # 5 minutes
+            lockout_duration = 300
         elif count >= 5:
-            lockout_duration = 120  # 2 minutes
+            lockout_duration = 120
         elif count >= 3:
-            lockout_duration = 30   # 30 seconds
+            lockout_duration = 30
 
         if lockout_duration > 0:
-            # Find when the last attempt happened to calculate remaining lockout
             last_attempt = failed_attempts[0].timestamp
-            # Ensure it has timezone info if it came from DB as naive
             if last_attempt.tzinfo is None:
                 last_attempt = last_attempt.replace(tzinfo=timezone.utc)
 
@@ -372,7 +357,7 @@ class AuthService:
 
         return False, None, 0
 
-    def _record_login_attempt(self, username: str, success: bool, ip_address: str, reason: Optional[str] = None):
+    async def _record_login_attempt(self, username: str, success: bool, ip_address: str, reason: Optional[str] = None):
         """Record the login attempt audit log."""
         try:
             attempt = LoginAttempt(
@@ -383,47 +368,31 @@ class AuthService:
                 timestamp=datetime.now(timezone.utc)
             )
             self.db.add(attempt)
-            self.db.commit()
+            await self.db.commit()
         except Exception as e:
-            # Audit logging failure should not block the user, but should be logged
-            self.db.rollback()
+            await self.db.rollback()
             logger.error(f"Failed to record login attempt: {e}")
 
-    def register_user(self, user_data: 'UserCreate') -> Tuple[bool, Optional[User], str]:
+    async def register_user(self, user_data: 'UserCreate') -> Tuple[bool, Optional[User], str]:
         """
         Register a new user and their personal profile.
-        Standardizes identifiers and validates uniqueness.
-        
-        Security: 
-        - Generic status return to prevent enumeration.
-        - Timing jitter to prevent response-time analysis.
         """
-        import time
-        import random
-        from ..exceptions import APIException
-        from ..constants.errors import ErrorCode
-
-        # Timing Jitter: Artificial delay baseline (100-300ms)
-        # This masks the difference between a DB hit (fast) and a bcrypt hash (slowish)
-        # Though bcrypt is ~100ms+, so we just add a bit of noise.
+        # Timing Jitter
         time.sleep(random.uniform(0.1, 0.3))
 
         username_lower = user_data.username.lower().strip()
         email_lower = user_data.email.lower().strip()
 
-        # 1. Validation (Does NOT leak existence if we return generic later)
-        # But we still do it for integrity.
-        existing_username = self.db.query(User).filter(User.username == username_lower).first()
-        existing_email = self.db.query(PersonalProfile).filter(PersonalProfile.email == email_lower).first()
+        result_user = await self.db.execute(select(User).filter(User.username == username_lower))
+        existing_username = result_user.scalar_one_or_none()
+        
+        result_email = await self.db.execute(select(PersonalProfile).filter(PersonalProfile.email == email_lower))
+        existing_email = result_email.scalar_one_or_none()
 
         if existing_username or existing_email:
-            # ENUMERATION PROTECTION:
-            # We don't raise an error. We return "Success" but don't create.
-            # In a real app, we would send an "Already registered" email here.
             logger.info(f"Registration attempt for existing identity: {username_lower} / {email_lower}")
             return True, None, "Account creation initiated. Please check your email for verification link."
 
-        # 2. Disposable Email Check (This remains an error as it's a policy failure, not enumeration)
         from .security_service import SecurityService
         if SecurityService.is_disposable_email(email_lower):
             return False, None, "Registration with disposable email domains is not allowed"
@@ -435,7 +404,7 @@ class AuthService:
                 password_hash=hashed_pw
             )
             self.db.add(new_user)
-            self.db.flush()
+            await self.db.flush()
 
             new_profile = PersonalProfile(
                 user_id=new_user.id,
@@ -447,23 +416,16 @@ class AuthService:
             )
             self.db.add(new_profile)
             
-            self.db.commit()
-            self.db.refresh(new_user)
+            await self.db.commit()
+            await self.db.refresh(new_user)
             
-            # In a real app, send "Welcome/Verify" email here
             return True, new_user, "Registration successful. Please verify your email."
-        except AttributeError as e:
-            self.db.rollback()
-            logger.error(f"Registration Model Mismatch: {e}")
-            return False, None, "A configuration error occurred on the server."
         except Exception as e:
-            self.db.rollback()
-            import traceback
+            await self.db.rollback()
             logger.error(f"Registration failed error: {str(e)}")
-            logger.error(f"Traceback: {traceback.format_exc()}")
             return False, None, "An internal error occurred. Please try again later."
 
-    def create_refresh_token(self, user_id: int, commit: bool = True) -> str:
+    async def create_refresh_token(self, user_id: int, commit: bool = True) -> str:
         """
         Generate a secure refresh token, hash it, and store it in the DB.
         """
@@ -479,43 +441,45 @@ class AuthService:
         )
         self.db.add(db_token)
         if commit:
-            self.db.commit()
+            await self.db.commit()
         
         return token
-    
 
-    def has_multiple_active_sessions(self, user_id: int) -> bool:
-        active_sessions = self.db.query(RefreshToken).filter(
-            RefreshToken.user_id == user_id,
-            RefreshToken.is_revoked == False,
-            RefreshToken.expires_at > datetime.now(timezone.utc)
-        ).count()
-
+    async def has_multiple_active_sessions(self, user_id: int) -> bool:
+        result = await self.db.execute(
+            select(func.count(RefreshToken.id)).filter(
+                RefreshToken.user_id == user_id,
+                RefreshToken.is_revoked == False,
+                RefreshToken.expires_at > datetime.now(timezone.utc)
+            )
+        )
+        active_sessions = result.scalar_one()
         return active_sessions > 1
 
-    def refresh_access_token(self, refresh_token: str) -> Tuple[str, str]:
+    async def refresh_access_token(self, refresh_token: str) -> Tuple[str, str]:
         """
         Validate a refresh token and return a new access token + new refresh token (Rotation).
-        Uses atomic transaction to ensure old token revocation and new token creation succeed together.
         """
         token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
         
-        db_token = self.db.query(RefreshToken).filter(
-            RefreshToken.token_hash == token_hash,
-            RefreshToken.is_revoked == False,
-            RefreshToken.expires_at > datetime.now(timezone.utc)
-        ).first()
+        result = await self.db.execute(
+            select(RefreshToken).filter(
+                RefreshToken.token_hash == token_hash,
+                RefreshToken.is_revoked == False,
+                RefreshToken.expires_at > datetime.now(timezone.utc)
+            )
+        )
+        db_token = result.scalar_one_or_none()
         
         if not db_token:
-            # Security: If an invalid token is used, log it as a potential attack
             logger.warning(f"Invalid refresh token attempt: {token_hash[:8]}...")
             raise AuthException(
                 code=ErrorCode.AUTH_INVALID_TOKEN,
                 message="Invalid or expired refresh token"
             )
             
-        # Get user first to validate
-        user = self.db.query(User).filter(User.id == db_token.user_id).first()
+        user_result = await self.db.execute(select(User).filter(User.id == db_token.user_id))
+        user = user_result.scalar_one_or_none()
         if not user:
              raise AuthException(
                 code=ErrorCode.AUTH_INVALID_TOKEN,
@@ -523,46 +487,34 @@ class AuthService:
             )
         
         try:
-            # Token Rotation: Invalidate the current one
             db_token.is_revoked = True
-            
-            # Create new tokens (added to session but not committed yet)
             access_token = self.create_access_token(data={"sub": user.username})
-            new_refresh_token = self.create_refresh_token(user.id, commit=False)
+            new_refresh_token = await self.create_refresh_token(user.id, commit=False)
             
-            # Atomic commit: both revocation and new token creation
-            self.db.commit()
-            
+            await self.db.commit()
             return access_token, new_refresh_token
             
         except Exception as e:
-            # Rollback on any error to maintain data integrity
-            self.db.rollback()
+            await self.db.rollback()
             logger.error(f"Failed to rotate refresh token for user {db_token.user_id}: {str(e)}")
             raise AuthException(
                 code=ErrorCode.AUTH_TOKEN_ROTATION_FAILED,
                 message="Token rotation failed. Please try logging in again."
             )
 
-    def revoke_refresh_token(self, refresh_token: str) -> None:
+    async def revoke_refresh_token(self, refresh_token: str) -> None:
         """Manually revoke a refresh token (e.g., on logout)."""
         token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
-        db_token = self.db.query(RefreshToken).filter(RefreshToken.token_hash == token_hash).first()
+        result = await self.db.execute(select(RefreshToken).filter(RefreshToken.token_hash == token_hash))
+        db_token = result.scalar_one_or_none()
         if db_token:
             db_token.is_revoked = True
-            self.db.commit()
+            await self.db.commit()
             logger.info(f"Revoked refresh token for user_id={db_token.user_id}")
-    
 
-
-
-
-    def initiate_password_reset(self, email: str) -> tuple[bool, str]:
+    async def initiate_password_reset(self, email: str) -> tuple[bool, str]:
         """
-        Initiate password reset flow:
-        1. Find user by email.
-        2. Generate OTP.
-        3. Send OTP (Mock).
+        Initiate password reset flow.
         """
         from app.auth.otp_manager import OTPManager
         from app.services.email_service import EmailService
@@ -570,28 +522,24 @@ class AuthService:
         try:
             email_lower = email.lower().strip()
             
-            # Find User via PersonalProfile
-            profile = self.db.query(PersonalProfile).filter(PersonalProfile.email == email_lower).first()
+            profile_result = await self.db.execute(select(PersonalProfile).filter(PersonalProfile.email == email_lower))
+            profile = profile_result.scalar_one_or_none()
             user = None
             if profile:
-                user = self.db.query(User).filter(User.id == profile.user_id).first()
+                user_result = await self.db.execute(select(User).filter(User.id == profile.user_id))
+                user = user_result.scalar_one_or_none()
             
-            # Privacy: If user not found, return success-like message
             if not user:
-                # Add random jitter to simulate OTP generation/lookup time (100ms - 300ms)
                 time.sleep(secrets.SystemRandom().uniform(0.1, 0.3))
                 logger.info(f"Password reset requested for unknown email: {email_lower}")
                 return True, "If an account exists with this email, a reset code has been sent."
 
-            # Generate OTP
-            # Pass our session to prevent premature closing
-            code, error = OTPManager.generate_otp(user.id, "RESET_PASSWORD", db_session=self.db)
+            code, error = await OTPManager.generate_otp(user.id, "RESET_PASSWORD", db_session=self.db)
             
             if not code:
                 return False, error or "Too many requests. Please wait."
                 
-            # Send Email
-            if EmailService.send_otp(email_lower, code, "Password Reset"):
+            if await EmailService.send_otp(email_lower, code, "Password Reset"):
                 return True, "If an account exists with this email, a reset code has been sent."
             else:
                 return False, "Failed to send email. Please try again later."
@@ -600,51 +548,45 @@ class AuthService:
             logger.error(f"Error in initiate_password_reset: {e}")
             return False, "An error occurred. Please try again."
 
-    def complete_password_reset(self, email: str, otp_code: str, new_password: str) -> tuple[bool, str]:
+    async def complete_password_reset(self, email: str, otp_code: str, new_password: str) -> tuple[bool, str]:
         """
-        Complete password reset flow:
-        1. Verify OTP.
-        2. Update Password.
+        Complete password reset flow.
         """
         from app.auth.otp_manager import OTPManager
         from ..utils.weak_passwords import WEAK_PASSWORDS
         
-        # Block weak/common passwords
         if new_password.lower() in WEAK_PASSWORDS:
             return False, "This password is too common. Please choose a stronger password."
         
         try:
             email_lower = email.lower().strip()
             
-            # Find User
-            profile = self.db.query(PersonalProfile).filter(PersonalProfile.email == email_lower).first()
+            profile_result = await self.db.execute(select(PersonalProfile).filter(PersonalProfile.email == email_lower))
+            profile = profile_result.scalar_one_or_none()
             if not profile:
                 return False, "Invalid request."
             
-            user = self.db.query(User).filter(User.id == profile.user_id).first()
+            user_result = await self.db.execute(select(User).filter(User.id == profile.user_id))
+            user = user_result.scalar_one_or_none()
             if not user:
                 return False, "Invalid request."
                 
-            # Verify OTP
-            # Pass our session so OTPManager doesn't close it
-            if not OTPManager.verify_otp(user.id, otp_code, "RESET_PASSWORD", db_session=self.db):
+            if not await OTPManager.verify_otp(user.id, otp_code, "RESET_PASSWORD", db_session=self.db):
                 return False, "Invalid or expired code."
             
-            # Update Password
-            # 'user' is still attached
             user.password_hash = self.hash_password(new_password)
             
-            # Security: Invalidate all existing sessions (Refresh Tokens)
-            # This ensures that if the account was compromised, the attacker is logged out everywhere.
-            self.db.query(RefreshToken).filter(RefreshToken.user_id == user.id).update({RefreshToken.is_revoked: True})
+            await self.db.execute(
+                update(RefreshToken).filter(RefreshToken.user_id == user.id).values(is_revoked=True)
+            )
             
-            self.db.commit()
+            await self.db.commit()
             
             logger.info(f"Password reset successfully for user {user.username} (via Web). Sessions invalidated.")
             return True, "Password reset successfully. You can now login."
             
         except Exception as e:
-            self.db.rollback()
+            await self.db.rollback()
             logger.error(f"Error in complete_password_reset: {e}")
             return False, f"Internal error: {str(e)}"
 

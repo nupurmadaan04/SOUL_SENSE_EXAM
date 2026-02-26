@@ -1,6 +1,6 @@
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..services.db_service import get_db
 from ..routers.auth import get_current_user
@@ -20,52 +20,52 @@ router = APIRouter(prefix="/gamification", tags=["gamification"])
 @router.get("/summary", response_model=GamificationSummary)
 async def get_gamification_summary(
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     """Get a summary of user's XP, streaks, and recent achievements."""
-    summary = GamificationService.get_user_summary(db, current_user.id)
+    summary = await GamificationService.get_user_summary(db, current_user.id)
     return summary
 
 @router.get("/achievements", response_model=List[AchievementResponse])
 async def get_my_achievements(
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     """Get all achievements and user's progress on them."""
     # This would normally join Achievement and UserAchievement
     # For now, let's return a basic list
-    summary = GamificationService.get_user_summary(db, current_user.id)
+    summary = await GamificationService.get_user_summary(db, current_user.id)
     return summary["recent_achievements"]
 
 @router.get("/streak", response_model=List[UserStreakResponse])
 async def get_my_streaks(
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     """Get user's current streaks."""
-    summary = GamificationService.get_user_summary(db, current_user.id)
+    summary = await GamificationService.get_user_summary(db, current_user.id)
     return summary["streaks"]
 
 @router.get("/xp", response_model=UserXPResponse)
 async def get_my_xp(
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     """Get user's XP and level info."""
-    summary = GamificationService.get_user_summary(db, current_user.id)
+    summary = await GamificationService.get_user_summary(db, current_user.id)
     return summary["xp"]
 
 @router.get("/leaderboard", response_model=List[LeaderboardEntry])
 async def get_leaderboard(
     limit: int = Query(10, ge=1, le=50),
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     """Get the anonymized global leaderboard."""
-    return GamificationService.get_leaderboard(db, limit)
+    return await GamificationService.get_leaderboard(db, limit)
 
 @router.get("/challenges", response_model=List[ChallengeResponse])
 async def get_challenges(
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     """Get available challenges."""
     # Implementation pending Phase 3
@@ -73,8 +73,8 @@ async def get_challenges(
 
 @router.post("/seed", status_code=status.HTTP_201_CREATED)
 async def seed_achievements(
-    db: Session = Depends(get_db)
+    db: AsyncSession = Depends(get_db)
 ):
     """Seed initial achievements (Admin only in production)."""
-    GamificationService.seed_initial_achievements(db)
+    await GamificationService.seed_initial_achievements(db)
     return {"message": "Achievements seeded"}
