@@ -11,7 +11,8 @@ def client():
 def test_security_headers_present(client):
     """Verify security headers are added to responses."""
     response = client.get("/api/v1/health")
-    assert response.status_code == 200
+    # Health endpoint returns 200 when healthy, 503 when dependencies unavailable
+    assert response.status_code in [200, 503]
     
     headers = response.headers
     assert headers["X-Frame-Options"] == "DENY"

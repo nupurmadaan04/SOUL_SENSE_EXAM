@@ -17,8 +17,8 @@ from sqlalchemy.exc import OperationalError
 from .audit_service import AuditService
 from ..utils.security import get_password_hash, verify_password, is_hashed, check_password_history
 from ..models import User, LoginAttempt, PersonalProfile, RefreshToken, PasswordHistory
-from ..constants.security_constants import PASSWORD_HISTORY_LIMIT, REFRESH_TOKEN_EXPIRE_DAYS
-from .db_router import mark_write
+from ..constants.security_constants import PASSWORD_HISTORY_LIMIT
+from ..config import get_settings
 
 settings = get_settings_instance()
 
@@ -404,7 +404,7 @@ class AuthService:
                 password_hash=hashed_pw
             )
             self.db.add(new_user)
-            await self.db.flush()
+            self.db.flush()
 
             # Record initial password in history
             self.db.add(PasswordHistory(user_id=new_user.id, password_hash=hashed_pw))
@@ -438,7 +438,7 @@ class AuthService:
             logger.error(f"Registration Model Mismatch: {e}")
             return False, None, "A configuration error occurred on the server."
         except Exception as e:
-            await self.db.rollback()
+            self.db.rollback()
             logger.error(f"Registration failed error: {str(e)}")
             return False, None, "An internal error occurred. Please try again later."
 

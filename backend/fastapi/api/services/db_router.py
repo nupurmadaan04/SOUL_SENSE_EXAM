@@ -21,8 +21,10 @@ from datetime import timedelta
 from typing import AsyncGenerator, Optional
 
 import redis.asyncio as redis
+from jose import jwt, JWTError
 from fastapi import Request
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy import text
 
 from ..config import get_settings_instance
 
@@ -112,69 +114,35 @@ async def get_db(request: Request) -> AsyncGenerator[AsyncSession, None]:
         async def my_endpoint(..., db: AsyncSession = Depends(get_db)):
             ...
     """
-    method = request.method.upper()
-    use_primary = method in {"POST", "PUT", "PATCH", "DELETE"}
+    use_primary = request.method.upper() in {"POST", "PUT", "PATCH", "DELETE"}
+    extracted_tenant_id = None
+    extracted_username = None
 
-    # Attempt to read jwt early to evaluate 'read-your-own-writes' guard 
-    # without doing a replica-DB hit inside authentication middleware
-    if not use_primary:
-        # Try finding username in auth header
-        auth_header = request.headers.get("Authorization")
-        extracted_username = None
-        extracted_tenant_id = None
-        if auth_header and auth_header.startswith("Bearer "):
-            token = auth_header.split(" ")[1]
-            try:
-                import jwt
-                from ..config import get_settings_instance
-                s = get_settings_instance()
-                payload = jwt.decode(token, s.SECRET_KEY, algorithms=[s.jwt_algorithm])
-                extracted_username = payload.get("sub")
-                extracted_tenant_id = payload.get("tid")
-            except Exception:
-                pass
-                
-        # If no auth header, maybe we got a user_id or username in request.state
-        if not extracted_username and hasattr(request.state, "user_id"):
-            extracted_username = request.state.user_id
+    # Extraction Logic (Shared between primary/replica decision and RLS)
+    auth_header = request.headers.get("Authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.split(" ")[1]
+        try:
+            payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.jwt_algorithm])
+            extracted_username = payload.get("sub")
+            extracted_tenant_id = payload.get("tid")
+        except (JWTError, Exception):
+            pass
 
-        if extracted_username:
-            if await _has_recent_write(extracted_username):
-                use_primary = True
-                log.debug(f"Read‑your‑own‑writes guard: routing GET for user {extracted_username} to primary.")
+    # Forced Primary Guard (Read-your-own-writes)
+    if not use_primary and extracted_username:
+        if await _has_recent_write(extracted_username):
+            use_primary = True
+            log.debug(f"Read‑your‑own‑writes guard: routing GET for user {extracted_username} to primary.")
 
-    SessionMaker = (
-        PrimarySessionLocal
-        if use_primary
-        else _ReplicaSessionLocal or PrimarySessionLocal
-    )
+    SessionMaker = PrimarySessionLocal if use_primary else (_ReplicaSessionLocal or PrimarySessionLocal)
 
     async with SessionMaker() as db:
-        # If we successfully extracted a tenant_id, apply the RLS setting
-        if not use_primary:
-            # We already have extracted_tenant_id if we did the check above
-            pass
-        else:
-            # Need to extract it if not done already
-            auth_header = request.headers.get("Authorization")
-            extracted_tenant_id = None
-            if auth_header and auth_header.startswith("Bearer "):
-                token = auth_header.split(" ")[1]
-                try:
-                    import jwt
-                    from ..config import get_settings_instance
-                    s = get_settings_instance()
-                    payload = jwt.decode(token, s.SECRET_KEY, algorithms=[s.jwt_algorithm])
-                    extracted_tenant_id = payload.get("tid")
-                except Exception:
-                    pass
-
-        if extracted_tenant_id:
+        if extracted_tenant_id and settings.database_type == "postgresql":
             try:
-                from sqlalchemy import text
-                await db.execute(text("SET app.tenant_id = :tid"), {"tid": extracted_tenant_id})
+                await db.execute(text("SET app.tenant_id = :tid"), {"tid": str(extracted_tenant_id)})
             except Exception as e:
-                log.warning(f"Failed to set tenant_id for RLS: {e}")
+                log.warning(f"Failed to set tenant_id handle RLS: {e}")
 
         try:
             yield db

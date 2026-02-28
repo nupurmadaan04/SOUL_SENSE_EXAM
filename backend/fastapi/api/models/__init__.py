@@ -102,6 +102,7 @@ class NotificationTemplate(Base):
 class NotificationLog(Base):
     """Audit log and delivery tracking for notifications."""
     __tablename__ = 'notification_logs'
+    tenant_id = Column(UUID(as_uuid=True), index=True, nullable=True)
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey('users.id'), index=True, nullable=True) # Optional in case of broadcast
     template_name = Column(String, nullable=False)
@@ -178,6 +179,7 @@ class SurveyQuestion(Base):
 
 class SurveySubmission(Base):
     __tablename__ = 'survey_submissions'
+    tenant_id = Column(UUID(as_uuid=True), index=True, nullable=True)
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     survey_id = Column(Integer, ForeignKey('survey_templates.id'), nullable=False)
@@ -220,6 +222,7 @@ class LoginAttempt(Base):
 class AuditLog(Base):
     """Audit Log for tracking security-critical user actions."""
     __tablename__ = 'audit_logs'
+    tenant_id = Column(UUID(as_uuid=True), index=True, nullable=True)
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     action = Column(String, nullable=False)
@@ -230,6 +233,7 @@ class AuditLog(Base):
 class AuditSnapshot(Base):
     """Event-sourced compacted version of audit events for fast querying (#1085)."""
     __tablename__ = 'audit_snapshots'
+    tenant_id = Column(UUID(as_uuid=True), index=True, nullable=True)
     id = Column(Integer, primary_key=True, autoincrement=True)
     event_type = Column(String, index=True) # CREATED, UPDATED, DELETED
     entity = Column(String, index=True) # e.g., 'User', 'Score'
@@ -244,6 +248,7 @@ class AnalyticsEvent(Base):
     Uses anonymous_id for pre-signup tracking.
     """
     __tablename__ = 'analytics_events'
+    tenant_id = Column(UUID(as_uuid=True), index=True, nullable=True)
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=True, index=True)
     anonymous_id = Column(String, nullable=True, index=True)
@@ -503,6 +508,7 @@ class JournalEntry(Base):
 
 class SatisfactionRecord(Base):
     __tablename__ = 'satisfaction_records'
+    tenant_id = Column(UUID(as_uuid=True), index=True, nullable=True)
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey('users.id'), index=True, nullable=True)
     username = Column(String, index=True)
@@ -535,6 +541,7 @@ class AssessmentResult(Base):
     Supported types: 'career_clarity', 'work_satisfaction', 'strengths'.
     """
     __tablename__ = 'assessment_results'
+    tenant_id = Column(UUID(as_uuid=True), index=True, nullable=True)
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False, index=True)
     assessment_type = Column(String, nullable=False, index=True)
@@ -573,7 +580,12 @@ def receive_after_create(target: Any, connection: Connection, **kw: Any) -> None
     """Setup Row-Level Security policies in PostgreSQL"""
     logger.info("Setting up Multi-Tenant isolation policies...")
     if 'postgresql' in connection.engine.name:
-        core_tables = ['users', 'journal_entries', 'scores', 'achievements']
+        core_tables = [
+            'users', 'journal_entries', 'scores', 'achievements', 
+            'audit_logs', 'audit_snapshots', 'analytics_events',
+            'assessment_results', 'survey_submissions', 'notification_logs',
+            'satisfaction_records', 'user_xp', 'user_streaks', 'user_achievements'
+        ]
         for table in core_tables:
             try:
                 connection.execute(text(f"ALTER TABLE {table} ENABLE ROW LEVEL SECURITY;"))
@@ -883,7 +895,7 @@ class Achievement(Base):
 
 class UserAchievement(Base):
     __tablename__ = 'user_achievements'
-    
+    tenant_id = Column(UUID(as_uuid=True), index=True, nullable=True)
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False, index=True)
     achievement_id = Column(String(100), ForeignKey('achievements.achievement_id'), nullable=False)
@@ -896,7 +908,7 @@ class UserAchievement(Base):
 
 class UserStreak(Base):
     __tablename__ = 'user_streaks'
-    
+    tenant_id = Column(UUID(as_uuid=True), index=True, nullable=True)
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False, index=True)
     activity_type = Column(String(50), default='combined')  # journal, assessment, combined
@@ -909,7 +921,7 @@ class UserStreak(Base):
 
 class UserXP(Base):
     __tablename__ = 'user_xp'
-    
+    tenant_id = Column(UUID(as_uuid=True), index=True, nullable=True)
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey('users.id'), unique=True, index=True, nullable=False)
     total_xp = Column(Integer, default=0)

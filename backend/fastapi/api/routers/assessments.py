@@ -82,26 +82,18 @@ async def get_assessment(
 ):
     """
     Get detailed information for a specific assessment owned by the authenticated user.
-    
+
     - **assessment_id**: The ID of the assessment to retrieve
     """
-    assessment = AssessmentService.get_assessment_by_id(
-        db=db, assessment_id=assessment_id, user_id=current_user.id
-    )
-    db: AsyncSession = Depends(get_db)
-):
-    """
-    Get detailed information for a specific assessment.
-    """
     assessment = await AssessmentService.get_assessment_by_id(db=db, assessment_id=assessment_id)
-    
+
     if not assessment:
         raise NotFoundError(resource="Assessment", resource_id=str(assessment_id))
-    
+
     # Ownership Check: Only owner or admin can view details
     if assessment.username != current_user.username and not getattr(current_user, "is_admin", False):
         raise AuthorizationError(message="Not authorized to view this assessment's details")
-        
+
     responses = await AssessmentService.get_assessment_responses(db=db, assessment_id=assessment_id)
     
     assessment_dict = {

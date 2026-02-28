@@ -60,7 +60,6 @@ class ExamService:
                 question_id=data.question_id,
                 response_value=data.value,
                 detailed_age_group=data.age_group,
-                user_id=user.id,  # Ensure user_id is set
                 session_id=session_id,
                 timestamp=datetime.now(UTC).isoformat()
             )

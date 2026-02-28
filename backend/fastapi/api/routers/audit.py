@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional, Dict, Any
 from datetime import datetime, UTC
@@ -221,12 +221,23 @@ async def cleanup_expired_logs(
 async def event_generator(request: Request):
     """Generator for live audit events using the internal Event Queue (#1085)."""
     producer = get_kafka_producer()
-    while True:
-        if await request.is_disconnected():
-            break
-        # Wait for a new event from the producer's live queue
-        event_data = await producer.live_events.get()
-        yield f"data: {json.dumps(event_data)}\n\n"
+    q = producer.subscribe() # Unique queue for this connection
+    
+    try:
+        while True:
+            if await request.is_disconnected():
+                break
+            
+            # Wait for a new event from the producer's live queue
+            try:
+                event_data = await asyncio.wait_for(q.get(), timeout=1.0)
+                yield f"data: {json.dumps(event_data)}\n\n"
+            except asyncio.TimeoutError:
+                # Keep-alive heartbeat
+                yield ": keep-alive\n\n"
+                
+    finally:
+        producer.unsubscribe(q)
 
 @router.get("/stream")
 async def audit_stream(request: Request, current_user: User = Depends(require_admin)):

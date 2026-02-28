@@ -94,6 +94,17 @@ The security scans are integrated into the GitHub Actions workflow (`python-app.
        path: backend/fastapi/zap_report.html
    ```
 
+### Security Regression Tests
+
+The security regression test suite (`tests/security/`) is automatically executed as part of the standard pytest run in CI:
+
+```yaml
+- name: Test Root App
+  run: pytest tests/ -n 2 --maxfail=5 -m "not serial" --timeout=120 -v
+```
+
+All security regression tests run on every PR and fail the build if any security vulnerability is reintroduced.
+
 ## Acceptance Criteria
 
 - ✅ Bandit runs on every PR
@@ -105,6 +116,11 @@ The security scans are integrated into the GitHub Actions workflow (`python-app.
 - ✅ Scan report uploaded as artifact
 - ✅ CI fails on medium/high vulnerabilities (dynamic)
 - ✅ False positives documented and suppressed
+- ✅ Expired JWT returns 401
+- ✅ Tampered JWT returns 401
+- ✅ Unauthorized role access returns 403
+- ✅ Replay refresh token blocked
+- ✅ All tests run in CI
 
 ## Security Issues Detected
 
@@ -153,18 +169,34 @@ If ZAP reports false positives:
 - Monitor CI logs for new vulnerability patterns
 - Update dependencies to address reported vulnerabilities
 
-## Testing the Implementation
+## Security Regression Tests
 
-To test the security scans:
+Automated pytest test suite located in `tests/security/` to prevent reintroduction of known vulnerabilities:
 
-1. **Test Bandit**: Add a vulnerable code snippet to `backend/` and verify CI failure
-2. **Test Safety**: Add an insecure dependency version and verify detection
-3. **Test Resolution**: Fix vulnerabilities and confirm CI passes
-4. **Test ZAP**: 
-   - Add an endpoint with missing security headers and verify detection
-   - Add an intentionally vulnerable endpoint (e.g., IDOR) and confirm CI failure
-   - Fix issues and verify CI passes
-   - Check the uploaded HTML report artifact for detailed findings
+### JWT Security Tests (`test_jwt_security.py`)
+- Expired JWT rejection (returns 401)
+- Tampered JWT rejection (returns 401)
+- Missing required claims validation
+- Invalid algorithm detection
+- Blacklisted token rejection
+
+### Role-Based Access Control Tests (`test_rbac_security.py`)
+- Regular user cannot access admin endpoints (returns 403)
+- Admin user can access admin endpoints
+- Data isolation between users
+- Role persistence validation
+
+### Refresh Token Security Tests (`test_refresh_token_security.py`)
+- Refresh token replay prevention
+- Token rotation after use
+- Expired refresh token rejection
+- Invalid hash detection
+- Concurrent usage handling
+
+### Comprehensive Test Suite (`test_security_regression_suite.py`)
+- All acceptance criteria validation
+- CI integration verification
+- Test isolation confirmation
 
 ## References
 
