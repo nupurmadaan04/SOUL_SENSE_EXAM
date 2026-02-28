@@ -42,6 +42,17 @@ jobs:
           # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
+      - name: Install security tools
+        run: pip install bandit safety
+
+      - name: Run Bandit security scan
+        run: bandit -r backend/ --severity-level high
+
+      - name: Run dependency vulnerability scan
+        run: |
+          safety check -r requirements.txt --severity-threshold high
+          if [ -f backend/fastapi/requirements.txt ]; then safety check -r backend/fastapi/requirements.txt --severity-threshold high; fi
+
       - name: Test Root App
         timeout-minutes: 20
         env:
@@ -76,4 +87,13 @@ jobs:
           fi
 
           pytest -c pytest.ini tests/unit/
+
+          echo "Running OWASP ZAP baseline scan..."
+          docker run --rm -v $(pwd)/../..:/zap/wrk -t zaproxy/zap-baseline:latest -t http://host.docker.internal:8000 -r zap_report.html --alert-level Medium -z "-config rules.file=/zap/wrk/.zap/rules.tsv"
         working-directory: ./backend/fastapi
+
+      - name: Upload ZAP Scan Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-scan-report
+          path: backend/fastapi/zap_report.html

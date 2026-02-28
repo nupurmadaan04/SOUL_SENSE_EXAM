@@ -24,7 +24,20 @@ class ExamManager:
 
     def start_test(self):
         """Initialize test state and start the exam"""
-        from app.services.exam_service import ExamSession
+        from app.services.exam_service import ExamSession, ExamService
+        from tkinter import messagebox
+        
+        # Check retake restriction (Issue #993)
+        user_id = getattr(self.app, 'current_user_id', None)
+        is_allowed, message = ExamSession.check_retake_eligibility(user_id)
+        
+        if not is_allowed:
+            messagebox.showwarning(
+                "Retake Not Allowed",
+                f"{message}\n\nYou have already completed an assessment. "
+                "Multiple attempts are not permitted."
+            )
+            return
         
         # Init or Reset ExamSession
         # 1. Get question limit from settings (Default to 10)
@@ -38,7 +51,8 @@ class ExamManager:
             username=self.app.username,
             age=self.app.age,
             age_group=self.app.age_group,
-            questions=questions_to_use
+            questions=questions_to_use,
+            user_id=user_id
         )
         self.session.start_exam()
         
@@ -588,6 +602,8 @@ class ExamManager:
     
     def show_embedded_results(self, result_ids=None):
         """Show results embedded in the main window (Web-Style)"""
+        from app.services.exam_service import ExamSession
+        
         self.app.clear_screen()
         colors = self.app.colors
         
@@ -721,9 +737,21 @@ class ExamManager:
             btn.bind("<Leave>", lambda e: btn.configure(bg=colors.get(color_key, colors[color_key])))
             return btn
             
-        # Button: Take Another
-        # We need to use lambda to delay execution or bind properly
-        create_action_btn("🔄 Retake Assessment", self.start_test, "primary")
+        # Button: Take Another (only show if no completed assessment)
+        # Check retake restriction for current user
+        user_id = getattr(self.app, 'current_user_id', None)
+        is_allowed, _ = ExamSession.check_retake_eligibility(user_id)
+        
+        if is_allowed:
+            # We need to use lambda to delay execution or bind properly
+            create_action_btn("🔄 Retake Assessment", self.start_test, "primary")
+        else:
+            # Show message that assessment is already completed
+            tk.Label(action_frame, 
+                    text="✓ Assessment Completed (No retake allowed)",
+                    font=("Segoe UI", 11, "italic"),
+                    bg=colors["bg"], 
+                    fg=colors.get("success", "#10B981")).pack(side="left", padx=10)
         
         # Button: AI Analysis
         def show_ai_analysis():

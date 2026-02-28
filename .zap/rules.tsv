@@ -1,0 +1,6 @@
+# OWASP ZAP Rules File for Suppressing False Positives
+# Format: URL	Alert	Evidence	CWE	Other
+# Use this file to suppress known false positive alerts from ZAP baseline scans
+# Example entries (uncomment and modify as needed):
+# http://example.com/api/.*	X-Frame-Options Header Not Set		X-Frame-Options	Known false positive for API endpoints
+# http://example.com/.*	Content Security Policy (CSP) Header Not Set		CSP	Not applicable for API responses

@@ -27,14 +27,15 @@ export function useExamSubmit(): UseExamSubmitReturn {
       if (!isMountedRef.current) return null;
 
       setIsSubmitting(true);
-      setError(null);
       setResult(null);
+      // We don't clear error here to allow "Retrying..." UI states
 
       try {
         const examResult = await examsApi.submitExam(data);
 
         if (!isMountedRef.current) return null;
 
+        setError(null); // Clear error on success
         setResult(examResult);
 
         // Invalidate dashboard queries to refresh data

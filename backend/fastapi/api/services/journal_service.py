@@ -320,9 +320,37 @@ class JournalService:
         skip: int = 0,
         limit: int = 20
     ) -> Tuple[List[JournalEntry], int]:
-        """Search journal entries with filters."""
-        
+        """Search journal entries with filters.
+
+        SQL Injection safety: all filters use SQLAlchemy ORM parameterised
+        binds.  ilike() passes its argument as a bind parameter, never as
+        inline SQL text.  The explicit string-concatenation pattern below
+        ("% " + value + " %") is the recommended idiomatic form — it avoids
+        any ambiguity while still relying on the ORM for escaping.
+        """
+
         limit = min(limit, 100)
+
+        db_query = self.db.query(JournalEntry).filter(
+            JournalEntry.user_id == current_user.id,
+            JournalEntry.is_deleted == False
+        )
+
+        # Content search — uses parameterised ilike (no raw SQL interpolation)
+        if query:
+            # Truncate to prevent DoS via enormous patterns
+            safe_query = query[:500]
+            db_query = db_query.filter(
+                JournalEntry.content.ilike("%" + safe_query + "%")
+            )
+
+        # Tag filtering — each tag value is passed as a bind parameter
+        if tags:
+            for tag in tags:
+                safe_tag = tag[:200]  # sanitise length
+                db_query = db_query.filter(
+                    JournalEntry.tags.ilike("%" + safe_tag + "%")
+                )
         
         stmt = select(JournalEntry).filter(
             JournalEntry.user_id == current_user.id,

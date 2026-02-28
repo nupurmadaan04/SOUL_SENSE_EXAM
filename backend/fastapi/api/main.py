@@ -14,9 +14,14 @@ from .config import get_settings_instance
 from .api.v1.router import api_router as api_v1_router
 from .routers.health import router as health_router
 from .utils.limiter import limiter
+from .utils.logging_config import setup_logging
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from .services.websocket_manager import manager as ws_manager
+
+# Initialize centralized logging
+setup_logging()
+logger = logging.getLogger("api.main")
 
 # Load and validate settings on import
 settings = get_settings_instance()
@@ -92,6 +97,11 @@ async def lifespan(app: FastAPI):
             limiter._storage_uri = settings.redis_url
             print(f"[OK] Redis connected for rate limiting: {settings.redis_host}:{settings.redis_port}")
             
+            # Initialize JWT blacklist
+            from .utils.jwt_blacklist import init_jwt_blacklist
+            init_jwt_blacklist(redis_client)
+            print("[OK] JWT blacklist initialized")
+            
         except Exception as e:
             logger.warning(f"Redis initialization failed: {e}")
             print(f"[WARNING] Redis not available, rate limiting will use in-memory fallback: {e}")
@@ -163,7 +173,7 @@ async def lifespan(app: FastAPI):
             print(f"[WARNING] Event-sourced audit trail falling back to mock mode: {e}")
         
     except Exception as e:
-        print(f"[ERROR] Database initialization failed: {e}")
+        logger.error(f"Database initialization failed: {e}", exc_info=True)
         # Re-raise to crash the application - don't start with broken DB
         raise
     
@@ -222,6 +232,15 @@ async def lifespan(app: FastAPI):
     logger.info("Application shutdown completed")
 
 
+class CorrelationIDMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        request_id = request.headers.get("X-Request-ID", str(uuid.uuid4()))
+        request.state.request_id = request_id
+        response = await call_next(request)
+        response.headers["X-Request-ID"] = request_id
+        return response
+
+
 class VersionHeaderMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         response = await call_next(request)
@@ -250,7 +269,8 @@ class PerformanceMonitoringMiddleware(BaseHTTPMiddleware):
         if process_time > 500:
             logger = logging.getLogger("api.performance")
             logger.warning(
-                f"Slow request: {request.method} {request.url.path} took {process_time:.2f}ms"
+                f"Slow request: {request.method} {request.url.path} took {process_time:.2f}ms",
+                extra={"request_id": getattr(request.state, 'request_id', 'unknown'), "method": request.method, "path": request.url.path, "duration_ms": process_time}
             )
 
         # Log all requests in debug mode
@@ -258,7 +278,8 @@ class PerformanceMonitoringMiddleware(BaseHTTPMiddleware):
         if settings.debug:
             logger = logging.getLogger("api.requests")
             logger.info(
-                f"{request.method} {request.url.path} - Status: {response.status_code} - Time: {process_time:.2f}ms"
+                f"{request.method} {request.url.path} - Status: {response.status_code} - Time: {process_time:.2f}ms",
+                extra={"request_id": getattr(request.state, 'request_id', 'unknown'), "status_code": response.status_code}
             )
 
         return response
@@ -274,6 +295,8 @@ def create_app() -> FastAPI:
         lifespan=lifespan
     )
 
+    # Correlation ID middleware (outermost for logging reference)
+    app.add_middleware(CorrelationIDMiddleware)
     @app.get("/favicon.ico", include_in_schema=False)
     async def favicon():
         return FileResponse(FAVICON_PATH, media_type="image/svg+xml")
@@ -356,6 +379,47 @@ def create_app() -> FastAPI:
     # Register Health endpoints at root level for orchestration
     app.include_router(health_router, tags=["Health"])
 
+    from .exceptions import APIException
+    from .constants.errors import ErrorCode
+
+    @app.exception_handler(APIException)
+    async def api_exception_handler(request: Request, exc: APIException):
+        return JSONResponse(
+            status_code=exc.status_code,
+            content=exc.detail
+        )
+
+    @app.exception_handler(Exception)
+    async def global_exception_handler(request: Request, exc: Exception):
+        logger = logging.getLogger("api.main")
+        request_id = getattr(request.state, 'request_id', 'unknown')
+        
+        if settings.debug:
+            # Safe for local dev: print full traceback to stdout and log error details
+            traceback.print_exc()
+            logger.error(f"Unhandled Exception: {exc}", extra={
+                "request_id": request_id,
+                "error": str(exc),
+                "type": type(exc).__name__
+            })
+            error_details = {"error": str(exc), "type": type(exc).__name__, "request_id": request_id}
+            message = f"Internal Server Error: {exc}"
+        else:
+            # Production: Log the error safely without stdout pollution, 
+            # preserving traceback in structured logs via exc_info=True
+            logger.error("Internal Server Error occurred", extra={"request_id": request_id}, exc_info=True)
+            # strictly zero code artifacts or tracebacks in production response
+            error_details = {"request_id": request_id}
+            message = "Internal Server Error"
+        
+        return JSONResponse(
+            status_code=500,
+            content={
+                "code": ErrorCode.INTERNAL_SERVER_ERROR.value,
+                "message": message,
+                "details": error_details
+            }
+        )
         # Register standardized exception handlers
     # import removed: register_exception_handlers not needed for current setup
     # register_exception_handlers(app)
@@ -372,11 +436,12 @@ def create_app() -> FastAPI:
             "documentation": "/docs"
         }
 
-    print("[OK] SoulSense API started successfully")
-    print(f"[ENV] Environment: {settings.app_env}")
-    print(f"[CONFIG] Debug mode: {settings.debug}")
-    print(f"[DB] Database: {settings.database_url}")
-    print(f"[API] API available at /api/v1")
+    logger.info("SoulSense API started successfully", extra={
+        "environment": settings.app_env,
+        "debug": settings.debug,
+        "database": settings.database_url,
+        "api_v1_path": "/api/v1"
+    })
 
     # OUTSIDE MIDDLEWARES (added last to run first)
     

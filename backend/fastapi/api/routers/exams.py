@@ -90,6 +90,15 @@ async def get_detailed_results(
     Get detailed breakdown for a specific assessment.
     """
     try:
+        result = AssessmentResultsService.get_detailed_results(db, id, current_user.id)
+        if result is None:
+            logger.info(
+                "Assessment result not found",
+                extra={"assessment_id": id, "user_id": current_user.id},
+            )
+            raise HTTPException(
+                status_code=404,
+                detail="No result found. The requested assessment does not exist or has been removed.",
         result = await AssessmentResultsService.get_detailed_results(db, id, current_user.id)
         if not result:
             raise NotFoundError(
@@ -101,5 +110,10 @@ async def get_detailed_results(
     except NotFoundError:
         raise
     except Exception as e:
+        logger.error(
+            "Error fetching detailed results",
+            extra={"assessment_id": id, "user_id": current_user.id, "error": str(e)},
+        )
+        raise HTTPException(status_code=500, detail="Internal server error")
         logger.error(f"Error fetching detailed results for assessment {id}: {e}")
         raise InternalServerError(message="Failed to retrieve assessment results")

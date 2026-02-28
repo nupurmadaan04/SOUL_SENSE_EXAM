@@ -43,8 +43,7 @@ async def get_assessments(
         db=db,
         skip=skip,
         limit=page_size,
-        username=username,
-        age_group=age_group
+        user_id=current_user.id
     )
     
     return AssessmentListResponse(
@@ -82,9 +81,17 @@ async def get_assessment(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Get detailed information for a specific assessment.
+    Get detailed information for a specific assessment owned by the authenticated user.
     
     - **assessment_id**: The ID of the assessment to retrieve
+    """
+    assessment = AssessmentService.get_assessment_by_id(
+        db=db, assessment_id=assessment_id, user_id=current_user.id
+    )
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get detailed information for a specific assessment.
     """
     assessment = await AssessmentService.get_assessment_by_id(db=db, assessment_id=assessment_id)
     
@@ -112,3 +119,4 @@ async def get_assessment(
     }
     
     return AssessmentDetailResponse(**assessment_dict)
+

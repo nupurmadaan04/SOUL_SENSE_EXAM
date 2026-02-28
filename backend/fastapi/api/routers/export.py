@@ -29,6 +29,17 @@ from backend.fastapi.api.celery_tasks import execute_async_export_task
 router = APIRouter()
 logger = logging.getLogger("api.export")
 
+# Import schemas for validation
+from ..schemas import (
+    ExportRequest,
+    ExportV2Request,
+    ExportResponse,
+    SupportedFormatsResponse,
+    AsyncExportRequest,
+    AsyncPDFExportRequest,
+    AsyncExportResponse
+)
+
 # Rate limiting: {user_id: [timestamp, request_count]}
 _export_rate_limits: Dict[int, List[datetime]] = {}
 MAX_REQUESTS_PER_HOUR = 10
@@ -60,26 +71,26 @@ def _check_rate_limit(user_id: int) -> None:
 # V1 ENDPOINTS (Backward Compatible)
 # ============================================================================
 
-@router.post("")
+@router.post("", response_model=ExportResponse)
 async def generate_export(
-    request: dict,
+    request: ExportRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """V1 Endpoint: Generate an export of user data."""
-    export_format = request.get("format", "json").lower()
     _check_rate_limit(current_user.id)
 
     try:
-        filepath, job_id = await ExportServiceV1.generate_export(db, current_user, export_format)
+        filepath, job_id = await ExportServiceV1.generate_export(db, current_user, request.format)
         filename = os.path.basename(filepath)
 
-        return {
-            "job_id": job_id,
-            "status": "completed",
-            "filename": filename,
-            "download_url": f"/api/v1/export/{filename}/download"
-        }
+        return ExportResponse(
+            job_id=job_id,
+            status="completed",
+            format=request.format,
+            filename=filename,
+            download_url=f"/api/v1/export/{filename}/download"
+        )
 
     except ValueError as ve:
         raise ValidationError(message=str(ve))
@@ -158,11 +169,9 @@ async def _execute_async_export(
         }
 
 
-@router.post("/async", status_code=status.HTTP_202_ACCEPTED)
+@router.post("/async", status_code=status.HTTP_202_ACCEPTED, response_model=AsyncExportResponse)
 async def create_async_export(
-    background_tasks: BackgroundTasks,
-    format: str = Body(..., embed=True),
-    options: Optional[Dict[str, Any]] = Body(None, embed=True),
+    request: AsyncExportRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
@@ -176,10 +185,6 @@ async def create_async_export(
             wait_seconds=60
         )
     
-    format_lower = format.lower()
-    if format_lower not in ExportServiceV2.SUPPORTED_FORMATS:
-        raise ValidationError(message=f"Unsupported format: {format}")
-    
     task_type_map = {
         "pdf": TaskType.EXPORT_PDF,
         "csv": TaskType.EXPORT_CSV,
@@ -187,9 +192,9 @@ async def create_async_export(
         "xml": TaskType.EXPORT_XML,
         "html": TaskType.EXPORT_HTML,
     }
-    task_type = task_type_map.get(format_lower, TaskType.EXPORT_JSON)
+    task_type = task_type_map.get(request.format, TaskType.EXPORT_JSON)
     
-    export_options = options or {}
+    export_options = request.options.model_dump() if request.options else {}
     if 'data_types' not in export_options:
         export_options['data_types'] = list(ExportServiceV2.DATA_TYPES)
     
@@ -197,7 +202,7 @@ async def create_async_export(
         db=db,
         user_id=current_user.id,
         task_type=task_type,
-        params={"format": format_lower, "options": export_options}
+        params={"format": request.format, "options": export_options}
     )
     
     # Enqueue task to Celery
@@ -205,76 +210,70 @@ async def create_async_export(
         task.job_id,
         current_user.id,
         current_user.username,
-        format_lower,
+        request.format,
         export_options
     )
     
-    return {
-        "job_id": task.job_id,
-        "status": "processing",
-        "poll_url": f"/api/v1/tasks/{task.job_id}",
-        "format": format_lower
-    }
+    return AsyncExportResponse(
+        job_id=task.job_id,
+        status="processing",
+        poll_url=f"/api/v1/tasks/{task.job_id}",
+        format=request.format
+    )
 
 
-@router.post("/async/pdf", status_code=status.HTTP_202_ACCEPTED)
+@router.post("/async/pdf", status_code=status.HTTP_202_ACCEPTED, response_model=AsyncExportResponse)
 async def create_async_pdf_export(
-    background_tasks: BackgroundTasks,
-    include_charts: bool = Body(True, embed=True),
-    data_types: Optional[List[str]] = Body(None, embed=True),
+    request: AsyncPDFExportRequest,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """Generate a PDF report asynchronously."""
     options = {
-        "data_types": data_types or list(ExportServiceV2.DATA_TYPES),
+        "data_types": request.data_types or list(ExportServiceV2.DATA_TYPES),
         "include_metadata": True,
-        "include_charts": include_charts
+        "include_charts": request.include_charts
     }
     
+    # Create a temporary AsyncExportRequest for the helper function
+    export_request = AsyncExportRequest(format="pdf", options=ExportOptions(**options))
+    
     return await create_async_export(
-        background_tasks=background_tasks,
-        format="pdf",
-        options=options,
+        request=export_request,
         current_user=current_user,
         db=db
     )
 
 
-@router.post("/v2")
+@router.post("/v2", response_model=ExportResponse)
 async def create_export_v2(
-    format: str = Body(..., embed=True),
-    options: Optional[Dict[str, Any]] = Body(None, embed=True),
+    request: ExportV2Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """V2 Endpoint: Create an export with advanced options."""
     _check_rate_limit(current_user.id)
 
-    format_lower = format.lower()
-    if format_lower not in ExportServiceV2.SUPPORTED_FORMATS:
-        raise ValidationError(message=f"Unsupported format: {format}")
-
-    export_options = options or {}
+    export_options = request.options.model_dump() if request.options else {}
     if 'data_types' not in export_options:
         export_options['data_types'] = list(ExportServiceV2.DATA_TYPES)
 
     try:
         filepath, export_id = await ExportServiceV2.generate_export(
-            db, current_user, format_lower, export_options
+            db, current_user, request.format, export_options
         )
 
         filename = os.path.basename(filepath)
 
-        return {
-            "export_id": export_id,
-            "status": "completed",
-            "format": format_lower,
-            "filename": filename,
-            "download_url": f"/api/v1/export/{export_id}/download",
-            "expires_at": (datetime.now(UTC) + timedelta(hours=48)).isoformat(),
-            "message": "Export completed successfully"
-        }
+        return ExportResponse(
+            export_id=export_id,
+            status="completed",
+            format=request.format,
+            filename=filename,
+            download_url=f"/api/v1/export/{export_id}/download",
+            expires_at=(datetime.now(UTC) + timedelta(hours=48)).isoformat(),
+            message="Export completed successfully"
+        )
 
     except ValueError as ve:
         raise ValidationError(message=str(ve))
@@ -364,20 +363,20 @@ async def delete_export_v2(
         raise InternalServerError(message="Failed to delete export")
 
 
-@router.get("/formats")
+@router.get("/formats", response_model=SupportedFormatsResponse)
 async def list_supported_formats():
     """List all supported export formats."""
-    return {
-        "formats": {
+    return SupportedFormatsResponse(
+        formats={
             "json": {"description": "Complete data export"},
             "csv": {"description": "Tabular data in ZIP archive"},
             "xml": {"description": "Structured XML"},
             "html": {"description": "Interactive HTML"},
             "pdf": {"description": "Professional document"}
         },
-        "data_types": list(ExportServiceV2.DATA_TYPES),
-        "retention": "48 hours"
-    }
+        data_types=list(ExportServiceV2.DATA_TYPES),
+        retention="48 hours"
+    )
 
 
 @router.get("/{job_id}/status")

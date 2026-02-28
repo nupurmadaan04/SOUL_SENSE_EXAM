@@ -15,7 +15,7 @@ try:
 except ImportError:
     CRYPTO_AVAILABLE = False
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("api.exam")
 
 class ExamService:
     """
@@ -27,24 +27,61 @@ class ExamService:
     async def start_exam(db: AsyncSession, user: User):
         """Standardizes session initiation and returns a new session_id."""
         session_id = str(uuid.uuid4())
-        logger.info(f"Exam session started for user_id={user.id}: {session_id}")
+        logger.info(f"Exam session started", extra={
+            "user_id": user.id,
+            "session_id": session_id
+        })
         return session_id
 
     @staticmethod
     async def save_response(db: AsyncSession, user: User, session_id: str, data: ExamResponseCreate):
         """Saves a single question response linked to the user and session."""
         try:
+            # Check if user has already answered this question
+            existing_response = db.query(Response).filter(
+                Response.user_id == user.id,
+                Response.question_id == data.question_id
+            ).first()
+            
+            if existing_response:
+                raise ConflictError(
+                    message="Duplicate response submission",
+                    details=[{
+                        "field": "question_id",
+                        "error": "User has already submitted a response for this question",
+                        "question_id": data.question_id,
+                        "existing_response_id": existing_response.id
+                    }]
+                )
+            
             new_response = Response(
                 username=user.username,
+                user_id=user.id,
                 question_id=data.question_id,
                 response_value=data.value,
-                age_group=data.age_group,
+                detailed_age_group=data.age_group,
+                user_id=user.id,  # Ensure user_id is set
                 session_id=session_id,
                 timestamp=datetime.now(UTC).isoformat()
             )
             db.add(new_response)
             await db.commit()
             return True
+        except IntegrityError as e:
+            # Handle database constraint violations (additional safety net)
+            db.rollback()
+            if "unique constraint" in str(e).lower() or "duplicate" in str(e).lower():
+                raise ConflictError(
+                    message="Duplicate response submission",
+                    details=[{
+                        "field": "question_id",
+                        "error": "User has already submitted a response for this question",
+                        "question_id": data.question_id
+                    }]
+                )
+            else:
+                logger.error(f"Database integrity error for user_id={user.id}: {e}")
+                raise
         except Exception as e:
             logger.error(f"Failed to save response for user_id={user.id}: {e}")
             await db.rollback()
@@ -54,9 +91,13 @@ class ExamService:
     async def save_score(db: AsyncSession, user: User, session_id: str, data: ExamResultCreate):
         """
         Saves the final exam score.
+        Validates that all questions have been answered before saving.
         Encrypts reflection_text if crypto is available.
         """
         try:
+            # Validate that all questions have been answered
+            ExamService._validate_complete_responses(db, user, session_id, data.age)
+            
             # Encrypt reflection text for privacy
             reflection = data.reflection_text
             if CRYPTO_AVAILABLE and reflection:
@@ -90,7 +131,12 @@ class ExamService:
             except Exception as e:
                 logger.error(f"Gamification update failed for user_id={user.id}: {e}")
 
-            logger.info(f"Exam saved for user_id={user.id}. Score: {data.total_score}")
+            logger.info(f"Exam saved successfully", extra={
+                "user_id": user.id,
+                "session_id": session_id,
+                "score": data.total_score,
+                "sentiment_score": data.sentiment_score
+            })
             return new_score
             
         except Exception as e:

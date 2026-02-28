@@ -4,18 +4,21 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui';
-import { Edit3, CheckCircle, Send } from 'lucide-react';
+import { Edit3, CheckCircle, Send, AlertCircle } from 'lucide-react';
 import { useExamStore } from '@/stores/examStore';
 import { cn } from '@/lib/utils';
+import { AnimatePresence } from 'framer-motion';
 
 interface ReviewScreenProps {
   onSubmit: () => void;
   isSubmitting?: boolean;
+  error?: string | null;
 }
 
 export const ReviewScreen: React.FC<ReviewScreenProps> = ({
   onSubmit,
   isSubmitting = false,
+  error = null,
 }) => {
   const { questions, answers, jumpToQuestion, getAnsweredCount } = useExamStore();
 
@@ -142,24 +145,49 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
         >
           <div className="text-center">
             <h3 className="text-lg font-semibold mb-2">Ready to Submit?</h3>
-            <p className="text-muted-foreground mb-6">
+            <p className="text-muted-foreground mb-4">
               Once submitted, you cannot change your answers. Make sure everything looks correct.
             </p>
+
+            <AnimatePresence>
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="mb-6 p-4 bg-destructive/10 border border-destructive/20 rounded-md flex items-start gap-3 text-left"
+                >
+                  <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-destructive">
+                      {isSubmitting ? "Retrying Submission..." : "Submission Failed"}
+                    </p>
+                    <p className="text-xs text-destructive/80 mt-1">{error}</p>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             <Button
               onClick={onSubmit}
               disabled={isSubmitting || !isComplete}
               size="lg"
-              className="bg-green-600 hover:bg-green-700 text-white px-8 py-3"
+              className={cn(
+                "px-8 py-3 text-white transition-colors",
+                error
+                  ? "bg-destructive hover:bg-destructive/90"
+                  : "bg-green-600 hover:bg-green-700"
+              )}
             >
               {isSubmitting ? (
                 <>
                   <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent mr-2" />
-                  Submitting Exam...
+                  {error ? 'Retrying Submission...' : 'Submitting Exam...'}
                 </>
               ) : (
                 <>
                   <Send className="h-5 w-5 mr-2" />
-                  Confirm & Submit Exam
+                  {error ? 'Try Again' : 'Confirm & Submit Exam'}
                 </>
               )}
             </Button>

@@ -22,7 +22,7 @@ from .db_router import mark_write
 
 settings = get_settings_instance()
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("api.auth")
 
 class AuthService:
     def __init__(self, db: AsyncSession):
@@ -332,7 +332,11 @@ class AuthService:
             remaining = int(lockout_duration - elapsed.total_seconds())
 
             if remaining > 0:
-                logger.warning(f"Account locked: {username} ({count} failed attempts, {remaining}s remaining)")
+                logger.warning(f"Account locked", extra={
+                    "username": username,
+                    "failed_attempts": count,
+                    "remaining_seconds": remaining
+                })
                 return True, "Too many failed attempts. Try again later.", remaining
 
         return False, None, 0
@@ -353,33 +357,48 @@ class AuthService:
             await self.db.rollback()
             logger.error(f"Failed to record login attempt: {e}")
 
-    async def register_user(self, user_data: 'UserCreate') -> Tuple[bool, Optional[User], str]:
-        """Register a new user and their personal profile."""
+    def register_user(self, user_data: 'UserCreate') -> Tuple[bool, Optional[User], str]:
+        """
+        Register a new user and their personal profile.
+        Standardizes identifiers and validates uniqueness.
+
+        Security:
+        - Generic status return to prevent enumeration.
+        - Timing jitter to prevent response-time analysis.
+        """
+        import time
         import random
-        await asyncio.sleep(random.uniform(0.1, 0.3))
+        from ..exceptions import APIException
+        from ..constants.errors import ErrorCode
+        from sqlalchemy.exc import OperationalError, DatabaseError
+
+        # Timing Jitter: Artificial delay baseline (100-300ms)
+        # This masks the difference between a DB hit (fast) and a bcrypt hash (slowish)
+        # Though bcrypt is ~100ms+, so we just add a bit of noise.
+        time.sleep(random.uniform(0.1, 0.3))
 
         username_lower = user_data.username.lower().strip()
         email_lower = user_data.email.lower().strip()
 
-        # 1. Validation
-        stmt_user = select(User).filter(User.username == username_lower)
-        res_user = await self.db.execute(stmt_user)
-        existing_username = res_user.scalar_one_or_none()
-
-        stmt_profile = select(PersonalProfile).filter(PersonalProfile.email == email_lower)
-        res_profile = await self.db.execute(stmt_profile)
-        existing_email = res_profile.scalar_one_or_none()
-
-        if existing_username or existing_email:
-            logger.info(f"Registration attempt for existing identity: {username_lower} / {email_lower}")
-            return True, None, "Account creation initiated. Please check your email for verification link."
-
-        from .security_service import SecurityService
-        if SecurityService.is_disposable_email(email_lower):
-            return False, None, "Registration with disposable email domains is not allowed"
-
         try:
-            hashed_pw = get_password_hash(user_data.password)
+            # 1. Validation (Does NOT leak existence if we return generic later)
+            # But we still do it for integrity.
+            existing_username = self.db.query(User).filter(User.username == username_lower).first()
+            existing_email = self.db.query(PersonalProfile).filter(PersonalProfile.email == email_lower).first()
+
+            if existing_username or existing_email:
+                # ENUMERATION PROTECTION:
+                # We don't raise an error. We return "Success" but don't create.
+                # In a real app, we would send an "Already registered" email here.
+                logger.info(f"Registration attempt for existing identity: {username_lower} / {email_lower}")
+                return True, None, "Account creation initiated. Please check your email for verification link."
+
+            # 2. Disposable Email Check (This remains an error as it's a policy failure, not enumeration)
+            from .security_service import SecurityService
+            if SecurityService.is_disposable_email(email_lower):
+                return False, None, "Registration with disposable email domains is not allowed"
+
+            hashed_pw = self.hash_password(user_data.password)
             new_user = User(
                 username=username_lower,
                 password_hash=hashed_pw
@@ -409,6 +428,15 @@ class AuthService:
                 logger.warning(f"Failed to mark write in Redis: {e}")
             
             return True, new_user, "Registration successful. Please verify your email."
+        except (OperationalError, DatabaseError) as e:
+            # Handle database connection/operational errors
+            self.db.rollback()
+            logger.error(f"Database connection error during registration: {str(e)}")
+            return False, None, "Service temporarily unavailable. Please try again later."
+        except AttributeError as e:
+            self.db.rollback()
+            logger.error(f"Registration Model Mismatch: {e}")
+            return False, None, "A configuration error occurred on the server."
         except Exception as e:
             await self.db.rollback()
             logger.error(f"Registration failed error: {str(e)}")
@@ -481,20 +509,44 @@ class AuthService:
             db_token.is_revoked = True
             await self.db.commit()
 
-    async def revoke_access_token(self, token: str) -> None:
-        """Revoke an access token."""
-        from jose import jwt
-        from ..root_models import TokenRevocation
+    def revoke_access_token(self, token: str) -> None:
+        """Revoke an access token by adding it to the Redis blacklist."""
         try:
+            # Use Redis blacklist for fast lookups
+            from ..utils.jwt_blacklist import get_jwt_blacklist
+            blacklist = get_jwt_blacklist()
+
+            # Blacklist in Redis (async operation, but we'll make it sync for now)
+            import asyncio
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            success = loop.run_until_complete(blacklist.blacklist_token(token))
+            loop.close()
+
+            if success:
+                logger.info(f"Access token blacklisted in Redis")
+            else:
+                logger.warning("Failed to blacklist token in Redis, falling back to database")
+
+            # Also store in database as backup (for tokens without JTI)
+            from jose import jwt
+            from ..root_models import TokenRevocation
             payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.jwt_algorithm])
             exp = payload.get("exp")
             if exp:
                 expires_at = datetime.fromtimestamp(exp, tz=timezone.utc)
                 revocation = TokenRevocation(token_str=token, expires_at=expires_at)
                 self.db.add(revocation)
-                await self.db.commit()
+                self.db.commit()
+                logger.info(f"Access token also revoked in database for user: {payload.get('sub')}")
+
         except Exception as e:
             logger.error(f"Failed to revoke access token: {e}")
+            # Don't raise exception - logout should succeed even if revocation fails
+    
+
+
+
 
     async def initiate_password_reset(self, email: str, background_tasks: BackgroundTasks) -> tuple[bool, str]:
         """Initiate password reset flow."""

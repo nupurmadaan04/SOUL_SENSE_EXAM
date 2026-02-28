@@ -21,7 +21,7 @@ from ..schemas import (
     JournalCreate,
     JournalUpdate,
     JournalResponse,
-    JournalListResponse,
+    JournalCursorResponse,
     JournalAnalytics,
     # JournalSearchParams,
     JournalPromptsResponse,
@@ -75,14 +75,15 @@ async def create_journal(
     )
 
 
+@router.get("/", response_model=JournalCursorResponse, summary="List Journal Entries")
 @router.get("/", response_model=JournalListResponse, summary="List Journal Entries")
 @limiter.limit("100/minute")
 async def list_journals(
     request: Request,
     current_user: Annotated[User, Depends(get_current_user)],
     journal_service: Annotated[JournalService, Depends(get_journal_service)],
-    skip: int = Query(0, ge=0),
-    limit: int = Query(20, ge=1, le=100),
+    cursor: Optional[str] = Query(None, description="ISO format date or timestamp|id tie-breaker"),
+    limit: int = Query(25, ge=1, le=100),
     start_date: Optional[str] = Query(None, description="Format: YYYY-MM-DD"),
     end_date: Optional[str] = Query(None, description="Format: YYYY-MM-DD")
 ):
@@ -91,17 +92,16 @@ async def list_journals(
     """
     entries, total = await journal_service.get_entries(
         current_user=current_user,
-        skip=skip,
+        cursor=cursor,
         limit=limit,
         start_date=start_date,
         end_date=end_date
     )
     
-    return JournalListResponse(
-        total=total,
-        entries=[JournalResponse.model_validate(e) for e in entries],
-        page=skip // limit + 1,
-        page_size=limit
+    return JournalCursorResponse(
+        data=[JournalResponse.model_validate(e) for e in entries],
+        next_cursor=next_cursor,
+        has_more=has_more
     )
 
 

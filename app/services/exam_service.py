@@ -3,10 +3,15 @@ import statistics
 import logging
 from datetime import datetime, UTC
 from typing import List, Tuple, Optional, Any
-from sqlalchemy import desc
+from sqlalchemy import desc, func
 from app.db import safe_db_context
 from app.models import Score, Response, User, AssessmentResult
 from app.exceptions import DatabaseError
+
+
+class RetakeNotAllowedError(Exception):
+    """Raised when a user attempts to retake an assessment they have already completed."""
+    pass
 
 # Try importing NLTK sentiment analyzer
 try:
@@ -21,6 +26,103 @@ class ExamService:
     Service layer for Exam interactions.
     Handles all Database operations for Exams and Scores.
     """
+    
+    @staticmethod
+    def has_completed_assessment(user_id: int) -> bool:
+        """
+        Check if a user has a completed assessment.
+        Used for retake restriction (Issue #993).
+        
+        Args:
+            user_id: The ID of the user to check
+            
+        Returns:
+            True if user has a completed assessment, False otherwise
+        """
+        try:
+            with safe_db_context() as session:
+                completed_count = session.query(Score).filter(
+                    Score.user_id == user_id,
+                    Score.status == "completed"
+                ).count()
+                return completed_count > 0
+        except Exception as e:
+            logger.error(f"Failed to check completed assessment: {e}")
+            return False
+    
+    @staticmethod
+    def get_completed_assessment_count(user_id: int) -> int:
+        """
+        Get the number of completed assessments for a user.
+        
+        Args:
+            user_id: The ID of the user
+            
+        Returns:
+            Number of completed assessments
+        """
+        try:
+            with safe_db_context() as session:
+                return session.query(Score).filter(
+                    Score.user_id == user_id,
+                    Score.status == "completed"
+                ).count()
+        except Exception as e:
+            logger.error(f"Failed to get completed assessment count: {e}")
+            return 0
+    
+    @staticmethod
+    def get_next_attempt_number(user_id: int) -> int:
+        """
+        Get the next attempt number for a user's assessment.
+        
+        Args:
+            user_id: The ID of the user
+            
+        Returns:
+            The next attempt number (1-based)
+        """
+        try:
+            with safe_db_context() as session:
+                max_attempt = session.query(func.max(Score.attempt_number)).filter(
+                    Score.user_id == user_id
+                ).scalar()
+                return (max_attempt or 0) + 1
+        except Exception as e:
+            logger.error(f"Failed to get next attempt number: {e}")
+            return 1
+    
+    @staticmethod
+    def check_retake_allowed(user_id: Optional[int]) -> Tuple[bool, str]:
+        """
+        Check if a user is allowed to take/retake an assessment.
+        
+        Args:
+            user_id: The ID of the user (None for anonymous users)
+            
+        Returns:
+            Tuple of (is_allowed, message)
+        """
+        # Anonymous users are always allowed (tracked by session only)
+        if user_id is None:
+            return True, "Anonymous user - retake check bypassed"
+        
+        try:
+            with safe_db_context() as session:
+                # Check for completed assessment
+                completed = session.query(Score).filter(
+                    Score.user_id == user_id,
+                    Score.status == "completed"
+                ).first()
+                
+                if completed:
+                    return False, "Assessment already completed. Retake is not allowed."
+                
+                return True, "Retake allowed"
+        except Exception as e:
+            logger.error(f"Failed to check retake eligibility: {e}")
+            # Fail-safe: allow the attempt if we can't verify
+            return True, "Could not verify retake eligibility - allowing attempt"
     
     @staticmethod
     def get_assessment_results(
@@ -69,9 +171,26 @@ class ExamService:
         reflection_text: str,
         is_rushed: bool,
         is_inconsistent: bool,
-        detailed_age_group: str
+        detailed_age_group: str,
+        status: str = "completed",
+        attempt_number: Optional[int] = None
     ) -> bool:
-        """Saves a completed exam score to the database."""
+        """
+        Saves a completed exam score to the database.
+        
+        Args:
+            username: The username of the user
+            age: User's age
+            age_group: User's age group
+            score: Total score achieved
+            sentiment_score: Sentiment analysis score
+            reflection_text: User's reflection text
+            is_rushed: Whether the exam was rushed
+            is_inconsistent: Whether responses were inconsistent
+            detailed_age_group: Detailed age group classification
+            status: Assessment status ("completed", "in_progress", "abandoned")
+            attempt_number: Attempt number (auto-calculated if None)
+        """
         try:
             timestamp = datetime.now(UTC).isoformat()
             
@@ -79,6 +198,15 @@ class ExamService:
                 # Resolve User ID
                 user = session.query(User).filter_by(username=username).first()
                 user_id = user.id if user else None
+                
+                # Calculate attempt number if not provided
+                if attempt_number is None and user_id is not None:
+                    max_attempt = session.query(func.max(Score.attempt_number)).filter(
+                        Score.user_id == user_id
+                    ).scalar()
+                    attempt_number = (max_attempt or 0) + 1
+                elif attempt_number is None:
+                    attempt_number = 1
                 
                 new_score = Score(
                     username=username,
@@ -90,12 +218,14 @@ class ExamService:
                     is_rushed=is_rushed,
                     is_inconsistent=is_inconsistent,
                     timestamp=timestamp,
-                    detailed_age_group=detailed_age_group
+                    detailed_age_group=detailed_age_group,
+                    status=status,
+                    attempt_number=attempt_number
                 )
                 session.add(new_score)
                 # Commit handled by context
                 
-            logger.info(f"Exam saved. Score: {score}, User: {username}")
+            logger.info(f"Exam saved. Score: {score}, User: {username}, Attempt: {attempt_number}, Status: {status}")
             return True
             
         except Exception as e:
@@ -148,13 +278,15 @@ class ExamSession:
     """
     Core engine for the Exam functionality.
     Manages state, timing, scoring, and persistence via ExamService.
+    Includes retake restriction support (Issue #993).
     """
 
-    def __init__(self, username: str, age: int, age_group: str, questions: List[Tuple[Any, ...]]) -> None:
+    def __init__(self, username: str, age: int, age_group: str, questions: List[Tuple[Any, ...]], user_id: Optional[int] = None) -> None:
         self.username = username
         self.age = age
         self.age_group = age_group
         self.questions = questions
+        self.user_id = user_id  # For retake restriction checks
         
         # State
         self.current_question_index = 0
@@ -170,6 +302,22 @@ class ExamSession:
         self.reflection_text = ""
         self.is_rushed = False
         self.is_inconsistent = False
+        
+        # Attempt tracking (Issue #993)
+        self.attempt_number: Optional[int] = None
+
+    @staticmethod
+    def check_retake_eligibility(user_id: Optional[int]) -> Tuple[bool, str]:
+        """
+        Static method to check if user is eligible to start a new exam.
+        
+        Args:
+            user_id: The ID of the user (None for anonymous users)
+            
+        Returns:
+            Tuple of (is_allowed, message)
+        """
+        return ExamService.check_retake_allowed(user_id)
 
     def start_exam(self) -> None:
         """Initialize or reset exam state"""
@@ -297,6 +445,10 @@ class ExamSession:
         """Finalize exam and save via Service."""
         self.calculate_metrics()
         
+        # Get attempt number if not already set
+        if self.attempt_number is None:
+            self.attempt_number = ExamService.get_next_attempt_number(self.user_id)
+        
         return ExamService.save_score(
             username=self.username,
             age=self.age,
@@ -306,7 +458,9 @@ class ExamSession:
             reflection_text=self.reflection_text,
             is_rushed=self.is_rushed,
             is_inconsistent=self.is_inconsistent,
-            detailed_age_group=self.age_group
+            detailed_age_group=self.age_group,
+            status="completed",
+            attempt_number=self.attempt_number
         )
 
     def _save_response_to_db(self, answer_value: int, question_data: Tuple[Any, ...]):

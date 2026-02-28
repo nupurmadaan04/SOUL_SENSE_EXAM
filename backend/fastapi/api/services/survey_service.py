@@ -143,9 +143,32 @@ class SurveyService:
 
     async def submit_responses(self, user_id: int, survey_id: int, responses: List[Dict[str, Any]], metadata: Dict[str, Any] = None) -> SurveySubmission:
         """Process survey submission and apply scoring DSL."""
-        survey = await self.db.get(SurveyTemplate, survey_id)
+        survey = await self.get_template_by_id(survey_id)
         if not survey or survey.status != SurveyStatus.PUBLISHED:
             raise ValueError("Inactive or missing survey")
+
+        # Validate all required questions are answered
+        required_questions = set()
+        all_questions = set()
+        for section in survey.sections:
+            for question in section.questions:
+                all_questions.add(question.id)
+                if question.is_required:
+                    required_questions.add(question.id)
+
+        submitted_question_ids = set()
+        for r_data in responses:
+            qid = r_data['question_id']
+            val = r_data['answer_value']
+            if qid not in all_questions:
+                raise ValueError(f"Question {qid} does not belong to this survey")
+            if not val or str(val).strip() == "":
+                raise ValueError(f"Question {qid} cannot have an empty answer")
+            submitted_question_ids.add(qid)
+
+        missing_required = required_questions - submitted_question_ids
+        if missing_required:
+            raise ValueError(f"Missing responses for required questions: {list(missing_required)}")
 
         submission = SurveySubmission(
             user_id=user_id,

@@ -31,8 +31,8 @@ const normalizeResults = (
     .map((item) => ({
       id: String(item.id),
       completedAt: item.completed_at,
-      score: item.overall_score,
-      durationSeconds: item.duration_seconds,
+      score: item.overall_score ?? 0,
+      durationSeconds: item.duration_seconds ?? null,
     }))
     .filter((item) => Boolean(item.completedAt));
 };
@@ -91,7 +91,7 @@ export default function ResultsPage() {
       apiResults.map((item) => ({
         id: item.id,
         completed_at: item.timestamp,
-        overall_score: item.total_score,
+        overall_score: item.total_score ?? 0,
         duration_seconds: 0,
       }))
     );
