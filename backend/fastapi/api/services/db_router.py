@@ -35,11 +35,17 @@ log = logging.getLogger(__name__)
 # ------------------------------------------------------------------
 settings = get_settings_instance()
 
-# Primary (write) engine – always present
+# Primary (write) engine – always present with optimized connection pooling
 _primary_engine = create_async_engine(
     settings.async_database_url,
     echo=settings.debug,
     future=True,
+    # Connection pooling configuration for high concurrency
+    pool_size=20,                    # Core pool size - maintain 20 persistent connections
+    max_overflow=10,                 # Allow up to 10 additional connections when pool is full
+    pool_timeout=30,                 # Wait up to 30 seconds for a connection from the pool
+    pool_pre_ping=True,              # Verify connections are alive before using them
+    pool_recycle=3600,               # Recycle connections after 1 hour to prevent stale connections
     connect_args={"check_same_thread": False} if settings.database_type == "sqlite" else {},
 )
 PrimarySessionLocal = async_sessionmaker(
@@ -49,13 +55,19 @@ PrimarySessionLocal = async_sessionmaker(
     autoflush=False,
 )
 
-# Replica (read) engine – optional
+# Replica (read) engine – optional with optimized connection pooling
 _ReplicaSessionLocal: Optional[async_sessionmaker] = None
 if settings.async_replica_database_url:
     _replica_engine = create_async_engine(
         settings.async_replica_database_url,
         echo=settings.debug,
         future=True,
+        # Connection pooling configuration for high concurrency (read-heavy)
+        pool_size=30,                    # Larger pool for read operations
+        max_overflow=15,                 # More overflow connections for reads
+        pool_timeout=30,                 # Same timeout as primary
+        pool_pre_ping=True,              # Verify connections are alive
+        pool_recycle=3600,               # Same recycle time
         connect_args={"check_same_thread": False} if settings.database_type == "sqlite" else {},
     )
     _ReplicaSessionLocal = async_sessionmaker(
@@ -64,7 +76,7 @@ if settings.async_replica_database_url:
         expire_on_commit=False,
         autoflush=False,
     )
-    log.info("Read‑replica engine initialised.")
+    log.info("Read‑replica engine initialised with optimized connection pooling.")
 else:
     log.warning("No replica_database_url configured – all reads will hit primary.")
 

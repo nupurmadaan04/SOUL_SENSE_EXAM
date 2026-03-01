@@ -18,7 +18,7 @@ services:
       - ./logs:/var/log/soulsense
       - ./data:/app/data
     depends_on:
-      - db
+      - pgbouncer
       - redis
     networks:
       - soulsense-network
@@ -83,25 +83,43 @@ services:
         max-size: "10m"
         max-file: "5"
 
-  redis:
-    image: redis:7-alpine
-    container_name: soulsense-redis-production
+  pgbouncer:
+    image: edoburu/pgbouncer:1.18
+    container_name: soulsense-pgbouncer-production
     restart: always
-    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+    ports:
+      - "6432:6432"
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USER=${SOULSENSE_DB_USER}
+      - DB_PASSWORD=${SOULSENSE_DB_PASSWORD}
+      - DB_NAME=soulsense_production
+      - PGBOUNCER_MAX_CLIENT_CONN=1000
+      - PGBOUNCER_DEFAULT_POOL_SIZE=20
+      - PGBOUNCER_MIN_POOL_SIZE=5
+      - PGBOUNCER_RESERVE_POOL_SIZE=5
+      - PGBOUNCER_MAX_DB_CONNECTIONS=50
+      - PGBOUNCER_MAX_USER_CONNECTIONS=50
     volumes:
-      - redis-data-production:/data
+      - ./pgbouncer/pgbouncer.ini:/etc/pgbouncer/pgbouncer.ini:ro
+      - ./pgbouncer/userlist.txt:/etc/pgbouncer/userlist.txt:ro
+      - ./pgbouncer/generate_userlist.sh:/docker-entrypoint-initdb.d/generate_userlist.sh:ro
+    command: ["/bin/sh", "-c", "/docker-entrypoint-initdb.d/generate_userlist.sh && /usr/local/bin/pgbouncer /etc/pgbouncer/pgbouncer.ini"]
+    depends_on:
+      - db
     networks:
       - soulsense-network
     deploy:
       resources:
         limits:
-          cpus: '1'
-          memory: 1G
+          cpus: '0.5'
+          memory: 256M
     healthcheck:
-      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      test: ["CMD", "pgbouncer", "-c", "/etc/pgbouncer/pgbouncer.ini", "-u", "nobody", "-d"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     logging:
       driver: "json-file"
       options:

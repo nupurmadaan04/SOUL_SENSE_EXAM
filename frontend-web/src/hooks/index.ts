@@ -18,3 +18,7 @@ export { useOnboarding } from './useOnboarding';
 export type { OnboardingState, OnboardingStep, UseOnboardingReturn } from './useOnboarding';
 export { useOnboardingGuard } from './useOnboardingGuard';
 export type { UseOnboardingGuardReturn } from './useOnboardingGuard';
+
+// Session timeout hook (Issue #999)
+export { useSessionTimeout } from './useSessionTimeout';
+export type { UseSessionTimeoutOptions } from './useSessionTimeout';

@@ -3,7 +3,7 @@ import logging
 from typing import Optional, Tuple
 from fastapi import Request, Response, HTTPException, status
 from starlette.middleware.base import BaseHTTPMiddleware
-from ..utils.limiter import get_real_ip, get_user_id
+from ..utils.network import get_real_ip
 from ..config import get_settings_instance
 
 logger = logging.getLogger(__name__)

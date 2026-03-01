@@ -2,7 +2,7 @@ from typing import Any, Dict, List, Optional
 from datetime import datetime
 
 import json
-from pydantic import BaseModel, EmailStr, Field, ConfigDict, field_validator
+from pydantic import BaseModel, EmailStr, Field, ConfigDict, field_validator, model_validator
 
 from ..utils.sanitization import sanitize_string, clean_identifier
 
@@ -226,6 +226,68 @@ class ErrorResponse(BaseModel):
     message: str = Field(..., description="Human-readable error message")
     details: Optional[Dict[str, Any]] = Field(None, description="Additional context or debugging info")
     fields: Optional[List[FieldError]] = Field(None, description="Granular field-level errors for forms")
+
+
+# ============================================================================
+# Exam Submission Schemas (Issue 6.5 — API Answer Validation)
+# ============================================================================
+
+class AnswerSubmit(BaseModel):
+    """Schema for a single answer item within an exam submission payload."""
+    question_id: int = Field(
+        ...,
+        ge=1,
+        description="ID of the question being answered",
+    )
+    value: int = Field(
+        ...,
+        ge=1,
+        le=5,
+        description="Likert scale answer value (1-5)",
+    )
+
+
+class ExamSubmit(BaseModel):
+    """Schema for a batch exam submission payload.
+
+    Validates structural geometry of the answers array:
+    - Duplicate question_id values are rejected immediately with a 422.
+    - Completeness against expected question count is enforced in the router
+      after a DB lookup so that async context issues are avoided cleanly.
+    """
+
+    session_id: str = Field(
+        ...,
+        min_length=1,
+        description="Active exam session identifier",
+    )
+    answers: List[AnswerSubmit] = Field(
+        ...,
+        min_length=1,
+        description="List of question/answer pairs — must be non-empty and duplicate-free",
+    )
+    is_draft: bool = Field(
+        default=False,
+        description="When True, completeness validation is skipped (draft saves are allowed)",
+    )
+
+    @model_validator(mode="after")
+    def check_question_uniqueness(self) -> "ExamSubmit":
+        """Reject payloads that submit the same question_id more than once.
+
+        A hacker submitting question_id=5 twenty times must receive a 422 before
+        any database write occurs.  Draft status does NOT exempt this check because
+        duplicate IDs are always a structural error regardless of draft vs. final.
+        """
+        question_ids = [a.question_id for a in self.answers]
+        if len(question_ids) != len(set(question_ids)):
+            from collections import Counter
+            dupes = [qid for qid, count in Counter(question_ids).items() if count > 1]
+            raise ValueError(
+                f"Submitted payload contains duplicate question answers for "
+                f"question_id(s): {dupes}.  Each question may only be answered once."
+            )
+        return self
 
 
 # ============================================================================
@@ -1084,6 +1146,7 @@ class JournalResponse(BaseModel):
     emotional_patterns: Optional[str] = None
     tags: Optional[List[str]] = []
     entry_date: str
+    timestamp: str
     word_count: int = Field(default=0, description="Number of words in content")
     reading_time_mins: Optional[float] = Field(None, description="Estimated reading time in minutes")
     privacy_level: str = Field(default="private")
@@ -1119,6 +1182,13 @@ class JournalListResponse(BaseModel):
     entries: List[JournalResponse]
     page: int
     page_size: int
+
+
+class JournalCursorResponse(BaseModel):
+    """Schema for cursor-paginated journal entry list."""
+    data: List[JournalResponse]
+    next_cursor: Optional[str] = None
+    has_more: bool
 
 
 class JournalAnalytics(BaseModel):
@@ -1479,3 +1549,150 @@ class ConsentUpdateRequest(BaseModel):
     analytics_consent: Optional[bool] = None
     marketing_consent: Optional[bool] = None
     research_consent: Optional[bool] = None
+
+
+# ============================================================================
+# Export Schemas (Issue #1057)
+# ============================================================================
+
+class ExportRequest(BaseModel):
+    """Schema for basic export requests."""
+    format: str = Field(
+        default="json",
+        pattern="^(json|csv|xml|html|pdf)$",
+        description="Export format. Supported: json, csv, xml, html, pdf"
+    )
+
+    @field_validator('format')
+    @classmethod
+    def validate_format(cls, v: str) -> str:
+        supported_formats = {'json', 'csv', 'xml', 'html', 'pdf'}
+        if v.lower() not in supported_formats:
+            raise ValueError(f"Unsupported format: {v}. Supported formats: {', '.join(sorted(supported_formats))}")
+        return v.lower()
+
+
+class ExportOptions(BaseModel):
+    """Schema for advanced export options."""
+    data_types: Optional[List[str]] = Field(
+        default=None,
+        description="List of data types to include in export"
+    )
+    include_metadata: Optional[bool] = Field(
+        default=True,
+        description="Whether to include metadata in the export"
+    )
+    anonymize: Optional[bool] = Field(
+        default=False,
+        description="Whether to anonymize sensitive data"
+    )
+
+    @field_validator('data_types')
+    @classmethod
+    def validate_data_types(cls, v: Optional[List[str]]) -> Optional[List[str]]:
+        if v is None:
+            return v
+        
+        supported_data_types = {
+            'profile', 'journal', 'assessments', 'scores',
+            'satisfaction', 'settings', 'medical', 'strengths',
+            'emotional_patterns', 'responses'
+        }
+        
+        invalid_types = set(v) - supported_data_types
+        if invalid_types:
+            raise ValueError(f"Unsupported data types: {', '.join(sorted(invalid_types))}. Supported: {', '.join(sorted(supported_data_types))}")
+        
+        return v
+
+
+class ExportV2Request(BaseModel):
+    """Schema for V2 export requests with advanced options."""
+    format: str = Field(
+        ...,
+        pattern="^(json|csv|xml|html|pdf)$",
+        description="Export format. Supported: json, csv, xml, html, pdf"
+    )
+    options: Optional[ExportOptions] = Field(
+        default=None,
+        description="Advanced export options"
+    )
+
+    @field_validator('format')
+    @classmethod
+    def validate_format(cls, v: str) -> str:
+        supported_formats = {'json', 'csv', 'xml', 'html', 'pdf'}
+        if v.lower() not in supported_formats:
+            raise ValueError(f"Unsupported format: {v}. Supported formats: {', '.join(sorted(supported_formats))}")
+        return v.lower()
+
+
+class ExportResponse(BaseModel):
+    """Schema for export operation responses."""
+    job_id: Optional[str] = Field(None, description="Job ID for async exports")
+    export_id: Optional[str] = Field(None, description="Export ID for completed exports")
+    status: str = Field(..., description="Export status")
+    format: str = Field(..., description="Export format used")
+    filename: Optional[str] = Field(None, description="Generated filename")
+    download_url: Optional[str] = Field(None, description="Download URL for the export")
+    expires_at: Optional[str] = Field(None, description="ISO 8601 timestamp when export expires")
+    message: Optional[str] = Field(None, description="Status message")
+
+
+class AsyncExportRequest(BaseModel):
+    """Schema for async export requests."""
+    format: str = Field(
+        ...,
+        pattern="^(json|csv|xml|html|pdf)$",
+        description="Export format. Supported: json, csv, xml, html, pdf"
+    )
+    options: Optional[ExportOptions] = Field(
+        default=None,
+        description="Advanced export options"
+    )
+
+    @field_validator('format')
+    @classmethod
+    def validate_format(cls, v: str) -> str:
+        supported_formats = {'json', 'csv', 'xml', 'html', 'pdf'}
+        if v.lower() not in supported_formats:
+            raise ValueError(f"Unsupported format: {v}. Supported formats: {', '.join(sorted(supported_formats))}")
+        return v.lower()
+
+
+class AsyncPDFExportRequest(BaseModel):
+    """Schema for async PDF export requests."""
+    include_charts: bool = Field(
+        default=True,
+        description="Whether to include charts in the PDF"
+    )
+    data_types: Optional[List[str]] = Field(
+        default=None,
+        description="List of data types to include"
+    )
+
+    @field_validator('data_types')
+    @classmethod
+    def validate_data_types(cls, v: Optional[List[str]]) -> Optional[List[str]]:
+        if v is None:
+            return v
+        
+        supported_data_types = {
+            'profile', 'journal', 'assessments', 'scores',
+            'satisfaction', 'settings', 'medical', 'strengths',
+            'emotional_patterns', 'responses'
+        }
+        
+        invalid_types = set(v) - supported_data_types
+        if invalid_types:
+            raise ValueError(f"Unsupported data types: {', '.join(sorted(invalid_types))}. Supported: {', '.join(sorted(supported_data_types))}")
+        
+        return v
+
+
+class AsyncExportResponse(BaseModel):
+    """Schema for async export operation responses."""
+    job_id: str = Field(..., description="Job ID for the async export")
+    status: str = Field(..., description="Export status")
+    poll_url: str = Field(..., description="URL to poll for status")
+    format: str = Field(..., description="Export format requested")

@@ -5,7 +5,7 @@ from sqlalchemy import select
 from ..models import Score, Response, Question, QuestionCategory, UserSession
 from ..schemas import DetailedExamResult, CategoryScore, Recommendation
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("api.exam")
 
 class AssessmentResultsService:
     @staticmethod
@@ -20,7 +20,11 @@ class AssessmentResultsService:
         score = result.scalar_one_or_none()
         
         if not score:
-            logger.warning(f"Assessment {assessment_id} not found for user_id={user_id}")
+            logger.warning(f"Assessment not found", extra={
+                "assessment_id": assessment_id,
+                "user_id": user_id,
+                "reason": "not_found"
+            })
             return None
 
         # 2. Get all responses for this session/user
@@ -28,6 +32,8 @@ class AssessmentResultsService:
             select(Response, Question, QuestionCategory)
             .join(Question, Response.question_id == Question.id)
             .join(QuestionCategory, Question.category_id == QuestionCategory.id)
+            .filter(Response.session_id == score.session_id, Response.user_id == user_id)
+            .all()
             .filter(Response.session_id == score.session_id)
         )
         resp_res = await db.execute(resp_stmt)
@@ -94,12 +100,21 @@ class AssessmentResultsService:
         total_max = sum(d["max"] for d in category_stats.values())
         overall_pct = (score.total_score / total_max * 100.0) if total_max > 0 else 0.0
 
-        return DetailedExamResult(
+        result_obj = DetailedExamResult(
             assessment_id=score.id,
             total_score=float(score.total_score),
             max_possible_score=total_max,
-            overall_percentage=round(cast(Any, overall_pct), 1),
+            overall_percentage=round(cast(Any, overall_pct), 2),
             timestamp=score.timestamp,
             category_breakdown=breakdown,
             recommendations=recommendations
         )
+        
+        logger.info("Detailed results generated", extra={
+            "assessment_id": assessment_id,
+            "user_id": user_id,
+            "categories_count": len(breakdown),
+            "overall_percentage": overall_pct
+        })
+        
+        return result_obj

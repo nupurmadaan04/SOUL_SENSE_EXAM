@@ -1,0 +1,13 @@
+﻿git : Everything up-to-date
+At line:1 char:1
++ git push origin missing-atomic-dat
+abase-transactions 2>&1 | Out-File  
+...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSp 
+   ecified: (Everything up-to-date  
+  :String) [], RemoteException
+    + FullyQualifiedErrorId : Nativ 
+   eCommandError
+ 

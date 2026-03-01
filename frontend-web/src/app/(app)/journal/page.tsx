@@ -23,6 +23,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import InfiniteScroll from 'react-infinite-scroll-component';
 
 // Adapt JournalEntry for JournalEntryCard
 function adaptEntry(entry: any) {
@@ -61,15 +62,14 @@ export default function JournalPage() {
     total,
     isLoading: loading,
     error,
-    page,
-    totalPages,
     hasNextPage,
-    hasPrevPage,
-    setPage,
-    setFilters: setJournalFilters,
     refetch,
     loadMore,
   } = useJournal(filters, true);
+
+  const setJournalFilters = (newFilters: JournalFilters) => {
+    setFilters(newFilters);
+  };
 
   const handleSubmit = useCallback(async () => {
     if (!newEntry.content.trim()) return;
@@ -417,6 +417,48 @@ export default function JournalPage() {
         </Card>
       )}
 
+      {/* Entries List with Infinite Scroll */}
+      {!loading && entries.length > 0 && (
+        <InfiniteScroll
+          dataLength={entries.length}
+          next={loadMore}
+          hasMore={!!hasNextPage}
+          scrollThreshold={0.9}
+          loader={
+            <div className="py-10 text-center">
+              <div className="w-8 h-8 border-4 border-primary/20 border-t-primary rounded-full animate-spin mx-auto" />
+              <p className="text-sm text-muted-foreground mt-3 font-medium animate-pulse">
+                Traversing your history...
+              </p>
+            </div>
+          }
+          endMessage={
+            <div className="py-12 text-center">
+              <div className="w-12 h-12 bg-muted/20 rounded-2xl flex items-center justify-center mx-auto mb-4 border border-dashed border-muted-foreground/20">
+                <BookOpen className="w-6 h-6 text-muted-foreground/40" />
+              </div>
+              <p className="text-muted-foreground text-sm font-semibold tracking-wide uppercase opacity-60">
+                End of the road - Write more to see more!
+              </p>
+            </div>
+          }
+          className="space-y-6 !overflow-visible pb-12"
+        >
+          {entries.map((entry, index) => (
+            <motion.div
+              key={entry.id}
+              initial={{ opacity: 0, scale: 0.98, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: Math.min(index * 0.05, 0.3) }}
+            >
+              <JournalEntryCard
+                entry={adaptEntry(entry)}
+                onClick={handleEntryClick}
+                variant="expanded"
+              />
+            </motion.div>
+          ))}
+        </InfiniteScroll>
       {/* Entries List */}
       {!error && entries.length > 0 && (
         <JournalListContainer

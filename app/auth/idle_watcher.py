@@ -2,23 +2,28 @@ import tkinter as tk
 from tkinter import messagebox
 import time
 from app.logger import get_logger
+from app.security_config import INACTIVITY_TIMEOUT_SECONDS, INACTIVITY_WARNING_SECONDS
 
 class IdleWatcher:
     """
     Monitors user activity (mouse/keyboard) and triggers a logout callback
     after a specified period of inactivity.
+    
+    Issue #999: Session timeout handling
     """
-    def __init__(self, root, logout_callback, timeout_seconds=900):
+    def __init__(self, root, logout_callback, timeout_seconds=None):
         """
         Args:
             root: The Tkinter root window
             logout_callback: Function to call when timeout is reached
-            timeout_seconds: Seconds of inactivity before logout (default 15m)
+            timeout_seconds: Seconds of inactivity before logout (default from config)
         """
         self.root = root
         self.logout_callback = logout_callback
-        self.timeout_seconds = timeout_seconds
-        self.warning_threshold = 30 # Show warning 30s before timeout
+        # Use configured timeout or fallback to 15 minutes
+        self.timeout_seconds = timeout_seconds or INACTIVITY_TIMEOUT_SECONDS
+        # Use configured warning threshold
+        self.warning_threshold = INACTIVITY_WARNING_SECONDS
         
         self.last_activity = time.time()
         self.warning_shown = False
