@@ -309,6 +309,7 @@ class OutboxEvent(Base):
     status = Column(String, default='pending', index=True) # pending, processed, failed
     processed_at = Column(DateTime, nullable=True)
     retry_count = Column(Integer, default=0)
+    next_retry_at = Column(DateTime, nullable=True, index=True)
     error_message = Column(Text, nullable=True)
 
 class GDPRScrubLog(Base):

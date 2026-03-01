@@ -24,11 +24,20 @@ class OutboxRelayService:
         """
         Poll pending search index events from the outbox and push to ES.
         Processes in strict order (by ID) to ensure sequential updates.
+        Implements Exponential Backoff for failed attempts (#1146).
         """
+        from sqlalchemy import and_, or_
+        now = datetime.now(UTC)
+        
         # 1. Fetch pending events for the 'search_indexing' topic
+        # Only fetch those that are NOT 'failed' AND (next_retry_at IS NULL OR next_retry_at < NOW)
         stmt = select(OutboxEvent).filter(
             OutboxEvent.topic == "search_indexing",
-            OutboxEvent.status == "pending"
+            OutboxEvent.status == "pending",
+            or_(
+                OutboxEvent.next_retry_at == None,
+                OutboxEvent.next_retry_at <= now
+            )
         ).order_by(OutboxEvent.id).limit(50)
         
         result = await db.execute(stmt)
@@ -46,15 +55,14 @@ class OutboxRelayService:
                 journal_id = payload.get("journal_id")
                 action = payload.get("action")
                 
+                # RECOVERY CHECK: Get latest journal state for atomicity
+                journal_stmt = select(JournalEntry).filter(JournalEntry.id == journal_id)
+                journal_res = await db.execute(journal_stmt)
+                journal = journal_res.scalar_one_or_none()
+
                 if action == "upsert":
-                    # Get latest journal content directly from SQL
-                    # This ensures we index the most recent version even if there were multiple outbox events
-                    journal_stmt = select(JournalEntry).filter(JournalEntry.id == journal_id)
-                    journal_res = await db.execute(journal_stmt)
-                    journal = journal_res.scalar_one_or_none()
-                    
                     if journal and not journal.is_deleted:
-                        # Push to Elasticsearch
+                        # Push most recent content to Elasticsearch
                         await es_service.index_document(
                             entity="journal",
                             doc_id=journal.id,
@@ -67,29 +75,35 @@ class OutboxRelayService:
                         )
                         logger.debug(f"Relayed UPSERT for journal {journal_id}")
                     elif journal and journal.is_deleted:
-                        # Fallback for race condition: item marked deleted before indexing
+                        # Corner case: journal soft-deleted between outbox write and relay
                         await es_service.delete_document("journal", journal_id)
                 
                 elif action == "delete":
-                    # Explicit removal from search index
+                    # Explicit removal
                     await es_service.delete_document("journal", journal_id)
                     logger.debug(f"Relayed DELETE for journal {journal_id}")
                 
-                # 2. Update status to 'processed'
+                # 2. Success: Mark as processed or delete to save space
                 event.status = "processed"
-                event.processed_at = datetime.now(UTC)
+                event.processed_at = now
                 processed_count += 1
                 
             except Exception as e:
                 logger.error(f"Failed to relay OutboxEvent {event.id}: {str(e)}")
-                # Increment retry count and mark as failed if threshold exceeded
+                # 3. FAILURE: Exponential Backoff (30s, 1m, 2m, 4m, 8m...)
                 event.retry_count = (event.retry_count or 0) + 1
                 event.error_message = str(e)
-                if event.retry_count >= 5:
+                
+                if event.retry_count >= 10:
                     event.status = "failed"
-                    logger.critical(f"Aborting OutboxEvent {event.id} after 5 retries.")
+                    logger.critical(f"Aborting OutboxEvent {event.id} permanently after 10 retries.")
+                else:
+                    delay_seconds = 30 * (2 ** (event.retry_count - 1))
+                    from datetime import timedelta
+                    event.next_retry_at = now + timedelta(seconds=delay_seconds)
+                    logger.warning(f"Retrying OutboxEvent {event.id} in {delay_seconds}s (Attempt {event.retry_count})")
         
-        # 3. Commit batch results
+        # 4. Final Batch Commit
         await db.commit()
         return processed_count
 

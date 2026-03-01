@@ -166,10 +166,14 @@ class JournalService:
         emotional_patterns = detect_emotional_patterns(content, sentiment_score)
         word_count = calculate_word_count(content)
         
+        # Extract fields to local variables to avoid detached instance errors after commit
+        u_id = current_user.id
+        u_name = current_user.username
+
         # Create entry
         entry = JournalEntry(
-            username=current_user.username,
-            user_id=current_user.id,
+            username=u_name,
+            user_id=u_id,
             content=content,
             sentiment_score=sentiment_score,
             emotional_patterns=emotional_patterns,
@@ -187,39 +191,38 @@ class JournalService:
             daily_schedule=daily_schedule
         )
         
+        # Transactional Outbox: Write indexing job within the same SQL transaction (#1146)
+        from ..models import OutboxEvent
+        self.db.add(OutboxEvent(
+            topic="search_indexing",
+            payload={
+                "journal_id": entry.id,
+                "action": "upsert",
+                "timestamp": datetime.now(UTC).isoformat()
+            }
+        ))
+        
+        # Commit everything atomically
         try:
-            self.db.add(entry)
             await self.db.commit()
             await self.db.refresh(entry)
         except Exception as e:
             await self.db.rollback()
+            logger.error(f"Transaction failed: {e}")
             raise e
         
-        # Attach dynamic fields
+        # Attach dynamic fields (non-SQL)
         entry.reading_time_mins = round(entry.word_count / 200, 2)
         
-        # Trigger Gamification
+        # Trigger Gamification Post-Commit
         try:
-            await GamificationService.award_xp(self.db, current_user.id, 50, "Journal entry")
-            await GamificationService.update_streak(self.db, current_user.id, "journal")
-            await GamificationService.check_achievements(self.db, current_user.id, "journal")
+            await GamificationService.award_xp(self.db, u_id, 50, "Journal entry")
+            await GamificationService.update_streak(self.db, u_id, "journal")
+            await GamificationService.check_achievements(self.db, u_id, "journal")
         except Exception as e:
-            logger.error(f"Gamification update failed: {e}")
-            
-        # Transactional Outbox: Write indexing job within the same transaction
-        from ..models import OutboxEvent
-        try:
-            self.db.add(OutboxEvent(
-                topic="search_indexing",
-                payload={
-                    "journal_id": entry.id,
-                    "action": "upsert",
-                    "timestamp": datetime.now(UTC).isoformat()
-                }
-            ))
-            # No manual commit needed; outer code commits or we committed above
-        except Exception as e:
-            logger.error(f"Failed to write OutboxEvent: {e}")
+            logger.debug(f"Post-commit gamification update failed: {e}")
+
+        return entry
 
         return entry
 
@@ -308,27 +311,25 @@ class JournalService:
             if value is not None and hasattr(entry, field):
                 setattr(entry, field, value)
         
+        # Outbox Pattern: Job for indexing if content changed (#1146)
+        # Add to outbox BEFORE committing
+        if content is not None:
+             from ..models import OutboxEvent
+             self.db.add(OutboxEvent(
+                 topic="search_indexing",
+                 payload={
+                     "journal_id": entry.id,
+                     "action": "upsert",
+                     "timestamp": datetime.now(UTC).isoformat()
+                 }
+             ))
+
         await self.db.commit()
         await self.db.refresh(entry)
         
         # Attach dynamic fields
         entry.reading_time_mins = round(entry.word_count / 200, 2)
         
-        # Outbox Pattern: Queue for indexing if content changed
-        if content is not None:
-             from ..models import OutboxEvent
-             try:
-                 self.db.add(OutboxEvent(
-                     topic="search_indexing",
-                     payload={
-                         "journal_id": entry.id,
-                         "action": "upsert",
-                         "timestamp": datetime.now(UTC).isoformat()
-                     }
-                 ))
-             except Exception as e:
-                 logger.error(f"Failed to write OutboxEvent for update: {e}")
-
         return entry
 
     async def delete_entry(self, entry_id: int, current_user: User) -> bool:
@@ -338,22 +339,19 @@ class JournalService:
         entry.is_deleted = True
         entry.deleted_at = datetime.now(UTC)
         
-        # Outbox Pattern: Job for removal from search index
+        # Outbox Pattern: Job for removal from search index (#1146)
+        # Added BEFORE committing the soft-delete
         from ..models import OutboxEvent
-        try:
-            self.db.add(OutboxEvent(
-                topic="search_indexing",
-                payload={
-                    "journal_id": entry.id,
-                    "action": "delete",
-                    "timestamp": datetime.now(UTC).isoformat()
-                }
-            ))
-        except Exception as e:
-            logger.error(f"Failed to queue outbox delete for search index: {e}")
-
-        await self.db.commit()
+        self.db.add(OutboxEvent(
+            topic="search_indexing",
+            payload={
+                "journal_id": entry.id,
+                "action": "delete",
+                "timestamp": datetime.now(UTC).isoformat()
+            }
+        ))
         
+        await self.db.commit()
         return True
 
     async def search_entries(

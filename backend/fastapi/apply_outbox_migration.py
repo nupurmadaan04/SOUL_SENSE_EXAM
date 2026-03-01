@@ -33,7 +33,13 @@ async def migrate():
             await conn.execute(text("ALTER TABLE outbox_events ADD COLUMN error_message TEXT"))
             print("Added error_message to outbox_events")
         except Exception:
-            print("error_message already exists or error adding")
+            print("error_message already exists")
+
+        try:
+            await conn.execute(text("ALTER TABLE outbox_events ADD COLUMN next_retry_at DATETIME"))
+            print("Added next_retry_at to outbox_events")
+        except Exception:
+            print("next_retry_at already exists")
 
         # Add columns to journal_entries
         try:
