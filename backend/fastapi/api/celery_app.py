@@ -26,9 +26,15 @@ celery_app.conf.update(
     task_default_retry_delay=5, # Overriden by task exponential backoff
 )
 
+from celery.schedules import crontab
+
 celery_app.conf.beat_schedule = {
     'process-outbox-events-frequent': {
         'task': 'api.celery_tasks.process_outbox_events',
         'schedule': 5.0, # Execute every 5 seconds
+    },
+    'archive-stale-journals-weekly': {
+        'task': 'api.celery_tasks.archive_stale_journals',
+        'schedule': crontab(hour=3, minute=0, day_of_week='sun'), # Sunday at 3 AM (#1125)
     },
 }

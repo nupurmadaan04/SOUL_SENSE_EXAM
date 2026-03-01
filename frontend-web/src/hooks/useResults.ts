@@ -3,6 +3,9 @@ import { resultsApi } from '../lib/api/results';
 import { DetailedExamResult, AssessmentResponse } from '../types/results';
 import { ApiError } from '../lib/api/errors';
 
+/** Sentinel value for "resource not found" vs. generic errors */
+const NOT_FOUND_MESSAGE = 'No Result Found. The requested assessment does not exist or has been removed.';
+
 interface UseResultsOptions {
   initialPage?: number;
   initialPageSize?: number;
@@ -20,6 +23,7 @@ export function useResults(options: UseResultsOptions = {}) {
   const [pageSize, setPageSize] = useState(options.initialPageSize || 10);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notFound, setNotFound] = useState(false);
   const [detailedResult, setDetailedResult] = useState<DetailedExamResult | null>(null);
 
   /**
@@ -54,11 +58,25 @@ export function useResults(options: UseResultsOptions = {}) {
   const fetchDetailedResult = useCallback(async (assessmentId: number) => {
     setLoading(true);
     setError(null);
+    setNotFound(false);
     try {
       const data = await resultsApi.getDetailedResult(assessmentId);
+      if (!data) {
+        // API returned successfully but with empty/null body
+        setNotFound(true);
+        setDetailedResult(null);
+        return null;
+      }
       setDetailedResult(data);
       return data;
     } catch (err) {
+      if (err instanceof ApiError && err.status === 404) {
+        // Result was deleted or never existed — graceful "not found"
+        setNotFound(true);
+        setDetailedResult(null);
+        setError(NOT_FOUND_MESSAGE);
+        return null;
+      }
       const message = err instanceof ApiError ? err.message : 'Failed to fetch detailed results';
       setError(message);
       throw err;
@@ -72,6 +90,7 @@ export function useResults(options: UseResultsOptions = {}) {
    */
   const clearDetailedResult = useCallback(() => {
     setDetailedResult(null);
+    setNotFound(false);
   }, []);
 
   return {
@@ -82,6 +101,7 @@ export function useResults(options: UseResultsOptions = {}) {
     pageSize,
     loading,
     error,
+    notFound,
     detailedResult,
 
     // Actions

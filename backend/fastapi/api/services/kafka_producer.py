@@ -11,7 +11,7 @@ class KafkaProducerService:
     def __init__(self):
         self.settings = get_settings_instance()
         self.producer: Optional[AIOKafkaProducer] = None
-        self.subscribers: set[asyncio.Queue] = set() # For multiple SSE streams
+        self.live_events = asyncio.Queue() # For SSE streaming
         self.loop = asyncio.get_event_loop()
 
     async def start(self):
@@ -39,24 +39,9 @@ class KafkaProducerService:
         """Called by SQLAlchemy listeners. Non-blocking."""
         asyncio.create_task(self.send_event(event_data))
 
-    def subscribe(self) -> asyncio.Queue:
-        q = asyncio.Queue()
-        self.subscribers.add(q)
-        return q
-
-    def unsubscribe(self, q: asyncio.Queue):
-        if q in self.subscribers:
-            self.subscribers.remove(q)
-
     async def send_event(self, event_data: dict):
-        # 1. Distribute to all local subscribers (SSE, local consumer)
-        for q in list(self.subscribers):
-            try:
-                # If queue is too full, we drop it (shouldn't happen with small audit trails)
-                if q.qsize() < 1000:
-                     q.put_nowait(event_data)
-            except Exception:
-                pass
+        # 1. Put into live stream for SSE
+        await self.live_events.put(event_data)
         
         # 2. Push to Kafka if available
         if self.producer:

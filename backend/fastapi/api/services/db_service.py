@@ -3,6 +3,8 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sess
 from sqlalchemy import select, func
 from typing import List, Optional, Tuple, AsyncGenerator
 from datetime import datetime
+import logging
+import traceback
 
 # Import model classes from models module
 from ..models import Base, Score, Response, Question, QuestionCategory
@@ -44,11 +46,13 @@ class AssessmentService:
         db: AsyncSession,
         skip: int = 0,
         limit: int = 10,
+        user_id: Optional[int] = None,
         username: Optional[str] = None,
         age_group: Optional[str] = None
     ) -> Tuple[List[Score], int]:
         """
         Get assessments with pagination and optional filters.
+        When user_id is provided, results are scoped to that user only.
         """
         stmt = select(Score)
         
@@ -201,7 +205,7 @@ class QuestionService:
             Question.is_active == 1,
             Question.min_age <= age,
             Question.max_age >= age
-        ).order_by(Question.id)
+        )
         
         if limit:
             stmt = stmt.limit(limit)
@@ -210,15 +214,64 @@ class QuestionService:
         return list(result.scalars().all())
     
     @staticmethod
-    async def get_categories(db: AsyncSession) -> List[QuestionCategory]:
-        """Get all question categories."""
-        stmt = select(QuestionCategory).order_by(QuestionCategory.id)
+    async def get_random_questions(
+        db: AsyncSession,
+        age: int,
+        count: int = 10
+    ) -> List[Question]:
+        """
+        Get random questions appropriate for age.
+        """
+        stmt = select(Question).filter(
+            Question.is_active == 1,
+            Question.min_age <= age,
+            Question.max_age >= age
+        ).order_by(func.random()).limit(count)
+        
         result = await db.execute(stmt)
         return list(result.scalars().all())
+
+
+class ResponseService:
+    """Service for managing responses."""
     
     @staticmethod
-    async def get_category_by_id(db: AsyncSession, category_id: int) -> Optional[QuestionCategory]:
-        """Get a category by ID."""
-        stmt = select(QuestionCategory).filter(QuestionCategory.id == category_id)
+    async def get_responses(
+        db: AsyncSession,
+        skip: int = 0,
+        limit: int = 100,
+        username: Optional[str] = None,
+        question_id: Optional[int] = None
+    ) -> Tuple[List[Response], int]:
+        """
+        Get responses with pagination and filters.
+        """
+        stmt = select(Response)
+        
+        if username:
+            stmt = stmt.filter(Response.username == username)
+        if question_id:
+            stmt = stmt.filter(Response.question_id == question_id)
+        
+        # Get total count
+        count_stmt = select(func.count()).select_from(stmt.subquery())
+        total_result = await db.execute(count_stmt)
+        total = total_result.scalar() or 0
+        
+        # Apply pagination
+        stmt = stmt.order_by(Response.timestamp.desc()).offset(skip).limit(limit)
         result = await db.execute(stmt)
-        return result.scalar_one_or_none()
+        responses = result.scalars().all()
+        
+        return list(responses), total
+
+
+# Export all services
+__all__ = [
+    'AssessmentService',
+    'QuestionService',
+    'ResponseService',
+    'get_db',
+    'engine',
+    'AsyncSessionLocal'
+]

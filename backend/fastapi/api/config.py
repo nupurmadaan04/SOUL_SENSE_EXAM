@@ -136,6 +136,14 @@ class BaseAppSettings(BaseSettings):
     redis_db: int = Field(default=0, ge=0, description="Redis database number")
     redis_password: Optional[str] = Field(default=None, description="Redis password")
 
+    # Storage Configuration (S3 / Blob) (#1125)
+    storage_type: str = Field(default="s3", description="Cloud storage provider (s3, azure, local)")
+    s3_bucket_name: str = Field(default="soulsense-archival", description="S3 bucket for cold storage")
+    s3_region: str = Field(default="us-east-1", description="S3 bucket region")
+    aws_access_key_id: Optional[str] = Field(default=None, description="AWS access key")
+    aws_secret_access_key: Optional[str] = Field(default=None, description="AWS secret key")
+    archival_threshold_years: int = Field(default=2, description="Age threshold for archival in years")
+
     @property
     def redis_url(self) -> str:
         """Construct Redis URL from configuration."""

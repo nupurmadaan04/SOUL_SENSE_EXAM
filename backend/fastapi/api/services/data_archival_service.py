@@ -200,3 +200,64 @@ class DataArchivalService:
             
         await db.commit()
         return count
+
+    @staticmethod
+    async def archive_stale_journals(db: AsyncSession) -> int:
+        """
+        Automated Cold Storage Archival Pipeline (#1125).
+        Moves 2+ year old journals to S3.
+        """
+        from ..config import get_settings_instance
+        from .storage_service import get_storage_service
+        
+        settings = get_settings_instance()
+        storage = get_storage_service()
+        threshold = datetime.now(UTC) - timedelta(days=settings.archival_threshold_years * 365)
+        
+        # We fetch 50 entries at a time to avoid overwhelming the worker or database
+        stmt = select(JournalEntry).filter(
+            JournalEntry.is_deleted == False,
+            JournalEntry.archive_pointer == None
+        ).limit(50)
+        
+        res = await db.execute(stmt)
+        entries = res.scalars().all()
+        
+        archived_count = 0
+        for entry in entries:
+            try:
+                # Parse timestamp (SQLite stores as ISO String)
+                ts = entry.timestamp
+                if not ts: continue
+                entry_date = datetime.fromisoformat(ts.replace('Z', '+00:00'))
+                
+                if entry_date > threshold:
+                    continue
+                
+                # 1. Transmit encrypted ciphertext to S3
+                key = f"archives/journals/{entry.tenant_id or 'global'}/{entry.user_id}/{entry.id}.enc"
+                metadata = {
+                    "user_id": str(entry.user_id),
+                    "tenant_id": str(entry.tenant_id),
+                    "archived_at": datetime.now(UTC).isoformat()
+                }
+                
+                pointer = storage.upload_encrypted_content(
+                    key=key,
+                    content=entry.content, # Preserves ENC: ciphertext
+                    metadata=metadata
+                )
+                
+                # 2. Update DB: Store pointer and clear hot content
+                entry.archive_pointer = pointer
+                entry.content = None 
+                archived_count += 1
+                
+            except Exception as e:
+                logger.error(f"Failed to archive journal {entry.id}: {e}")
+                
+        if archived_count > 0:
+            await db.commit()
+            logger.info(f"Archival Pipeline: Successfully moved {archived_count} journals to cold storage.")
+        
+        return archived_count

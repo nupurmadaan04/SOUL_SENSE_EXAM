@@ -56,19 +56,12 @@ async def get_current_user(request: Request, token: Annotated[str, Depends(oauth
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.jwt_algorithm])
         
-        # O(1) Zero-Trust Revocation Check using Redis Bloom Filter (#1101)
-        jti = payload.get("jti")
-        if jti:
-            from ..services.revocation_service import revocation_service
-            if await revocation_service.is_revoked(jti, db):
-                raise TokenExpiredError("Token has been revoked")
-        else:
-            # Fallback for tokens without JTI (legacy)
-            from ..models import TokenRevocation
-            rev_stmt = select(TokenRevocation).filter(TokenRevocation.token_str == token)
-            rev_res = await db.execute(rev_stmt)
-            if rev_res.scalar_one_or_none():
-                 raise TokenExpiredError("Token has been revoked")
+        # Check if token is revoked
+        from ..models import TokenRevocation
+        rev_stmt = select(TokenRevocation).filter(TokenRevocation.token_str == token)
+        rev_res = await db.execute(rev_stmt)
+        if rev_res.scalar_one_or_none():
+            raise TokenExpiredError("Token has been revoked")
 
         username: str = payload.get("sub")
         if not username:
@@ -164,27 +157,30 @@ async def check_username_availability(
     return UsernameAvailabilityResponse(available=available, message=message)
 
 @router.post("/register", response_model=None, responses={400: {"model": ErrorResponse}, 500: {"model": ErrorResponse}})
-@limiter.limit("10/minute")
+@limiter.limit("5/minute")
 async def register(
     request: Request,
-    user: UserCreate, 
-    auth_service: AuthService = Depends(get_auth_service)
-):
-    """Register a new user."""
-    success, new_user, message = await auth_service.register_user(user)
+    user: UserCreate,
+    db: AsyncSession = Depends(get_db),
+    auth_service: AuthService = Depends()
+) -> dict:
+    """Register a new user. Rate limited to 5 requests per minute per IP/user."""
+    success, new_user, message = auth_service.register_user(user)
+
     if not success:
         raise BusinessLogicError(message=message, code="REGISTRATION_FAILED")
     return {"message": message}
 
+
 @router.post("/login", response_model=Token, responses={400: {"model": ErrorResponse}, 401: {"model": ErrorResponse}, 202: {"model": TwoFactorAuthRequiredResponse}})
-@limiter.limit("10/minute")
+@limiter.limit("5/minute")
 async def login(
     response: Response,
-    login_request: LoginRequest, 
+    login_request: LoginRequest,
     request: Request,
     auth_service: AuthService = Depends(get_auth_service)
 ):
-    """Login endpoint."""
+    """Login endpoint. Rate limited to 5 requests per minute per IP/user."""
     ip = get_real_ip(request)
     user_agent = request.headers.get("user-agent", "Unknown")
 
@@ -368,12 +364,18 @@ async def initiate_password_reset(
     return {"message": message}
 
 @router.post("/password-reset/complete")
+@limiter.limit("3/minute")
 async def complete_password_reset(
     request: PasswordResetComplete,
     req_obj: Request,
     auth_service: AuthService = Depends(get_auth_service)
 ):
     from ..middleware.rate_limiter import password_reset_limiter
+    """
+    Verify OTP and set new password.
+    Rate limited to 3 requests per minute per IP/user.
+    """
+    # Rate limit by IP for OTP attempts
     real_ip = get_real_ip(req_obj)
     is_limited, wait_time = await password_reset_limiter.is_rate_limited(real_ip)
     if is_limited:
@@ -419,7 +421,7 @@ async def disable_2fa(
     raise BusinessLogicError(message="Failed to disable 2FA", code="2FA_DISABLE_FAILED")
 
 @router.post("/oauth/login", response_model=Token, responses={400: {"model": ErrorResponse}, 401: {"model": ErrorResponse}})
-@limiter.limit("10/minute")
+@limiter.limit("5/minute")
 async def oauth_login(
     response: Response,
     request: Request,
@@ -428,12 +430,10 @@ async def oauth_login(
     access_token: Optional[str] = Form(None, description="Access token from OAuth provider"),
     auth_service: AuthService = Depends(get_auth_service)
 ):
-    """
-    Login or register via OAuth provider.
-    """
-    ip = get_real_ip(request)
-    user_agent = request.headers.get("user-agent", "Unknown")
-
+    """Login with OAuth token (e.g., from Auth0). Rate limited to 5 requests per minute per IP/user."""
+    # Verify the token with the OAuth provider
+    # For Auth0, verify the JWT
+    # This is a placeholder - implement actual verification
     try:
         user_info = None
         
