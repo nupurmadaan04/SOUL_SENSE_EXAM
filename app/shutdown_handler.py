@@ -37,7 +37,8 @@ class ShutdownHandler:
         # Signal handlers for SIGINT (Ctrl+C) and SIGTERM
         def signal_handler(signum, frame):
             self.logger.info(f"Received signal {signum}, initiating shutdown")
-            self.graceful_shutdown()
+            # Defer shutdown to avoid subprocess cleanup issues in signal handler (race condition fix #1185)
+            self.app.root.after(0, self.graceful_shutdown)
 
         signal.signal(signal.SIGINT, signal_handler)
 
@@ -56,6 +57,15 @@ class ShutdownHandler:
         self.logger.info("Initiating graceful application shutdown...")
 
         try:
+            # Clean up ML subprocesses first
+            try:
+                from app.ml.subprocess_manager import get_ml_subprocess_manager
+                ml_manager = get_ml_subprocess_manager()
+                ml_manager.cleanup_all()
+                self.logger.info("ML subprocesses cleaned up successfully")
+            except Exception as e:
+                self.logger.error(f"Error during ML subprocess cleanup: {e}")
+
             # Commit any pending database operations from the scoped session
             from app.db import SessionLocal
             session = SessionLocal()
