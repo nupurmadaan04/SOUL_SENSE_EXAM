@@ -17,6 +17,7 @@ import uuid
 from contextvars import ContextVar
 from typing import Callable, Optional
 
+from ..utils.deep_redactor import DeepRedactorFormatter
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
@@ -69,8 +70,8 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         if not logger.handlers:
             handler = logging.StreamHandler()
             handler.setLevel(logging.INFO)
-            # Use JSON formatter for structured logs
-            formatter = logging.Formatter(
+            # Use DeepRedactorFormatter for structured logs with PII protection
+            formatter = DeepRedactorFormatter(
                 '{"timestamp": "%(asctime)s", "level": "%(levelname)s", "logger": "%(name)s", "request_id": "%(request_id)s", "message": %(message)s}'
             )
             handler.setFormatter(formatter)
@@ -294,16 +295,19 @@ class ContextualLogger:
         self.logger = logging.getLogger(name)
     
     def _add_context(self, msg: str, **kwargs) -> str:
-        """Add request ID and extra context to log message."""
+        from ..utils.deep_redactor import DeepRedactor
         request_id = get_request_id()
-        log_data = {"message": msg}
+        # Redact the message itself
+        redacted_msg = DeepRedactor.redact(msg)
+        log_data = {"message": redacted_msg}
         
         if request_id:
             log_data["request_id"] = request_id
         
-        # Add any extra context
+        # Add and redact any extra context
         if kwargs:
-            log_data.update(kwargs)
+            for k, v in kwargs.items():
+                log_data[k] = DeepRedactor.redact(v)
         
         return json.dumps(log_data)
     
