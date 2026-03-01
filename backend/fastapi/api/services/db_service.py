@@ -37,11 +37,11 @@ AsyncSessionLocal = async_sessionmaker(
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """Async dependency to get database session."""
-    async with AsyncSessionLocal() as db:
-        try:
-            yield db
-        finally:
-            await db.close()
+    db = AsyncSessionLocal()
+    try:
+        yield db
+    finally:
+        await db.close()
 
 
 class AssessmentService:

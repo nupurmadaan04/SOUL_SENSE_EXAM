@@ -155,17 +155,17 @@ async def get_db(request: Request) -> AsyncGenerator[AsyncSession, None]:
 
     SessionMaker = PrimarySessionLocal if use_primary else (_ReplicaSessionLocal or PrimarySessionLocal)
 
-    async with SessionMaker() as db:
+    db = SessionMaker()
+    try:
         if extracted_tenant_id and settings.database_type == "postgresql":
             try:
                 await db.execute(text("SET app.tenant_id = :tid"), {"tid": str(extracted_tenant_id)})
             except Exception as e:
                 log.warning(f"Failed to set tenant_id handle RLS: {e}")
 
-        try:
-            yield db
-        finally:
-            await db.close()
+        yield db
+    finally:
+        await db.close()
 
 # ------------------------------------------------------------------
 # 4️⃣ Helper – write_guard decorator (optional convenience)
