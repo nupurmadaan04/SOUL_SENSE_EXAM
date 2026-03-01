@@ -99,6 +99,24 @@ class ElasticSearchService:
         except Exception as e:
             logger.error(f"ES Delete Error [{entity}:{doc_id}]: {e}")
 
+    async def delete_user_data(self, user_id: int):
+        """Delete all documents belonging to a specific user (GDPR Scrub)."""
+        client = await self.get_client()
+        try:
+            # Delete by query is more efficient for mass scrubbing
+            await client.delete_by_query(
+                index=self.index_name,
+                body={
+                    "query": {
+                        "term": {"user_id": user_id}
+                    }
+                }
+            )
+            logger.info(f"Successfully scrubbed ES data for user {user_id}")
+        except Exception as e:
+            logger.error(f"ES Scrub Error [user:{user_id}]: {e}")
+            raise
+
     async def search(
         self, 
         q: str, 

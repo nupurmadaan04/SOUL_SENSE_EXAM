@@ -234,6 +234,20 @@ async def _execute_archive_generation(job_id: str, user_id: int, password: str, 
             )
             raise e
 
+@celery_app.task(name="api.celery_tasks.run_hard_purges")
+def run_hard_purges():
+    """
+    Scheduled task (e.g., daily) to find and purge users after the 30-day grace period.
+    Enforces compliance and automated data scrubbing.
+    """
+    async def _async_run():
+        async with AsyncSessionLocal() as db:
+            count = await DataArchivalService.execute_hard_purges(db)
+            logger.info(f"Scheduled hard purge task completed. {count} users processed.")
+            return count
+            
+    return run_async(_async_run())
+
 @celery_app.task(bind=True, max_retries=1, name="api.celery_tasks.process_outbox_events")
 def process_outbox_events(self):
     """
@@ -252,6 +266,7 @@ def process_outbox_events(self):
     # Below uses a quick async block wrapper if required, but run_async is cleaner.
     async def _async_process():
         from api.services.kafka_producer import get_kafka_producer
+        from api.services.scrubber_service import DistributedScrubberService
         producer = get_kafka_producer()
         
         async with AsyncSessionLocal() as db:
@@ -266,14 +281,23 @@ def process_outbox_events(self):
             processed_count = 0
             for event in events:
                 try:
-                    # Push to Kafka first
-                    producer.queue_event(event.payload)
-                    # Once queued (or sent if queue_event is synchronous/awaitable), mark processed
-                    event.status = 'processed'
+                    if event.topic == "data_purge":
+                        # Handle distributed data scrubbing
+                        user_id = event.payload.get("user_id")
+                        if user_id:
+                            # scrub_user is a long-running sync/async orchestrator.
+                            # We mark it as started/processed if successful.
+                            await DistributedScrubberService.scrub_user(db, user_id)
+                        event.status = 'processed'
+                    else:
+                        # Legacy/Default behavior: Push to Kafka (audit_trail)
+                        producer.queue_event(event.payload)
+                        event.status = 'processed'
+                    
                     processed_count += 1
                 except Exception as e:
                     logger.error(f"Failed to process outbox event {event.id}: {e}")
-                    # Stop processing this batch on Kafka failure to maintain order and wait for retry
+                    # Stop processing this batch to maintain order and wait for retry
                     break
                     
             if processed_count > 0:

@@ -168,8 +168,11 @@ class DataArchivalService:
     async def execute_hard_purges(db: AsyncSession) -> int:
         """
         Background worker function to permanently delete users whose 30-day grace period has expired.
+        Orchestrates deletion across SQL, S3, and other stores via DistributedScrubberService.
         Returns the number of users purged.
         """
+        from .scrubber_service import DistributedScrubberService
+        
         threshold_date = datetime.now(UTC) - timedelta(days=30)
         
         stmt = select(User).where(
@@ -181,22 +184,14 @@ class DataArchivalService:
         
         count = 0
         for user in users_to_purge:
-            # SQLAlchemy will handle cascade="all, delete-orphan" for related objects
-            # defined in the relationships. For any unmapped/manual orphaned blobs
-            # (e.g. S3 objects, local files) we would add cleanup code here.
+            # Instead of simple db.delete, we schedule a purge event in the outbox.
+            # The process_outbox_events worker will then pick it up and call the Scrubber.
+            try:
+                # We schedule the event. The worker will handle the heavy lifting.
+                await DistributedScrubberService.schedule_purge_event(db, user.id)
+                count += 1
+            except Exception as e:
+                logger.error(f"Failed to schedule distributed hard purge for user {user.id}: {e}")
+                continue
             
-            # Example: Clean up pending exports on disk
-            export_stmt = select(ExportRecord).where(ExportRecord.user_id == user.id)
-            exp_res = await db.execute(export_stmt)
-            exports = exp_res.scalars().all()
-            for exp in exports:
-                if os.path.exists(exp.file_path):
-                    try:
-                        os.remove(exp.file_path)
-                    except: pass
-            
-            await db.delete(user)
-            count += 1
-            
-        await db.commit()
         return count
