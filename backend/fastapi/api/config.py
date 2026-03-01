@@ -104,8 +104,13 @@ class BaseAppSettings(BaseSettings):
     redis_port: int = Field(default=6379, ge=1, le=65535, description="Redis port")
     redis_password: Optional[str] = Field(default=None, description="Redis password")
     redis_db: int = Field(default=0, description="Redis database index")
-    redis_url: Optional[str] = Field(default=None, description="Redis URL (if set, overrides individual host/port)")
     redis_ttl_seconds: int = Field(default=60, description="Default lock TTL in seconds")
+
+    # Celery worker memory safety
+    celery_worker_max_memory_mb: int = Field(
+        default=1024,
+        description="Maximum memory per Celery worker process in MB before it is replaced (maps to worker_max_memory_per_child).",
+    )
 
     # Deletion Grace Period
     deletion_grace_period_days: int = Field(default=30, ge=0, description="Grace period for account deletion in days")

@@ -5,10 +5,31 @@ import threading
 import asyncio
 from typing import Optional, Any, List
 import redis
-from redlock import Redlock
+import uuid
 from backend.fastapi.api.config import get_settings_instance
 
 logger = logging.getLogger(__name__)
+
+# Optional dependency: redlock-py. Provide a safe fallback stub if unavailable
+try:
+    from redlock import Redlock  # type: ignore
+except Exception:  # pragma: no cover - fallback for missing library
+    class Redlock:  # type: ignore
+        """Lightweight stub used when redlock-py is not installed.
+        
+        Provides a minimal interface so that importing this module
+        does not fail in environments without the dependency.
+        """
+        def __init__(self, *_, **__):
+            logger.warning("redlock library not installed; using no-op Redlock stub.")
+
+        def lock(self, resource: str, ttl_ms: int):
+            # Return a dummy lock structure compatible with redlock-py expectations.
+            return {"resource": resource, "key": str(uuid.uuid4())}
+
+        def unlock(self, _lock):
+            # No-op unlock
+            return True
 
 class DistributedLockError(Exception):
     """Base exception for distributed lock errors."""

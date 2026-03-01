@@ -18,6 +18,7 @@ BACKEND_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(BACKEND_DIR))
 
 from api.celery_app import celery_app
+from api.config import get_settings_instance
 from api.utils.cpu_affinity import (
     get_available_cores,
     get_optimal_worker_count,
@@ -90,6 +91,10 @@ def start_celery_worker(concurrency=None, loglevel='info'):
         logger.warning("CPU affinity not supported on this platform")
     
     logger.info("=" * 70)
+
+    settings = get_settings_instance()
+    max_memory_per_child_kb = settings.celery_worker_max_memory_mb * 1024
+    logger.info(f"Configured max memory per worker child: {settings.celery_worker_max_memory_mb} MB ({max_memory_per_child_kb} KB)")
     
     # Build worker command arguments
     worker_argv = [
@@ -97,6 +102,7 @@ def start_celery_worker(concurrency=None, loglevel='info'):
         '--loglevel', loglevel,
         '--concurrency', str(concurrency),
         '--max-tasks-per-child', '50',
+        '--max-memory-per-child', str(max_memory_per_child_kb),
         '--time-limit', '3600',
         '--soft-time-limit', '3300',
     ]

@@ -589,6 +589,8 @@ class Score(Base):
     timestamp = Column(String, default=lambda: datetime.utcnow().isoformat(), index=True)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=True, index=True)
     session_id = Column(String, nullable=True, index=True)
+    # Environment dimension for analytics separation (e.g., 'development', 'staging', 'production')
+    environment = Column(String, nullable=True, index=True)
     user = relationship("User", back_populates="scores")
     
     __table_args__ = (

@@ -54,6 +54,9 @@ celery_app.conf.update(
     task_default_retry_delay=5, # Overriden by task exponential backoff
     # Memory management to prevent fragmentation
     worker_max_tasks_per_child=50,  # Restart worker after 50 tasks to prevent memory bloat
+    # Proactive memory guard at the worker level (Issue #1212)
+    # Celery expects value in kilobytes; convert from MB setting.
+    worker_max_memory_per_child=settings.celery_worker_max_memory_mb * 1024,
     worker_prefetch_multiplier=1,   # Prefetch only 1 task per worker
     task_time_limit=3600,           # Kill tasks that run longer than 1 hour
     task_soft_time_limit=3300,      # Soft time limit 55 minutes
