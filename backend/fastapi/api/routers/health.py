@@ -8,7 +8,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any
 
-from fastapi import APIRouter, Depends, Query, Response
+from fastapi import APIRouter, Depends, Query, Response, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -68,6 +68,22 @@ async def check_database(db: AsyncSession) -> ServiceStatus:
         return ServiceStatus(status="unhealthy", message=str(e), latency_ms=None)
 
 
+async def check_redis(request) -> ServiceStatus:
+    """Check Redis connectivity and measure latency."""
+    start = time.perf_counter()
+    try:
+        redis_client = getattr(request.app.state, 'redis_client', None)
+        if redis_client is None:
+            return ServiceStatus(status="unhealthy", message="Redis client not initialized", latency_ms=None)
+        
+        await redis_client.ping()
+        latency = (time.perf_counter() - start) * 1000  # ms
+        return ServiceStatus(status="healthy", latency_ms=round(latency, 2), message=None)
+    except Exception as e:
+        logger.warning(f"Redis health check failed: {e}")
+        return ServiceStatus(status="unhealthy", message=str(e), latency_ms=None)
+
+
 def get_diagnostics() -> Dict[str, Any]:
     """Get detailed diagnostics for ?full=true."""
     import os
@@ -91,13 +107,32 @@ def get_diagnostics() -> Dict[str, Any]:
 
 # --- Endpoints ---
 @router.get("/health", response_model=HealthResponse, tags=["Health"])
-async def health_check() -> HealthResponse:
-    """Liveness probe - checks if the application process is running."""
+async def health_check(
+    request: Request,
+    response: Response,
+    db: AsyncSession = Depends(get_db)
+) -> HealthResponse:
+    """System health check - verifies critical dependencies are operational."""
+    db_status = await check_database(db)
+    redis_status = await check_redis(request)
+    
+    services = {
+        "database": db_status,
+        "redis": redis_status
+    }
+    
+    # Determine overall health - all critical services must be healthy
+    is_healthy = all(s.status == "healthy" for s in services.values())
+    
+    if not is_healthy:
+        response.status_code = 503  # Service Unavailable
+        logger.warning(f"Health check failed: {services}")
+    
     return HealthResponse(
-        status="healthy",
+        status="healthy" if is_healthy else "unhealthy",
         timestamp=datetime.now(timezone.utc).isoformat(),
         version=get_app_version(),
-        services=None,
+        services=services,
         details=None
     )
 

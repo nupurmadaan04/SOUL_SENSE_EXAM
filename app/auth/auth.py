@@ -9,6 +9,7 @@ from app.models import User, UserSession
 from app.security_config import PASSWORD_HASH_ROUNDS, LOCKOUT_DURATION_MINUTES
 from app.services.audit_service import AuditService
 from app.validation import validate_username, validate_email_strict, validate_password_security
+from app.utils.db_transaction import transactional, retry_on_transient
 import logging
 
 class AuthManager:
@@ -67,50 +68,56 @@ class AuthManager:
             username_lower = username.strip().lower()
             email_lower = email.strip().lower()
 
-            # 2. Check if username already exists
+            # 2. Check if username already exists (read-only, outside transaction)
             if session.query(User).filter(User.username == username_lower).first():
                 return False, "Username already taken", "REG001"
 
-            # 3. Check if email already exists
+            # 3. Check if email already exists (read-only, outside transaction)
             from app.models import PersonalProfile
             if session.query(PersonalProfile).filter(PersonalProfile.email == email_lower).first():
                 return False, "Email already registered", "REG002"
 
             password_hash = self.hash_password(password)
-            
-            # 4. Create User
-            new_user = User(
-                username=username_lower,
-                password_hash=password_hash,
-                created_at=datetime.now(UTC).isoformat()
-            )
-            session.add(new_user)
-            session.flush()  # Get the user id
-            
-            # 5. Create personal profile
-            profile = PersonalProfile(
-                user_id=new_user.id,
-                email=email_lower,
-                first_name=first_name,
-                last_name=last_name,
-                age=age,
-                gender=gender,
-                last_updated=datetime.now(UTC).isoformat()
-            )
-            session.add(profile)
-            
-            # Save initial password to history
-            self._save_password_to_history(new_user.id, password_hash, session)
-            
-            session.commit()
-            
-            # Audit Log
-            AuditService.log_event(new_user.id, "REGISTER", details={"status": "success", "username": username_lower}, db_session=session)
-            
+
+            # ── ATOMIC WRITE ─────────────────────────────────────────────────
+            # User + PersonalProfile + PasswordHistory must all succeed or
+            # none of them persist, preventing orphan records.
+            with transactional(session):
+                # 4. Create User
+                new_user = User(
+                    username=username_lower,
+                    password_hash=password_hash,
+                    created_at=datetime.now(UTC).isoformat()
+                )
+                session.add(new_user)
+                session.flush()  # Get the auto-generated user id
+
+                # 5. Create personal profile
+                profile = PersonalProfile(
+                    user_id=new_user.id,
+                    email=email_lower,
+                    first_name=first_name,
+                    last_name=last_name,
+                    age=age,
+                    gender=gender,
+                    last_updated=datetime.now(UTC).isoformat()
+                )
+                session.add(profile)
+
+                # 6. Save initial password to history
+                self._save_password_to_history(new_user.id, password_hash, session)
+
+                # 7. Audit log (within same transaction so it's consistent)
+                AuditService.log_event(
+                    new_user.id, "REGISTER",
+                    details={"status": "success", "username": username_lower},
+                    db_session=session
+                )
+            # ─────────────────────────────────────────────────────────────────
+
             return True, "Registration successful", None
 
         except Exception as e:
-            session.rollback()
             logging.error(f"Registration failed: {e}")
             return False, "Registration failed", "REG009"
         finally:
@@ -171,31 +178,37 @@ class AuthManager:
                         session.rollback()
                         return False, "Failed to generate 2FA code. Please wait.", "AUTH005"
 
-                # Update last login
+                # ── ATOMIC LOGIN WRITE ────────────────────────────────────
+                # last_login + last_activity + UserSession + LoginAttempt +
+                # AuditLog must all commit together or all roll back to
+                # prevent inconsistent session state.
                 try:
-                    now_iso = datetime.now(UTC).isoformat()
                     now = datetime.now(timezone.utc)
                     now_iso = now.isoformat()
-                    user.last_login = now_iso
-                    # PR 2: Update last_ activity on login (Issue fix)
-                    user.last_activity = now_iso
-                    
-                    # Generate unique session ID and create session record
+
                     session_id = self._generate_session_id()
-                    new_session = UserSession(
-                        session_id=session_id,
-                        user_id=user.id,
-                        username=user.username,
-                        created_at=now,
-                        last_activity=now,
-                        is_active=True
-                    )
-                    session.add(new_session)
-                    self._record_login_attempt(session, id_lower, True)
-                    AuditService.log_event(user.id, "LOGIN", details={"method": "password"}, db_session=session)
-                    session.commit()
-                    
-                    # Store session ID for this auth instance
+
+                    with transactional(session):
+                        user.last_login = now_iso
+                        user.last_activity = now_iso
+
+                        new_session = UserSession(
+                            session_id=session_id,
+                            user_id=user.id,
+                            username=user.username,
+                            created_at=now,
+                            last_activity=now,
+                            is_active=True
+                        )
+                        session.add(new_session)
+                        self._record_login_attempt(session, id_lower, True)
+                        AuditService.log_event(
+                            user.id, "LOGIN",
+                            details={"method": "password"},
+                            db_session=session
+                        )
+
+                    # Store session ID only after the atomic write succeeded
                     self.current_session_id = session_id
                 except Exception as e:
                     logging.error(f"Failed to update login metadata: {e}")
@@ -754,26 +767,31 @@ class AuthManager:
 
             # Check if new password matches current password
             if self.verify_password(new_password, user.password_hash):
-                return False, f"New password cannot be the same as your current password."
+                return False, "New password cannot be the same as your current password."
 
-            # Check password history
+            # Check password history (read-only, outside transaction)
             if self._is_password_in_history(user.id, new_password, session):
                 return False, f"This password was used recently. Please choose a password you haven't used in the last {PASSWORD_HISTORY_LIMIT} changes."
 
-            # Save current password to history before changing
-            self._save_password_to_history(user.id, user.password_hash, session)
+            new_hash = self.hash_password(new_password)
 
-            # Update password
-            user.password_hash = self.hash_password(new_password)
-
-            AuditService.log_event(user.id, "PASSWORD_CHANGE", details={"status": "success"}, db_session=session)
-            session.commit()
+            # ── ATOMIC WRITE ─────────────────────────────────────────────────
+            # Old password saved to history + new password set + audit log
+            # must all succeed atomically.
+            with transactional(session):
+                self._save_password_to_history(user.id, user.password_hash, session)
+                user.password_hash = new_hash
+                AuditService.log_event(
+                    user.id, "PASSWORD_CHANGE",
+                    details={"status": "success"},
+                    db_session=session
+                )
+            # ─────────────────────────────────────────────────────────────────
 
             logging.info(f"Password changed successfully for user {username}")
             return True, "Password changed successfully."
 
         except Exception as e:
-            session.rollback()
             logging.error(f"Change password failed: {e}")
             return False, "An error occurred while changing your password."
     

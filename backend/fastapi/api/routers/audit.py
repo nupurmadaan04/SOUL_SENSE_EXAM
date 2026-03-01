@@ -221,23 +221,12 @@ async def cleanup_expired_logs(
 async def event_generator(request: Request):
     """Generator for live audit events using the internal Event Queue (#1085)."""
     producer = get_kafka_producer()
-    q = producer.subscribe() # Unique queue for this connection
-    
-    try:
-        while True:
-            if await request.is_disconnected():
-                break
-            
-            # Wait for a new event from the producer's live queue
-            try:
-                event_data = await asyncio.wait_for(q.get(), timeout=1.0)
-                yield f"data: {json.dumps(event_data)}\n\n"
-            except asyncio.TimeoutError:
-                # Keep-alive heartbeat
-                yield ": keep-alive\n\n"
-                
-    finally:
-        producer.unsubscribe(q)
+    while True:
+        if await request.is_disconnected():
+            break
+        # Wait for a new event from the producer's live queue
+        event_data = await producer.live_events.get()
+        yield f"data: {json.dumps(event_data)}\n\n"
 
 @router.get("/stream")
 async def audit_stream(request: Request, current_user: User = Depends(require_admin)):

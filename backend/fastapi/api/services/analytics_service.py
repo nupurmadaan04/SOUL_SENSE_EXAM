@@ -1,10 +1,12 @@
 """Analytics service for aggregated, non-sensitive data analysis."""
 from sqlalchemy import func, case, distinct, select, desc
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List, Dict, Tuple, Optional
+from sqlalchemy.orm import Session
+from typing import List, Dict, Tuple, Optional, Any
 from datetime import datetime, timedelta, UTC
 
 from ..models import Score, User, AnalyticsEvent
+from ..utils.environment_context import get_current_environment
 
 
 class AnalyticsService:
@@ -12,22 +14,28 @@ class AnalyticsService:
     
     This service ONLY provides aggregated data and never exposes
     individual user information or raw sensitive data.
+    
+    Environment Separation:
+        All analytics queries are automatically filtered by the current environment
+        to prevent staging data from mixing with production data (Issue #979).
     """
     
     @staticmethod
     async def log_event(db: AsyncSession, event_data: dict, ip_address: Optional[str] = None) -> AnalyticsEvent:
-        """Log a user behavior event."""
+        """Log a user behavior event with environment tracking."""
         import json
         
         data_payload = json.dumps(event_data.get('event_data', {}))
+        environment = get_current_environment()
         
         event = AnalyticsEvent(
             anonymous_id=event_data['anonymous_id'],
-            event_type=event_data['event_type'],
+            event_type=event_data.get('event_type', 'unknown'),
             event_name=event_data['event_name'],
             event_data=data_payload,
             ip_address=ip_address,
-            timestamp=datetime.now(UTC)
+            timestamp=datetime.now(UTC),
+            environment=environment
         )
         
         db.add(event)
@@ -37,103 +45,78 @@ class AnalyticsService:
 
     @staticmethod
     async def get_age_group_statistics(db: AsyncSession) -> List[Dict]:
-        """Get aggregated statistics by age group."""
-        stmt = select(
-            Score.detailed_age_group,
-            func.count(Score.id).label('total'),
-            func.avg(Score.total_score).label('avg_score'),
-            func.min(Score.total_score).label('min_score'),
-            func.max(Score.total_score).label('max_score'),
-            func.avg(Score.sentiment_score).label('avg_sentiment')
-        ).filter(
-            Score.detailed_age_group.isnot(None)
-        ).group_by(
-            Score.detailed_age_group
-        )
+        """Get pre-computed statistics by age group using CQRS (#1124)."""
+        from ..models import CQRSAgeGroupStats
         
+        stmt = select(CQRSAgeGroupStats).order_by(CQRSAgeGroupStats.age_group)
         result = await db.execute(stmt)
-        stats = result.all()
+        stats = result.scalars().all()
         
         return [
             {
-                'age_group': s.detailed_age_group,
-                'total_assessments': s.total,
-                'average_score': round(s.avg_score or 0, 2),
-                'min_score': s.min_score or 0,
-                'max_score': s.max_score or 0,
-                'average_sentiment': round(s.avg_sentiment or 0, 3)
+                'age_group': s.age_group,
+                'total_assessments': s.total_assessments,
+                'average_score': round(s.average_score, 2),
+                'min_score': s.min_score,
+                'max_score': s.max_score,
+                'average_sentiment': round(s.average_sentiment, 3)
             }
             for s in stats
         ]
     
     @staticmethod
     async def get_score_distribution(db: AsyncSession) -> List[Dict]:
-        """Get score distribution across ranges."""
-        total_stmt = select(func.count(Score.id))
+        """Get score distribution across ranges using CQRS (#1124)."""
+        from ..models import CQRSDistributionStats
+        
+        total_stmt = select(func.sum(CQRSDistributionStats.count))
         total_res = await db.execute(total_stmt)
         total_count = total_res.scalar() or 0
         
-        if total_count == 0:
-            return []
+        stmt = select(CQRSDistributionStats).order_by(CQRSDistributionStats.score_range)
+        result = await db.execute(stmt)
+        stats = result.scalars().all()
         
-        ranges = [
-            ('0-10', 0, 10),
-            ('11-20', 11, 20),
-            ('21-30', 21, 30),
-            ('31-40', 31, 40)
+        return [
+            {
+                'score_range': s.score_range,
+                'count': s.count,
+                'percentage': round((s.count / total_count * 100) if total_count > 0 else 0, 2)
+            }
+            for s in stats
         ]
-        
-        distribution = []
-        for range_name, min_score, max_score in ranges:
-            count_stmt = select(func.count(Score.id)).filter(
-                Score.total_score >= min_score,
-                Score.total_score <= max_score
-            )
-            count_res = await db.execute(count_stmt)
-            count = count_res.scalar() or 0
-            
-            percentage = (count / total_count * 100) if total_count > 0 else 0
-            
-            distribution.append({
-                'score_range': range_name,
-                'count': count,
-                'percentage': round(percentage, 2)
-            })
-        
-        return distribution
     
     @staticmethod
     async def get_overall_summary(db: AsyncSession) -> Dict:
-        """Get overall analytics summary."""
-        overall_stmt = select(
-            func.count(Score.id).label('total'),
-            func.count(distinct(Score.username)).label('unique_users'),
-            func.avg(Score.total_score).label('avg_score'),
-            func.avg(Score.sentiment_score).label('avg_sentiment')
-        )
-        overall_res = await db.execute(overall_stmt)
-        overall_stats = overall_res.first()
+        """Get overall analytics summary utilizing CQRS Read Models (#1124)."""
+        from ..models import CQRSGlobalStats
         
-        quality_stmt = select(
-            func.sum(case((Score.is_rushed == True, 1), else_=0)).label('rushed_count'),
-            func.sum(case((Score.is_inconsistent == True, 1), else_=0)).label('inconsistent_count')
-        )
-        quality_res = await db.execute(quality_stmt)
-        quality_metrics = quality_res.first()
+        # Read from the pre-computed fast CQRS table instead of heavy aggregates
+        stmt = select(CQRSGlobalStats).order_by(desc(CQRSGlobalStats.last_updated)).limit(1)
+        res = await db.execute(stmt)
+        stats = res.scalar_one_or_none()
         
+        if not stats:
+            # Fallback for empty DBs
+            return {
+                'total_assessments': 0, 'unique_users': 0, 'global_average_score': 0,
+                'global_average_sentiment': 0, 'age_group_stats': [], 'score_distribution': [],
+                'assessment_quality_metrics': {'rushed_assessments': 0, 'inconsistent_assessments': 0}
+            }
+            
         age_group_stats = await AnalyticsService.get_age_group_statistics(db)
         score_dist = await AnalyticsService.get_score_distribution(db)
         
         return {
-            'total_assessments': overall_stats.total or 0,
-            'unique_users': overall_stats.unique_users or 0,
-            'global_average_score': round(overall_stats.avg_score or 0, 2),
-            'global_average_sentiment': round(overall_stats.avg_sentiment or 0, 3),
+            'total_assessments': stats.total_assessments,
+            'unique_users': stats.unique_users,
+            'global_average_score': round(stats.global_average_score, 2),
+            'global_average_sentiment': round(stats.global_average_sentiment, 3),
             'age_group_stats': age_group_stats,
             'score_distribution': score_dist,
             'assessment_quality_metrics': {
-                'rushed_assessments': quality_metrics.rushed_count or 0,
-                'inconsistent_assessments': quality_metrics.inconsistent_count or 0
+                'rushed_assessments': stats.rushed_assessments,
+                'inconsistent_assessments': stats.inconsistent_assessments
             }
         }
     
@@ -141,25 +124,17 @@ class AnalyticsService:
     async def get_trend_analytics(
         db: AsyncSession,
         period_type: str = 'monthly',
-        limit: int = 12
+        limit: int = 12,
+        environment: Optional[str] = None
     ) -> Dict:
-        """Get trend analytics over time."""
-        # Note: SQLite substr(timestamp, 1, 7) might differ from Postgres/MySQL
-        # Using SQLAlchemy handles the dialect differences if mapped correctly
-        # Here we assume a dialect-specific or standard substr approach
+        """Get trend analytics over time utilizing CQRS Read Models (#1124)."""
+        from ..models import CQRSTrendAnalytics
         
-        stmt = select(
-            func.substr(Score.timestamp, 1, 7).label('period'),
-            func.avg(Score.total_score).label('avg_score'),
-            func.count(Score.id).label('count')
-        ).group_by(
-            func.substr(Score.timestamp, 1, 7)
-        ).order_by(
-            desc(func.substr(Score.timestamp, 1, 7))
-        ).limit(limit)
+        # Read from the pre-computed fast CQRS table instead of heavy aggregates
+        stmt = select(CQRSTrendAnalytics).order_by(desc(CQRSTrendAnalytics.period)).limit(limit)
         
         result = await db.execute(stmt)
-        trends = result.all()
+        trends = result.scalars().all()
         
         data_points = [
             {
@@ -186,88 +161,71 @@ class AnalyticsService:
         return {
             'period_type': period_type,
             'data_points': data_points,
-            'trend_direction': trend_direction
+            'trend_direction': trend_direction,
+            'environment': environment
         }
     
     @staticmethod
     async def get_benchmark_comparison(db: AsyncSession) -> List[Dict]:
-        """Get benchmark comparison data."""
-        stmt = select(Score.total_score).filter(
-            Score.total_score.isnot(None)
-        ).order_by(Score.total_score)
+        """Get benchmark comparison using CQRS (#1124)."""
+        from ..models import CQRSGlobalStats
         
-        result = await db.execute(stmt)
-        scores = result.scalars().all()
+        stmt = select(CQRSGlobalStats).order_by(desc(CQRSGlobalStats.last_updated)).limit(1)
+        res = await db.execute(stmt)
+        stats = res.scalar_one_or_none()
         
-        if not scores:
-            return []
-        
-        score_list = list(scores)
-        n = len(score_list)
-        
-        def percentile(p):
-            k = (n - 1) * p / 100
-            f = int(k)
-            c = min(f + 1, n - 1)
-            if f == c:
-                return score_list[f]
-            return score_list[f] + (k - f) * (score_list[c] - score_list[f])
-        
-        global_avg = sum(score_list) / n if n > 0 else 0
-        
+        if not stats:
+            return [{
+                'category': 'Overall',
+                'global_average': 0,
+                'percentile_25': 0,
+                'percentile_50': 0,
+                'percentile_75': 0,
+                'percentile_90': 0
+            }]
+            
         return [{
             'category': 'Overall',
-            'global_average': round(global_avg, 2),
-            'percentile_25': round(percentile(25), 2),
-            'percentile_50': round(percentile(50), 2),
-            'percentile_75': round(percentile(75), 2),
-            'percentile_90': round(percentile(90), 2)
+            'global_average': round(stats.global_average_score, 2),
+            'percentile_25': round(stats.p25_score, 2),
+            'percentile_50': round(stats.p50_score, 2),
+            'percentile_75': round(stats.p75_score, 2),
+            'percentile_90': round(stats.p90_score, 2)
         }]
     
     @staticmethod
     async def get_population_insights(db: AsyncSession) -> Dict:
-        """Get population-level insights."""
-        common_stmt = select(
-            Score.detailed_age_group,
-            func.count(Score.id).label('count')
-        ).filter(
-            Score.detailed_age_group.isnot(None)
-        ).group_by(
-            Score.detailed_age_group
-        ).order_by(
-            desc(func.count(Score.id))
-        ).limit(1)
+        """Get population-level insights using CQRS (#1124)."""
+        from ..models import CQRSGlobalStats, CQRSAgeGroupStats
+        
+        # 1. Most common age group
+        common_stmt = select(CQRSAgeGroupStats).order_by(desc(CQRSAgeGroupStats.total_assessments)).limit(1)
         common_res = await db.execute(common_stmt)
-        most_common = common_res.first()
+        most_common = common_res.scalar_one_or_none()
         
-        perf_stmt = select(
-            Score.detailed_age_group,
-            func.avg(Score.total_score).label('avg')
-        ).filter(
-            Score.detailed_age_group.isnot(None)
-        ).group_by(
-            Score.detailed_age_group
-        ).order_by(
-            desc(func.avg(Score.total_score))
-        ).limit(1)
+        # 2. Highest performing age group
+        perf_stmt = select(CQRSAgeGroupStats).order_by(desc(CQRSAgeGroupStats.average_score)).limit(1)
         perf_res = await db.execute(perf_stmt)
-        highest_performing = perf_res.first()
+        highest_performing = perf_res.scalar_one_or_none()
         
-        users_stmt = select(func.count(distinct(Score.username)))
-        users_res = await db.execute(users_stmt)
-        total_users = users_res.scalar() or 0
+        # 3. Overall stats from global read model
+        global_stmt = select(CQRSGlobalStats).order_by(desc(CQRSGlobalStats.last_updated)).limit(1)
+        global_res = await db.execute(global_stmt)
+        global_stats = global_res.scalar_one_or_none()
         
-        assess_stmt = select(func.count(Score.id))
-        assess_res = await db.execute(assess_stmt)
-        total_assessments = assess_res.scalar() or 0
-        
-        completion_rate = 100.0 if total_assessments > 0 else None
+        if not global_stats:
+            return {
+                'most_common_age_group': 'Unknown',
+                'highest_performing_age_group': 'Unknown',
+                'total_population_size': 0,
+                'assessment_completion_rate': 0
+            }
         
         return {
-            'most_common_age_group': most_common.detailed_age_group if most_common else 'Unknown',
-            'highest_performing_age_group': highest_performing.detailed_age_group if highest_performing else 'Unknown',
-            'total_population_size': total_users,
-            'assessment_completion_rate': completion_rate
+            'most_common_age_group': most_common.age_group if most_common else 'Unknown',
+            'highest_performing_age_group': highest_performing.age_group if highest_performing else 'Unknown',
+            'total_population_size': global_stats.unique_users,
+            'assessment_completion_rate': 100.0 if global_stats.total_assessments > 0 else 0
         }
     
     @staticmethod
@@ -275,9 +233,21 @@ class AnalyticsService:
         db: AsyncSession,
         timeframe: str = '30d',
         exam_type: Optional[str] = None,
-        sentiment: Optional[str] = None
+        sentiment: Optional[str] = None,
+        environment: Optional[str] = None
     ) -> List[Dict]:
-        """Get dashboard statistics with historical trends."""
+        """Get dashboard statistics with historical trends.
+        
+        Args:
+            db: Database session
+            timeframe: Time period for statistics (7d, 30d, 90d)
+            exam_type: Optional exam type filter
+            sentiment: Optional sentiment filter
+            environment: Optional environment filter (defaults to current environment)
+        """
+        if environment is None:
+            environment = get_current_environment()
+            
         now = datetime.now(UTC)
         if timeframe == '7d':
             start_date = now - timedelta(days=7)
@@ -294,7 +264,8 @@ class AnalyticsService:
             Score.total_score,
             Score.sentiment_score
         ).filter(
-            Score.timestamp >= start_date
+            Score.timestamp >= start_date,
+            Score.environment == environment
         )
         
         if sentiment:
@@ -323,21 +294,33 @@ class AnalyticsService:
     @staticmethod
     async def calculate_conversion_rate(
         db: AsyncSession,
-        period_days: int = 30
+        period_days: int = 30,
+        environment: Optional[str] = None
     ) -> Dict:
-        """Calculate Conversion Rate KPI."""
+        """Calculate Conversion Rate KPI.
+        
+        Args:
+            db: Database session
+            period_days: Number of days to look back
+            environment: Optional environment filter (defaults to current environment)
+        """
+        if environment is None:
+            environment = get_current_environment()
+            
         cutoff_date = datetime.now(UTC) - timedelta(days=period_days)
 
         started_stmt = select(func.count(AnalyticsEvent.id)).filter(
             AnalyticsEvent.event_name == 'signup_start',
-            AnalyticsEvent.timestamp >= cutoff_date
+            AnalyticsEvent.timestamp >= cutoff_date,
+            AnalyticsEvent.environment == environment
         )
         started_res = await db.execute(started_stmt)
         signup_started = started_res.scalar() or 0
 
         completed_stmt = select(func.count(AnalyticsEvent.id)).filter(
             AnalyticsEvent.event_name == 'signup_success',
-            AnalyticsEvent.timestamp >= cutoff_date
+            AnalyticsEvent.timestamp >= cutoff_date,
+            AnalyticsEvent.environment == environment
         )
         completed_res = await db.execute(completed_stmt)
         signup_completed = completed_res.scalar() or 0
@@ -348,34 +331,48 @@ class AnalyticsService:
             'signup_started': signup_started,
             'signup_completed': signup_completed,
             'conversion_rate': round(conversion_rate, 2),
-            'period': f'last_{period_days}_days'
+            'period': f'last_{period_days}_days',
+            'environment': environment
         }
 
     @staticmethod
     async def calculate_retention_rate(
         db: AsyncSession,
-        period_days: int = 7
+        period_days: int = 7,
+        environment: Optional[str] = None
     ) -> Dict:
-        """Calculate Retention Rate KPI."""
+        """Calculate Retention Rate KPI.
+        
+        Args:
+            db: Database session
+            period_days: Number of days for retention calculation
+            environment: Optional environment filter (defaults to current environment)
+        """
+        if environment is None:
+            environment = get_current_environment()
+            
         today = datetime.now(UTC).date()
         day_0 = today - timedelta(days=period_days)
         day_n = today
 
         day0_stmt = select(func.count(func.distinct(AnalyticsEvent.user_id))).filter(
             AnalyticsEvent.user_id.isnot(None),
-            func.date(AnalyticsEvent.timestamp) == day_0
+            func.date(AnalyticsEvent.timestamp) == day_0,
+            AnalyticsEvent.environment == environment
         )
         day0_res = await db.execute(day0_stmt)
         day_0_users = day0_res.scalar() or 0
 
         dayn_subq = select(func.distinct(AnalyticsEvent.user_id)).filter(
-            func.date(AnalyticsEvent.timestamp) == day_n
+            func.date(AnalyticsEvent.timestamp) == day_n,
+            AnalyticsEvent.environment == environment
         ).subquery()
         
         dayn_stmt = select(func.count(func.distinct(AnalyticsEvent.user_id))).filter(
             AnalyticsEvent.user_id.isnot(None),
             func.date(AnalyticsEvent.timestamp) == day_0,
-            AnalyticsEvent.user_id.in_(select(dayn_subq))
+            AnalyticsEvent.user_id.in_(select(dayn_subq)),
+            AnalyticsEvent.environment == environment
         )
         dayn_res = await db.execute(dayn_stmt)
         day_n_active_users = dayn_res.scalar() or 0
@@ -387,20 +384,32 @@ class AnalyticsService:
             'day_n_active_users': day_n_active_users,
             'retention_rate': round(retention_rate, 2),
             'period_days': period_days,
-            'period': f'{period_days}_day_retention'
+            'period': f'{period_days}_day_retention',
+            'environment': environment
         }
 
     @staticmethod
     async def calculate_arpu(
         db: AsyncSession,
-        period_days: int = 30
+        period_days: int = 30,
+        environment: Optional[str] = None
     ) -> Dict:
-        """Calculate ARPU KPI."""
+        """Calculate ARPU KPI.
+        
+        Args:
+            db: Database session
+            period_days: Number of days to look back
+            environment: Optional environment filter (defaults to current environment)
+        """
+        if environment is None:
+            environment = get_current_environment()
+            
         cutoff_date = datetime.now(UTC) - timedelta(days=period_days)
 
         active_stmt = select(func.count(func.distinct(AnalyticsEvent.user_id))).filter(
             AnalyticsEvent.user_id.isnot(None),
-            AnalyticsEvent.timestamp >= cutoff_date
+            AnalyticsEvent.timestamp >= cutoff_date,
+            AnalyticsEvent.environment == environment
         )
         active_res = await db.execute(active_stmt)
         total_active_users = active_res.scalar() or 0
@@ -413,7 +422,8 @@ class AnalyticsService:
             'total_active_users': total_active_users,
             'arpu': round(arpu, 2),
             'period': f'last_{period_days}_days',
-            'currency': 'USD'
+            'currency': 'USD',
+            'environment': environment
         }
 
     @staticmethod
@@ -421,19 +431,36 @@ class AnalyticsService:
         db: AsyncSession,
         conversion_period_days: int = 30,
         retention_period_days: int = 7,
-        arpu_period_days: int = 30
+        arpu_period_days: int = 30,
+        environment: Optional[str] = None
     ) -> Dict:
-        """Get combined KPI summary."""
-        conversion_rate = await AnalyticsService.calculate_conversion_rate(db, conversion_period_days)
-        retention_rate = await AnalyticsService.calculate_retention_rate(db, retention_period_days)
-        arpu = await AnalyticsService.calculate_arpu(db, arpu_period_days)
+        """Get combined KPI summary.
+        
+        Args:
+            db: Database session
+            conversion_period_days: Period for conversion rate calculation
+            retention_period_days: Period for retention rate calculation
+            arpu_period_days: Period for ARPU calculation
+            environment: Optional environment filter (defaults to current environment)
+        """
+        if environment is None:
+            environment = get_current_environment()
+            
+        conversion_rate = await AnalyticsService.calculate_conversion_rate(
+            db, conversion_period_days, environment
+        )
+        retention_rate = await AnalyticsService.calculate_retention_rate(
+            db, retention_period_days, environment
+        )
+        arpu = await AnalyticsService.calculate_arpu(db, arpu_period_days, environment)
 
         return {
             'conversion_rate': conversion_rate,
             'retention_rate': retention_rate,
             'arpu': arpu,
             'calculated_at': datetime.now(UTC).isoformat(),
-            'period': f'conversion_{conversion_period_days}d_retention_{retention_period_days}d_arpu_{arpu_period_days}d'
+            'period': f'conversion_{conversion_period_days}d_retention_{retention_period_days}d_arpu_{arpu_period_days}d',
+            'environment': environment
         }
 
 
@@ -451,7 +478,7 @@ class AnalyticsService:
         event_data: Optional[Dict] = None,
         ip_address: Optional[str] = None,
         user_agent: Optional[str] = None
-    ) -> ConsentEvent:
+    ) -> AnalyticsEvent:
         """
         Track a consent event (consent_given or consent_revoked).
 
@@ -473,14 +500,13 @@ class AnalyticsService:
         # Serialize event_data to JSON
         data_payload = json.dumps(event_data) if event_data else None
 
-        event = ConsentEvent(
+        event = AnalyticsEvent(
             anonymous_id=anonymous_id,
             event_type=event_type,
-            consent_type=consent_type,
-            consent_version=consent_version,
+            event_name=f"consent_{consent_type}_{event_type}",
             event_data=data_payload,
             ip_address=ip_address,
-            user_agent=user_agent,
+            environment=get_current_environment(),
             timestamp=datetime.utcnow()
         )
 

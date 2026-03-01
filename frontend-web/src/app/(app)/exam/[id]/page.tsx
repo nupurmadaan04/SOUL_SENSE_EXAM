@@ -20,6 +20,7 @@ export default function ExamPage() {
 
   const [showLeaveWarning, setShowLeaveWarning] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   // Exam state
   const {
@@ -106,6 +107,13 @@ export default function ExamPage() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [getAnsweredCount, isCompleted]);
 
+  // Clear validation error when all questions are answered
+  useEffect(() => {
+    if (validationError && Object.keys(answers).length === questions.length) {
+      setValidationError(null);
+    }
+  }, [answers, questions.length, validationError]);
+
   // Handle leaving page confirmation
   const handleLeaveAttempt = () => {
     if (getAnsweredCount() > 0 && !isCompleted) {
@@ -146,6 +154,15 @@ export default function ExamPage() {
     if (currentAnswer !== undefined) {
       setAnswer(currentQuestion.id, currentAnswer);
     }
+
+    // Validate all questions are answered
+    if (Object.keys(answers).length < questions.length) {
+      setValidationError(`Please answer all ${questions.length} questions before submitting. You have answered ${Object.keys(answers).length} questions.`);
+      return;
+    }
+
+    // Clear any previous validation error
+    setValidationError(null);
 
     // Calculate duration
     const durationSeconds = startTime
@@ -256,7 +273,7 @@ export default function ExamPage() {
   return (
     <>
       {isReviewing ? (
-        <ReviewScreen onSubmit={handleSubmit} isSubmitting={isSubmitting} />
+        <ReviewScreen onSubmit={handleSubmit} isSubmitting={isSubmitting} error={submitError} />
       ) : (
         <div className="container mx-auto px-4 py-8 max-w-4xl">
           {/* Header */}
@@ -315,17 +332,18 @@ export default function ExamPage() {
               onSubmit={handleSubmit}
               onReview={handleReview}
               isSubmitting={isSubmitting}
+              error={validationError || submitError}
             />
           </div>
 
           {/* Submit Error */}
-          {submitError && (
+          {(validationError || submitError) && (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               className="mt-4 p-4 bg-destructive/10 border border-destructive/20 rounded-lg"
             >
-              <p className="text-destructive text-sm">{submitError}</p>
+              <p className="text-destructive text-sm">{validationError || submitError}</p>
             </motion.div>
           )}
         </div>

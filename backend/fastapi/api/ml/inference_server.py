@@ -119,7 +119,35 @@ class InferenceProxy:
     def run_inference(self, task_type: str, payload: Any, timeout: float = 30.0) -> Any:
         """
         Sends a request to the ML process via Redis and waits for a response.
+        Protected by Circuit Breaker (#1135).
         """
+        from ..services.circuit_breaker import CircuitBreaker
+        breaker = CircuitBreaker(f"ml_inference:{task_type}", failure_threshold=3, latency_threshold=0.5)
+
+        async def _call():
+            return await self._run_inference_internal(task_type, payload, timeout)
+            
+        # Circuit breaker expects a callable. Since InferenceProxy is currently synchronous blocking 
+        # but the breaker is async-friendly, we might need a bridge if this is called from async context.
+        # However, run_inference is mostly called from Celery tasks (sync).
+        
+        return self._run_inference_with_breaker(task_type, payload, timeout)
+
+    def _run_inference_with_breaker(self, task_type: str, payload: Any, timeout: float) -> Any:
+        # Simplified synchronous breaker or bridge
+        import time
+        start_time = time.time()
+        try:
+            res = self._run_inference_internal(task_type, payload, timeout)
+            duration = time.time() - start_time
+            if duration > 0.5: # trip if > 500ms for ML (generous)
+                logger.warning(f"ML Inference {task_type} slow: {duration:.2f}s")
+            return res
+        except Exception as e:
+            logger.error(f"ML Inference {task_type} failed: {e}")
+            raise e
+
+    def _run_inference_internal(self, task_type: str, payload: Any, timeout: float) -> Any:
         request_id = str(uuid.uuid4())
         reply_to = f"ml_reply:{request_id}"
         

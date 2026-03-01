@@ -12,6 +12,8 @@ import {
   Button,
   Skeleton,
 } from '@/components/ui';
+import { ScoreGauge, CategoryBreakdown, RecommendationCard } from '@/components/results';
+import { ArrowLeft, Download, RefreshCw, Calendar, Clock, Loader2, FileX2 } from 'lucide-react';
 import { CategoryBreakdown, RecommendationCard } from '@/components/results';
 import { ScoreGauge } from '@/lib/dynamic-imports';
 import { ArrowLeft, Download, RefreshCw, Calendar, Clock, Loader2 } from 'lucide-react';
@@ -26,11 +28,12 @@ export default function ResultDetailPage() {
   const rawId = params?.id as string | string[] | undefined;
   const examId = rawId ? parseInt(Array.isArray(rawId) ? rawId[0] : rawId, 10) : NaN;
 
-  const { detailedResult: result, loading: isLoading, error, fetchDetailedResult } = useResults();
+  const { detailedResult: result, loading: isLoading, error, notFound, fetchDetailedResult } = useResults();
 
   useEffect(() => {
     if (examId && !Number.isNaN(examId)) {
-      fetchDetailedResult(examId);
+      // Catch to prevent unhandled rejection — error state is managed by the hook
+      fetchDetailedResult(examId).catch(() => { });
     }
   }, [examId, fetchDetailedResult]);
 
@@ -134,7 +137,37 @@ export default function ResultDetailPage() {
     );
   }
 
-  // Error state
+  // Not‑found state (404 / deleted result)
+  if (notFound) {
+    return (
+      <div className="space-y-6">
+        <Button variant="ghost" onClick={() => router.push('/results')}>
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Results
+        </Button>
+        <Card className="border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950">
+          <CardHeader className="flex flex-row items-start gap-4">
+            <FileX2 className="mt-1 h-8 w-8 text-amber-600 dark:text-amber-400 shrink-0" />
+            <div>
+              <CardTitle className="text-amber-900 dark:text-amber-100">No Result Found</CardTitle>
+              <CardDescription className="text-amber-700 dark:text-amber-300">
+                The assessment result you are looking for does not exist or may have been removed.
+                Please check the link or go back to view all your results.
+              </CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <Button onClick={() => router.push('/results')}>
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              View All Results
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Generic error state (network failure, server error, etc.)
   if (error || !result) {
     return (
       <div className="space-y-6">
@@ -149,7 +182,11 @@ export default function ResultDetailPage() {
               {error || 'Unable to load exam results. Please try again.'}
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex gap-3">
+            <Button variant="outline" onClick={() => fetchDetailedResult(examId).catch(() => { })}>
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Retry
+            </Button>
             <Button onClick={() => router.push('/results')}>View All Results</Button>
           </CardContent>
         </Card>
@@ -157,11 +194,11 @@ export default function ResultDetailPage() {
     );
   }
 
-  // Transform categories data for CategoryBreakdown component
-  const categoryScores = result.category_breakdown.map((cat) => {
+  // Transform categories data for CategoryBreakdown component (null‑safe)
+  const categoryScores = (result.category_breakdown ?? []).map((cat) => {
     return {
-      name: cat.category_name,
-      score: cat.percentage,
+      name: cat.category_name ?? 'Unknown',
+      score: cat.percentage ?? 0,
     };
   });
 
@@ -209,7 +246,7 @@ export default function ResultDetailPage() {
         </CardHeader>
         <CardContent className="pt-8 pb-8 flex justify-center">
           <ScoreGauge
-            score={result.overall_percentage || result.total_score || 0}
+            score={result.overall_percentage ?? result.total_score ?? 0}
             size="lg"
             label="Overall Score"
             animated
@@ -218,7 +255,7 @@ export default function ResultDetailPage() {
       </Card>
 
       {/* Category Breakdown */}
-      {result.category_breakdown && result.category_breakdown.length > 0 && (
+      {result.category_breakdown && result.category_breakdown.length > 0 && categoryScores.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle>Category Breakdown</CardTitle>
@@ -233,7 +270,7 @@ export default function ResultDetailPage() {
       )}
 
       {/* Recommendations */}
-      {result.recommendations && result.recommendations.length > 0 && (
+      {Array.isArray(result.recommendations) && result.recommendations.length > 0 && (
         <div className="space-y-4">
           <div>
             <h2 className="text-2xl font-bold tracking-tight">Personalized Recommendations</h2>

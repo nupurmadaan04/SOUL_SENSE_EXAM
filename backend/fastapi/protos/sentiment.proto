@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package sentiment;
+
+// Service definition for AI Sentiment Analysis
+service SentimentAnalysis {
+  // Analyzes a single piece of text for sentiment
+  rpc AnalyzeSentiment(AnalyzeSentimentRequest) returns (AnalyzeSentimentResponse) {}
+  
+  // Streaming version for large journal entries or batch processing
+  rpc StreamSentiment(stream AnalyzeSentimentRequest) returns (stream AnalyzeSentimentResponse) {}
+}
+
+message AnalyzeSentimentRequest {
+  string text = 1;
+  string journal_id = 2;
+  string user_id = 3;
+}
+
+message AnalyzeSentimentResponse {
+  float score = 1;         // 0-100 scale
+  string label = 2;        // positive, neutral, negative
+  repeated string patterns = 3; // emotional patterns
+  string journal_id = 4;
+}

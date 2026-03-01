@@ -56,10 +56,28 @@ def token():
 
 
 def test_health():
-    """Test health endpoint."""
+    """Test health endpoint - checks system dependencies."""
     response = requests.get(f"{BASE_URL}/api/v1/health")
     print_response("GET /api/v1/health", response)
-    assert response.status_code == 200
+    
+    # Health endpoint returns 200 when healthy, 503 when critical dependencies fail
+    assert response.status_code in [200, 503]
+    
+    data = response.json()
+    assert "status" in data
+    assert "timestamp" in data
+    assert "version" in data
+    assert "services" in data
+    
+    # Check services structure
+    services = data["services"]
+    assert "database" in services
+    assert "redis" in services
+    
+    # Each service should have status and may have latency/message
+    for service_name, service_info in services.items():
+        assert "status" in service_info
+        assert service_info["status"] in ["healthy", "unhealthy"]
 
 
 def test_create_setting(token: str):

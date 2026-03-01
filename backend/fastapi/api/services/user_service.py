@@ -14,9 +14,12 @@ from sqlalchemy.exc import IntegrityError
 from fastapi import HTTPException, status
 
 # Import models from models module
-from ..models import User, UserSettings, MedicalProfile, PersonalProfile, UserStrengths, UserEmotionalPatterns, Score, UserSession, PasswordHistory
-from ..utils.security import get_password_hash, check_password_history
-from ..constants.security_constants import PASSWORD_HISTORY_LIMIT
+from ..models import User, UserSettings, MedicalProfile, PersonalProfile, UserStrengths, UserEmotionalPatterns, Score, UserSession
+from .db_error_handler import safe_db_query, DatabaseConnectionError
+import bcrypt
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 
@@ -29,41 +32,74 @@ class UserService:
 
     async def get_user_by_id(self, user_id: int, include_deleted: bool = False) -> Optional[User]:
         """Retrieve a user by ID."""
-        stmt = select(User).filter(User.id == user_id)
-        if not include_deleted:
-            stmt = stmt.filter(User.is_deleted == False)
-        
-        result = await self.db.execute(stmt)
-        return result.scalar_one_or_none()
+        try:
+            return safe_db_query(
+                self.db,
+                lambda: self.db.query(User).filter(User.id == user_id).filter(User.is_deleted == False if not include_deleted else True).first(),
+                "get user by ID"
+            )
+        except DatabaseConnectionError:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Service temporarily unavailable. Please try again later."
+            )
 
     async def get_user_by_username(self, username: str, include_deleted: bool = False) -> Optional[User]:
         """Retrieve a user by username."""
-        stmt = select(User).filter(User.username == username)
-        if not include_deleted:
-            stmt = stmt.filter(User.is_deleted == False)
-            
-        result = await self.db.execute(stmt)
-        return result.scalar_one_or_none()
+        try:
+            return safe_db_query(
+                self.db,
+                lambda: self.db.query(User).filter(User.username == username).filter(User.is_deleted == False if not include_deleted else True).first(),
+                "get user by username"
+            )
+        except DatabaseConnectionError:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Service temporarily unavailable. Please try again later."
+            )
 
     async def get_all_users(self, skip: int = 0, limit: int = 100, include_deleted: bool = False) -> List[User]:
         """Retrieve all users with pagination."""
-        stmt = select(User)
-        if not include_deleted:
-            stmt = stmt.filter(User.is_deleted == False)
-        
-        stmt = stmt.offset(skip).limit(limit)
-        result = await self.db.execute(stmt)
-        return list(result.scalars().all())
+        try:
+            return safe_db_query(
+                self.db,
+                lambda: self.db.query(User).filter(User.is_deleted == False if not include_deleted else True).offset(skip).limit(limit).all(),
+                "get all users"
+            )
+        except DatabaseConnectionError:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Service temporarily unavailable. Please try again later."
+            )
 
     async def create_user(self, username: str, password: str) -> User:
         """
         Create a new user with hashed password.
+        
+        Args:
+            username: Unique username
+            password: Plain text password (will be hashed)
+            
+        Returns:
+            Created User object
+            
+        Raises:
+            HTTPException: If username already exists or database error
         """
         # Normalize username
         username = username.strip().lower()
 
         # Check if username already exists (including soft-deleted for collision prevention)
-        existing_user = await self.get_user_by_username(username, include_deleted=True)
+        try:
+            existing_user = self.get_user_by_username(username, include_deleted=True)
+        except HTTPException as e:
+            if e.status_code == status.HTTP_503_SERVICE_UNAVAILABLE:
+                raise  # Re-raise database connection errors
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Username already registered"
+            ) from e
+
         if existing_user:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -94,6 +130,13 @@ class UserService:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Failed to create user"
+            )
+        except (OperationalError, DatabaseError) as e:
+            self.db.rollback()
+            logger.error(f"Database connection error during user creation: {str(e)}")
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Service temporarily unavailable. Please try again later."
             )
 
     async def update_user(self, user_id: int, username: Optional[str] = None, password: Optional[str] = None) -> User:

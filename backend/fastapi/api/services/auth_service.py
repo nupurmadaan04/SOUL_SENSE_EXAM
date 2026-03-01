@@ -15,14 +15,16 @@ from sqlalchemy import select, update, delete, func
 from sqlalchemy.orm import selectinload
 from sqlalchemy.exc import OperationalError
 from .audit_service import AuditService
+from ..utils.db_transaction import transactional, retry_on_transient
 from ..utils.security import get_password_hash, verify_password, is_hashed, check_password_history
+from ..utils.race_condition_protection import with_row_lock
 from ..models import User, LoginAttempt, PersonalProfile, RefreshToken, PasswordHistory
 from ..constants.security_constants import PASSWORD_HISTORY_LIMIT, REFRESH_TOKEN_EXPIRE_DAYS
 from .db_router import mark_write
 
 settings = get_settings_instance()
 
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("api.auth")
 
 class AuthService:
     def __init__(self, db: AsyncSession):
@@ -351,7 +353,11 @@ class AuthService:
             remaining = int(lockout_duration - elapsed.total_seconds())
 
             if remaining > 0:
-                logger.warning(f"Account locked: {username} ({count} failed attempts, {remaining}s remaining)")
+                logger.warning(f"Account locked", extra={
+                    "username": username,
+                    "failed_attempts": count,
+                    "remaining_seconds": remaining
+                })
                 return True, "Too many failed attempts. Try again later.", remaining
 
         return False, None, 0
@@ -372,54 +378,74 @@ class AuthService:
             await self.db.rollback()
             logger.error(f"Failed to record login attempt: {e}")
 
-    async def register_user(self, user_data: 'UserCreate') -> Tuple[bool, Optional[User], str]:
-        """Register a new user and their personal profile."""
+    def register_user(self, user_data: 'UserCreate') -> Tuple[bool, Optional[User], str]:
+        """
+        Register a new user and their personal profile.
+        Standardizes identifiers and validates uniqueness.
+
+        Security:
+        - Generic status return to prevent enumeration.
+        - Timing jitter to prevent response-time analysis.
+        """
+        import time
         import random
-        await asyncio.sleep(random.uniform(0.1, 0.3))
+        from ..exceptions import APIException
+        from ..constants.errors import ErrorCode
+        from sqlalchemy.exc import OperationalError, DatabaseError
+
+        # Timing Jitter: Artificial delay baseline (100-300ms)
+        # This masks the difference between a DB hit (fast) and a bcrypt hash (slowish)
+        # Though bcrypt is ~100ms+, so we just add a bit of noise.
+        time.sleep(random.uniform(0.1, 0.3))
 
         username_lower = user_data.username.lower().strip()
         email_lower = user_data.email.lower().strip()
 
-        # 1. Validation
-        stmt_user = select(User).filter(User.username == username_lower)
-        res_user = await self.db.execute(stmt_user)
-        existing_username = res_user.scalar_one_or_none()
-
-        stmt_profile = select(PersonalProfile).filter(PersonalProfile.email == email_lower)
-        res_profile = await self.db.execute(stmt_profile)
-        existing_email = res_profile.scalar_one_or_none()
-
-        if existing_username or existing_email:
-            logger.info(f"Registration attempt for existing identity: {username_lower} / {email_lower}")
-            return True, None, "Account creation initiated. Please check your email for verification link."
-
-        from .security_service import SecurityService
-        if SecurityService.is_disposable_email(email_lower):
-            return False, None, "Registration with disposable email domains is not allowed"
-
         try:
-            hashed_pw = get_password_hash(user_data.password)
-            new_user = User(
-                username=username_lower,
-                password_hash=hashed_pw
-            )
-            self.db.add(new_user)
-            await self.db.flush()
+            # 1. Validation (Does NOT leak existence if we return generic later)
+            # But we still do it for integrity.
+            existing_username = self.db.query(User).filter(User.username == username_lower).first()
+            existing_email = self.db.query(PersonalProfile).filter(PersonalProfile.email == email_lower).first()
 
-            # Record initial password in history
-            self.db.add(PasswordHistory(user_id=new_user.id, password_hash=hashed_pw))
+            if existing_username or existing_email:
+                # ENUMERATION PROTECTION:
+                # We don't raise an error. We return "Success" but don't create.
+                # In a real app, we would send an "Already registered" email here.
+                logger.info(f"Registration attempt for existing identity: {username_lower} / {email_lower}")
+                return True, None, "Account creation initiated. Please check your email for verification link."
 
-            new_profile = PersonalProfile(
-                user_id=new_user.id,
-                email=email_lower,
-                first_name=user_data.first_name,
-                last_name=user_data.last_name,
-                age=user_data.age,
-                gender=user_data.gender
-            )
-            self.db.add(new_profile)
-            await self.db.commit()
-            await self.db.refresh(new_user)
+            # 2. Disposable Email Check (This remains an error as it's a policy failure, not enumeration)
+            from .security_service import SecurityService
+            if SecurityService.is_disposable_email(email_lower):
+                return False, None, "Registration with disposable email domains is not allowed"
+
+            hashed_pw = self.hash_password(user_data.password)
+
+            # ── ATOMIC WRITE ─────────────────────────────────────────────────
+            # User + PersonalProfile must both succeed or neither persists.
+            # A failure mid-way (e.g. FK violation, DB crash) would otherwise
+            # leave an orphan User row with no associated PersonalProfile.
+            with transactional(self.db):
+                new_user = User(
+                    username=username_lower,
+                    password_hash=hashed_pw
+                )
+                self.db.add(new_user)
+                self.db.flush()  # Populate new_user.id before creating profile
+
+                new_profile = PersonalProfile(
+                    user_id=new_user.id,
+                    email=email_lower,
+                    first_name=user_data.first_name,
+                    last_name=user_data.last_name,
+                    age=user_data.age,
+                    gender=user_data.gender
+                )
+                self.db.add(new_profile)
+            # ─────────────────────────────────────────────────────────────────
+
+            # Refresh to get the latest data after transaction commit
+            self.db.refresh(new_user)
             
             # CONSISTENCY: Ensure initial version (1) is in Redis truth mapping (#1143)
             try:
@@ -430,8 +456,17 @@ class AuthService:
                 logger.warning(f"Failed to seed version/mark write in Redis: {e}")
             
             return True, new_user, "Registration successful. Please verify your email."
+        except (OperationalError, DatabaseError) as e:
+            # Handle database connection/operational errors
+            self.db.rollback()
+            logger.error(f"Database connection error during registration: {str(e)}")
+            return False, None, "Service temporarily unavailable. Please try again later."
+        except AttributeError as e:
+            logger.error(f"Registration Model Mismatch: {e}")
+            return False, None, "A configuration error occurred on the server."
         except Exception as e:
-            await self.db.rollback()
+            import traceback
+            self.db.rollback()
             logger.error(f"Registration failed error: {str(e)}")
             return False, None, "An internal error occurred. Please try again later."
 
@@ -463,34 +498,60 @@ class AuthService:
     async def refresh_access_token(self, refresh_token: str) -> Tuple[str, str]:
         """Validate a refresh token and return a new access token + new refresh token (Rotation)."""
         token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
-        
-        stmt = select(RefreshToken).filter(
-            RefreshToken.token_hash == token_hash,
-            RefreshToken.is_revoked == False,
-            RefreshToken.expires_at > datetime.now(timezone.utc)
-        )
-        result = await self.db.execute(stmt)
-        db_token = result.scalar_one_or_none()
-        
-        if not db_token:
-            raise AuthException(code=ErrorCode.AUTH_INVALID_TOKEN, message="Invalid or expired refresh token")
-            
-        user_stmt = select(User).filter(User.id == db_token.user_id)
-        user_result = await self.db.execute(user_stmt)
-        user = user_result.scalar_one_or_none()
-        
-        if not user:
-             raise AuthException(code=ErrorCode.AUTH_INVALID_TOKEN, message="User not found")
-        
-        try:
-            db_token.is_revoked = True
-            access_token = self.create_access_token(data={"sub": user.username})
-            new_refresh_token = await self.create_refresh_token(user.id, commit=False)
-            await self.db.commit()
-            return access_token, new_refresh_token
-        except Exception as e:
-            await self.db.rollback()
-            raise AuthException(code=ErrorCode.AUTH_TOKEN_ROTATION_FAILED, message="Token rotation failed")
+
+        # Use row-level locking to prevent concurrent refresh operations
+        async with self.db.begin():
+            # Lock the refresh token row to prevent concurrent operations
+            lock_stmt = text("""
+                SELECT id FROM refresh_tokens
+                WHERE token_hash = :token_hash AND is_revoked = false AND expires_at > NOW()
+                FOR UPDATE
+            """)
+            await self.db.execute(lock_stmt, {"token_hash": token_hash})
+
+            # Now check if token exists and is valid
+            stmt = select(RefreshToken).filter(
+                RefreshToken.token_hash == token_hash,
+                RefreshToken.is_revoked == False,
+                RefreshToken.expires_at > datetime.now(timezone.utc)
+            )
+            result = await self.db.execute(stmt)
+            db_token = result.scalar_one_or_none()
+
+            if not db_token:
+                raise AuthException(code=ErrorCode.AUTH_INVALID_TOKEN, message="Invalid or expired refresh token")
+
+            user_stmt = select(User).filter(User.id == db_token.user_id)
+            user_result = await self.db.execute(user_stmt)
+            user = user_result.scalar_one_or_none()
+
+            if not user:
+                 raise AuthException(code=ErrorCode.AUTH_INVALID_TOKEN, message="User not found")
+
+            try:
+                # ── ATOMIC TOKEN ROTATION ────────────────────────────────────────
+                # Revocation of the old token and creation of the new one must be
+                # committed as a single unit.  If the commit fails after revocation
+                # but before the new token is stored, the user would be logged out
+                # with no valid refresh token to recover from.
+                # Revoke current token
+                db_token.is_revoked = True
+
+                # Create new tokens (added to session but not committed yet)
+                access_token = self.create_access_token(data={"sub": user.username})
+                new_refresh_token = self.create_refresh_token(user.id, commit=False)
+                # ─────────────────────────────────────────────────────────────────
+
+                await self.db.commit()
+                return access_token, new_refresh_token
+
+            except Exception as e:
+                await self.db.rollback()
+                logger.error(f"Failed to rotate refresh token for user {db_token.user_id}: {str(e)}")
+                raise AuthException(
+                    code=ErrorCode.AUTH_TOKEN_ROTATION_FAILED,
+                    message="Token rotation failed. Please try logging in again."
+                )
 
     async def revoke_refresh_token(self, refresh_token: str) -> None:
         """Manually revoke a refresh token."""
@@ -502,20 +563,44 @@ class AuthService:
             db_token.is_revoked = True
             await self.db.commit()
 
-    async def revoke_access_token(self, token: str) -> None:
-        """Revoke an access token."""
-        from jose import jwt
-        from ..root_models import TokenRevocation
+    def revoke_access_token(self, token: str) -> None:
+        """Revoke an access token by adding it to the Redis blacklist."""
         try:
+            # Use Redis blacklist for fast lookups
+            from ..utils.jwt_blacklist import get_jwt_blacklist
+            blacklist = get_jwt_blacklist()
+
+            # Blacklist in Redis (async operation, but we'll make it sync for now)
+            import asyncio
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            success = loop.run_until_complete(blacklist.blacklist_token(token))
+            loop.close()
+
+            if success:
+                logger.info(f"Access token blacklisted in Redis")
+            else:
+                logger.warning("Failed to blacklist token in Redis, falling back to database")
+
+            # Also store in database as backup (for tokens without JTI)
+            from jose import jwt
+            from ..root_models import TokenRevocation
             payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.jwt_algorithm])
             exp = payload.get("exp")
             if exp:
                 expires_at = datetime.fromtimestamp(exp, tz=timezone.utc)
                 revocation = TokenRevocation(token_str=token, expires_at=expires_at)
                 self.db.add(revocation)
-                await self.db.commit()
+                self.db.commit()
+                logger.info(f"Access token also revoked in database for user: {payload.get('sub')}")
+
         except Exception as e:
             logger.error(f"Failed to revoke access token: {e}")
+            # Don't raise exception - logout should succeed even if revocation fails
+    
+
+
+
 
     async def initiate_password_reset(self, email: str, background_tasks: BackgroundTasks) -> tuple[bool, str]:
         """Initiate password reset flow."""

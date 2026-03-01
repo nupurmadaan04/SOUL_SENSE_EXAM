@@ -14,8 +14,8 @@ import logging
 
 try:
     from ..services.encryption_service import EncryptedString
-except ImportError:
-    pass
+except (ImportError, ValueError):
+    EncryptedString = Text
 
 # Define Base
 Base = declarative_base()
@@ -97,6 +97,25 @@ class UserEncryptionKey(Base):
     wrapped_dek = Column(String, nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(UTC))
     user = relationship("User", back_populates="encryption_key")
+
+class TenantQuota(Base):
+    """
+    Multi-tenant rate limiting and quota management (#1135).
+    Replaces static fixed-rate limits with a Dynamic Token Bucket + Daily Quotas.
+    """
+    __tablename__ = 'tenant_quotas'
+    tenant_id = Column(UUID(as_uuid=True), primary_key=True, index=True)
+    tier = Column(String, default="free") # free, pro, enterprise
+    max_tokens = Column(Integer, default=50) # burst capacity
+    refill_rate = Column(Float, default=0.5) # tokens per second
+    daily_request_limit = Column(Integer, default=1000)
+    ml_units_daily_limit = Column(Integer, default=20)
+    
+    # State
+    daily_request_count = Column(Integer, default=0)
+    ml_units_daily_count = Column(Integer, default=0)
+    
+    updated_at = Column(DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
 
 class NotificationPreference(Base):
     """User preferences for notification channels."""
@@ -314,6 +333,7 @@ class GDPRScrubLog(Base):
 class AnalyticsEvent(Base):
     """Track user behavior events (e.g., signup drop-off).
     Uses anonymous_id for pre-signup tracking.
+    Environment column ensures strict separation between staging and production data.
     """
     __tablename__ = 'analytics_events'
     tenant_id = Column(UUID(as_uuid=True), index=True, nullable=True)
@@ -326,6 +346,56 @@ class AnalyticsEvent(Base):
     timestamp = Column(DateTime, default=datetime.utcnow, index=True)
     ip_address = Column(String, nullable=True)
     user = relationship("User", back_populates="analytics_events")
+
+# ==========================================
+# CQRS READ MODELS (ISSUE-1124)
+# Pre-computed materializations for fast /analytics/* queries
+# ==========================================
+
+class CQRSGlobalStats(Base):
+    """Pre-computed global dashboard aggregates."""
+    __tablename__ = 'cqrs_global_stats'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    total_assessments = Column(Integer, default=0)
+    unique_users = Column(Integer, default=0)
+    global_average_score = Column(Float, default=0.0)
+    global_average_sentiment = Column(Float, default=0.0)
+    rushed_assessments = Column(Integer, default=0)
+    inconsistent_assessments = Column(Integer, default=0)
+    p25_score = Column(Float, default=0.0)
+    p50_score = Column(Float, default=0.0)  # Median
+    p75_score = Column(Float, default=0.0)
+    p90_score = Column(Float, default=0.0)
+    last_updated = Column(DateTime, default=datetime.utcnow)
+
+class CQRSAgeGroupStats(Base):
+    """Pre-computed age group statistics."""
+    __tablename__ = 'cqrs_age_group_stats'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    age_group = Column(String, index=True, unique=True)
+    total_assessments = Column(Integer, default=0)
+    average_score = Column(Float, default=0.0)
+    min_score = Column(Float, default=0.0)
+    max_score = Column(Float, default=0.0)
+    average_sentiment = Column(Float, default=0.0)
+    last_updated = Column(DateTime, default=datetime.utcnow)
+
+class CQRSDistributionStats(Base):
+    """Pre-computed score distribution percentages."""
+    __tablename__ = 'cqrs_distribution_stats'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    score_range = Column(String, index=True, unique=True)
+    count = Column(Integer, default=0)
+    last_updated = Column(DateTime, default=datetime.utcnow)
+
+class CQRSTrendAnalytics(Base):
+    """Pre-computed daily trend metrics."""
+    __tablename__ = 'cqrs_trend_analytics'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    period = Column(String, index=True, unique=True)  # YYYY-MM
+    average_score = Column(Float, default=0.0)
+    assessment_count = Column(Integer, default=0)
+    last_updated = Column(DateTime, default=datetime.utcnow)
 
 class OTP(Base):
     """One-Time Passwords for Password Reset and 2FA challenges."""
@@ -512,6 +582,7 @@ class Score(Base):
     __table_args__ = (
         Index('idx_score_age_score', 'age', 'total_score'),
         Index('idx_score_agegroup_score', 'detailed_age_group', 'total_score'),
+        Index('idx_score_env_timestamp', 'environment', 'timestamp'),
     )
 
 class Response(Base):
@@ -531,6 +602,25 @@ class Response(Base):
         CheckConstraint('response_value >= 1 AND response_value <= 5', name='ck_response_value_range'),
         Index('idx_response_question_timestamp', 'question_id', 'timestamp'),
         Index('idx_response_agegroup_timestamp', 'detailed_age_group', 'timestamp'),
+    )
+
+class ExamSession(Base):
+    """Tracks the state of an exam workflow to prevent business logic abuse."""
+    __tablename__ = 'exam_sessions'
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    session_id = Column(String, unique=True, nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False, index=True)
+    status = Column(String, default='STARTED') # STARTED, IN_PROGRESS, SUBMITTED, COMPLETED, ABANDONED
+    started_at = Column(DateTime, default=datetime.utcnow)
+    submitted_at = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
+    expires_at = Column(DateTime, nullable=False)
+    
+    user = relationship("User")
+
+    __table_args__ = (
+        Index('idx_exam_session_user_status', 'user_id', 'status'),
     )
 
 class Question(Base):
@@ -558,7 +648,7 @@ class JournalEntry(Base):
     username = Column(String, index=True)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=True, index=True)
     title = Column(String, nullable=True)
-    content = Column(EncryptedString, nullable=False)
+    content = Column(EncryptedString, nullable=True) # Allow null after archival
     sentiment_score = Column(Float, default=0.0)
     emotional_patterns = Column(Text, nullable=True) # JSON list
     timestamp = Column(String, default=lambda: datetime.now(UTC).isoformat(), index=True)

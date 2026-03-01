@@ -12,8 +12,9 @@ Handles CRUD operations for all user profile types:
 from typing import Optional, Dict, Any
 from datetime import datetime
 
+from sqlalchemy.orm import Session
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy.exc import OperationalError, DatabaseError
 from fastapi import HTTPException, status
 
 # Import models from models module
@@ -25,6 +26,10 @@ from ..models import (
     UserStrengths,
     UserEmotionalPatterns
 )
+from .db_error_handler import safe_db_query, DatabaseConnectionError
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class ProfileService:
@@ -35,15 +40,23 @@ class ProfileService:
 
     async def _verify_user_exists(self, user_id: int) -> User:
         """Verify user exists and return user object."""
-        stmt = select(User).filter(User.id == user_id)
-        result = await self.db.execute(stmt)
-        user = result.scalar_one_or_none()
-        if not user:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found"
+        try:
+            user = safe_db_query(
+                self.db,
+                lambda: self.db.query(User).filter(User.id == user_id).first(),
+                "verify user exists"
             )
-        return user
+            if not user:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="User not found"
+                )
+            return user
+        except DatabaseConnectionError:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Service temporarily unavailable. Please try again later."
+            )
 
     # ========================================================================
     # User Settings CRUD

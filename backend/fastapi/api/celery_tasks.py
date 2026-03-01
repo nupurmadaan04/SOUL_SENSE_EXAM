@@ -1,7 +1,8 @@
 import asyncio
 import os
 import logging
-from typing import Dict, Any
+import gc
+from typing import Dict, Any, Optional
 from celery.exceptions import MaxRetriesExceededError
 from api.celery_app import celery_app
 from api.services.export_service_v2 import ExportServiceV2
@@ -18,6 +19,12 @@ from api.utils.distributed_lock import require_lock
 from api.utils.memory_guard import enforce_memory_limit
 
 logger = logging.getLogger(__name__)
+
+def cleanup_memory():
+    """Force garbage collection and clear any cached objects."""
+    gc.collect()
+    # Clear any module-level caches if they exist
+    # This helps prevent memory bloat from long-running processes
 
 def notify_user_via_ws(user_id: int, message: dict):
     settings = get_settings_instance()
@@ -47,7 +54,14 @@ def execute_async_export_task(self, job_id: str, user_id: int, username: str, fo
     Implements idempotent execution and exponential backoff retry.
     """
     try:
+        # Memory management: Check memory before starting
+        enforce_memory_limit(threshold_mb=512)
+        
         run_async(_execute_async_export_db(job_id, user_id, username, format, options))
+        
+        # Force garbage collection after large operations
+        cleanup_memory()
+        
     except Exception as exc:
         logger.error(f"Task Failed for job {job_id}: {exc}")
         # Exponential backoff: 5, 25, 125 seconds
@@ -123,7 +137,14 @@ def send_notification_task(self, log_id: int, channel: str, user_id: int, conten
     Celery task to send a notification synchronously/asynchronously via worker.
     """
     try:
+        # Memory management
+        enforce_memory_limit(threshold_mb=256)
+        
         run_async(_execute_send_notification(log_id, channel, user_id, content))
+        
+        # Force garbage collection
+        cleanup_memory()
+        
     except Exception as exc:
         logger.error(f"Notification Task Failed for log_id {log_id}: {exc}")
         backoff_delay = 5 ** (self.request.retries + 1)
@@ -183,7 +204,14 @@ def generate_archive_task(self, job_id: str, user_id: int, password: str, includ
     Celery task to generate a secure GDPR data archive asynchronously.
     """
     try:
+        # Memory management for large archive operations
+        enforce_memory_limit(threshold_mb=1024)
+        
         run_async(_execute_archive_generation(job_id, user_id, password, include_pdf, include_csv, include_json))
+        
+        # Force garbage collection after large operations
+        cleanup_memory()
+        
     except Exception as exc:
         logger.error(f"Archive Task Failed for job {job_id}: {exc}")
         backoff_delay = 5 ** (self.request.retries + 1)

@@ -27,10 +27,13 @@ import {
   Info,
   RefreshCw,
 } from 'lucide-react';
+import { usePreferences } from '@/hooks/usePreferences';
+import { SystemPreferences } from '@/components/settings';
 
 const tabs = [
   { id: 'appearance', label: 'Appearance', icon: Palette },
   { id: 'notifications', label: 'Notifications', icon: Bell },
+  { id: 'preferences', label: 'System Preferences', icon: SettingsIcon },
   { id: 'privacy', label: 'Privacy & Data', icon: Shield },
   { id: 'ai-guidelines', label: 'AI Trust', icon: ShieldAlert },
   { id: 'account', label: 'Account', icon: UserIcon },
@@ -39,6 +42,12 @@ const tabs = [
 
 export default function SettingsPage() {
   const { settings, isLoading, error, updateSettings, syncSettings } = useSettings();
+  const {
+    preferences,
+    isLoading: isPrefsLoading,
+    saveStatus: prefsSaveStatus,
+    updatePreferencesDebounced,
+  } = usePreferences();
   const [activeTab, setActiveTab] = useState('appearance');
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [isMobile, setIsMobile] = useState(false);
@@ -135,25 +144,27 @@ export default function SettingsPage() {
         {/* Action Bar */}
         <div className="flex items-center gap-4 bg-muted/20 p-2 rounded-2xl border border-border/40">
           <div className="px-4">
-            {saveStatus === 'saving' && (
+            {(saveStatus === 'saving' || prefsSaveStatus === 'saving') && (
               <div className="flex items-center gap-2 text-primary">
                 <div className="animate-spin h-3 w-3 border-2 border-primary border-t-transparent rounded-full" />
                 <span className="text-[10px] font-black uppercase tracking-widest">Saving</span>
               </div>
             )}
-            {saveStatus === 'saved' && (
-              <div className="flex items-center gap-2 text-emerald-600">
-                <CheckCircle className="h-3 w-3" />
-                <span className="text-[10px] font-black uppercase tracking-widest">Saved</span>
-              </div>
-            )}
-            {saveStatus === 'error' && (
+            {(saveStatus === 'saved' || prefsSaveStatus === 'saved') &&
+              saveStatus !== 'saving' &&
+              prefsSaveStatus !== 'saving' && (
+                <div className="flex items-center gap-2 text-emerald-600">
+                  <CheckCircle className="h-3 w-3" />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Saved</span>
+                </div>
+              )}
+            {(saveStatus === 'error' || prefsSaveStatus === 'error') && (
               <div className="flex items-center gap-2 text-destructive">
                 <AlertCircle className="h-3 w-3" />
                 <span className="text-[10px] font-black uppercase tracking-widest">Failed</span>
               </div>
             )}
-            {saveStatus === 'idle' && (
+            {saveStatus === 'idle' && prefsSaveStatus === 'idle' && (
               <div className="flex items-center gap-2 text-muted-foreground/40">
                 <CheckCircle className="h-3 w-3" />
                 <span className="text-[10px] font-black uppercase tracking-widest">Stable</span>
@@ -240,6 +251,40 @@ export default function SettingsPage() {
                 </CardHeader>
                 <CardContent className="p-8">
                   <NotificationSettings settings={settings} onChange={handleSettingChange} />
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="preferences" className="mt-0 focus-visible:outline-none">
+              <Card className="rounded-3xl border border-border/40 bg-background/60 backdrop-blur-md shadow-sm">
+                <CardHeader className="p-8 border-b border-border/40">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-xl bg-primary/5 text-primary">
+                      <SettingsIcon className="h-5 w-5" />
+                    </div>
+                    <CardTitle className="text-xl font-black">System Preferences</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent className="p-8">
+                  {isPrefsLoading ? (
+                    <div className="space-y-4">
+                      <Skeleton className="h-20 w-full rounded-2xl" />
+                      <Skeleton className="h-20 w-full rounded-2xl" />
+                    </div>
+                  ) : preferences ? (
+                    <SystemPreferences
+                      preferences={preferences}
+                      onChange={updatePreferencesDebounced}
+                    />
+                  ) : (
+                    <div className="text-center py-8">
+                      <AlertCircle className="h-10 w-10 text-destructive mx-auto mb-4" />
+                      <p className="text-muted-foreground font-medium">Failed to load preferences.</p>
+                      <Button onClick={() => window.location.reload()} variant="link" className="mt-2">
+                        Try refreshing the page
+                      </Button>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>

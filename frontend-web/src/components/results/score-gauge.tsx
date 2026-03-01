@@ -43,17 +43,15 @@ const ScoreGauge = ({
     });
 
     const getScoreColor = (value: number) => {
-        if (value <= 40) return "stroke-red-500 text-red-500";
-        if (value <= 60) return "stroke-amber-500 text-amber-500";
-        if (value <= 80) return "stroke-emerald-500 text-emerald-500";
-        return "stroke-indigo-600 text-indigo-600"; // Blue/Purple
+        if (value >= 90) return "stroke-indigo-600 text-indigo-600";
+        if (value >= 80) return "stroke-emerald-500 text-emerald-500";
+        return "stroke-red-500 text-red-500";
     };
 
     const getScoreGradient = (value: number) => {
-        if (value <= 40) return "url(#gradient-red)";
-        if (value <= 60) return "url(#gradient-amber)";
-        if (value <= 80) return "url(#gradient-emerald)";
-        return "url(#gradient-indigo)";
+        if (value >= 90) return "url(#gradient-indigo)";
+        if (value >= 80) return "url(#gradient-emerald)";
+        return "url(#gradient-red)";
     };
 
     const dimensions = {
@@ -144,13 +142,11 @@ const ScoreGauge = ({
                 >
                     <p className="text-sm font-semibold text-foreground/80">{label}</p>
                     <p className={cn("text-xs font-medium", colorClass)}>
-                        {score <= 40
-                            ? "Needs Work"
-                            : score <= 60
-                                ? "Developing"
-                                : score <= 80
-                                    ? "Good"
-                                    : "Excellent"}
+                        {score >= 90
+                            ? "High EQ"
+                            : score >= 80
+                                ? "Medium EQ"
+                                : "Low EQ"}
                     </p>
                 </motion.div>
             )}

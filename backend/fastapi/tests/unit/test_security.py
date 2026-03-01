@@ -11,12 +11,25 @@ def client():
 def test_security_headers_present(client):
     """Verify security headers are added to responses."""
     response = client.get("/api/v1/health")
-    assert response.status_code == 200
-    
+    # Health endpoint returns 200 when healthy, 503 when dependencies unavailable
+    assert response.status_code in [200, 503]
+
     headers = response.headers
     assert headers["X-Frame-Options"] == "DENY"
     assert headers["X-Content-Type-Options"] == "nosniff"
     assert headers["Referrer-Policy"] == "strict-origin-when-cross-origin"
+
+    # Check Content Security Policy header
+    csp = headers["Content-Security-Policy"]
+    assert "default-src 'self'" in csp
+    assert "script-src 'none'" in csp
+    assert "style-src 'none'" in csp
+    assert "img-src 'self' data:" in csp
+    assert "font-src 'none'" in csp
+    assert "connect-src 'self'" in csp
+    assert "frame-ancestors 'none'" in csp
+    assert "base-uri 'self'" in csp
+    assert "form-action 'self'" in csp
 
 def test_cors_allowed_origin(client):
     """Verify CORS headers for allowed origin."""

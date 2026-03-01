@@ -70,16 +70,24 @@ class SurveyService:
         result = await self.db.execute(stmt)
         return list(result.scalars().all())
 
-    async def get_template_by_id(self, template_id: int) -> Optional[SurveyTemplate]:
+    async def get_template_by_id(self, template_id: int, admin_access: bool = False) -> Optional[SurveyTemplate]:
         stmt = select(SurveyTemplate).options(
             selectinload(SurveyTemplate.sections).selectinload(SurveySection.questions)
         ).where(SurveyTemplate.id == template_id)
+        
+        if not admin_access:
+            # Public access: only published and active surveys
+            stmt = stmt.where(
+                SurveyTemplate.is_active == True,
+                SurveyTemplate.status == SurveyStatus.PUBLISHED
+            )
+        
         result = await self.db.execute(stmt)
         return result.scalar_one_or_none()
 
     async def publish_template(self, template_id: int) -> SurveyTemplate:
         """Mark a template as published. Encompasses versioning logic."""
-        template = await self.get_template_by_id(template_id)
+        template = await self.get_template_by_id(template_id, admin_access=True)
         if not template:
             raise ValueError("Template not found")
         
@@ -98,7 +106,7 @@ class SurveyService:
 
     async def create_new_version(self, template_id: int, user_id: int) -> SurveyTemplate:
         """Create a DRAFT clone of an existing template for modification."""
-        old = await self.get_template_by_id(template_id)
+        old = await self.get_template_by_id(template_id, admin_access=True)
         if not old:
             raise ValueError("Original template not found")
 
@@ -143,9 +151,32 @@ class SurveyService:
 
     async def submit_responses(self, user_id: int, survey_id: int, responses: List[Dict[str, Any]], metadata: Dict[str, Any] = None) -> SurveySubmission:
         """Process survey submission and apply scoring DSL."""
-        survey = await self.db.get(SurveyTemplate, survey_id)
+        survey = await self.get_template_by_id(survey_id)
         if not survey or survey.status != SurveyStatus.PUBLISHED:
             raise ValueError("Inactive or missing survey")
+
+        # Validate all required questions are answered
+        required_questions = set()
+        all_questions = set()
+        for section in survey.sections:
+            for question in section.questions:
+                all_questions.add(question.id)
+                if question.is_required:
+                    required_questions.add(question.id)
+
+        submitted_question_ids = set()
+        for r_data in responses:
+            qid = r_data['question_id']
+            val = r_data['answer_value']
+            if qid not in all_questions:
+                raise ValueError(f"Question {qid} does not belong to this survey")
+            if not val or str(val).strip() == "":
+                raise ValueError(f"Question {qid} cannot have an empty answer")
+            submitted_question_ids.add(qid)
+
+        missing_required = required_questions - submitted_question_ids
+        if missing_required:
+            raise ValueError(f"Missing responses for required questions: {list(missing_required)}")
 
         submission = SurveySubmission(
             user_id=user_id,
