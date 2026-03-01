@@ -1,0 +1,6 @@
+# PgBouncer user authentication file
+# Format: "username" "password_hash"
+# Password hash should be in MD5 format: md5$(md5(password + username) + salt)
+
+# This file will be populated by environment variables at runtime
+# The actual user credentials are set via environment variables in docker-compose

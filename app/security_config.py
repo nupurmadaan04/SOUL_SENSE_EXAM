@@ -12,6 +12,12 @@ SESSION_TIMEOUT_HOURS = 24
 MAX_LOGIN_ATTEMPTS = 5
 LOCKOUT_DURATION_MINUTES = 5
 
+# Inactivity Timeout (Issue #999)
+# Time in seconds before auto-logout due to inactivity (default: 15 minutes = 900 seconds)
+INACTIVITY_TIMEOUT_SECONDS = 900
+# Warning threshold in seconds before auto-logout (default: 30 seconds)
+INACTIVITY_WARNING_SECONDS = 30
+
 # Database Security
 DB_CONNECTION_TIMEOUT = 20
 DB_POOL_SIZE = 5

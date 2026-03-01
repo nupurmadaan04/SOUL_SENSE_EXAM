@@ -1,0 +1,96 @@
+import logging
+import uuid
+from datetime import datetime, UTC
+from typing import List, Tuple
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func
+from ..schemas import ExamResponseCreate, ExamResultCreate
+from ..models import User, Score, Response, UserSession
+from .gamification_service import GamificationService
+from ..utils.db_transaction import transactional, retry_on_transient
+import asyncio
+
+try:
+    from .crypto import EncryptionManager
+    CRYPTO_AVAILABLE = True
+except ImportError:
+    CRYPTO_AVAILABLE = False
+
+logger = logging.getLogger("api.exam")
+
+class ExamService:
+    """Service for handling Exam operations."""
+
+    @staticmethod
+    async def start_exam(db: AsyncSession, user: User):
+        """Standardizes session initiation and returns a new session_id."""
+        session_id = str(uuid.uuid4())
+        logger.info(f"Exam session started", extra={
+            "user_id": user.id,
+            "session_id": session_id
+        })
+        return session_id
+
+    @staticmethod
+    async def save_response(db: AsyncSession, user: User, session_id: str, data: ExamResponseCreate):
+        """Saves a single question response linked to the user and session."""
+        try:
+            # Check if user has already answered this question
+            existing_response = db.query(Response).filter(
+                Response.user_id == user.id,
+                Response.question_id == data.question_id
+            ).first()
+            
+            if existing_response:
+                raise ConflictError(
+                    message="Duplicate response submission",
+                    details=[{
+                        "field": "question_id",
+                        "error": "User has already submitted a response for this question",
+                        "question_id": data.question_id,
+                        "existing_response_id": existing_response.id
+                    }]
+                )
+            
+            new_response = Response(
+                username=user.username,
+                user_id=user.id,
+                question_id=data.question_id,
+                response_value=data.value,
+                detailed_age_group=data.age_group,
+                session_id=session_id,
+                timestamp=datetime.now(UTC).isoformat()
+            )
+            db.add(new_response)
+            await db.commit()
+            return True
+        except IntegrityError as e:
+            # Handle database constraint violations (additional safety net)
+            db.rollback()
+            if "unique constraint" in str(e).lower() or "duplicate" in str(e).lower():
+                raise ConflictError(
+                    message="Duplicate response submission",
+                    details=[{
+                        "field": "question_id",
+                        "error": "User has already submitted a response for this question",
+                        "question_id": data.question_id
+                    }]
+                )
+            else:
+                logger.error(f"Database integrity error for user_id={user.id}: {e}")
+                raise
+        except Exception as e:
+            logger.error(f"Failed to save response for user_id={user.id}: {e}")
+            await db.rollback()
+            raise e
+
+    @staticmethod
+    @retry_on_transient(retries=3)
+    def save_score(db: Session, user: User, session_id: str, data: ExamResultCreate):
+        """
+        Saves the final exam score atomically together with gamification updates.
+    # async def save_score(db: AsyncSession, user: User, session_id: str, data: ExamResultCreate):
+    #     """Saves the final exam score."""
+    #     pass
+
+

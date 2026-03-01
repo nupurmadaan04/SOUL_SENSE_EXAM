@@ -1,7 +1,9 @@
 import logging
 import datetime
+from ..config import get_settings
 
 logger = logging.getLogger(__name__)
+settings = get_settings()
 
 class EmailService:
     """
@@ -23,10 +25,9 @@ class EmailService:
             bool: True if sent successfully (always True for Mock)
         """
         try:
-            # In a real implementation:
-            # msg = MIMEText(f"Your code is {code}")
-            # server.sendmail(...)
-
+            # Mask the code for logging
+            masked_code = "******"
+            
             log_msg = f"""
             --------------------------------------------------------
             [MOCK EMAIL SENT]
@@ -37,23 +38,26 @@ class EmailService:
 
             Your One-Time Password (OTP) for {purpose} is:
 
-            >>> {code} <<<
+            >>> {code if settings.debug else masked_code} <<<
 
             This code is valid for 5 minutes.
             If you did not request this, please ignore this email.
             --------------------------------------------------------
             """
 
-            # Print to stdout for CLI visibility and log to file
-            print(log_msg)
-            logger.info(f"Mock email sent to {to_email} with code {code}")
+            # Use logger instead of print for the main message
+            if settings.debug:
+                 print(log_msg)
+            
+            logger.info(f"Mock email sent to {to_email} with code {masked_code}")
 
-            # Write to a debug file to guarantee visibility
-            try:
-                with open("otp_debug.txt", "a") as f:
-                    f.write(f"To: {to_email} | Code: {code} | Time: {datetime.datetime.now()}\n")
-            except Exception as file_err:
-                print(f"DEBUG: Failed to write to otp_debug.txt: {file_err}")
+            # Write to a debug file only in debug mode
+            if settings.debug:
+                try:
+                    with open("otp_debug.txt", "a") as f:
+                        f.write(f"To: {to_email} | Code: {code} | Time: {datetime.datetime.now()}\n")
+                except Exception as file_err:
+                    logger.error(f"Failed to write to otp_debug.txt: {file_err}")
 
             return True
 

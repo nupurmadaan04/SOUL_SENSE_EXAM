@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { ScoreGauge } from '@/components/results';
+import { ScoreGauge } from '@/lib/dynamic-imports';
 import { Card, CardContent, CardHeader, CardTitle, Slider } from '@/components/ui';
 
 export default function GaugeDemoPage() {

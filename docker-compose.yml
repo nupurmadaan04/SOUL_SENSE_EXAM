@@ -28,6 +28,14 @@ services:
       - db
       - redis
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+        reservations:
+          memory: 1g
+    sysctls:
+      vm.swappiness: 0
 
   db:
     image: postgres:15-alpine
@@ -42,6 +50,14 @@ services:
       - db_data:/var/lib/postgresql/data
     ports:
       - "${POSTGRES_PORT}:5432"
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+        reservations:
+          memory: 512m
+    sysctls:
+      vm.swappiness: 0
 
   redis:
     image: redis:7-alpine
@@ -50,6 +66,14 @@ services:
       - "${REDIS_PORT}:6379"
     volumes:
       - redis_data:/data
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+        reservations:
+          memory: 256m
+    sysctls:
+      vm.swappiness: 0
 
 volumes:
   db_data:

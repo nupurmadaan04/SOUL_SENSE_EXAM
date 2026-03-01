@@ -113,6 +113,7 @@ async def rbac_middleware(request: Request, call_next: Callable):
             )
             username: str | None = payload.get("sub")
             token_is_admin: bool = payload.get("is_admin", False)
+            request.state.tenant_id = payload.get("tid") # Extract tenant ID (#1135)
         except JWTError as exc:
             log.warning("[RBAC] JWT decode error for %s: %s", path, exc)
             raise HTTPException(

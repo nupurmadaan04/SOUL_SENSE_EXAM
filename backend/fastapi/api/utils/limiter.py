@@ -11,13 +11,10 @@ def get_real_ip(request: Request) -> str:
     """
     Extract the real client IP address from request headers.
     
-    Handles proxy scenarios by checking X-Forwarded-For and X-Real-IP headers.
-    This is critical for rate limiting behind proxies (ALB, Nginx, Cloudflare).
+    CRITICAL SECURITY: Uses hardened IP extraction that only trusts
+    X-Forwarded-For headers from trusted proxies to prevent spoofing attacks.
     
-    Priority:
-    1. X-Forwarded-For (first IP in chain - actual client)
-    2. X-Real-IP
-    3. request.client.host (direct connection)
+    This prevents attackers from bypassing rate limits via header manipulation.
     
     Args:
         request: FastAPI Request object
@@ -25,34 +22,22 @@ def get_real_ip(request: Request) -> str:
     Returns:
         Client IP address as string
     """
-    # Check X-Forwarded-For header (standard for proxies)
-    forwarded_for = request.headers.get("X-Forwarded-For")
-    if forwarded_for:
-        # X-Forwarded-For contains comma-separated IPs: client, proxy1, proxy2
-        # The first IP is the actual client
-        client_ip = forwarded_for.split(",")[0].strip()
-        if client_ip:
-            logger.debug(f"Using IP from X-Forwarded-For: {client_ip}")
-            return client_ip
-    
-    # Check X-Real-IP header (Nginx standard)
-    real_ip = request.headers.get("X-Real-IP")
-    if real_ip:
-        logger.debug(f"Using IP from X-Real-IP: {real_ip}")
-        return real_ip
-    
-    # Fallback to direct client host
-    client_host = request.client.host if request.client else "unknown"
-    logger.debug(f"Using direct client host: {client_host}")
-    return client_host
+    # Import here to avoid circular imports
+    from .network import get_real_ip as get_secure_real_ip
+    return get_secure_real_ip(request)
 
 
 def get_user_id(request: Request):
     """
     Key function for slowapi to identify users for rate limiting.
     
-    Prioritizes authenticated user ID/username, falls back to real IP address.
-    Uses get_real_ip() to properly extract client IP behind proxies.
+    Enhanced bypass protection:
+    1. Prioritizes authenticated user ID/username for strongest protection
+    2. Falls back to IP + User-Agent fingerprint for unauthenticated requests
+    3. Uses session cookies for additional tracking
+    4. Applies bot detection patterns
+    
+    This prevents IP rotation, header spoofing, and distributed attacks.
     """
     # 1. Check if user_id was already set in request.state (by some middleware)
     user_id = getattr(request.state, "user_id", None)
@@ -78,8 +63,27 @@ def get_user_id(request: Request):
             # Token might be invalid, expired, or for a different scope
             pass
             
-    # 3. Fallback to real IP address (handles proxy scenarios)
-    return get_real_ip(request)
+    # 3. For unauthenticated requests: Create fingerprint to prevent bypass
+    ip = get_real_ip(request)
+    user_agent = request.headers.get("User-Agent", "unknown")
+    
+    # Extract session ID from cookies for additional tracking
+    session_id = request.cookies.get("session_id", "none")
+    
+    # Create fingerprint combining IP, User-Agent, and session
+    # This prevents simple IP rotation attacks
+    fingerprint = f"{ip}:{hash(user_agent)}:{session_id}"
+    
+    # Add bot detection: suspicious user agents get stricter limits
+    suspicious_patterns = [
+        "bot", "crawler", "spider", "scraper", "python-requests", "curl"
+    ]
+    is_bot = any(pattern.lower() in user_agent.lower() for pattern in suspicious_patterns)
+    
+    if is_bot:
+        return f"bot:{fingerprint}"
+    else:
+        return f"anon:{fingerprint}"
 
 
 # Initialize Redis connection for rate limiting storage

@@ -81,6 +81,10 @@ coverage.xml
 *.cover
 *.py.cover
 
+# Test result files containing sensitive data
+full_api_test_results.json
+*_test_results.json
+
 # =========================
 # Logs
 # =========================

@@ -27,10 +27,18 @@ def print_response(endpoint: str, response: requests.Response):
 
 
 def test_health():
-    """Test health endpoint."""
+    """Test health endpoint - checks system dependencies."""
     response = requests.get(f"{BASE_URL}/api/v1/health")
     print_response("GET /health", response)
-    assert response.status_code == 200
+    
+    # Health endpoint returns 200 when healthy, 503 when critical dependencies fail
+    assert response.status_code in [200, 503]
+    
+    data = response.json()
+    assert "status" in data
+    assert "timestamp" in data
+    assert "version" in data
+    assert "services" in data
 
 
 

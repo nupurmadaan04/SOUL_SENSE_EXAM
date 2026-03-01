@@ -28,6 +28,7 @@ from app.core import (
     ResourceAlreadyExistsError,
     BusinessLogicError
 )
+from ..utils.race_condition_protection import check_idempotency, complete_idempotency
 import secrets
 
 logger = logging.getLogger(__name__)
@@ -56,19 +57,12 @@ async def get_current_user(request: Request, token: Annotated[str, Depends(oauth
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.jwt_algorithm])
         
-        # O(1) Zero-Trust Revocation Check using Redis Bloom Filter (#1101)
-        jti = payload.get("jti")
-        if jti:
-            from ..services.revocation_service import revocation_service
-            if await revocation_service.is_revoked(jti, db):
-                raise TokenExpiredError("Token has been revoked")
-        else:
-            # Fallback for tokens without JTI (legacy)
-            from ..models import TokenRevocation
-            rev_stmt = select(TokenRevocation).filter(TokenRevocation.token_str == token)
-            rev_res = await db.execute(rev_stmt)
-            if rev_res.scalar_one_or_none():
-                 raise TokenExpiredError("Token has been revoked")
+        # Check if token is revoked
+        from ..models import TokenRevocation
+        rev_stmt = select(TokenRevocation).filter(TokenRevocation.token_str == token)
+        rev_res = await db.execute(rev_stmt)
+        if rev_res.scalar_one_or_none():
+            raise TokenExpiredError("Token has been revoked")
 
         username: str = payload.get("sub")
         user_id_from_token = payload.get("uid") # New field for GenVersion (#1143)
@@ -174,27 +168,30 @@ async def check_username_availability(
     return UsernameAvailabilityResponse(available=available, message=message)
 
 @router.post("/register", response_model=None, responses={400: {"model": ErrorResponse}, 500: {"model": ErrorResponse}})
-@limiter.limit("10/minute")
+@limiter.limit("5/minute")
 async def register(
     request: Request,
-    user: UserCreate, 
+    user: UserCreate,
+    db: AsyncSession = Depends(get_db),
     auth_service: AuthService = Depends(get_auth_service)
-):
-    """Register a new user."""
-    success, new_user, message = await auth_service.register_user(user)
+) -> dict:
+    """Register a new user. Rate limited to 5 requests per minute per IP/user."""
+    success, new_user, message = auth_service.register_user(user)
+
     if not success:
         raise BusinessLogicError(message=message, code="REGISTRATION_FAILED")
     return {"message": message}
 
+
 @router.post("/login", response_model=Token, responses={400: {"model": ErrorResponse}, 401: {"model": ErrorResponse}, 202: {"model": TwoFactorAuthRequiredResponse}})
-@limiter.limit("10/minute")
+@limiter.limit("5/minute")
 async def login(
     response: Response,
-    login_request: LoginRequest, 
+    login_request: LoginRequest,
     request: Request,
     auth_service: AuthService = Depends(get_auth_service)
 ):
-    """Login endpoint."""
+    """Login endpoint. Rate limited to 5 requests per minute per IP/user."""
     ip = get_real_ip(request)
     user_agent = request.headers.get("user-agent", "Unknown")
 
@@ -223,8 +220,8 @@ async def login(
         key="refresh_token",
         value=refresh_token,
         httponly=True,
-        secure=settings.is_production, 
-        samesite="lax",
+        secure=settings.cookie_secure, 
+        samesite=settings.cookie_samesite,
         max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60
     )
     
@@ -272,6 +269,18 @@ async def verify_2fa(
 ):
     """Verify 2FA code and issue tokens."""
     ip = get_real_ip(request)
+    # PR 10: Session Fixation Protection - Revoke any existing session cookie
+    old_refresh_token = request.cookies.get("refresh_token")
+    if old_refresh_token:
+        auth_service.revoke_refresh_token(old_refresh_token)
+    
+    # Verify 2FA and get user
+    user = auth_service.verify_2fa_login(login_request.pre_auth_token, login_request.code, ip_address=ip)
+    
+    # Issue Tokens
+    access_token = auth_service.create_access_token(
+        data={"sub": user.username}
+    )
     user = await auth_service.verify_2fa_login(login_request.pre_auth_token, login_request.code, ip_address=ip)
     
     access_token = auth_service.create_access_token(data={"sub": user.username, "tid": str(user.tenant_id) if user.tenant_id else None})
@@ -282,8 +291,8 @@ async def verify_2fa(
         key="refresh_token",
         value=refresh_token,
         httponly=True,
-        secure=settings.is_production,
-        samesite="lax",
+        secure=settings.cookie_secure,
+        samesite=settings.cookie_samesite,
         max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60
     )
     
@@ -311,22 +320,52 @@ async def refresh(
     response: Response,
     auth_service: AuthService = Depends(get_auth_service)
 ):
+    """Refresh access token using refresh token with race condition protection."""
     refresh_token = request.cookies.get("refresh_token")
     if not refresh_token:
         raise AuthenticationError(message="Refresh token missing", code="REFRESH_TOKEN_MISSING")
+
+    # Check for idempotency to prevent concurrent refresh operations
+    cached_response = await check_idempotency(request, "token_refresh", ttl_seconds=60)  # 1 minute
+    if cached_response:
+        logger.info(f"Returning cached token refresh response")
+        return cached_response
+
+    try:
+        access_token, new_refresh_token = await auth_service.refresh_access_token(refresh_token)
+
+        response.set_cookie(
+            key="refresh_token",
+            value=new_refresh_token,
+            httponly=True,
+            secure=settings.is_production,
+            samesite="lax",
+            max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60
+        )
         
-    access_token, new_refresh_token = await auth_service.refresh_access_token(refresh_token)
+    access_token, new_refresh_token = auth_service.refresh_access_token(refresh_token)
     
     response.set_cookie(
         key="refresh_token",
         value=new_refresh_token,
         httponly=True,
-        secure=settings.is_production,
-        samesite="lax",
+        secure=settings.cookie_secure,
+        samesite=settings.cookie_samesite,
         max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60
     )
     
     return Token(access_token=access_token, token_type="bearer", refresh_token=new_refresh_token)
+
+        token_response = Token(access_token=access_token, token_type="bearer", refresh_token=new_refresh_token)
+
+        # Cache the successful response for idempotency
+        await complete_idempotency(request, token_response.model_dump_json())
+
+        return token_response
+
+    except Exception as e:
+        logger.error(f"Token refresh failed: {str(e)}")
+        raise
 
 @router.post("/logout")
 async def logout(
@@ -382,12 +421,18 @@ async def initiate_password_reset(
     return {"message": message}
 
 @router.post("/password-reset/complete")
+@limiter.limit("3/minute")
 async def complete_password_reset(
     request: PasswordResetComplete,
     req_obj: Request,
     auth_service: AuthService = Depends(get_auth_service)
 ):
     from ..middleware.rate_limiter import password_reset_limiter
+    """
+    Verify OTP and set new password.
+    Rate limited to 3 requests per minute per IP/user.
+    """
+    # Rate limit by IP for OTP attempts
     real_ip = get_real_ip(req_obj)
     is_limited, wait_time = await password_reset_limiter.is_rate_limited(real_ip)
     if is_limited:
@@ -433,7 +478,7 @@ async def disable_2fa(
     raise BusinessLogicError(message="Failed to disable 2FA", code="2FA_DISABLE_FAILED")
 
 @router.post("/oauth/login", response_model=Token, responses={400: {"model": ErrorResponse}, 401: {"model": ErrorResponse}})
-@limiter.limit("10/minute")
+@limiter.limit("5/minute")
 async def oauth_login(
     response: Response,
     request: Request,
@@ -442,12 +487,10 @@ async def oauth_login(
     access_token: Optional[str] = Form(None, description="Access token from OAuth provider"),
     auth_service: AuthService = Depends(get_auth_service)
 ):
-    """
-    Login or register via OAuth provider.
-    """
-    ip = get_real_ip(request)
-    user_agent = request.headers.get("user-agent", "Unknown")
-
+    """Login with OAuth token (e.g., from Auth0). Rate limited to 5 requests per minute per IP/user."""
+    # Verify the token with the OAuth provider
+    # For Auth0, verify the JWT
+    # This is a placeholder - implement actual verification
     try:
         user_info = None
         

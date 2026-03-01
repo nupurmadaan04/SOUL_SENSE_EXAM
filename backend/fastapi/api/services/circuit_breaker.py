@@ -20,11 +20,13 @@ class CircuitBreaker:
         service_name: str, 
         failure_threshold: int = 5, 
         recovery_timeout: int = 30,
+        latency_threshold: float = 0.2, # trips if > 200ms consistently
         expected_exception: Type[Exception] = Exception
     ):
         self.service_name = f"circuit_breaker:{service_name}"
         self.failure_threshold = failure_threshold
         self.recovery_timeout = recovery_timeout
+        self.latency_threshold = latency_threshold
         self.expected_exception = expected_exception
         self.settings = get_settings_instance()
         
@@ -88,15 +90,22 @@ class CircuitBreaker:
         
         if state == CircuitState.OPEN:
             raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                status_code=status.HTTP_503_SERVICE__UNAVAILABLE,
                 detail=f"Circuit Breaker for {self.service_name} is OPEN. Service temporarily unavailable."
             )
 
+        start_time = time.time()
         try:
             if asyncio.iscoroutinefunction(func):
                 result = await func(*args, **kwargs)
             else:
                 result = func(*args, **kwargs)
+            
+            # LATENCY CHECK (#1135)
+            duration = time.time() - start_time
+            if duration > self.latency_threshold:
+                logger.warning(f"Circuit Breaker [{self.service_name}] slow response: {duration:.2f}s > {self.latency_threshold}s")
+                await self.increment_failures() # High latency counts as a failure
             
             # If successful and was HALF_OPEN, close the circuit
             if state == CircuitState.HALF_OPEN:

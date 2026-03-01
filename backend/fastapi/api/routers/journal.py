@@ -13,7 +13,7 @@ Provides authenticated API endpoints for journal management:
 
 from datetime import datetime, UTC
 from typing import Annotated, List, Optional
-from fastapi import APIRouter, Depends, Query, status, Request
+from fastapi import APIRouter, Depends, Query, status, Request, BackgroundTasks
 from fastapi.responses import Response as FastApiResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,7 +21,7 @@ from ..schemas import (
     JournalCreate,
     JournalUpdate,
     JournalResponse,
-    JournalListResponse,
+    JournalCursorResponse,
     JournalAnalytics,
     # JournalSearchParams,
     JournalPromptsResponse,
@@ -48,20 +48,22 @@ async def get_journal_service(db: AsyncSession = Depends(get_db)):
 # Journal CRUD Endpoints
 # ============================================================================
 
-@router.post("/", response_model=JournalResponse, status_code=status.HTTP_201_CREATED, summary="Create Journal Entry")
+@router.post("/", response_model=JournalResponse, status_code=status.HTTP_202_ACCEPTED, summary="Create Journal Entry")
 @limiter.limit("10/minute")
 async def create_journal(
     request: Request,
     journal_data: JournalCreate,
+    background_tasks: Annotated[BackgroundTasks, Depends()],
     current_user: Annotated[User, Depends(get_current_user)],
     journal_service: Annotated[JournalService, Depends(get_journal_service)]
 ):
     """
-    Create a new journal entry with AI sentiment analysis.
+    Create a new journal entry. AI sentiment analysis starts asynchronously via gRPC.
     """
     return await journal_service.create_entry(
         current_user=current_user,
         content=journal_data.content,
+        background_tasks=background_tasks,
         tags=journal_data.tags,
         privacy_level=journal_data.privacy_level,
         sleep_hours=journal_data.sleep_hours,
@@ -75,14 +77,15 @@ async def create_journal(
     )
 
 
+@router.get("/", response_model=JournalCursorResponse, summary="List Journal Entries")
 @router.get("/", response_model=JournalListResponse, summary="List Journal Entries")
 @limiter.limit("100/minute")
 async def list_journals(
     request: Request,
     current_user: Annotated[User, Depends(get_current_user)],
     journal_service: Annotated[JournalService, Depends(get_journal_service)],
-    skip: int = Query(0, ge=0),
-    limit: int = Query(20, ge=1, le=100),
+    cursor: Optional[str] = Query(None, description="ISO format date or timestamp|id tie-breaker"),
+    limit: int = Query(25, ge=1, le=100),
     start_date: Optional[str] = Query(None, description="Format: YYYY-MM-DD"),
     end_date: Optional[str] = Query(None, description="Format: YYYY-MM-DD")
 ):
@@ -91,17 +94,16 @@ async def list_journals(
     """
     entries, total = await journal_service.get_entries(
         current_user=current_user,
-        skip=skip,
+        cursor=cursor,
         limit=limit,
         start_date=start_date,
         end_date=end_date
     )
     
-    return JournalListResponse(
-        total=total,
-        entries=[JournalResponse.model_validate(e) for e in entries],
-        page=skip // limit + 1,
-        page_size=limit
+    return JournalCursorResponse(
+        data=[JournalResponse.model_validate(e) for e in entries],
+        next_cursor=next_cursor,
+        has_more=has_more
     )
 
 
