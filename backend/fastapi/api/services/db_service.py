@@ -282,20 +282,15 @@ class AssessmentService:
         username: Optional[str] = None,
         age_group: Optional[str] = None
     ) -> Tuple[List[Score], int]:
-        """Get assessments with pagination and optional filters (Async)."""
-        stmt = select(Score)
-        
-        # Apply filters
-        if user_id is not None:
-            stmt = stmt.filter(Score.user_id == user_id)
-        elif username:
         """
-        Get assessments with pagination and optional filters.
+        Get assessments with pagination and optional filters (Async).
         When user_id is provided, results are scoped to that user only.
         """
         stmt = select(Score)
-        
+
         # Apply filters
+        if user_id is not None:
+            stmt = stmt.filter(Score.user_id == user_id)
         if username:
             stmt = stmt.filter(Score.username == username)
         if age_group:

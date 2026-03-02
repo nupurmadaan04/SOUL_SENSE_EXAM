@@ -267,6 +267,34 @@ async def _execute_archive_generation(job_id: str, user_id: int, password: str, 
             )
             raise e
 
+@celery_app.task(bind=True, max_retries=3, acks_late=True, track_started=True, name="api.celery_tasks.archive_stale_journals")
+def archive_stale_journals_task(self):
+    """
+    Celery task to archive stale journals to cold storage.
+    Moves journals older than the threshold to S3 and clears their content.
+    """
+    try:
+        run_async(_execute_archive_stale_journals())
+        cleanup_memory()
+    except Exception as exc:
+        logger.error(f"Archive stale journals task failed: {exc}")
+        backoff_delay = 5 ** (self.request.retries + 1)
+        try:
+            self.retry(exc=exc, countdown=backoff_delay)
+        except MaxRetriesExceededError:
+            logger.error("Max retries exceeded for archive stale journals task.")
+
+async def _execute_archive_stale_journals():
+    """Execute the archival of stale journals."""
+    async with AsyncSessionLocal() as db:
+        try:
+            archived_count = await DataArchivalService.archive_stale_journals(db)
+            logger.info(f"Successfully archived {archived_count} stale journals")
+            return archived_count
+        except Exception as e:
+            logger.error(f"Failed to archive stale journals: {e}")
+            raise
+
 @celery_app.task(bind=True, max_retries=1, name="api.celery_tasks.process_outbox_events")
 def process_outbox_events(self):
     """
