@@ -62,6 +62,8 @@ class BaseAppSettings(BaseSettings):
     use_pgbouncer: bool = Field(default=False, description="Use PgBouncer for connection pooling")
     pgbouncer_host: str = Field(default="localhost", description="PgBouncer host")
     pgbouncer_port: int = Field(default=6432, description="PgBouncer port")
+    db_request_timeout_seconds: int = Field(default=30, ge=5, le=300, description="Request-scoped DB timeout in seconds")
+    thread_pool_max_workers: int = Field(default=64, ge=8, le=512, description="Default executor max workers for blocking fallbacks")
     @property
     def async_database_url(self) -> str:
         """Construct asynchronous database URL."""
@@ -104,7 +106,6 @@ class BaseAppSettings(BaseSettings):
     redis_port: int = Field(default=6379, ge=1, le=65535, description="Redis port")
     redis_password: Optional[str] = Field(default=None, description="Redis password")
     redis_db: int = Field(default=0, description="Redis database index")
-    redis_url: Optional[str] = Field(default=None, description="Redis URL (if set, overrides individual host/port)")
     redis_ttl_seconds: int = Field(default=60, description="Default lock TTL in seconds")
 
     # Deletion Grace Period
