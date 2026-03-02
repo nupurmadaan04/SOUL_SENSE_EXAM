@@ -1,93 +1,104 @@
-"""
-Database Error Handling Utilities
-
-Provides common error handling patterns for database operations across all services.
-"""
+"""Database Error Handling with Transient Failure Retry Logic (Issue #1229)"""
 
 import logging
-from typing import Callable, TypeVar, Any
-from contextlib import contextmanager
+import asyncio
+import time
+import random
+from typing import Callable, Any, TypeVar
 from sqlalchemy.exc import OperationalError, DatabaseError, DisconnectionError
-from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
-
 T = TypeVar('T')
 
+# Transient SQL error codes
+TRANSIENT_SQLSTATES = {'40001', '40P01', '55P03', '57014', '08000', '08003', '08006'}
+
+
 class DatabaseConnectionError(Exception):
-    """Raised when database connection fails."""
+    """Database connection error."""
     pass
 
-def handle_db_operation(operation_name: str = "database operation"):
-    """
-    Decorator for handling database connection errors in service methods.
 
-    Usage:
-        @handle_db_operation("user registration")
-        def register_user(self, user_data):
-            # database operations here
+def _is_transient_error(exception: Exception) -> bool:
+    """Check if error is transient (retriable)."""
+    if not isinstance(exception, (OperationalError, DatabaseError, DisconnectionError)):
+        return False
+    
+    if isinstance(exception, DisconnectionError):
+        return True
+    
+    if isinstance(exception, OperationalError):
+        try:
+            if hasattr(exception, 'orig') and hasattr(exception.orig, 'sqlstate'):
+                return exception.orig.sqlstate in TRANSIENT_SQLSTATES
+        except Exception:
             pass
-    """
-    def decorator(func: Callable[..., T]) -> Callable[..., T]:
-        def wrapper(*args, **kwargs) -> T:
-            try:
-                return func(*args, **kwargs)
-            except (OperationalError, DatabaseError, DisconnectionError) as e:
-                logger.error(f"Database connection error during {operation_name}: {str(e)}")
-                raise DatabaseConnectionError(f"Service temporarily unavailable. Please try again later.")
-            except Exception as e:
-                logger.error(f"Unexpected error during {operation_name}: {str(e)}")
-                raise
-        return wrapper
-    return decorator
+        return True
+    
+    return False
 
-@contextmanager
-def db_error_handler(operation_name: str = "database operation", rollback_on_error: bool = True):
-    """
-    Context manager for handling database operations with error handling.
 
-    Usage:
-        with db_error_handler("user query", rollback_on_error=True):
-            user = self.db.query(User).filter(...).first()
-            return user
-    """
-    try:
-        yield
-    except (OperationalError, DatabaseError, DisconnectionError) as e:
-        if rollback_on_error and hasattr(Session, 'rollback'):
-            # Try to rollback if we have a session
-            for arg in locals().get('args', []):
-                if hasattr(arg, 'rollback'):
-                    try:
-                        arg.rollback()
-                    except:
-                        pass
-        logger.error(f"Database connection error during {operation_name}: {str(e)}")
-        raise DatabaseConnectionError(f"Service temporarily unavailable. Please try again later.")
-    except Exception as e:
-        if rollback_on_error:
-            # Try to rollback on any error
-            for arg in locals().get('args', []):
-                if hasattr(arg, 'rollback'):
-                    try:
-                        arg.rollback()
-                    except:
-                        pass
-        logger.error(f"Unexpected error during {operation_name}: {str(e)}")
-        raise
+def _calculate_backoff_delay(attempt: int, base_delay_ms: float = 100.0, 
+                             jitter_factor: float = 0.1) -> float:
+    """Calculate exponential backoff delay with jitter."""
+    exponential_delay = base_delay_ms * (4 ** attempt)
+    jitter_multiplier = 1.0 + random.uniform(-jitter_factor, jitter_factor)
+    return (exponential_delay * jitter_multiplier) / 1000.0
 
-def safe_db_query(db: Session, query_func: Callable[[], Any], operation_name: str = "query") -> Any:
-    """
-    Safely execute a database query with error handling.
 
-    Usage:
-        user = safe_db_query(self.db, lambda: self.db.query(User).filter(User.id == user_id).first(), "get user")
-    """
-    try:
-        return query_func()
-    except (OperationalError, DatabaseError, DisconnectionError) as e:
-        logger.error(f"Database connection error during {operation_name}: {str(e)}")
-        raise DatabaseConnectionError(f"Service temporarily unavailable. Please try again later.")
-    except Exception as e:
-        logger.error(f"Unexpected error during {operation_name}: {str(e)}")
-        raise
+async def _retry_async_operation(
+    coro_func: Callable[..., Any],
+    operation_name: str = "database operation",
+    max_retries: int = 3,
+    base_delay_ms: float = 100.0,
+    jitter_factor: float = 0.1,
+) -> Any:
+    """Execute async operation with automatic retry on transient errors."""
+    for attempt in range(max_retries + 1):
+        try:
+            return await coro_func()
+        except (OperationalError, DatabaseError, DisconnectionError) as e:
+            if not _is_transient_error(e):
+                logger.error(f"Permanent database error during {operation_name}: {e}")
+                raise DatabaseConnectionError(f"Database error: {str(e)}") from e
+            
+            if attempt < max_retries:
+                delay = _calculate_backoff_delay(attempt, base_delay_ms, jitter_factor)
+                sqlstate = getattr(e.orig, 'sqlstate', 'unknown') if hasattr(e, 'orig') else 'unknown'
+                logger.warning(
+                    f"Transient database error during {operation_name} (SQLState: {sqlstate}). "
+                    f"Retrying in {delay*1000:.0f}ms (attempt {attempt + 1}/{max_retries})"
+                )
+                await asyncio.sleep(delay)
+            else:
+                logger.error(f"Database operation {operation_name} failed after {max_retries} retries.")
+                raise DatabaseConnectionError(f"Database operation failed: {str(e)}") from e
+
+
+def _retry_sync_operation(
+    func: Callable[..., T],
+    operation_name: str = "database operation",
+    max_retries: int = 3,
+    base_delay_ms: float = 100.0,
+    jitter_factor: float = 0.1,
+) -> T:
+    """Execute sync operation with automatic retry on transient errors."""
+    for attempt in range(max_retries + 1):
+        try:
+            return func()
+        except (OperationalError, DatabaseError, DisconnectionError) as e:
+            if not _is_transient_error(e):
+                logger.error(f"Permanent database error during {operation_name}: {e}")
+                raise DatabaseConnectionError(f"Database error: {str(e)}") from e
+            
+            if attempt < max_retries:
+                delay = _calculate_backoff_delay(attempt, base_delay_ms, jitter_factor)
+                sqlstate = getattr(e.orig, 'sqlstate', 'unknown') if hasattr(e, 'orig') else 'unknown'
+                logger.warning(
+                    f"Transient database error during {operation_name} (SQLState: {sqlstate}). "
+                    f"Retrying in {delay*1000:.0f}ms (attempt {attempt + 1}/{max_retries})"
+                )
+                time.sleep(delay)
+            else:
+                logger.error(f"Database operation {operation_name} failed after {max_retries} retries.")
+                raise DatabaseConnectionError(f"Database operation failed: {str(e)}") from e

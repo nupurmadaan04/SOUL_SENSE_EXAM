@@ -128,7 +128,10 @@ class BaseAppSettings(BaseSettings):
     database_pool_recycle: int = Field(default=1800, ge=-1, description="Number of seconds after which a connection is automatically recycled")
     database_pool_pre_ping: bool = Field(default=True, description="Enable pool pre-ping to handle DB node failures")
     database_statement_timeout: int = Field(default=30000, ge=0, description="Database statement timeout in milliseconds")
-
+    # Database Transient Failure Retry Configuration (Issue #1229)
+    db_retry_max_attempts: int = Field(default=3, ge=1, le=10, description="Maximum retry attempts for transient database errors")
+    db_retry_base_delay_ms: float = Field(default=100.0, ge=10.0, le=5000.0, description="Base delay in milliseconds for exponential backoff")
+    db_retry_jitter_factor: float = Field(default=0.1, ge=0.0, le=1.0, description="Jitter factor (0.0-1.0) to prevent thundering herd behavior")
     # Deletion Grace Period
     deletion_grace_period_days: int = Field(default=30, ge=0, description="Grace period for account deletion in days")
 
