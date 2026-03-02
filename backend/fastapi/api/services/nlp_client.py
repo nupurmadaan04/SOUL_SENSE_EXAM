@@ -3,6 +3,7 @@ import logging
 from typing import Optional, Dict, Any
 from protos import sentiment_pb2, sentiment_pb2_grpc
 from api.config import get_settings_instance
+from api.services.circuit_breaker import CircuitBreaker, CircuitState
 
 logger = logging.getLogger("api.nlp_client")
 settings = get_settings_instance()
@@ -25,6 +26,15 @@ class NLPClient:
         ]
         self._channel = grpc.aio.insecure_channel(self.target, options=channel_options)
         self._stub = sentiment_pb2_grpc.SentimentAnalysisStub(self._channel)
+        
+        # Initialize Circuit Breaker for NLP Service (#1228)
+        self._breaker = CircuitBreaker(
+            service_name="nlp_sentiment_service",
+            failure_threshold=5,
+            recovery_timeout=30,
+            latency_threshold=0.5, # 500ms per requirement
+            expected_exception=grpc.RpcError # Trigger breaker on gRPC failures
+        )
 
     async def __aenter__(self):
         return self
@@ -35,65 +45,71 @@ class NLPClient:
 
     async def analyze_sentiment(self, text: str, journal_id: int, user_id: int) -> Dict[str, Any]:
         """
-        Calls the gRPC microservice to analyze sentiment.
+        Calls the gRPC microservice to analyze sentiment, protected by Circuit Breaker (#1228).
         """
         try:
-            request = sentiment_pb2.AnalyzeSentimentRequest(
-                text=text,
-                journal_id=str(journal_id),
-                user_id=str(user_id)
-            )
-            
-            logger.info(f"Sending gRPC request to {self.target} for journal {journal_id}")
-            response = await self._stub.AnalyzeSentiment(request, timeout=5.0)
-            
-            return {
-                "score": response.score,
-                "label": response.label,
-                "patterns": list(response.patterns)
-            }
-        except grpc.RpcError as e:
-            logger.error(f"gRPC call failed: {e.code()} - {e.details()}")
-            return {"score": 50.0, "label": "neutral", "patterns": ["fallback"]}
+            return await self._breaker.call(self._analyze_sentiment_raw, text, journal_id, user_id)
         except Exception as e:
-            logger.error(f"Unexpected error in NLP gRPC client: {e}")
-            return {"score": 50.0, "label": "neutral", "patterns": ["error"]}
+            logger.warning(f"Circuit Breaker or gRPC error for journal {journal_id}: {e}")
+            return {"score": 50.0, "label": "neutral", "patterns": ["circuit_breaker_active"]}
+
+    async def _analyze_sentiment_raw(self, text: str, journal_id: int, user_id: int) -> Dict[str, Any]:
+        """Raw gRPC call for single sentiment analysis."""
+        request = sentiment_pb2.AnalyzeSentimentRequest(
+            text=text,
+            journal_id=str(journal_id),
+            user_id=str(user_id)
+        )
+        
+        logger.info(f"Sending gRPC request to {self.target} for journal {journal_id}")
+        response = await self._stub.AnalyzeSentiment(request, timeout=5.0)
+        
+        return {
+            "score": response.score,
+            "label": response.label,
+            "patterns": list(response.patterns)
+        }
 
     async def stream_sentiment(self, text: str, journal_id: int, user_id: int) -> Dict[str, Any]:
         """
-        Streams text parts to the gRPC service for analysis (#1126).
+        Streams text parts to the gRPC service for analysis, protected by Circuit Breaker (#1228).
         """
         try:
-            async def request_iterator():
-                # Split text into chunks to demonstrate streaming
-                chunk_size = 500
-                for i in range(0, len(text), chunk_size):
-                    yield sentiment_pb2.AnalyzeSentimentRequest(
-                        text=text[i:i+chunk_size],
-                        journal_id=str(journal_id),
-                        user_id=str(user_id)
-                    )
-            
-            logger.info(f"Streaming text chunks to {self.target} for journal {journal_id}")
-            responses = self._stub.StreamSentiment(request_iterator())
-            
-            final_score = 0
-            patterns = set()
-            count = 0
-            
-            async for resp in responses:
-                final_score += resp.score
-                patterns.update(resp.patterns)
-                count += 1
-            
-            return {
-                "score": round(final_score / max(count, 1), 2),
-                "label": "processed_via_stream",
-                "patterns": list(patterns)
-            }
+            return await self._breaker.call(self._stream_sentiment_raw, text, journal_id, user_id)
         except Exception as e:
-            logger.error(f"gRPC streaming failed: {e}")
-            return await self.analyze_sentiment(text, journal_id, user_id) # Fallback to single call
+            logger.warning(f"Circuit Breaker or gRPC error in streaming for journal {journal_id}: {e}")
+            # Fallback for streaming failure
+            return {"score": 50.0, "label": "neutral", "patterns": ["circuit_breaker_stream_active"]}
+
+    async def _stream_sentiment_raw(self, text: str, journal_id: int, user_id: int) -> Dict[str, Any]:
+        """Raw gRPC call for streaming sentiment analysis."""
+        async def request_iterator():
+            # Split text into chunks to demonstrate streaming
+            chunk_size = 500
+            for i in range(0, len(text), chunk_size):
+                yield sentiment_pb2.AnalyzeSentimentRequest(
+                    text=text[i:i+chunk_size],
+                    journal_id=str(journal_id),
+                    user_id=str(user_id)
+                )
+        
+        logger.info(f"Streaming text chunks to {self.target} for journal {journal_id}")
+        responses = self._stub.StreamSentiment(request_iterator())
+        
+        final_score = 0
+        patterns = set()
+        count = 0
+        
+        async for resp in responses:
+            final_score += resp.score
+            patterns.update(resp.patterns)
+            count += 1
+        
+        return {
+            "score": round(final_score / max(count, 1), 2),
+            "label": "processed_via_stream",
+            "patterns": list(patterns)
+        }
 
 _nlp_client = None
 
