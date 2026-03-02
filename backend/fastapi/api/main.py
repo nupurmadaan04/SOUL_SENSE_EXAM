@@ -406,15 +406,17 @@ def create_app() -> FastAPI:
     from .middleware.quota_middleware import DynamicQuotaMiddleware
     from .middleware.rbac_middleware import rbac_middleware
     from .middleware.feature_flags import feature_flag_middleware
+    from .middleware.idempotency import IdempotencyMiddleware
     from .middleware.redaction_middleware import redaction_middleware
     
     # Internal Middlewares (Inner to Outer)
     # The last one added is the first one receiving the request.
-    # Order: App -> CircuitBreaker -> DynamicQuota -> RBAC
+    # Order: App -> Idempotency -> CircuitBreaker -> DynamicQuota -> RBAC -> Feature Flags
     from .middleware.circuit_breaker_middleware import CircuitBreakerMiddleware
     app.add_middleware(CircuitBreakerMiddleware)
     app.add_middleware(DynamicQuotaMiddleware)
     app.add_middleware(BaseHTTPMiddleware, dispatch=rbac_middleware)
+    app.add_middleware(IdempotencyMiddleware)
     app.add_middleware(BaseHTTPMiddleware, dispatch=feature_flag_middleware)
 
     # CORS middleware with security hardening
@@ -453,9 +455,10 @@ def create_app() -> FastAPI:
             "Origin",
             "X-Requested-With",
             "X-API-Key",
-            "X-Request-ID"
+            "X-Request-ID",
+            "X-Idempotency-Key"
         ],
-        expose_headers=settings.cors_expose_headers,
+        expose_headers=settings.cors_expose_headers + ["X-Idempotency-Cache"],
         max_age=settings.cors_max_age,  # Configurable preflight cache
     )
     
