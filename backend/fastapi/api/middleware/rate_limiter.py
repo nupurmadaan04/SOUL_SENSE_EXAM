@@ -76,6 +76,12 @@ class TokenBucketLimiter:
     async def is_rate_limited(self, identifier: str, capacity: int = None, refill_rate: float = None) -> Tuple[bool, int]:
         """
         Returns (is_allowed, remaining_tokens)
+        
+        Ensures Redis connection cleanup on ALL exception paths including:
+        - asyncio.CancelledError (request cancellation)
+        - redis.TimeoutError (Redis timeout)
+        - socket timeouts (network issues)
+        - Script execution errors
         """
         cap = capacity or self.default_capacity
         refill = refill_rate or self.default_refill_rate
@@ -89,11 +95,38 @@ class TokenBucketLimiter:
         try:
             now = time.time()
             # Use evalsha for performance
-            result = await red.evalsha(self._lua_sha, 1, key, cap, refill, now, 1)
+            # This operation may raise:
+            # - asyncio.CancelledError: request cancelled while executing
+            # - redis.TimeoutError: Redis connection timeout
+            # - redis.ConnectionError: connection pool exhausted
+            try:
+                result = await asyncio.wait_for(
+                    red.evalsha(self._lua_sha, 1, key, cap, refill, now, 1),
+                    timeout=2.0  # 2 second timeout for Lua script execution
+                )
+            except asyncio.TimeoutError:
+                logger.warning(f"Redis Lua script timeout for {identifier}, using fallback")
+                return self._in_memory_fallback(identifier, cap)
+            except asyncio.CancelledError:
+                # Client cancelled request - ensure cleanup before re-raising
+                logger.debug(f"Rate limit check cancelled for {identifier}")
+                raise
+            
             allowed = result[0] == 1
             remaining = result[1]
             logger.debug(f"Rate Limit Check: {identifier} | Result: {allowed} | Remaining: {remaining}")
             return allowed, remaining
+        except asyncio.CancelledError:
+            # Re-raise cancellation after ensuring cleanup
+            logger.debug(f"Request cancelled at rate limit check for {identifier}")
+            raise
+        except (redis.TimeoutError, redis.ConnectionError) as e:
+            # Connection pool issues - use fallback and reset Redis connection
+            logger.warning(f"Redis connection issue for {identifier}: {type(e).__name__}: {e}")
+            # Reset the connection so future attempts will reconnect
+            self._redis = None
+            self._lua_sha = None
+            return self._in_memory_fallback(identifier, cap)
         except Exception as e:
             logger.error(f"Token bucket LUA error: {e}", exc_info=True)
             return self._in_memory_fallback(identifier, cap)

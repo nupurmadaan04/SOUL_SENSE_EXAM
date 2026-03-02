@@ -89,20 +89,37 @@ def get_user_id(request: Request):
 # Initialize Redis connection for rate limiting storage
 # This will be initialized in the application startup
 _redis_connection = None
+_redis_lock = None
 
 
 def get_redis_connection():
-    """Get or create Redis connection for rate limiting."""
+    """
+    Get or create Redis connection for rate limiting.
+    
+    Note: This function is primarily for fallback. The main initialization happens
+    in main.py lifespan startup where the connection is stored in app.state.redis_client.
+    This ensures proper async context and lifecycle management.
+    
+    Returns:
+        Redis connection or None if initialization fails
+    """
     global _redis_connection
     if _redis_connection is None:
-        from ..config import get_settings_instance
-        settings = get_settings_instance()
-        _redis_connection = redis.from_url(
-            settings.redis_url,
-            encoding="utf-8",
-            decode_responses=True
-        )
-        logger.info(f"Redis connection initialized for rate limiting: {settings.redis_host}:{settings.redis_port}")
+        try:
+            from ..config import get_settings_instance
+            settings = get_settings_instance()
+            _redis_connection = redis.from_url(
+                settings.redis_url,
+                encoding="utf-8",
+                decode_responses=True,
+                socket_timeout=2.0,
+                socket_connect_timeout=2.0,
+                retry_on_timeout=False
+            )
+            logger.debug(f"Redis connection initialized for rate limiting: {settings.redis_host}:{settings.redis_port}")
+        except Exception as e:
+            logger.warning(f"Failed to create Redis connection for rate limiting: {e}")
+            _redis_connection = None
     return _redis_connection
 
 

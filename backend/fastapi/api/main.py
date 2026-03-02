@@ -131,13 +131,25 @@ async def lifespan(app: FastAPI):
             await db.execute(text("SELECT 1"))
             print("[OK] Database connectivity verified")
         
-        # Initialize Redis for rate limiting
+        # Initialize Redis for rate limiting with proper connection pool settings
         try:
             import redis.asyncio as redis
             redis_client = redis.from_url(
                 settings.redis_url,
                 encoding="utf-8",
-                decode_responses=True
+                decode_responses=True,
+                # Connection pool configuration for issue #1210 (Redis pool exhaustion fix)
+                max_connections=50,  # Maximum connections in the pool
+                socket_timeout=2.0,  # Timeout for operations
+                socket_connect_timeout=2.0,  # Timeout for initial connection
+                socket_keepalive=True,  # Keep connections alive
+                socket_keepalive_options={
+                    1: 3,  # TCP_KEEPIDLE
+                    2: 3,  # TCP_KEEPINTVL
+                    3: 3   # TCP_KEEPCNT
+                } if hasattr(redis, 'socket_keepalive_options') else None,
+                retry_on_timeout=False,  # Don't retry on timeout to prevent hanging
+                health_check_interval=10  # Periodic health checks
             )
             # Test Redis connectivity
             await redis_client.ping()
@@ -145,6 +157,7 @@ async def lifespan(app: FastAPI):
             
             # Configure slowapi limiter with Redis storage
             limiter._storage_uri = settings.redis_url
+            logger.info(f"Redis connected for rate limiting: {settings.redis_host}:{settings.redis_port} with pool_size=50")
             print(f"[OK] Redis connected for rate limiting: {settings.redis_host}:{settings.redis_port}")
             
             # Initialize JWT blacklist
@@ -153,7 +166,7 @@ async def lifespan(app: FastAPI):
             print("[OK] JWT blacklist initialized")
             
         except Exception as e:
-            logger.warning(f"Redis initialization failed: {e}")
+            logger.warning(f"Redis initialization failed: {e}", exc_info=True)
             print(f"[WARNING] Redis not available, rate limiting will use in-memory fallback: {e}")
             # SlowAPI will automatically fall back to in-memory storage if Redis is unavailable
             
@@ -355,14 +368,21 @@ async def lifespan(app: FastAPI):
         await app.state.ws_manager.shutdown()
         logger.info("WebSocket Manager shutdown successfully")
     
-    # Close Redis connection
+    # Close Redis connection (issue #1210: proper cleanup to prevent resource leaks)
     if hasattr(app.state, 'redis_client'):
         logger.info("Closing Redis connection...")
         try:
-            await app.state.redis_client.close()
+            redis_client = app.state.redis_client
+            # Ensure all pending operations are cleared
+            await redis_client.close()
             logger.info("Redis connection closed successfully")
         except Exception as e:
             logger.error(f"Error closing Redis connection: {e}")
+            try:
+                # Force cleanup even if close fails
+                await redis_client.connection_pool.disconnect()
+            except Exception as e2:
+                logger.error(f"Error on Redis pool disconnect: {e2}")
 
     # Stop Kafka Producer (#1085)
     if hasattr(app.state, 'kafka_producer'):
