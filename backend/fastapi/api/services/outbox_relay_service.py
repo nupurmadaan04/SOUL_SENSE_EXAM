@@ -123,22 +123,64 @@ class OutboxRelayService:
                 event.retry_count = (event.retry_count or 0) + 1
                 event.error_message = str(e)
 
-                if event.retry_count >= 10:
+                # Requirement ISSUE-1146: Move to 'failed' status after 3 attempts
+                if event.retry_count >= 3:
                     event.status = "failed"
                     logger.critical(
-                        f"[Outbox] Permanently aborting event {event.id} after {event.retry_count} retries."
+                        f"[Outbox] DEAD-LETTER: Permanently aborting event {event.id} after {event.retry_count} retries."
                     )
                 else:
-                    delay_seconds = 30 * (2 ** (event.retry_count - 1))  # 30s, 60s, 120s ... up to ~4.3h
+                    # Exponential backoff: 30s, 60s, 120s
+                    delay_seconds = 30 * (2 ** (event.retry_count - 1))
                     event.next_retry_at = event_now + timedelta(seconds=delay_seconds)
                     logger.warning(
                         f"[Outbox] Scheduled retry for event {event.id} "
-                        f"in {delay_seconds}s (attempt {event.retry_count}/10)"
+                        f"in {delay_seconds}s (attempt {event.retry_count}/3)"
                     )
 
         # Single batch commit after all events are processed
         await db.commit()
+
+        # Requirement ISSUE-1146: Purgatory Cleanup / Alert System
+        # Check global health of outbox after processing a batch
+        stats = await OutboxRelayService.get_outbox_stats(db)
+        total_purgatory = stats.get("pending", 0) + stats.get("failed", 0)
+        
+        if total_purgatory > 10000:
+            logger.critical(
+                f"[Outbox] PURGATORY ALERT: {total_purgatory} messages stuck in outbox! "
+                f"(Pending: {stats.get('pending')}, Failed: {stats.get('failed')}). "
+                "Immediate administrator intervention required."
+            )
+
         return processed_count
+
+    @staticmethod
+    async def get_outbox_stats(db: AsyncSession) -> dict:
+        """Requirement ISSUE-1146: Get health statistics for the outbox."""
+        from sqlalchemy import func
+        stmt = select(OutboxEvent.status, func.count(OutboxEvent.id)).group_by(OutboxEvent.status)
+        result = await db.execute(stmt)
+        return {status: count for status, count in result.all()}
+
+    @staticmethod
+    async def retry_all_failed_events(db: AsyncSession) -> int:
+        """Requirement ISSUE-1146: Manual trigger to retry all dead-lettered events."""
+        from sqlalchemy import update
+        stmt = (
+            update(OutboxEvent)
+            .where(OutboxEvent.status == "failed")
+            .values(
+                status="pending",
+                retry_count=0,
+                next_retry_at=datetime.now(UTC),
+                error_message=None
+            )
+        )
+        result = await db.execute(stmt)
+        await db.commit()
+        logger.info(f"[Outbox] Reset {result.rowcount} failed events back to pending.")
+        return result.rowcount
 
     @classmethod
     async def start_relay_worker(cls, async_session_factory, interval_seconds: int = 2):
