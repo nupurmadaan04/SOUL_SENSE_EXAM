@@ -185,7 +185,7 @@ class RefreshToken(Base):
     user = relationship("User", back_populates="refresh_tokens")
 
 class UserSession(Base):
-    """Track user login sessions with unique session IDs"""
+    """Track user login sessions with unique session IDs and device fingerprinting"""
     __tablename__ = 'user_sessions'
     id = Column(Integer, primary_key=True, autoincrement=True)
     session_id = Column(String, unique=True, nullable=False, index=True)
@@ -193,10 +193,25 @@ class UserSession(Base):
     username = Column(String, nullable=True)
     ip_address = Column(String, nullable=True)
     user_agent = Column(String, nullable=True)
+
+    # Device fingerprinting fields (#1230)
+    device_fingerprint_hash = Column(String(64), nullable=True, index=True)  # SHA-256 hash
+    device_user_agent = Column(String, nullable=True)
+    device_accept_language = Column(String, nullable=True)
+    device_accept_encoding = Column(String, nullable=True)
+    device_screen_resolution = Column(String, nullable=True)
+    device_timezone_offset = Column(Integer, nullable=True)
+    device_platform = Column(String, nullable=True)
+    device_plugins_hash = Column(String, nullable=True)
+    device_canvas_fingerprint = Column(String, nullable=True)
+    device_webgl_fingerprint = Column(String, nullable=True)
+    device_fingerprint_created_at = Column(DateTime, nullable=True)
+
+    # Session metadata
     is_active = Column(Boolean, default=True)
     last_activity = Column(DateTime, default=datetime.utcnow)
     created_at = Column(DateTime, default=datetime.utcnow)
-    
+
     user = relationship("User", back_populates="sessions")
     
     __table_args__ = (

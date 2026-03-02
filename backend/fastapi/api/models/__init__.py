@@ -14,7 +14,7 @@ import logging
 from ..utils.timestamps import normalize_utc_iso, utc_now, utc_now_iso
 
 try:
-    from ..services.encryption_service import EncryptedString
+    from ..utils.encrypted_type import EncryptedString
 except (ImportError, ValueError):
     EncryptedString = Text
 
@@ -36,6 +36,7 @@ class User(Base):
     
     id = Column(Integer, primary_key=True, autoincrement=True)
     username = Column(String, unique=True, nullable=False)
+    email = Column(String, unique=True, nullable=True)  # User email for notifications
     password_hash = Column(String, nullable=False)
     oauth_sub = Column(String, nullable=True, unique=True)  # OAuth subject identifier
     created_at = Column(String, default=utc_now_iso)
@@ -64,6 +65,7 @@ class User(Base):
     audit_logs = relationship("AuditLog", back_populates="user", cascade="all, delete-orphan")
     audit_snapshots = relationship("AuditSnapshot", back_populates="user", cascade="all, delete-orphan")
     sessions = relationship("UserSession", back_populates="user", cascade="all, delete-orphan")
+    step_up_tokens = relationship("StepUpToken", back_populates="user", cascade="all, delete-orphan")
     
     # Gamification Relationships
     achievements = relationship("UserAchievement", back_populates="user", cascade="all, delete-orphan")
@@ -458,7 +460,7 @@ class TokenRevocation(Base):
     expires_at = Column(DateTime, nullable=False)
 
 class UserSession(Base):
-    """Track user login sessions with unique session IDs"""
+    """Track user login sessions with unique session IDs and device fingerprinting"""
     __tablename__ = 'user_sessions'
     id = Column(Integer, primary_key=True, autoincrement=True)
     session_id = Column(String, unique=True, nullable=False, index=True)
@@ -469,13 +471,50 @@ class UserSession(Base):
     is_active = Column(Boolean, default=True)
     last_activity = Column(DateTime, default=datetime.utcnow)
     created_at = Column(DateTime, default=utc_now)
-    
+
+    # Device fingerprinting fields (#1230)
+    device_fingerprint_hash = Column(String(64), nullable=True, index=True)
+    device_user_agent = Column(Text, nullable=True)
+    device_accept_language = Column(String, nullable=True)
+    device_accept_encoding = Column(String, nullable=True)
+    device_screen_resolution = Column(String, nullable=True)
+    device_timezone_offset = Column(Integer, nullable=True)
+    device_platform = Column(String, nullable=True)
+    device_plugins_hash = Column(String, nullable=True)
+    device_canvas_fingerprint = Column(String, nullable=True)
+    device_webgl_fingerprint = Column(String, nullable=True)
+    device_fingerprint_created_at = Column(DateTime, nullable=True)
+
     user = relationship("User", back_populates="sessions")
-    
+
     __table_args__ = (
         Index('idx_session_user_active', 'user_id', 'is_active'),
         Index('idx_session_username_active', 'username', 'is_active'),
         Index('idx_session_created', 'created_at'),
+        Index('ix_user_sessions_device_fingerprint_hash', 'device_fingerprint_hash'),
+    )
+
+class StepUpToken(Base):
+    """Time-bound tokens for privileged action authentication (#1245)"""
+    __tablename__ = 'step_up_tokens'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    token = Column(String, unique=True, nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False, index=True)
+    session_id = Column(String, nullable=False, index=True)  # Link to active session
+    purpose = Column(String, nullable=False)  # e.g., "delete_account", "admin_action", "change_password"
+    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, default=utc_now)
+    used_at = Column(DateTime, nullable=True)
+    is_used = Column(Boolean, default=False)
+    ip_address = Column(String, nullable=True)
+    user_agent = Column(String, nullable=True)
+
+    user = relationship("User", back_populates="step_up_tokens")
+
+    __table_args__ = (
+        Index('idx_stepup_user_session', 'user_id', 'session_id'),
+        Index('idx_stepup_expires', 'expires_at'),
+        Index('idx_stepup_token_used', 'token', 'is_used'),
     )
 
 class UserSyncSetting(Base):
@@ -589,6 +628,7 @@ class Score(Base):
     timestamp = Column(String, default=lambda: datetime.utcnow().isoformat(), index=True)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=True, index=True)
     session_id = Column(String, nullable=True, index=True)
+    environment = Column(String, nullable=True, index=True)  # Environment column ensures strict separation between staging and production data
     user = relationship("User", back_populates="scores")
     
     __table_args__ = (

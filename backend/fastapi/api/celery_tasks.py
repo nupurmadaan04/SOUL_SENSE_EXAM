@@ -267,6 +267,34 @@ async def _execute_archive_generation(job_id: str, user_id: int, password: str, 
             )
             raise e
 
+@celery_app.task(bind=True, max_retries=3, acks_late=True, track_started=True, name="api.celery_tasks.archive_stale_journals")
+def archive_stale_journals_task(self):
+    """
+    Celery task to archive stale journals to cold storage.
+    Moves journals older than the threshold to S3 and clears their content.
+    """
+    try:
+        run_async(_execute_archive_stale_journals())
+        cleanup_memory()
+    except Exception as exc:
+        logger.error(f"Archive stale journals task failed: {exc}")
+        backoff_delay = 5 ** (self.request.retries + 1)
+        try:
+            self.retry(exc=exc, countdown=backoff_delay)
+        except MaxRetriesExceededError:
+            logger.error("Max retries exceeded for archive stale journals task.")
+
+async def _execute_archive_stale_journals():
+    """Execute the archival of stale journals."""
+    async with AsyncSessionLocal() as db:
+        try:
+            archived_count = await DataArchivalService.archive_stale_journals(db)
+            logger.info(f"Successfully archived {archived_count} stale journals")
+            return archived_count
+        except Exception as e:
+            logger.error(f"Failed to archive stale journals: {e}")
+            raise
+
 @celery_app.task(bind=True, max_retries=1, name="api.celery_tasks.process_outbox_events")
 def process_outbox_events(self):
     """
@@ -446,4 +474,204 @@ async def _execute_prewarm(user_id: int):
     async with AsyncSessionLocal() as db:
         service = SmartPromptService(db)
         await service.prewarm_for_user(user_id)
+
+
+@celery_app.task(bind=True, max_retries=3, acks_late=True, track_started=True)
+def check_secrets_age_compliance(self):
+    """
+    Scheduled job to check secrets age and rotation compliance (#1246).
+
+    Checks RefreshToken ages against rotation policies and alerts on violations.
+    Also updates compliance metrics for dashboard monitoring.
+
+    Runs daily via Celery Beat scheduler.
+    """
+    try:
+        # Memory management: Check memory before starting
+        enforce_memory_limit(threshold_mb=256)
+
+        run_async(_execute_secrets_compliance_check())
+
+        # Force garbage collection after operations
+        cleanup_memory()
+
+    except Exception as exc:
+        logger.error(f"Secrets compliance check failed: {exc}")
+        # Exponential backoff: 5, 25, 125 seconds
+        backoff_delay = 5 ** (self.request.retries + 1)
+        try:
+            self.retry(exc=exc, countdown=backoff_delay)
+        except MaxRetriesExceededError:
+            logger.error(f"Max retries exceeded for secrets compliance check. Task failed permanently.")
+
+
+async def _execute_secrets_compliance_check():
+    """
+    Execute the secrets age and rotation compliance check.
+
+    Checks all active refresh tokens and identifies those exceeding age thresholds.
+    Sends alerts for violations and updates compliance metrics.
+    """
+    from api.services.secrets_compliance_service import secrets_compliance_service
+
+    async with AsyncSessionLocal() as db:
+        try:
+            # Run compliance check using the service
+            compliance_report = await secrets_compliance_service.check_compliance(db)
+
+            # Update metrics in Redis
+            await secrets_compliance_service.update_metrics(compliance_report)
+
+            # Send alerts for violations
+            violations = compliance_report.get('violations', [])
+            if violations:
+                await _send_compliance_alerts(db, violations, compliance_report)
+
+            logger.info(f"Secrets compliance check completed: {compliance_report}")
+
+            # Force rotate critically old tokens as safety measure
+            if compliance_report.get('expired_tokens', 0) > 0:
+                revoked_count = await secrets_compliance_service.force_rotate_expired_tokens(db)
+                if revoked_count > 0:
+                    logger.warning(f"Auto-revoked {revoked_count} tokens exceeding maximum age")
+
+        except Exception as e:
+            logger.error(f"Error during secrets compliance check: {e}")
+            raise
+
+
+async def _update_compliance_metrics(stats: dict):
+    """
+    Update compliance metrics in Redis for dashboard monitoring.
+
+    Args:
+        stats: Dictionary containing compliance statistics
+    """
+    try:
+        settings = get_settings_instance()
+        r = redis.from_url(settings.redis_url)
+
+        # Store metrics with 24-hour expiration
+        metrics_key = "secrets_compliance:metrics"
+        r.setex(metrics_key, 86400, json.dumps(stats))
+
+        # Also store individual metric keys for easier querying
+        r.setex("secrets_compliance:total_active", 86400, stats['total_active_tokens'])
+        r.setex("secrets_compliance:warnings", 86400, stats['warning_violations'])
+        r.setex("secrets_compliance:critical", 86400, stats['critical_violations'])
+        r.setex("secrets_compliance:expired", 86400, stats['expired_tokens'])
+        r.setex("secrets_compliance:compliant", 86400, stats['compliant_tokens'])
+
+        logger.debug(f"Updated compliance metrics: {stats}")
+
+    except Exception as e:
+        logger.error(f"Failed to update compliance metrics: {e}")
+
+
+async def _send_compliance_alerts(db, violations: list, stats: dict):
+    """
+    Send alerts for secrets compliance violations.
+
+    Args:
+        db: Database session
+        violations: List of violation dictionaries
+        stats: Compliance statistics
+    """
+    from api.services.notification_service import NotificationService
+
+    try:
+        # Group violations by severity
+        critical_violations = [v for v in violations if v['severity'] == 'critical']
+        warning_violations = [v for v in violations if v['severity'] == 'warning']
+
+        # Send critical alerts (immediate attention required)
+        if critical_violations:
+            await _send_critical_alert(db, critical_violations, stats)
+
+        # Send warning alerts (scheduled maintenance)
+        if warning_violations:
+            await _send_warning_alert(db, warning_violations, stats)
+
+        logger.info(f"Sent compliance alerts: {len(critical_violations)} critical, {len(warning_violations)} warnings")
+
+    except Exception as e:
+        logger.error(f"Failed to send compliance alerts: {e}")
+
+
+async def _send_critical_alert(db, violations: list, stats: dict):
+    """
+    Send critical alerts for tokens exceeding maximum age or in critical zone.
+
+    These require immediate action - tokens should be rotated or revoked.
+    """
+    try:
+        # Create notification log entry
+        notification = NotificationLog(
+            user_id=None,  # System-wide alert
+            template_name="secrets_critical_violation",
+            channel="email",  # Could also send to Slack, PagerDuty, etc.
+            status="pending"
+        )
+        db.add(notification)
+
+        # Prepare alert message
+        alert_data = {
+            "alert_type": "critical",
+            "total_violations": len(violations),
+            "total_active_tokens": stats['total_active_tokens'],
+            "violations": violations[:10],  # Limit to first 10 for email
+            "compliance_rate": (stats['compliant_tokens'] / stats['total_active_tokens'] * 100) if stats['total_active_tokens'] > 0 else 0,
+            "checked_at": stats['checked_at']
+        }
+
+        # In a real system, this would integrate with email service, Slack, PagerDuty, etc.
+        # For now, log the alert
+        logger.warning(f"CRITICAL: Secrets compliance violations detected: {alert_data}")
+
+        # TODO: Integrate with actual alerting system (email, Slack, PagerDuty)
+        # await NotificationService.send_system_alert(alert_data)
+
+        await db.commit()
+
+    except Exception as e:
+        logger.error(f"Failed to send critical alert: {e}")
+        await db.rollback()
+
+
+async def _send_warning_alert(db, violations: list, stats: dict):
+    """
+    Send warning alerts for tokens approaching maximum age.
+
+    These are advance notices for scheduled rotation.
+    """
+    try:
+        # Create notification log entry
+        notification = NotificationLog(
+            user_id=None,  # System-wide alert
+            template_name="secrets_warning_violation",
+            channel="email",
+            status="pending"
+        )
+        db.add(notification)
+
+        # Prepare alert message
+        alert_data = {
+            "alert_type": "warning",
+            "total_violations": len(violations),
+            "total_active_tokens": stats['total_active_tokens'],
+            "violations": violations[:20],  # More violations for warnings
+            "compliance_rate": (stats['compliant_tokens'] / stats['total_active_tokens'] * 100) if stats['total_active_tokens'] > 0 else 0,
+            "checked_at": stats['checked_at']
+        }
+
+        logger.info(f"WARNING: Secrets compliance warnings: {len(violations)} tokens need attention")
+
+        # TODO: Integrate with actual alerting system
+        # await NotificationService.send_system_alert(alert_data)
+
+        await db.commit()
+
+    except Exception as e:
+        logger.error(f"Failed to send warning alert: {e}")
+        await db.rollback()
 

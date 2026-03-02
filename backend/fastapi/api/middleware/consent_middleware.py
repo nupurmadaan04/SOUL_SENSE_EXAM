@@ -6,12 +6,11 @@ This middleware checks user consent before allowing analytics data collection.
 
 from fastapi import Request, HTTPException
 from fastapi.responses import JSONResponse
-from sqlalchemy.orm import Session
 from typing import Callable
 import json
 
 from ..services.analytics_service import AnalyticsService
-from ..services.db_service import get_db
+from ..services.db_service import AsyncSessionLocal
 
 
 class ConsentValidationMiddleware:
@@ -35,30 +34,25 @@ class ConsentValidationMiddleware:
             anonymous_id = self._extract_anonymous_id(request)
 
             if anonymous_id:
-                # Get database session
-                db = next(get_db())
-
                 try:
-                    # Check consent status
-                    consent_status = AnalyticsService.check_analytics_consent(db, anonymous_id)
+                    async with AsyncSessionLocal() as db:
+                        consent_status = await AnalyticsService.check_analytics_consent_async(db, anonymous_id)
 
-                    if not consent_status.get('analytics_consent_given', False):
-                        # Consent not given, block analytics
-                        response = JSONResponse(
-                            status_code=403,
-                            content={
-                                "error": "Analytics consent required",
-                                "message": "User has not provided consent for analytics data collection",
-                                "consent_required": True
-                            }
-                        )
-                        await response(scope, receive, send)
-                        return
+                        if not consent_status.get('analytics_consent_given', False):
+                            # Consent not given, block analytics
+                            response = JSONResponse(
+                                status_code=403,
+                                content={
+                                    "error": "Analytics consent required",
+                                    "message": "User has not provided consent for analytics data collection",
+                                    "consent_required": True
+                                }
+                            )
+                            await response(scope, receive, send)
+                            return
                 except Exception as e:
                     # Log error but don't block - fail open for now
                     print(f"Consent validation error: {e}")
-                finally:
-                    db.close()
 
         await self.app(scope, receive, send)
 

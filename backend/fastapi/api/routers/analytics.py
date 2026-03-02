@@ -1,4 +1,7 @@
 """Analytics API router - Aggregated, non-sensitive data only."""
+from fastapi import APIRouter, Depends, Query, Request, HTTPException
+from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Optional
 from fastapi import APIRouter, Depends, status, Request, Response, BackgroundTasks, Form, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional, List
@@ -36,6 +39,30 @@ router = APIRouter(tags=["Analytics"])
 async def track_event(
     event: AnalyticsEventCreate,
     request: Request,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Log a tracking event (signup drop-off, etc).
+    
+    **Rate Limited**: 30 requests per minute per IP
+    
+    **Data Privacy**:
+    - No PII is logged (enforced by schema).
+    - IP address is stored for security auditing.
+    """
+    await AnalyticsService.log_event(db, event.dict(), ip_address=request.client.host)
+    return {"status": "ok"}
+
+
+@router.get("/summary", response_model=AnalyticsSummary, dependencies=[Depends(rate_limit_analytics)])
+async def get_analytics_summary(db: AsyncSession = Depends(get_db)):
+    """
+    Get overall analytics summary with aggregated data only.
+    
+    **Rate Limited**: 30 requests per minute per IP
+    
+    **Data Privacy**: This endpoint returns ONLY aggregated statistics.
+    No individual user data or raw sensitive information is exposed.
     response: Response,
     db: AsyncSession = Depends(get_db)
 ):
@@ -54,6 +81,7 @@ async def get_analytics_summary(
     
     Supports cross-environment queries for admin users to compare data across environments.
     """
+    summary = await AnalyticsService.get_overall_summary(db)
     summary = await AnalyticsService.get_overall_summary(db, environment=environment)
     return AnalyticsSummary(**summary)
 
@@ -61,6 +89,8 @@ async def get_analytics_summary(
 @router.get("/trends", response_model=TrendAnalytics, dependencies=[Depends(rate_limit_analytics), Depends(require_admin)])
 @cache(expire=1800)
 async def get_trend_analytics(
+    period: str = Query('monthly', pattern='^(daily|weekly|monthly)$', description="Time period type"),
+    limit: int = Query(12, ge=1, le=24, description="Number of periods to return"),
     period: str = Query('monthly', pattern='^(daily|weekly|monthly)$'),
     limit: int = Query(12, ge=1, le=24),
     environment: Optional[str] = Query(None, description="Filter by environment (defaults to current)"),
@@ -70,6 +100,19 @@ async def get_trend_analytics(
     
     Supports cross-environment queries for admin users to compare data across environments.
     """
+    trends = await AnalyticsService.get_trend_analytics(db, period_type=period, limit=limit)
+    return TrendAnalytics(**trends)
+
+
+@router.get("/benchmarks", response_model=list[BenchmarkComparison], dependencies=[Depends(rate_limit_analytics)])
+async def get_benchmark_comparison(db: AsyncSession = Depends(get_db)):
+    """
+    Get benchmark comparison data with percentiles.
+    
+    **Rate Limited**: 30 requests per minute per IP
+    
+    **Data Privacy**: Returns percentile-based aggregations only.
+    No individual scores or user data exposed.
     trends = await AnalyticsService.get_trend_analytics(db, period_type=period, limit=limit, environment=environment)
     return TrendAnalytics(**trends)
 
@@ -84,6 +127,19 @@ async def get_benchmark_comparison(
     
     Supports cross-environment queries for admin users to compare data across environments.
     """
+    benchmarks = await AnalyticsService.get_benchmark_comparison(db)
+    return [BenchmarkComparison(**b) for b in benchmarks]
+
+
+@router.get("/insights", response_model=PopulationInsights, dependencies=[Depends(rate_limit_analytics)])
+async def get_population_insights(db: AsyncSession = Depends(get_db)):
+    """
+    Get population-level insights.
+    
+    **Rate Limited**: 30 requests per minute per IP
+    
+    **Data Privacy**: Returns population-level aggregations only.
+    No individual user data or sensitive information.
     benchmarks = await AnalyticsService.get_benchmark_comparison(db, environment=environment)
     return [BenchmarkComparison(**b) for b in benchmarks]
 
@@ -98,6 +154,58 @@ async def get_population_insights(
     
     Supports cross-environment queries for admin users to compare data across environments.
     """
+    insights = await AnalyticsService.get_population_insights(db)
+    return PopulationInsights(**insights)
+
+
+@router.get("/age-groups", dependencies=[Depends(rate_limit_analytics)])
+async def get_age_group_statistics(db: AsyncSession = Depends(get_db)):
+    """
+    Get detailed statistics by age group.
+    
+    **Rate Limited**: 30 requests per minute per IP
+    
+    **Data Privacy**: Returns aggregated statistics per age group.
+    No individual assessment data.
+    
+    Returns for each age group:
+    - Total assessments
+    - Average score
+    - Min/max scores
+    - Average sentiment
+    """
+    stats = await AnalyticsService.get_age_group_statistics(db)
+    return {"age_group_statistics": stats}
+
+
+@router.get("/distribution", dependencies=[Depends(rate_limit_analytics)])
+async def get_score_distribution(db: AsyncSession = Depends(get_db)):
+    """
+    Get score distribution across ranges.
+    
+    **Rate Limited**: 30 requests per minute per IP
+    
+    **Data Privacy**: Returns distribution counts only.
+    No individual scores or user information.
+    
+    Returns distribution of scores in ranges:
+    - 0-10, 11-20, 21-30, 31-40
+    - Count and percentage for each range
+    """
+
+    distribution = await AnalyticsService.get_score_distribution(db)
+    return {"score_distribution": distribution}
+
+
+# ============================================================================
+# User Analytics Endpoints (PR 6.3)
+# ============================================================================
+
+from ..services.user_analytics_service import UserAnalyticsService
+from ..schemas import UserAnalyticsSummary, UserTrendsResponse
+from ..models import User
+from .auth import get_current_user
+
     insights = await AnalyticsService.get_population_insights(db, environment=environment)
     return PopulationInsights(**insights)
 
@@ -107,6 +215,15 @@ async def get_user_analytics_summary(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
+    """
+    Get personalized analytics summary for the current user.
+    
+    Returns:
+    - Total exams taken
+    - Average score
+    - Latest & Best scores
+    - Trends and consistency analysis
+    """
     """Get personalized analytics summary for the current user."""
     return await UserAnalyticsService.get_dashboard_summary(db, current_user.id)
 
@@ -117,6 +234,16 @@ async def get_user_analytics_trends(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
+    """
+    Get time-series data for user charts.
+    
+    Params:
+    - days: Number of days to look back (default 30, max 365)
+    
+    Returns:
+    - EQ Score history
+    - Wellbeing metrics (Sleep, Stress, etc.)
+    """
     """Get time-series data for user charts."""
     eq_scores = await UserAnalyticsService.get_eq_trends(db, current_user.id, days)
     wellbeing = await UserAnalyticsService.get_wellbeing_trends(db, current_user.id, days)

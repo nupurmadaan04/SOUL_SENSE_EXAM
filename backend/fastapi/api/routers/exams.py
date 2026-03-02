@@ -27,6 +27,9 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+from sqlalchemy import select, func
+from sqlalchemy.ext.asyncio import AsyncSession
+
 @router.post("/start", status_code=201)
 async def start_exam(
     current_user: User = Depends(get_current_user),
@@ -42,8 +45,36 @@ async def submit_exam(
     request: Request,
     payload: ExamSubmit,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
 ):
+    # Completeness validation
+    if not payload.is_draft:
+        stmt = select(func.count(Question.id)).filter(Question.is_active == 1)
+        result = await db.execute(stmt)
+        expected_count = result.scalar() or 0
+
+        submitted_count = len(payload.answers)
+
+        if submitted_count != expected_count:
+            logger.warning(
+                "Incomplete exam submission rejected",
+                extra={
+                    "user_id": current_user.id,
+                    "session_id": payload.session_id,
+                    "submitted": submitted_count,
+                    "expected": expected_count,
+                },
+            )
+            raise HTTPException(
+                status_code=422,
+                detail={
+                    "code": "EXAM_INCOMPLETE",
+                    "message": f"Expected {expected_count} answers but got {submitted_count}.",
+                },
+            )
+
+    try:
+        # Save responses
     """
     Batch exam submission endpoint — the primary write path for POST /api/v1/exams/submit.
 
@@ -78,11 +109,10 @@ async def submit_exam(
         # Layer 2: Completeness validation — DB lookup to get expected count
         # ------------------------------------------------------------------
         if not payload.is_draft:
-            expected_count: int = (
-                db.query(Question)
-                .filter(Question.is_active == 1)
-                .count()
-            )
+            from sqlalchemy import select, func
+            stmt = select(func.count(Question.id)).filter(Question.is_active == 1)
+            result = await db.execute(stmt)
+            expected_count = result.scalar()
 
             submitted_count = len(payload.answers)
 
@@ -119,6 +149,11 @@ async def submit_exam(
                 value=answer.value,
                 session_id=payload.session_id,
             )
+            await ExamService.save_response(db, current_user, payload.session_id, response_data)
+        
+        if not payload.is_draft:
+            await ExamService.mark_as_submitted(db, current_user.id, payload.session_id)
+            
             ExamService.save_response(db, current_user, payload.session_id, response_data)
 
         response_data = {
@@ -149,15 +184,7 @@ async def submit_exam(
         return response_data
 
     except Exception as e:
-        logger.error(
-            "Failed to persist exam responses during batch submit",
-            extra={
-                "user_id": current_user.id,
-                "session_id": payload.session_id,
-                "error": str(e),
-            },
-            exc_info=True,
-        )
+        logger.error(f"Failed to persist batch submit: {e}")
         raise HTTPException(status_code=500, detail="Failed to persist exam responses.")
 
     logger.info(
@@ -174,18 +201,12 @@ async def submit_exam(
     # Mark session as SUBMITTED if not a draft
     # ------------------------------------------------------------------
     if not payload.is_draft:
-        ExamService.mark_as_submitted(db, current_user.id, payload.session_id)
+        await ExamService.mark_as_submitted(db, current_user.id, payload.session_id)
 
     return {
         "status": "accepted",
         "session_id": payload.session_id,
-        "answer_count": len(payload.answers),
         "is_draft": payload.is_draft,
-        "message": (
-            "Draft saved. Submit with is_draft=false to score your exam."
-            if payload.is_draft
-            else "Exam submitted successfully. Proceed to /complete to record your score."
-        ),
     }
 
 
@@ -196,9 +217,6 @@ async def save_response(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """
-    Save a single question response (click) linked to session.
-    """
     try:
         success = await ExamService.save_response(db, current_user, session_id, response_data)
         if not success:
@@ -216,6 +234,9 @@ async def complete_exam(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
+    try:
+        score = await ExamService.save_score(db, current_user, session_id, result_data)
+        return AssessmentResponse.model_validate(score)
     """
     Submit a completed exam score linked to session.
 
@@ -246,6 +267,15 @@ async def get_exam_history(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
+    skip = (page - 1) * page_size
+    assessments, total = await ExamService.get_history(db, current_user, skip, page_size)
+
+    return AssessmentListResponse(
+        total=total,
+        assessments=[AssessmentResponse.model_validate(a) for a in assessments],
+        page=page,
+        page_size=page_size
+    )
     """
     Get paginated history of exam results for current user.
     """
@@ -271,12 +301,13 @@ async def get_detailed_results(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """
-    Get detailed breakdown for a specific assessment.
-    """
     try:
-        result = AssessmentResultsService.get_detailed_results(db, id, current_user.id)
+        result = await AssessmentResultsService.get_detailed_results(db, id, current_user.id)
         if result is None:
+            raise HTTPException(status_code=404, detail="Result not found")
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
             logger.info(
                 "Assessment result not found",
                 extra={"assessment_id": id, "user_id": current_user.id},

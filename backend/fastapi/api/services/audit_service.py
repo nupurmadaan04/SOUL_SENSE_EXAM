@@ -3,6 +3,8 @@ import json
 from datetime import datetime, timedelta, UTC
 from typing import Optional, List, Dict, Any
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, delete, desc
+from ..models import AuditLog
 from sqlalchemy import select, delete
 from ..models import AuditLog, User
 
@@ -10,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 class AuditService:
     """
-    Service for securely logging user actions and retrieving audit history.
+    Service for securely logging user actions and retrieving audit history (Async).
     """
 
     # Allowed fields in details JSON to prevent PII leakage
@@ -23,6 +25,12 @@ class AuditService:
                  ip_address: Optional[str] = "SYSTEM",
                  user_agent: Optional[str] = None,
                  details: Optional[Dict[str, Any]] = None,
+                 db_session: AsyncSession = None) -> bool:
+        """
+        Log a security-critical event (Async).
+        """
+        if db_session is None:
+            logger.error("Async db_session must be provided to log_event")
                  db_session: Optional[AsyncSession] = None) -> bool:
         """
         Log a security-critical event.
@@ -33,7 +41,6 @@ class AuditService:
 
         try:
             # 1. Sanitize Inputs
-            # Truncate User Agent
             safe_ua = (user_agent[:250] + "...") if user_agent and len(user_agent) > 250 else user_agent
 
             # Filter Details
@@ -62,8 +69,12 @@ class AuditService:
             return True
 
         except Exception as e:
-            # Fallback logging if DB fails
+            await db_session.rollback()
             logger.critical(f"AUDIT LOG FAILURE: User {user_id} performed {action}. Error: {e}")
+            return False
+
+    @staticmethod
+    async def get_user_logs(user_id: int, page: int = 1, per_page: int = 20, db_session: AsyncSession = None) -> List[AuditLog]:
             await db_session.rollback()
             return False
 
@@ -99,8 +110,9 @@ class AuditService:
     @staticmethod
     async def get_user_logs(user_id: int, page: int = 1, per_page: int = 20, db_session: Optional[AsyncSession] = None) -> List[AuditLog]:
         """
-        Retrieve audit logs for a specific user with pagination.
+        Retrieve audit logs for a specific user with pagination (Async).
         """
+        if db_session is None:
         if not db_session:
             return []
 
@@ -109,11 +121,13 @@ class AuditService:
             stmt = select(AuditLog).filter(
                 AuditLog.user_id == user_id
             ).order_by(
+                desc(AuditLog.timestamp)
                 AuditLog.timestamp.desc()
             ).limit(per_page).offset(offset)
             
             result = await db_session.execute(stmt)
             return list(result.scalars().all())
+            
         except Exception as e:
             logger.error(f"Failed to fetch audit logs for user {user_id}: {e}")
             return []
@@ -121,6 +135,16 @@ class AuditService:
     @staticmethod
     async def cleanup_old_logs(db_session: AsyncSession, days: int = 90) -> int:
         """
+        Delete logs older than retention period (Async).
+        """
+        try:
+            cutoff_date = datetime.now(UTC) - timedelta(days=days)
+            stmt = delete(AuditLog).filter(
+                AuditLog.timestamp < cutoff_date
+            )
+            result = await db_session.execute(stmt)
+            await db_session.commit()
+            
         Delete logs older than retention period.
         """
         try:
@@ -134,4 +158,5 @@ class AuditService:
         except Exception as e:
             await db_session.rollback()
             logger.error(f"Audit cleanup failed: {e}")
+            return 0
             return 0

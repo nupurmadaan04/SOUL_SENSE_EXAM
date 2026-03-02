@@ -15,6 +15,8 @@ from xml.dom import minidom
 from datetime import datetime, timedelta, UTC
 from typing import List, Optional, Tuple, Dict, Any, Set
 from pathlib import Path
+from sqlalchemy import select, func, case, distinct, desc
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc, update, delete
 from cryptography.fernet import Fernet
@@ -87,6 +89,9 @@ class ExportServiceV2:
         format: str,
         options: Optional[Dict[str, Any]] = None
     ) -> Tuple[str, str]:
+        """
+        Generate an export file with advanced options (Async).
+        """
         """Generate an export file with advanced options."""
         options = options or {}
 
@@ -98,6 +103,7 @@ class ExportServiceV2:
         export_id = uuid.uuid4().hex
         timestamp = datetime.now(UTC)
 
+        # Fetch data based on options
         data = await cls._fetch_export_data(db, user, options)
 
         metadata = cls._build_metadata(user, export_id, format, options, timestamp)
@@ -123,6 +129,7 @@ class ExportServiceV2:
                 if password:
                     filepath = cls._encrypt_export(filepath, password)
 
+            # Record export in database
             await cls._record_export(db, user, export_id, format, filepath, options, timestamp)
 
             logger.info(f"Export generated for {user.username}: {filepath}")
@@ -144,6 +151,9 @@ class ExportServiceV2:
         user: User,
         options: Dict[str, Any]
     ) -> Dict[str, Any]:
+        """
+        Fetch user data based on export options (Async).
+        """
         """Fetch user data based on export options."""
         data = {}
         data_types = set(options.get('data_types', list(cls.DATA_TYPES)))
@@ -156,6 +166,7 @@ class ExportServiceV2:
         if date_range.get('end'):
             end_date = datetime.fromisoformat(date_range['end'])
 
+        # 1. Profile Data
         if 'profile' in data_types:
             data['profile'] = await cls._fetch_profile_data(db, user)
 
@@ -190,6 +201,7 @@ class ExportServiceV2:
 
     @classmethod
     async def _fetch_profile_data(cls, db: AsyncSession, user: User) -> Dict[str, Any]:
+        """Fetch personal profile data (Async)."""
         """Fetch personal profile data."""
         stmt = select(PersonalProfile).filter(PersonalProfile.user_id == user.id)
         result = await db.execute(stmt)
@@ -216,6 +228,7 @@ class ExportServiceV2:
 
     @classmethod
     async def _fetch_medical_data(cls, db: AsyncSession, user: User) -> Dict[str, Any]:
+        """Fetch medical profile data (Async)."""
         """Fetch medical profile data."""
         stmt = select(MedicalProfile).filter(MedicalProfile.user_id == user.id)
         result = await db.execute(stmt)
@@ -238,6 +251,7 @@ class ExportServiceV2:
 
     @classmethod
     async def _fetch_strengths_data(cls, db: AsyncSession, user: User) -> Dict[str, Any]:
+        """Fetch strengths data (Async)."""
         """Fetch strengths data."""
         stmt = select(UserStrengths).filter(UserStrengths.user_id == user.id)
         result = await db.execute(stmt)
@@ -257,6 +271,7 @@ class ExportServiceV2:
 
     @classmethod
     async def _fetch_emotional_patterns_data(cls, db: AsyncSession, user: User) -> Dict[str, Any]:
+        """Fetch emotional patterns data (Async)."""
         """Fetch emotional patterns data."""
         stmt = select(UserEmotionalPatterns).filter(UserEmotionalPatterns.user_id == user.id)
         result = await db.execute(stmt)
@@ -274,6 +289,7 @@ class ExportServiceV2:
 
     @classmethod
     async def _fetch_settings_data(cls, db: AsyncSession, user: User) -> Dict[str, Any]:
+        """Fetch user settings (Async)."""
         """Fetch user settings."""
         stmt = select(UserSettings).filter(UserSettings.user_id == user.id)
         result = await db.execute(stmt)
@@ -298,6 +314,7 @@ class ExportServiceV2:
         start_date: Optional[datetime],
         end_date: Optional[datetime]
     ) -> List[Dict[str, Any]]:
+        """Fetch journal entries with date filtering (Async)."""
         """Fetch journal entries with date filtering."""
         stmt = select(JournalEntry).filter(
             JournalEntry.user_id == user.id,
@@ -309,6 +326,7 @@ class ExportServiceV2:
         if end_date:
             stmt = stmt.filter(JournalEntry.entry_date <= end_date)
 
+        result = await db.execute(stmt.order_by(JournalEntry.entry_date.desc()))
         stmt = stmt.order_by(JournalEntry.entry_date.desc())
         result = await db.execute(stmt)
         entries = result.scalars().all()
@@ -333,6 +351,8 @@ class ExportServiceV2:
         start_date: Optional[datetime],
         end_date: Optional[datetime]
     ) -> List[Dict[str, Any]]:
+        """Fetch assessment scores (Async)."""
+        stmt = select(Score).filter(Score.user_id == user.id)
         """Fetch assessment scores."""
         stmt = select(Score).join(UserSession, Score.session_id == UserSession.session_id).filter(UserSession.user_id == user.id)
 
@@ -341,6 +361,7 @@ class ExportServiceV2:
         if end_date:
             stmt = stmt.filter(Score.timestamp <= end_date)
 
+        result = await db.execute(stmt.order_by(Score.timestamp.desc()))
         stmt = stmt.order_by(Score.timestamp.desc())
         result = await db.execute(stmt)
         scores = result.scalars().all()
@@ -363,6 +384,8 @@ class ExportServiceV2:
         start_date: Optional[datetime],
         end_date: Optional[datetime]
     ) -> List[Dict[str, Any]]:
+        """Fetch assessment results (Async)."""
+        stmt = select(AssessmentResult).filter(AssessmentResult.user_id == user.id)
         """Fetch assessment results."""
         stmt = select(AssessmentResult).filter(
             AssessmentResult.user_id == user.id,
@@ -374,6 +397,7 @@ class ExportServiceV2:
         if end_date:
             stmt = stmt.filter(AssessmentResult.timestamp <= end_date)
 
+        result = await db.execute(stmt.order_by(AssessmentResult.timestamp.desc()))
         stmt = stmt.order_by(AssessmentResult.timestamp.desc())
         result = await db.execute(stmt)
         assessments = result.scalars().all()
@@ -393,6 +417,7 @@ class ExportServiceV2:
         start_date: Optional[datetime],
         end_date: Optional[datetime]
     ) -> List[Dict[str, Any]]:
+        """Fetch satisfaction records (Async)."""
         """Fetch satisfaction records."""
         stmt = select(SatisfactionRecord).filter(SatisfactionRecord.user_id == user.id)
 
@@ -401,6 +426,7 @@ class ExportServiceV2:
         if end_date:
             stmt = stmt.filter(SatisfactionRecord.timestamp <= end_date)
 
+        result = await db.execute(stmt.order_by(SatisfactionRecord.timestamp.desc()))
         stmt = stmt.order_by(SatisfactionRecord.timestamp.desc())
         result = await db.execute(stmt)
         records = result.scalars().all()
@@ -422,6 +448,8 @@ class ExportServiceV2:
         start_date: Optional[datetime],
         end_date: Optional[datetime]
     ) -> List[Dict[str, Any]]:
+        """Fetch question responses (Async)."""
+        stmt = select(Response).filter(Response.user_id == user.id)
         """Fetch question responses."""
         stmt = select(Response).join(UserSession, Response.session_id == UserSession.session_id).filter(UserSession.user_id == user.id)
 
@@ -430,6 +458,7 @@ class ExportServiceV2:
         if end_date:
             stmt = stmt.filter(Response.timestamp <= end_date)
 
+        result = await db.execute(stmt.order_by(Response.timestamp.desc()))
         stmt = stmt.order_by(Response.timestamp.desc())
         result = await db.execute(stmt)
         responses = result.scalars().all()
@@ -826,6 +855,7 @@ class ExportServiceV2:
         options: Dict[str, Any],
         timestamp: datetime
     ):
+        """Record export in database for audit trail (Async)."""
         """Record export in database."""
         try:
             date_range = options.get('date_range', {})
@@ -853,6 +883,14 @@ class ExportServiceV2:
 
     @classmethod
     async def get_export_history(cls, db: AsyncSession, user: User, limit: int = 50) -> List[Dict[str, Any]]:
+        """
+        Get export history for a user (Async).
+        """
+        stmt = select(ExportRecord).filter(
+            ExportRecord.user_id == user.id
+        ).order_by(
+            ExportRecord.created_at.desc()
+        ).limit(limit)
         """Get export history for a user."""
         stmt = select(ExportRecord).filter(
             ExportRecord.user_id == user.id
@@ -875,6 +913,9 @@ class ExportServiceV2:
 
     @classmethod
     async def delete_export(cls, db: AsyncSession, user: User, export_id: str) -> bool:
+        """
+        Delete an export file and its record (Async).
+        """
         """Delete an export file and its record."""
         stmt = select(ExportRecord).filter(
             ExportRecord.export_id == export_id,
@@ -896,6 +937,7 @@ class ExportServiceV2:
         except Exception as e:
             logger.error(f"Failed to delete export file: {e}")
 
+        # Delete database record
         await db.delete(export)
         await db.commit()
 
@@ -912,6 +954,7 @@ class ExportServiceV2:
 
     @classmethod
     async def cleanup_old_exports(cls, db: AsyncSession, max_age_hours: int = 48):
+        """Delete export files older than max_age_hours (Async)."""
         """Delete export files older than max_age_hours."""
         try:
             if not cls.EXPORT_DIR.exists():
@@ -929,6 +972,8 @@ class ExportServiceV2:
                     except Exception as e:
                         logger.warning(f"Failed to delete {p.name}: {e}")
 
+            # Mark database records as expired
+            from sqlalchemy import update
             stmt = update(ExportRecord).filter(
                 ExportRecord.expires_at < cutoff,
                 ExportRecord.status == 'completed'

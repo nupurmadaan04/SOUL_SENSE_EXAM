@@ -3,6 +3,7 @@ import secrets
 import logging
 from datetime import datetime, timedelta, UTC
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, desc
 from sqlalchemy import select, delete
 from ..models import OTP, User
 from typing import Optional
@@ -11,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 class OTPManager:
     """
-    Manages generation, storage, and verification of One-Time Passwords.
+    Manages generation, storage, and verification of One-Time Passwords (Async).
     Implements rate limiting, secure hashing, expiry, and attempt locking.
     """
 
@@ -28,6 +29,7 @@ class OTPManager:
     @classmethod
     async def generate_otp(cls, user_id: int, purpose: str, db_session: AsyncSession) -> tuple[Optional[str], Optional[str]]:
         """
+        Generate a new OTP for a user (Async).
         Generate a new OTP for a user.
         """
         try:
@@ -35,12 +37,19 @@ class OTPManager:
             stmt = select(OTP).filter(
                 OTP.user_id == user_id,
                 OTP.type == purpose
+            ).order_by(desc(OTP.created_at)).limit(1)
             ).order_by(OTP.created_at.desc())
             
             result = await db_session.execute(stmt)
             last_otp = result.scalar_one_or_none()
 
             if last_otp:
+                # Ensure last_otp.created_at is UTC aware if it's naive
+                created_at = last_otp.created_at
+                if created_at.tzinfo is None:
+                    created_at = created_at.replace(tzinfo=UTC)
+                    
+                time_since = datetime.now(UTC) - created_at
                 # Ensure created_at has timezone
                 last_created = last_otp.created_at
                 if last_created.tzinfo is None:
@@ -48,7 +57,8 @@ class OTPManager:
                     
                 time_since = datetime.now(UTC) - last_created
                 if time_since.total_seconds() < cls.RATE_LIMIT_SECONDS:
-                    return None, f"Please wait {cls.RATE_LIMIT_SECONDS - int(time_since.total_seconds())}s before requesting a new code."
+                    wait_time = cls.RATE_LIMIT_SECONDS - int(time_since.total_seconds())
+                    return None, f"Please wait {wait_time}s before requesting a new code."
 
             # 2. Generate Secure Code
             digits = "0123456789"
@@ -80,6 +90,7 @@ class OTPManager:
     @classmethod
     async def verify_otp(cls, user_id: int, code: str, purpose: str, db_session: AsyncSession) -> tuple[bool, str]:
         """
+        Verify an OTP code (Async).
         Verify an OTP code.
         """
         try:
@@ -91,6 +102,7 @@ class OTPManager:
                 OTP.type == purpose,
                 OTP.is_used == False,
                 OTP.expires_at > datetime.now(UTC)
+            ).order_by(desc(OTP.created_at)).limit(1)
             ).order_by(OTP.created_at.desc())
             
             result = await db_session.execute(stmt)
@@ -100,19 +112,16 @@ class OTPManager:
                 logger.info(f"OTP verification failed: No valid code found for user {user_id}")
                 return False, "Invalid or expired code."
 
-            # Check if already locked
             if otp.is_locked:
                 logger.warning(f"OTP verification blocked: OTP is locked for user {user_id}")
                 return False, "Too many failed attempts. Please request a new code."
 
-            # Check attempts and lock if needed
             if otp.attempts >= cls.MAX_VERIFY_ATTEMPTS:
                 otp.is_locked = True
                 await db_session.commit()
                 logger.warning(f"OTP verification blocked: Max attempts exceeded for user {user_id}")
                 return False, "Too many failed attempts. Please request a new code."
 
-            # Verify Hash
             if otp.code_hash == input_hash:
                 otp.is_used = True
                 await db_session.commit()
@@ -120,7 +129,6 @@ class OTPManager:
                 return True, "Verification successful."
             else:
                 otp.attempts += 1
-                # Lock if this was the last attempt
                 if otp.attempts >= cls.MAX_VERIFY_ATTEMPTS:
                     otp.is_locked = True
                     await db_session.commit()
@@ -135,4 +143,5 @@ class OTPManager:
         except Exception as e:
             await db_session.rollback()
             logger.error(f"Error validating OTP: {e}")
+            return False, "Verification failed due to an error."
             return False, "Verification failed due to an error."

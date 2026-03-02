@@ -6,7 +6,7 @@ import asyncio
 from typing import Optional, Any, List
 import redis
 from redlock import Redlock
-from backend.fastapi.api.config import get_settings_instance
+from ..config import get_settings_instance
 
 logger = logging.getLogger(__name__)
 

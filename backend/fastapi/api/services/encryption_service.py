@@ -1,18 +1,16 @@
 import base64
 import os
-import contextvars
 from typing import Optional
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-from sqlalchemy.types import TypeDecorator, Text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 import logging
 
-logger = logging.getLogger(__name__)
+# Re-export context variables for backward compatibility
+# These are now defined in encrypted_type.py to break circular imports (Issue #1190)
+from ..utils.encrypted_type import current_dek, current_user_id
 
-# Context variables to hold current user's DEK and ID globally for the current async task
-current_dek = contextvars.ContextVar('current_dek', default=None)
-current_user_id = contextvars.ContextVar('current_user_id', default=None)
+logger = logging.getLogger(__name__)
 
 # In production, this MUST come from a secure vault (KMS / HashiCorp Vault)
 MASTER_KEY_STR = os.getenv("ENCRYPTION_MASTER_KEY", "b33945de21b7ebd25e171542fba861f22e70eade98aa80ce79015c7ee2f27bf2")
@@ -100,39 +98,8 @@ class EncryptionService:
         await db.commit()
         return dek
 
-class EncryptedString(TypeDecorator):
-    """
-    Custom SQLAlchemy TypeDecorator (#1105).
-    Transparently handles AEAD encryption on write and decryption on read.
-    Requires `current_dek` ContextVar to be set by Auth Middleware.
-    """
-    impl = Text
-    cache_ok = True
 
-    def process_bind_param(self, value, dialect):
-        if value is None:
-            return value
-            
-        dek = current_dek.get()
-        if not dek:
-            logger.warning("No User DEK found in ContextVar. Aborting encryption.")
-            raise ValueError("Application-level encryption requires active User DEK context.")
-            
-        if isinstance(value, str) and value.startswith("ENC:"):
-            return value
-            
-        return EncryptionService.encrypt_data(str(value), dek)
-
-    def process_result_value(self, value, dialect):
-        if value is None:
-            return value
-            
-        if not value.startswith("ENC:"):
-            return value
-            
-        dek = current_dek.get()
-        if not dek:
-            # Mask data to prevent plaintext leakage in insecure contexts
-            return "<ENCRYPTED_DATA: DEK Context Required>"
-            
-        return EncryptionService.decrypt_data(value, dek)
+# EncryptedString class has been moved to ../utils/encrypted_type.py
+# to avoid circular import deadlock (Issue #1190).
+# Re-export for backward compatibility
+from ..utils.encrypted_type import EncryptedString  # noqa: F401, E402

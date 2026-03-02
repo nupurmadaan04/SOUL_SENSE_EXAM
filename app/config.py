@@ -174,10 +174,26 @@ if not DATABASE_URL:
         # Check if backend directory exists before trying to import
         if os.path.exists(os.path.join(BASE_DIR, "backend")):
             from backend.fastapi.api.config import get_settings_instance
-            DATABASE_URL = get_settings_instance().database_url
-            logging.info(f"Using DATABASE_URL from backend config: {DATABASE_URL}")
+            settings = get_settings_instance()
+            DATABASE_URL = settings.database_url
+            DB_POOL_SIZE = settings.database_pool_size
+            DB_MAX_OVERFLOW = settings.database_max_overflow
+            DB_POOL_TIMEOUT = settings.database_pool_timeout
+            DB_POOL_RECYCLE = settings.database_pool_recycle
+            DB_POOL_PRE_PING = settings.database_pool_pre_ping
+            DB_STATEMENT_TIMEOUT = settings.database_statement_timeout
+            logging.info(f"Using database settings from backend config (URL: {DATABASE_URL})")
     except (ImportError, Exception) as e:
         logging.debug(f"Could not import backend config: {e}")
+
+# Default values if not set by backend
+if 'DB_POOL_SIZE' not in locals():
+    DB_POOL_SIZE = get_env_var("DB_POOL_SIZE", 20, int)
+    DB_MAX_OVERFLOW = get_env_var("DB_MAX_OVERFLOW", 10, int)
+    DB_POOL_TIMEOUT = get_env_var("DB_POOL_TIMEOUT", 30, int)
+    DB_POOL_RECYCLE = get_env_var("DB_POOL_RECYCLE", 1800, int)
+    DB_POOL_PRE_PING = get_env_var("DB_POOL_PRE_PING", True, bool)
+    DB_STATEMENT_TIMEOUT = get_env_var("DB_STATEMENT_TIMEOUT", 30000, int)
 
 if not DATABASE_URL:
     # Fallback to legacy local configuration if shared sources unavailable

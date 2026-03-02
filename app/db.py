@@ -10,25 +10,43 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.pool import StaticPool
 
-from app.config import DATABASE_URL, DB_PATH, BASE_DIR
+from app.config import (
+    DATABASE_URL, DB_PATH, BASE_DIR, 
+    DB_POOL_SIZE, DB_MAX_OVERFLOW, DB_POOL_TIMEOUT, 
+    DB_POOL_RECYCLE, DB_POOL_PRE_PING, DB_STATEMENT_TIMEOUT
+)
 from app.exceptions import DatabaseError
 
 # Configure logger
 logger = logging.getLogger(__name__)
 
 # Secure database connection with connection pooling
-# Updated to handle potential async/sync driver differences if needed
-# though standard URL should work for both FastAPI and Desktop SQLAlchemy
-engine = create_engine(
-    DATABASE_URL, 
-    echo=False,
-    # StaticPool is usually for in-memory SQLite, but kept for thread safety if using file-based SQLite
-    # For Postgres, we might want a different pool class
-    poolclass=StaticPool if DATABASE_URL.startswith("sqlite") else None,
-    # Standard SQLite args should be ignored by other dialects
-    connect_args={"check_same_thread": False, "timeout": 20} if DATABASE_URL.startswith("sqlite") else {},
-    pool_pre_ping=True
-)
+connect_args = {}
+if DATABASE_URL.startswith("sqlite"):
+    connect_args["check_same_thread"] = False
+    connect_args["timeout"] = DB_POOL_TIMEOUT
+elif "postgresql" in DATABASE_URL:
+    connect_args["options"] = f"-c statement_timeout={DB_STATEMENT_TIMEOUT}"
+
+engine_args = {
+    "connect_args": connect_args,
+    "pool_pre_ping": DB_POOL_PRE_PING,
+    "echo": False
+}
+
+if DATABASE_URL.startswith("sqlite"):
+    # For SQLite, use StaticPool for consistency and thread-safety
+    engine_args["poolclass"] = StaticPool
+else:
+    # Production pooling for other DB types
+    engine_args.update({
+        "pool_size": DB_POOL_SIZE,
+        "max_overflow": DB_MAX_OVERFLOW,
+        "pool_timeout": DB_POOL_TIMEOUT,
+        "pool_recycle": DB_POOL_RECYCLE,
+    })
+
+engine = create_engine(DATABASE_URL, **engine_args)
 SessionLocal = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
 
 def get_engine() -> Engine:

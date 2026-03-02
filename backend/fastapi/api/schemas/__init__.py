@@ -113,6 +113,33 @@ class TwoFactorConfirmRequest(BaseModel):
     code: str = Field(..., min_length=6, max_length=6)
 
 
+class StepUpAuthRequest(BaseModel):
+    """Schema for requesting step-up authentication for privileged actions."""
+    purpose: str = Field(..., description="Purpose of the privileged action (e.g., 'delete_account', 'admin_action')")
+    action_description: Optional[str] = Field(None, description="Human-readable description of the action")
+
+
+class StepUpAuthResponse(BaseModel):
+    """Response when step-up authentication is initiated."""
+    message: str = "Step-up Authentication Required"
+    step_up_token: str
+    expires_in_seconds: int
+    purpose: str
+
+
+class StepUpAuthVerifyRequest(BaseModel):
+    """Schema for verifying step-up authentication."""
+    step_up_token: str = Field(..., description="Step-up token from initiation")
+    code: str = Field(..., min_length=6, max_length=6, description="6-digit OTP code")
+
+
+class StepUpAuthVerifyResponse(BaseModel):
+    """Response when step-up authentication is verified."""
+    message: str = "Step-up Authentication Successful"
+    verified: bool = True
+    expires_at: str
+
+
 class PasswordResetRequest(BaseModel):
     """Schema for requesting a password reset."""
     email: EmailStr = Field(..., description="User's registered email")
@@ -184,11 +211,19 @@ class CaptchaResponse(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    """Schema for login request with CAPTCHA."""
+    """Schema for login request with CAPTCHA and device fingerprinting."""
     identifier: str = Field(..., description="Username or email")
     password: str = Field(..., description="User password")
     captcha_input: str = Field(..., description="User's CAPTCHA input")
     session_id: str = Field(..., description="Session ID from CAPTCHA generation")
+
+    # Device fingerprinting fields (#1230)
+    device_screen_resolution: Optional[str] = Field(None, description="Screen resolution (e.g., '1920x1080')")
+    device_timezone_offset: Optional[int] = Field(None, description="Timezone offset in minutes from UTC")
+    device_platform: Optional[str] = Field(None, description="Device platform/OS")
+    device_plugins_hash: Optional[str] = Field(None, description="Hash of installed browser plugins")
+    device_canvas_fingerprint: Optional[str] = Field(None, description="Canvas rendering fingerprint")
+    device_webgl_fingerprint: Optional[str] = Field(None, description="WebGL rendering fingerprint")
 
 
 class TokenData(BaseModel):

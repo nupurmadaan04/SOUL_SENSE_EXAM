@@ -94,6 +94,9 @@ jobs:
 
           pytest -c pytest.ini tests/unit/
 
+          echo "Validating security headers..."
+          python ../../../scripts/validate_security_headers.py --url http://127.0.0.1:8000 --quiet
+
           echo "Running OWASP ZAP baseline scan..."
           docker run --rm -v $(pwd)/../..:/zap/wrk -t zaproxy/zap-baseline:latest -t http://host.docker.internal:8000 -r zap_report.html --alert-level Medium -z "-config rules.file=/zap/wrk/.zap/rules.tsv"
         working-directory: ./backend/fastapi

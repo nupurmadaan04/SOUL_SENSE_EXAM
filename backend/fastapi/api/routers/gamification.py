@@ -32,6 +32,8 @@ async def get_my_achievements(
     db: AsyncSession = Depends(get_db)
 ):
     """Get all achievements and user's progress on them."""
+    # This would normally join Achievement and UserAchievement
+    # For now, let's return a basic list
     summary = await GamificationService.get_user_summary(db, current_user.id)
     return summary["recent_achievements"]
 
@@ -72,6 +74,7 @@ async def get_challenges(
 async def seed_achievements(
     db: AsyncSession = Depends(get_db)
 ):
+    """Seed initial achievements (Admin only in production)."""
     """Seed initial achievements."""
     await GamificationService.seed_initial_achievements(db)
     return {"message": "Achievements seeded"}

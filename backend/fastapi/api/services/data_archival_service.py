@@ -13,7 +13,7 @@ try:
 except ImportError:
     pyzipper = None
 
-from .export_service_v2 import ExportServiceV2
+from .storage_service import get_storage_service
 from ..models import (
     User, ExportRecord, Score, JournalEntry, UserSettings,
     PersonalProfile, MedicalProfile, UserStrengths,
@@ -155,6 +155,76 @@ class DataArchivalService:
         await db.commit()
 
         return filepath, export_id
+
+    @staticmethod
+    async def archive_stale_journals(db: AsyncSession) -> int:
+        """
+        Archives stale journals to cold storage.
+        Moves content older than archival_threshold_years to S3 and sets archive_pointer.
+        Returns the number of entries archived.
+        """
+        from ..config import get_settings_instance
+        settings = get_settings_instance()
+        storage = get_storage_service()
+
+        # Calculate threshold date
+        threshold_date = datetime.now(UTC) - timedelta(days=settings.archival_threshold_years * 365)
+
+        # Find stale entries that haven't been archived yet
+        stmt = select(JournalEntry).where(
+            JournalEntry.timestamp <= threshold_date,
+            JournalEntry.content.isnot(None),  # Has content
+            JournalEntry.archive_pointer.is_(None),  # Not already archived
+            JournalEntry.is_deleted == False
+        )
+        result = await db.execute(stmt)
+        stale_entries = result.scalars().all()
+
+        archived_count = 0
+        for entry in stale_entries:
+            try:
+                # Generate S3 key
+                import uuid
+                s3_key = f"journals/{entry.user_id}/{entry.id}_{uuid.uuid4().hex[:8]}.json"
+
+                # Prepare content for storage
+                content_data = {
+                    "id": entry.id,
+                    "user_id": entry.user_id,
+                    "username": entry.username,
+                    "title": entry.title,
+                    "content": entry.content,
+                    "timestamp": entry.timestamp,
+                    "is_deleted": entry.is_deleted,
+                    "tags": entry.tags,
+                    "sentiment_score": entry.sentiment_score,
+                    "emotional_patterns": entry.emotional_patterns,
+                    "embedding": entry.embedding,
+                    "archived_at": datetime.now(UTC).isoformat()
+                }
+                content_json = json.dumps(content_data, ensure_ascii=False, default=str)
+
+                # Store in cold storage
+                archive_uri = await storage.store_content(content_json, s3_key)
+                if archive_uri:
+                    # Update database: clear content and set archive pointer
+                    entry.content = None
+                    entry.archive_pointer = archive_uri
+                    logger.info(f"Archived journal {entry.id} to {archive_uri}")
+                    archived_count += 1
+                else:
+                    logger.error(f"Failed to archive journal {entry.id} to cold storage")
+
+            except Exception as e:
+                logger.error(f"Error archiving journal {entry.id}: {e}")
+                continue
+
+        # Commit all changes
+        if archived_count > 0:
+            await db.commit()
+
+        logger.info(f"Archived {archived_count} stale journals to cold storage")
+        return archived_count
 
     @staticmethod
     async def initiate_secure_purge(db: AsyncSession, user: User) -> datetime:

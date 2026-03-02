@@ -73,4 +73,8 @@ celery_app.conf.beat_schedule = {
         'task': 'api.celery_tasks.morning_prewarming_orchestrator',
         'schedule': 900.0, # Execute every 15 minutes to catch time zone windows
     },
+    'secrets-compliance-check-daily': {
+        'task': 'api.celery_tasks.check_secrets_age_compliance',
+        'schedule': crontab(hour=2, minute=0), # Execute daily at 2:00 AM UTC
+    },
 }
