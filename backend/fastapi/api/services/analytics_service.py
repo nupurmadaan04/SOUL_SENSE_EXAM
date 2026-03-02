@@ -594,6 +594,32 @@ class AnalyticsService:
         db.commit()
 
     @staticmethod
+    async def check_analytics_consent_async(db: AsyncSession, anonymous_id: str) -> Dict[str, Any]:
+        """Async variant of analytics consent validation for async middleware/routes."""
+        from ..models import UserConsent
+
+        stmt = select(UserConsent).filter(
+            UserConsent.anonymous_id == anonymous_id,
+            UserConsent.consent_type == 'analytics',
+            UserConsent.consent_granted == True
+        ).limit(1)
+        result = await db.execute(stmt)
+        consent = result.scalar_one_or_none()
+
+        if consent:
+            return {
+                'analytics_consent_given': True,
+                'consent_version': consent.consent_version,
+                'last_updated': consent.updated_at.isoformat() if consent.updated_at else None
+            }
+
+        return {
+            'analytics_consent_given': False,
+            'consent_version': None,
+            'last_updated': None
+        }
+
+    @staticmethod
     def check_analytics_consent(db: Session, anonymous_id: str) -> Dict[str, Any]:
         """
         Check if user has consented to analytics tracking.

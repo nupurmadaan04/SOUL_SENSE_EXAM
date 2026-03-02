@@ -84,14 +84,25 @@ class DataArchivalService:
                     tmp_pdf_path = tmp_pdf.name
                 
                 try:
-                    ExportServiceV2._write_pdf(tmp_pdf_path, data, user)
-                    with open(tmp_pdf_path, 'rb') as pdf_f:
-                        zf.writestr(f"{user.username}_report.pdf", pdf_f.read())
+                    # _write_pdf is synchronous/CPU-bound; run in executor to avoid blocking
+                    import asyncio as _asyncio
+
+                    def _read_bytes(path: str) -> bytes:
+                        with open(path, 'rb') as pf:
+                            return pf.read()
+
+                    _loop = _asyncio.get_running_loop()
+                    await _loop.run_in_executor(None, ExportServiceV2._write_pdf, tmp_pdf_path, data, user)
+                    pdf_bytes = await _loop.run_in_executor(None, _read_bytes, tmp_pdf_path)
+                    zf.writestr(f"{user.username}_report.pdf", pdf_bytes)
                 except Exception as e:
                     logger.error(f"Failed to include PDF in archive: {e}")
                 finally:
-                    if os.path.exists(tmp_pdf_path):
-                        os.remove(tmp_pdf_path)
+                    try:
+                        if os.path.exists(tmp_pdf_path):
+                            os.remove(tmp_pdf_path)
+                    except Exception:
+                        logger.exception("Failed to remove temporary PDF file")
 
             # --- Add CSV Bundle ---
             if include_csv:
@@ -115,9 +126,15 @@ class DataArchivalService:
                     elif isinstance(value, dict):
                         _add_csv(f'{key}.csv', [value])
 
-        # Write to disk
-        with open(filepath, 'wb') as f:
-            f.write(zip_buffer.getvalue())
+        # Write to disk without blocking the event loop
+        import asyncio as _asyncio
+
+        def _write_bytes(path: str, data: bytes):
+            with open(path, 'wb') as f:
+                f.write(data)
+
+        _loop = _asyncio.get_running_loop()
+        await _loop.run_in_executor(None, _write_bytes, filepath, zip_buffer.getvalue())
 
         # 4. Record Export in DB
         record = ExportRecord(

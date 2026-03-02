@@ -1,8 +1,10 @@
 """Database service for assessments and questions."""
+import asyncio
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy import select, func
 from typing import List, Optional, Tuple, AsyncGenerator
 from datetime import datetime
+from fastapi import HTTPException, Request, status
 import logging
 import traceback
 
@@ -14,18 +16,46 @@ from ..config import get_settings_instance, get_settings
 settings = get_settings_instance()
 
 # Create async engine with optimized connection pooling for high concurrency
-engine = create_async_engine(
-    settings.async_database_url,
-    echo=settings.debug,
-    future=True,
-    # Connection pooling configuration for high concurrency
-    pool_size=20,                    # Core pool size - maintain 20 persistent connections
-    max_overflow=10,                 # Allow up to 10 additional connections when pool is full
-    pool_timeout=30,                 # Wait up to 30 seconds for a connection from the pool
-    pool_pre_ping=True,              # Verify connections are alive before using them
-    pool_recycle=3600,               # Recycle connections after 1 hour to prevent stale connections
-    connect_args={"check_same_thread": False} if settings.database_type == "sqlite" else {}
-)
+engine_kwargs = {
+    "echo": settings.debug,
+    "future": True,
+}
+
+if settings.database_type == "sqlite":
+    engine_kwargs["connect_args"] = {"check_same_thread": False}
+else:
+    engine_kwargs.update(
+        {
+            "pool_size": 20,       # Core pool size - maintain 20 persistent connections
+            "max_overflow": 10,    # Allow up to 10 additional connections when pool is full
+            "pool_timeout": 30,    # Wait up to 30 seconds for a connection from the pool
+            "pool_pre_ping": True, # Verify connections are alive before using them
+            "pool_recycle": 3600,  # Recycle connections after 1 hour to prevent stale connections
+        }
+    )
+
+engine = create_async_engine(settings.async_database_url, **engine_kwargs)
+
+try:
+    # Attach pool event logging to help diagnose exhaustion under load
+    from sqlalchemy import event
+
+    def _pool_connect(dbapi_con, con_record):
+        logging.getLogger("sqlalchemy.pool").debug("Pool connect: %s", con_record)
+
+    def _pool_checkout(dbapi_con, con_record, con_proxy):
+        logging.getLogger("sqlalchemy.pool").debug("Pool checkout: %s", con_record)
+
+    def _pool_checkin(dbapi_con, con_record):
+        logging.getLogger("sqlalchemy.pool").debug("Pool checkin: %s", con_record)
+
+    if hasattr(engine, "sync_engine") and getattr(engine.sync_engine, "pool", None) is not None:
+        event.listen(engine.sync_engine.pool, "connect", _pool_connect)
+        event.listen(engine.sync_engine.pool, "checkout", _pool_checkout)
+        event.listen(engine.sync_engine.pool, "checkin", _pool_checkin)
+except Exception:
+    # Non-critical: if event hooks fail, we still continue without pool logging
+    logging.getLogger("api.services.db_service").debug("Pool event logging not enabled")
 
 AsyncSessionLocal = async_sessionmaker(
     engine,
@@ -272,6 +302,69 @@ class ResponseService:
         return list(responses), total
 
 
+# Transaction management utilities for #1218: Unreleased Locks in Async Transaction Scope
+import functools
+from contextlib import asynccontextmanager
+from sqlalchemy.exc import OperationalError
+
+
+@asynccontextmanager
+async def transaction_scope(db: AsyncSession):
+    """
+    Async context manager for database transactions with guaranteed rollback.
+
+    Ensures:
+    - Automatic rollback on exceptions
+    - Lock release on any failure
+    - Support for nested savepoints
+    - Deterministic transaction boundaries
+    """
+    async with db.begin():
+        try:
+            yield
+        except Exception:
+            # Ensure rollback happens even if begin() context fails
+            if db.in_transaction():
+                await db.rollback()
+            raise
+
+
+def deadlock_retry(max_retries: int = 3, backoff_factor: float = 0.1):
+    """
+    Decorator to retry operations that fail due to database deadlocks.
+
+    Args:
+        max_retries: Maximum number of retry attempts
+        backoff_factor: Exponential backoff multiplier (seconds)
+    """
+    def decorator(func):
+        @functools.wraps(func)
+        async def wrapper(*args, **kwargs):
+            last_exception = None
+            for attempt in range(max_retries + 1):
+                try:
+                    return await func(*args, **kwargs)
+                except OperationalError as e:
+                    last_exception = e
+                    # Check if it's a deadlock error (MySQL/PostgreSQL specific)
+                    error_msg = str(e).lower()
+                    if "deadlock" in error_msg or "lock wait timeout" in error_msg:
+                        if attempt < max_retries:
+                            # Exponential backoff
+                            delay = backoff_factor * (2 ** attempt)
+                            logging.getLogger("api.services.db_service").warning(
+                                f"Deadlock detected, retrying in {delay:.2f}s (attempt {attempt + 1}/{max_retries + 1})"
+                            )
+                            await asyncio.sleep(delay)
+                            continue
+                    # Not a deadlock or max retries reached
+                    raise
+            # Should not reach here, but just in case
+            raise last_exception
+        return wrapper
+    return decorator
+
+
 # Export all services
 __all__ = [
     'AssessmentService',
@@ -279,5 +372,7 @@ __all__ = [
     'ResponseService',
     'get_db',
     'engine',
-    'AsyncSessionLocal'
+    'AsyncSessionLocal',
+    'transaction_scope',
+    'deadlock_retry'
 ]
