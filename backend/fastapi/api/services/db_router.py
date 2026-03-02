@@ -17,12 +17,13 @@ old `api.services.db_service.get_db`.
 """
 
 import logging
+import asyncio
 from datetime import timedelta
 from typing import AsyncGenerator, Optional
 
 import redis.asyncio as redis
 from jose import jwt, JWTError
-from fastapi import Request
+from fastapi import HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy import text
 
@@ -35,18 +36,30 @@ log = logging.getLogger(__name__)
 # ------------------------------------------------------------------
 settings = get_settings_instance()
 
+# Engine kwargs helper: SQLite does not accept queue pool arguments
+def _build_engine_kwargs() -> dict:
+    kwargs = {
+        "echo": settings.debug,
+        "future": True,
+    }
+    if settings.database_type == "sqlite":
+        kwargs["connect_args"] = {"check_same_thread": False}
+    else:
+        kwargs.update(
+            {
+                "pool_size": 20,
+                "max_overflow": 10,
+                "pool_timeout": 30,
+                "pool_pre_ping": True,
+                "pool_recycle": 3600,
+            }
+        )
+    return kwargs
+
 # Primary (write) engine – always present with optimized connection pooling
 _primary_engine = create_async_engine(
     settings.async_database_url,
-    echo=settings.debug,
-    future=True,
-    # Connection pooling configuration for high concurrency
-    pool_size=20,                    # Core pool size - maintain 20 persistent connections
-    max_overflow=10,                 # Allow up to 10 additional connections when pool is full
-    pool_timeout=30,                 # Wait up to 30 seconds for a connection from the pool
-    pool_pre_ping=True,              # Verify connections are alive before using them
-    pool_recycle=3600,               # Recycle connections after 1 hour to prevent stale connections
-    connect_args={"check_same_thread": False} if settings.database_type == "sqlite" else {},
+    **_build_engine_kwargs(),
 )
 PrimarySessionLocal = async_sessionmaker(
     _primary_engine,
@@ -58,17 +71,17 @@ PrimarySessionLocal = async_sessionmaker(
 # Replica (read) engine – optional with optimized connection pooling
 _ReplicaSessionLocal: Optional[async_sessionmaker] = None
 if settings.async_replica_database_url:
+    replica_kwargs = _build_engine_kwargs()
+    if settings.database_type != "sqlite":
+        replica_kwargs.update(
+            {
+                "pool_size": 30,
+                "max_overflow": 15,
+            }
+        )
     _replica_engine = create_async_engine(
         settings.async_replica_database_url,
-        echo=settings.debug,
-        future=True,
-        # Connection pooling configuration for high concurrency (read-heavy)
-        pool_size=30,                    # Larger pool for read operations
-        max_overflow=15,                 # More overflow connections for reads
-        pool_timeout=30,                 # Same timeout as primary
-        pool_pre_ping=True,              # Verify connections are alive
-        pool_recycle=3600,               # Same recycle time
-        connect_args={"check_same_thread": False} if settings.database_type == "sqlite" else {},
+        **replica_kwargs,
     )
     _ReplicaSessionLocal = async_sessionmaker(
         _replica_engine,
@@ -79,6 +92,30 @@ if settings.async_replica_database_url:
     log.info("Read‑replica engine initialised with optimized connection pooling.")
 else:
     log.warning("No replica_database_url configured – all reads will hit primary.")
+
+try:
+    from sqlalchemy import event
+
+    def _pool_connect(dbapi_con, con_record):
+        log.debug("Pool connect: %s", con_record)
+
+    def _pool_checkout(dbapi_con, con_record, con_proxy):
+        log.debug("Pool checkout: %s", con_record)
+
+    def _pool_checkin(dbapi_con, con_record):
+        log.debug("Pool checkin: %s", con_record)
+
+    if hasattr(_primary_engine, "sync_engine") and getattr(_primary_engine.sync_engine, "pool", None) is not None:
+        event.listen(_primary_engine.sync_engine.pool, "connect", _pool_connect)
+        event.listen(_primary_engine.sync_engine.pool, "checkout", _pool_checkout)
+        event.listen(_primary_engine.sync_engine.pool, "checkin", _pool_checkin)
+
+    if _ReplicaSessionLocal and hasattr(_replica_engine, "sync_engine") and getattr(_replica_engine.sync_engine, "pool", None) is not None:
+        event.listen(_replica_engine.sync_engine.pool, "connect", _pool_connect)
+        event.listen(_replica_engine.sync_engine.pool, "checkout", _pool_checkout)
+        event.listen(_replica_engine.sync_engine.pool, "checkin", _pool_checkin)
+except Exception:
+    log.debug("Replica/Primary pool event logging not enabled")
 
 # ------------------------------------------------------------------
 # 2️⃣ Redis helper – recent‑write guard
@@ -132,6 +169,11 @@ async def get_db(request: Request) -> AsyncGenerator[AsyncSession, None]:
         async def my_endpoint(..., db: AsyncSession = Depends(get_db)):
             ...
     """
+    existing_session = getattr(request.state, "db_session", None)
+    if existing_session is not None:
+        yield existing_session
+        return
+
     use_primary = request.method.upper() in {"POST", "PUT", "PATCH", "DELETE"}
     extracted_tenant_id = None
     extracted_username = None
@@ -155,7 +197,10 @@ async def get_db(request: Request) -> AsyncGenerator[AsyncSession, None]:
 
     SessionMaker = PrimarySessionLocal if use_primary else (_ReplicaSessionLocal or PrimarySessionLocal)
 
+    timeout_seconds = int(getattr(settings, "db_request_timeout_seconds", 30))
+
     async with SessionMaker() as db:
+        request.state.db_session = db
         if extracted_tenant_id and settings.database_type == "postgresql":
             try:
                 await db.execute(text("SET app.tenant_id = :tid"), {"tid": str(extracted_tenant_id)})
@@ -163,8 +208,20 @@ async def get_db(request: Request) -> AsyncGenerator[AsyncSession, None]:
                 log.warning(f"Failed to set tenant_id handle RLS: {e}")
 
         try:
-            yield db
+            async with asyncio.timeout(timeout_seconds):
+                yield db
+        except TimeoutError as exc:
+            await db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+                detail="Database operation timed out",
+            ) from exc
+        except Exception:
+            await db.rollback()
+            raise
         finally:
+            if getattr(request.state, "db_session", None) is db:
+                delattr(request.state, "db_session")
             await db.close()
 
 # ------------------------------------------------------------------

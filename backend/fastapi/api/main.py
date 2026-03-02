@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Request
 import asyncio
 import logging
+from concurrent.futures import ThreadPoolExecutor
 import uuid
 import time
 import traceback
@@ -19,6 +20,15 @@ from .utils.logging_config import setup_logging
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from .services.websocket_manager import manager as ws_manager
+
+# Initialize AsyncWorkerManager for memory-safe background workers (#1219)
+try:
+    from .services.worker_manager import AsyncWorkerManager
+    worker_manager = AsyncWorkerManager()
+    print("[OK] AsyncWorkerManager initialized for memory leak prevention")
+except Exception as e:
+    print(f"[WARNING] AsyncWorkerManager initialization failed: {e}")
+    worker_manager = None
 
 # Initialize centralized logging
 setup_logging()
@@ -62,6 +72,11 @@ async def lifespan(app: FastAPI):
     logger.info("LIFESPAN BOOT STARTED")
 
     app.state.settings = settings
+
+    # Configure bounded default executor to avoid unbounded thread growth
+    loop = asyncio.get_running_loop()
+    app.state.thread_pool_executor = ThreadPoolExecutor(max_workers=settings.thread_pool_max_workers)
+    loop.set_default_executor(app.state.thread_pool_executor)
 
     # Generate a unique instance ID for this server session
     # All JWTs will include this ID; tokens from previous instances are rejected
@@ -148,7 +163,7 @@ async def lifespan(app: FastAPI):
             print(f"[WARNING] WebSocket Manager Redis connect failed: {e}")
 
         
-        # Start background task for soft-delete cleanup
+        # Start background task for soft-delete cleanup with memory-safe worker management
         async def purge_task_loop():
             while True:
                 try:
@@ -163,13 +178,25 @@ async def lifespan(app: FastAPI):
                     logger = logging.getLogger("api.purge_task")
                     logger.error(f"Soft-delete cleanup task failed: {e}", exc_info=True)
                     # Continue the loop instead of crashing - the task will retry in 24 hours
-                
+
                 # Run once every 24 hours
                 await asyncio.sleep(24 * 3600)
-        
-        purge_task = asyncio.create_task(purge_task_loop())
-        app.state.purge_task = purge_task  # Store reference for cleanup
-        print("[OK] Soft-delete cleanup task scheduled (runs every 24h)")
+
+        if worker_manager:
+            # Register with AsyncWorkerManager for memory leak prevention
+            await worker_manager.register_worker(
+                name="soft_delete_purge",
+                worker_func=purge_task_loop,
+                restart_on_failure=True,
+                memory_threshold_mb=50.0,
+                cleanup_interval_seconds=3600
+            )
+            print("[OK] Soft-delete cleanup task registered with AsyncWorkerManager")
+        else:
+            # Fallback to direct task creation
+            purge_task = asyncio.create_task(purge_task_loop())
+            app.state.purge_task = purge_task  # Store reference for cleanup
+            print("[OK] Soft-delete cleanup task scheduled (runs every 24h)")
 
         # Kafka producer and Audit Consumer initialization (#1085)
         try:
@@ -193,23 +220,47 @@ async def lifespan(app: FastAPI):
             logger.warning(f"Kafka/Audit initialization failed: {e}")
             print(f"[WARNING] Event-sourced audit trail falling back to mock mode: {e}")
         
-        # Initialize Cache Invalidation Listener (#1123)
+        # Initialize Cache Invalidation Listener (#1123) with memory-safe worker management
         try:
             from .services.cache_service import cache_service
-            invalidation_task = asyncio.create_task(cache_service.start_invalidation_listener())
-            app.state.invalidation_task = invalidation_task
-            print("[OK] Distributed Cache Invalidation listener started via Redis Pub/Sub")
+            if worker_manager:
+                # Register with AsyncWorkerManager for memory leak prevention
+                await worker_manager.register_worker(
+                    name="cache_invalidation_listener",
+                    worker_func=cache_service.start_invalidation_listener,
+                    restart_on_failure=True,
+                    memory_threshold_mb=100.0,
+                    cleanup_interval_seconds=300
+                )
+                print("[OK] Distributed Cache Invalidation listener registered with AsyncWorkerManager")
+            else:
+                # Fallback to direct task creation
+                invalidation_task = asyncio.create_task(cache_service.start_invalidation_listener())
+                app.state.invalidation_task = invalidation_task
+                print("[OK] Distributed Cache Invalidation listener started via Redis Pub/Sub")
         except Exception as e:
             logger.warning(f"Failed to start cache invalidation listener: {e}")
             print(f"[WARNING] Distributed cache invalidation unavailable: {e}")
         
-        # Initialize Search Index Outbox Relay (#1146)
+        # Initialize Search Index Outbox Relay (#1146) with memory-safe worker management
         try:
             from .services.outbox_relay_service import OutboxRelayService
             from .services.db_service import AsyncSessionLocal
-            relay_task = asyncio.create_task(OutboxRelayService.start_relay_worker(AsyncSessionLocal))
-            app.state.outbox_relay_task = relay_task
-            print("[OK] Search Index Outbox Relay worker started")
+            if worker_manager:
+                # Register with AsyncWorkerManager for memory leak prevention
+                await worker_manager.register_worker(
+                    name="outbox_relay",
+                    worker_func=lambda: OutboxRelayService.start_relay_worker(AsyncSessionLocal),
+                    restart_on_failure=True,
+                    memory_threshold_mb=75.0,
+                    cleanup_interval_seconds=600
+                )
+                print("[OK] Search Index Outbox Relay worker registered with AsyncWorkerManager")
+            else:
+                # Fallback to direct task creation
+                relay_task = asyncio.create_task(OutboxRelayService.start_relay_worker(AsyncSessionLocal))
+                app.state.outbox_relay_task = relay_task
+                print("[OK] Search Index Outbox Relay worker started")
         except Exception as e:
             logger.warning(f"Failed to start Search Index Outbox Relay: {e}")
             print(f"[WARNING] Search indexing might drift without outbox relay: {e}")
@@ -226,6 +277,12 @@ async def lifespan(app: FastAPI):
     # SHUTDOWN LOGIC
     logger.info("LIFESPAN TEARDOWN STARTED")
 
+    # Stop AsyncWorkerManager and all registered workers (#1219)
+    if worker_manager:
+        logger.info("Shutting down AsyncWorkerManager and all background workers...")
+        await worker_manager.shutdown_all_workers()
+        logger.info("AsyncWorkerManager shutdown successfully")
+
     # Stop FD Resource Manager and Event Loop Health Monitor (#1183)
     if hasattr(app.state, 'fd_monitor'):
         logger.info("Shutting down FD Resource Manager and Event Loop Health Monitor...")
@@ -241,8 +298,8 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Clock skew monitoring shutdown failed: {e}")
     
-    # Cancel background tasks
-    if hasattr(app.state, 'purge_task'):
+    # Cancel background tasks (fallback for non-worker-manager tasks)
+    if hasattr(app.state, 'purge_task') and not worker_manager:
         logger.info("Cancelling background purge task...")
         app.state.purge_task.cancel()
         try:
@@ -250,7 +307,7 @@ async def lifespan(app: FastAPI):
         except asyncio.CancelledError:
             logger.info("Background purge task cancelled successfully")
             
-    if hasattr(app.state, 'invalidation_task'):
+    if hasattr(app.state, 'invalidation_task') and not worker_manager:
         logger.info("Cancelling distributed cache invalidation listener...")
         app.state.invalidation_task.cancel()
         try:
@@ -258,7 +315,10 @@ async def lifespan(app: FastAPI):
         except asyncio.CancelledError:
             logger.info("Cache invalidation listener cancelled successfully")
 
-    if hasattr(app.state, 'outbox_relay_task'):
+    if hasattr(app.state, 'thread_pool_executor'):
+        app.state.thread_pool_executor.shutdown(wait=False, cancel_futures=True)
+
+    if hasattr(app.state, 'outbox_relay_task') and not worker_manager:
         logger.info("Stopping Search Index Outbox Relay worker...")
         app.state.outbox_relay_task.cancel()
         try:
@@ -382,6 +442,10 @@ def create_app() -> FastAPI:
     # Provides: Request IDs, JSON logging, PII protection, X-Request-ID headers
     from .middleware.logging_middleware import RequestLoggingMiddleware
     app.add_middleware(RequestLoggingMiddleware)
+
+    # Session cleanup middleware: safety-net to close leaked DB sessions
+    from .middleware.session_middleware import SessionCleanupMiddleware
+    app.add_middleware(SessionCleanupMiddleware)
 
     # GZip compression middleware for response optimization
     app.add_middleware(GZipMiddleware, minimum_size=1000, compresslevel=6)
