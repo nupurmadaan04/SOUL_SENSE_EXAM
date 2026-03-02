@@ -14,7 +14,7 @@ import logging
 from ..utils.timestamps import normalize_utc_iso, utc_now, utc_now_iso
 
 try:
-    from ..services.encryption_service import EncryptedString
+    from ..utils.encrypted_type import EncryptedString
 except (ImportError, ValueError):
     EncryptedString = Text
 

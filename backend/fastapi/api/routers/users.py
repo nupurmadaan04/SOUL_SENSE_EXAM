@@ -28,6 +28,7 @@ from ..routers.auth import get_current_user, require_admin
 from ..services.db_service import get_db
 from ..models import User
 from app.core import NotFoundError, ValidationError, InternalServerError
+import aiofiles
 
 
 router = APIRouter(tags=["Users"])
@@ -293,8 +294,8 @@ async def upload_user_avatar(
     avatar_path = avatars_dir / avatar_filename
 
     try:
-        with open(avatar_path, "wb") as buffer:
-            buffer.write(content)
+        async with aiofiles.open(avatar_path, "wb") as buffer:
+            await buffer.write(content)
     except Exception as e:
         raise InternalServerError(
             message="Failed to save avatar file",

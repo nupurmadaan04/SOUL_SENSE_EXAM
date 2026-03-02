@@ -150,6 +150,25 @@ class ExamService:
                 session.status = 'IN_PROGRESS'
 
             # 3. Save the response
+            response = Response(
+                user_id=user.id,
+                question_id=data.question_id,
+                session_id=session_id,
+                response_text=data.response_text,
+                response_value=data.response_value,
+                timestamp=utc_now_iso()
+            )
+            db.add(response)
+            db.commit()
+            return response
+        except IntegrityError:
+            db.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Response already exists for this question"
+            )
+
+    @staticmethod
     async def save_response(db: AsyncSession, user: User, session_id: str, data: ExamResponseCreate):
         """Saves a single question response linked to the user and session."""
         try:
@@ -273,7 +292,6 @@ class ExamService:
                     logger.error(f"Encryption failed for reflection: {ce}")
 
             # ── ATOMIC WRITE ─────────────────────────────────────────────────
-            with transactional(db):
             # ── ATOMIC SCORE + GAMIFICATION WRITE ─────────────────────────────
             # All operations must succeed together to prevent inconsistent state
             async with db.begin():  # Use async transaction context manager
@@ -311,7 +329,6 @@ class ExamService:
                 await db.refresh(new_score)
             # ─────────────────────────────────────────────────────────────────
 
-            logger.info(f"Exam completed successfully", extra={
             logger.info(f"Exam score saved successfully", extra={
                 "user_id": user.id,
                 "session_id": session_id,
