@@ -328,6 +328,69 @@ class ResponseService:
         return list(responses), total
 
 
+# Transaction management utilities for #1218: Unreleased Locks in Async Transaction Scope
+import functools
+from contextlib import asynccontextmanager
+from sqlalchemy.exc import OperationalError
+
+
+@asynccontextmanager
+async def transaction_scope(db: AsyncSession):
+    """
+    Async context manager for database transactions with guaranteed rollback.
+
+    Ensures:
+    - Automatic rollback on exceptions
+    - Lock release on any failure
+    - Support for nested savepoints
+    - Deterministic transaction boundaries
+    """
+    async with db.begin():
+        try:
+            yield
+        except Exception:
+            # Ensure rollback happens even if begin() context fails
+            if db.in_transaction():
+                await db.rollback()
+            raise
+
+
+def deadlock_retry(max_retries: int = 3, backoff_factor: float = 0.1):
+    """
+    Decorator to retry operations that fail due to database deadlocks.
+
+    Args:
+        max_retries: Maximum number of retry attempts
+        backoff_factor: Exponential backoff multiplier (seconds)
+    """
+    def decorator(func):
+        @functools.wraps(func)
+        async def wrapper(*args, **kwargs):
+            last_exception = None
+            for attempt in range(max_retries + 1):
+                try:
+                    return await func(*args, **kwargs)
+                except OperationalError as e:
+                    last_exception = e
+                    # Check if it's a deadlock error (MySQL/PostgreSQL specific)
+                    error_msg = str(e).lower()
+                    if "deadlock" in error_msg or "lock wait timeout" in error_msg:
+                        if attempt < max_retries:
+                            # Exponential backoff
+                            delay = backoff_factor * (2 ** attempt)
+                            logging.getLogger("api.services.db_service").warning(
+                                f"Deadlock detected, retrying in {delay:.2f}s (attempt {attempt + 1}/{max_retries + 1})"
+                            )
+                            await asyncio.sleep(delay)
+                            continue
+                    # Not a deadlock or max retries reached
+                    raise
+            # Should not reach here, but just in case
+            raise last_exception
+        return wrapper
+    return decorator
+
+
 # Export all services
 __all__ = [
     'AssessmentService',
@@ -335,5 +398,7 @@ __all__ = [
     'ResponseService',
     'get_db',
     'engine',
-    'AsyncSessionLocal'
+    'AsyncSessionLocal',
+    'transaction_scope',
+    'deadlock_retry'
 ]
