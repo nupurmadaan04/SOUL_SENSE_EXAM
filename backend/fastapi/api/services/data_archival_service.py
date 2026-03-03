@@ -4,7 +4,7 @@ import json
 import logging
 import uuid
 from datetime import datetime, timedelta, UTC
-from typing import Dict, Any, Tuple
+from typing import Dict, Any, Tuple, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete
 
@@ -18,7 +18,7 @@ from ..models import (
     User, ExportRecord, Score, JournalEntry, UserSettings,
     PersonalProfile, MedicalProfile, UserStrengths,
     UserEmotionalPatterns, SatisfactionRecord,
-    AssessmentResult, Response, UserSession
+    AssessmentResult, Response, UserSession, GDPRScrubLog
 )
 from ..utils.file_validation import sanitize_filename
 from .scrubber_service import scrubber_service

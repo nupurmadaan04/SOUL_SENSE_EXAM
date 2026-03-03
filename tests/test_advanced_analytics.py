@@ -310,5 +310,4 @@ class TestPrivacyControls:
 
 
 if __name__ == "__main__":
-    pytest.main([__file__])</content>
-<parameter name="filePath">c:\Users\Gupta\Downloads\SOUL_SENSE_EXAM\tests\test_advanced_analytics.py
+    pytest.main([__file__])

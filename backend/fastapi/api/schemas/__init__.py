@@ -1446,28 +1446,11 @@ class DashboardStatisticsResponse(BaseModel):
 
 
 # ============================================================================
-# Audit Logging Schemas
+# Audit Logging Schemas (list/export wrappers)
 # ============================================================================
 
-class AuditLogResponse(BaseModel):
-    """Response schema for individual audit log entries."""
-    id: int
-    event_id: str
-    timestamp: datetime
-    event_type: str
-    severity: str
-    username: Optional[str]
-    user_id: Optional[int]
-    ip_address: Optional[str]
-    user_agent: Optional[str]
-    resource_type: Optional[str]
-    resource_id: Optional[str]
-    action: Optional[str]
-    outcome: str
-    details: Optional[str]
-    error_message: Optional[str]
-
-    model_config = ConfigDict(from_attributes=True)
+# NOTE: AuditLogResponse is defined above (line ~1314) and maps directly to
+# the AuditLog ORM model.  Only the list/export wrappers are defined here.
 
 class AuditLogListResponse(BaseModel):
     """Response schema for paginated audit log lists."""
@@ -1477,8 +1460,12 @@ class AuditLogListResponse(BaseModel):
     per_page: int
 
 class AuditExportResponse(BaseModel):
-    """Response schema for audit log exports."""
-    data: str
+    """Response schema for audit log exports.
+
+    `data` is a list[dict] for format='json' or a str (CSV text) for
+    format='csv'.  Using Any allows both without breaking OpenAPI generation.
+    """
+    data: Any
     format: str
     timestamp: datetime
 

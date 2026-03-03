@@ -161,5 +161,4 @@ def get_cache_service() -> CacheService:
     global _cache_service
     if _cache_service is None:
         _cache_service = CacheService()
-    return _cache_service</content>
-<parameter name="filePath">c:\Users\Gupta\Downloads\SOUL_SENSE_EXAM\app\ml\cache_service.py
+    return _cache_service

@@ -240,15 +240,15 @@ class TestPerEventTimestamp:
 
 
 # ---------------------------------------------------------------------------
-# Test 6: Permanent failure after 10 retries
+# Test 6: Permanent failure after 3 retries (Issue #Purgatory)
 # ---------------------------------------------------------------------------
 class TestPermanentFailure:
     @pytest.mark.asyncio
-    async def test_event_marked_failed_after_10_retries(self):
+    async def test_event_marked_dead_letter_after_3_retries(self):
         from api.services.outbox_relay_service import OutboxRelayService
 
         journal = make_journal(14)
-        event = make_outbox_event(14, "upsert", retry_count=9)  # 9th failure, 10th attempt
+        event = make_outbox_event(14, "upsert", retry_count=2)  # 2nd failure, 3rd attempt
 
         db = AsyncMock()
         outbox_result = MagicMock()
@@ -265,5 +265,6 @@ class TestPermanentFailure:
             count = await OutboxRelayService.process_pending_indexing_events(db)
 
         assert count == 0
-        assert event.status == "failed"
-        assert event.retry_count == 10
+        assert event.status == "dead_letter"
+        assert event.retry_count == 3
+        assert event.last_error is not None

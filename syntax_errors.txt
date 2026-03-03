@@ -1,0 +1,2 @@
+SYNTAX ERRORS FOUND:
+  .\test_db.py: line None - source code string cannot contain null bytes

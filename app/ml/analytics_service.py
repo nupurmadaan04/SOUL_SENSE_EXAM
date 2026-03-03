@@ -139,6 +139,9 @@ class AnalyticsService:
                     "insights": insights,
                     "generated_at": datetime.now().isoformat()
                 }
+        except Exception as e:
+            logger.error(f"Error getting comparative benchmarks for {username}: {e}")
+            return {"benchmarks": {}, "error": str(e)}
 
     def get_personalized_recommendations(self, username: str) -> Dict[str, Any]:
         """

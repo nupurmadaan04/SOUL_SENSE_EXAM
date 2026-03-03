@@ -15,7 +15,7 @@ from functools import wraps
 from fastapi import BackgroundTasks
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update, delete, func
+from sqlalchemy import select, update, delete, func, desc
 from sqlalchemy.exc import SQLAlchemyError
 
 from ..models import BackgroundJob, User
