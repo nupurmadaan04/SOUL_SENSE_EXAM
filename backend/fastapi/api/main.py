@@ -501,6 +501,11 @@ def create_app() -> FastAPI:
     from .middleware.auth_anomaly_middleware import AuthAnomalyMiddleware
     app.add_middleware(AuthAnomalyMiddleware)
 
+    # API Key Authentication Middleware (#1264)
+    # Enforces fine-grained API key scopes for access control
+    from .middleware.api_key_middleware import api_key_middleware
+    app.add_middleware(BaseHTTPMiddleware, dispatch=api_key_middleware)
+
     # Device Fingerprint Validation Middleware (#1230)
     # Validates device fingerprints on authenticated requests to prevent session hijacking
     from .middleware.device_fingerprint_middleware import DeviceFingerprintValidationMiddleware

@@ -1451,3 +1451,80 @@ def receive_after_update_notif_pref(mapper, connection, target):
     if user_id:
         cache_service.sync_invalidate(f"notif_pref:{user_id}")
 
+
+# ==================== API KEY SCOPES MODELS (#1264) ====================
+
+class ApiKeyScope(SQLEnum):
+    """Enumeration of available API key scopes for fine-grained access control."""
+    READ = "read"
+    WRITE = "write"
+    ADMIN = "admin"
+    USERS_READ = "users:read"
+    USERS_WRITE = "users:write"
+    PAYMENTS_READ = "payments:read"
+    PAYMENTS_WRITE = "payments:write"
+    ANALYTICS_READ = "analytics:read"
+    ANALYTICS_WRITE = "analytics:write"
+    EXAMS_READ = "exams:read"
+    EXAMS_WRITE = "exams:write"
+    JOURNAL_READ = "journal:read"
+    JOURNAL_WRITE = "journal:write"
+    SURVEYS_READ = "surveys:read"
+    SURVEYS_WRITE = "surveys:write"
+    NOTIFICATIONS_READ = "notifications:read"
+    NOTIFICATIONS_WRITE = "notifications:write"
+    SETTINGS_READ = "settings:read"
+    SETTINGS_WRITE = "settings:write"
+
+
+class ApiKey(Base):
+    """
+    API Key model for fine-grained access control (#1264).
+
+    Supports scope-based authorization with the principle of least privilege.
+    API keys can have multiple scopes and are associated with users.
+    """
+    __tablename__ = 'api_keys'
+    __table_args__ = (
+        Index('idx_api_key_user', 'user_id'),
+        Index('idx_api_key_key', 'key_hash'),
+        Index('idx_api_key_active', 'is_active'),
+        Index('idx_api_key_created', 'created_at'),
+    )
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False, index=True)
+    name = Column(String(100), nullable=False)  # Human-readable name for the key
+    key_hash = Column(String(128), unique=True, nullable=False, index=True)  # Hashed API key
+    scopes = Column(JSON, nullable=False)  # List of ApiKeyScope values as strings
+    is_active = Column(Boolean, default=True, nullable=False, index=True)
+    expires_at = Column(DateTime, nullable=True)  # Optional expiration date
+    last_used_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=utc_now, nullable=False, index=True)
+    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now, nullable=False)
+
+    # Relationships
+    user = relationship("User")
+
+    def has_scope(self, required_scope: str) -> bool:
+        """Check if this API key has the required scope."""
+        return required_scope in self.scopes
+
+    def has_any_scope(self, required_scopes: list[str]) -> bool:
+        """Check if this API key has any of the required scopes."""
+        return any(scope in self.scopes for scope in required_scopes)
+
+    def to_dict(self) -> dict:
+        """Convert to dictionary for API responses (without sensitive data)."""
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "name": self.name,
+            "scopes": self.scopes,
+            "is_active": self.is_active,
+            "expires_at": self.expires_at.isoformat() if self.expires_at else None,
+            "last_used_at": self.last_used_at.isoformat() if self.last_used_at else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
