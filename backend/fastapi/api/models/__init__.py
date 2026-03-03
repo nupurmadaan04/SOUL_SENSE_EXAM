@@ -72,6 +72,7 @@ class User(Base):
     achievements = relationship("UserAchievement", back_populates="user", cascade="all, delete-orphan")
     streaks = relationship("UserStreak", back_populates="user", cascade="all, delete-orphan")
     xp_stats = relationship("UserXP", uselist=False, back_populates="user", cascade="all, delete-orphan")
+    badges = relationship("UserBadge", back_populates="user", cascade="all, delete-orphan")
     
     # Background Tasks
     background_jobs = relationship("BackgroundJob", back_populates="user", cascade="all, delete-orphan")
