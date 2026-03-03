@@ -5,7 +5,7 @@ from ...routers import (
     questions, analytics, journal, health,
     settings_sync, community, contact, exams, export, deep_dive,
     gamification, audit, tasks, consent, surveys, advanced_analytics, archival, notifications, flags, search, team_vision,
-    api_keys, tamper_evident_audit
+    api_keys, tamper_evident_audit, badges
 )
 
 api_router = APIRouter()
@@ -39,4 +39,5 @@ api_router.include_router(surveys.router, prefix="/surveys", tags=["Surveys"])
 api_router.include_router(flags.router, prefix="/admin/flags", tags=["Feature Flags"])
 api_router.include_router(api_keys.router, prefix="/api-keys", tags=["API Keys"])
 api_router.include_router(tamper_evident_audit.router, prefix="/tamper-evident-audit", tags=["Tamper-Evident Audit"])
+api_router.include_router(badges.router, prefix="/badges", tags=["Badges"])
 
