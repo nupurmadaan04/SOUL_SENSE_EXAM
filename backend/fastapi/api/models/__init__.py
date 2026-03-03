@@ -301,17 +301,24 @@ class AuditSnapshot(Base):
     user = relationship("User", back_populates="audit_snapshots")
 
 class OutboxEvent(Base):
-    """Transactional Outbox Pattern for guaranteed delivery (#1122)."""
+    """Transactional Outbox Pattern for guaranteed delivery (#1122).
+    
+    Retry Policy:
+    - Max 3 retry attempts with exponential backoff (30s, 60s, 120s)
+    - After 3 failures, events move to 'dead_letter' status
+    - Purgatory monitor alerts when pending/failed/dead_letter volume exceeds 10,000
+    """
     __tablename__ = 'outbox_events'
     id = Column(Integer, primary_key=True, autoincrement=True)
     topic = Column(String, default="audit_trail", nullable=False)
     payload = Column(JSON, nullable=False)
     created_at = Column(DateTime, default=utc_now, index=True)
-    status = Column(String, default='pending', index=True) # pending, processed, failed
+    status = Column(String, default='pending', index=True) # pending, processed, failed, dead_letter
     processed_at = Column(DateTime, nullable=True)
     retry_count = Column(Integer, default=0)
     next_retry_at = Column(DateTime, nullable=True, index=True)
-    error_message = Column(Text, nullable=True)
+    last_error = Column(Text, nullable=True)
+    retry_metadata = Column(JSON, nullable=True)
 
 class GDPRScrubLog(Base):
     """
@@ -357,6 +364,7 @@ class AnalyticsEvent(Base):
     event_data = Column(Text, nullable=True)
     timestamp = Column(DateTime, default=datetime.utcnow, index=True)
     ip_address = Column(String, nullable=True)
+    environment = Column(String, default="development", index=True)
     user = relationship("User", back_populates="analytics_events")
 
 # ==========================================
@@ -589,6 +597,7 @@ class Score(Base):
     timestamp = Column(String, default=lambda: datetime.utcnow().isoformat(), index=True)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=True, index=True)
     session_id = Column(String, nullable=True, index=True)
+    environment = Column(String, default="development", index=True)
     user = relationship("User", back_populates="scores")
     
     __table_args__ = (

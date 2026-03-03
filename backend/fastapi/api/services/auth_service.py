@@ -379,97 +379,67 @@ class AuthService:
             await self.db.rollback()
             logger.error(f"Failed to record login attempt: {e}")
 
-    def register_user(self, user_data: 'UserCreate') -> Tuple[bool, Optional[User], str]:
+    async def register_user(self, user_data: 'UserCreate') -> Tuple[bool, Optional[User], str]:
         """
         Register a new user and their personal profile.
         Standardizes identifiers and validates uniqueness.
-
-        Security:
-        - Generic status return to prevent enumeration.
-        - Timing jitter to prevent response-time analysis.
         """
-        import time
         import random
+        import asyncio
         from ..exceptions import APIException
         from ..constants.errors import ErrorCode
-        from sqlalchemy.exc import OperationalError, DatabaseError
 
-        # Timing Jitter: Artificial delay baseline (100-300ms)
-        # This masks the difference between a DB hit (fast) and a bcrypt hash (slowish)
-        # Though bcrypt is ~100ms+, so we just add a bit of noise.
-        time.sleep(random.uniform(0.1, 0.3))
+        # Artificial jitter
+        await asyncio.sleep(random.uniform(0.1, 0.3))
 
         username_lower = user_data.username.lower().strip()
         email_lower = user_data.email.lower().strip()
 
         try:
-            # 1. Validation (Does NOT leak existence if we return generic later)
-            # But we still do it for integrity.
-            existing_username = self.db.query(User).filter(User.username == username_lower).first()
-            existing_email = self.db.query(PersonalProfile).filter(PersonalProfile.email == email_lower).first()
+            # 1. Uniqueness check
+            stmt = select(User).filter(User.username == username_lower)
+            res = await self.db.execute(stmt)
+            if res.scalar_one_or_none():
+                 return True, None, "Account creation initiated. Please check your email."
 
-            if existing_username or existing_email:
-                # ENUMERATION PROTECTION:
-                # We don't raise an error. We return "Success" but don't create.
-                # In a real app, we would send an "Already registered" email here.
-                logger.info(f"Registration attempt for existing identity: {username_lower} / {email_lower}")
-                return True, None, "Account creation initiated. Please check your email for verification link."
+            profile_stmt = select(PersonalProfile).filter(PersonalProfile.email == email_lower)
+            profile_res = await self.db.execute(profile_stmt)
+            if profile_res.scalar_one_or_none():
+                 return True, None, "Account creation initiated. Please check your email."
 
-            # 2. Disposable Email Check (This remains an error as it's a policy failure, not enumeration)
-            from .security_service import SecurityService
-            if SecurityService.is_disposable_email(email_lower):
-                return False, None, "Registration with disposable email domains is not allowed"
+            hashed_pw = get_password_hash(user_data.password)
 
-            hashed_pw = self.hash_password(user_data.password)
+            # 2. Create user + profile
+            new_user = User(
+                username=username_lower,
+                password_hash=hashed_pw
+            )
+            self.db.add(new_user)
+            await self.db.flush()
 
-            # ── ATOMIC WRITE ─────────────────────────────────────────────────
-            # User + PersonalProfile must both succeed or neither persists.
-            # A failure mid-way (e.g. FK violation, DB crash) would otherwise
-            # leave an orphan User row with no associated PersonalProfile.
-            with transactional(self.db):
-                new_user = User(
-                    username=username_lower,
-                    password_hash=hashed_pw
-                )
-                self.db.add(new_user)
-                self.db.flush()  # Populate new_user.id before creating profile
-
-                new_profile = PersonalProfile(
-                    user_id=new_user.id,
-                    email=email_lower,
-                    first_name=user_data.first_name,
-                    last_name=user_data.last_name,
-                    age=user_data.age,
-                    gender=user_data.gender
-                )
-                self.db.add(new_profile)
-            # ─────────────────────────────────────────────────────────────────
-
-            # Refresh to get the latest data after transaction commit
-            self.db.refresh(new_user)
+            new_profile = PersonalProfile(
+                user_id=new_user.id,
+                email=email_lower,
+                first_name=user_data.first_name,
+                last_name=user_data.last_name,
+                age=user_data.age,
+                gender=user_data.gender
+            )
+            self.db.add(new_profile)
+            await self.db.commit()
+            await self.db.refresh(new_user)
             
-            # CONSISTENCY: Ensure initial version (1) is in Redis truth mapping (#1143)
             try:
                 from .cache_service import cache_service
                 await cache_service.update_version("user", new_user.id, new_user.version)
-                await mark_write(new_user.username)
             except Exception as e:
-                logger.warning(f"Failed to seed version/mark write in Redis: {e}")
+                logger.warning(f"Failed to seed version in Redis: {e}")
             
-            return True, new_user, "Registration successful. Please verify your email."
-        except (OperationalError, DatabaseError) as e:
-            # Handle database connection/operational errors
-            self.db.rollback()
-            logger.error(f"Database connection error during registration: {str(e)}")
-            return False, None, "Service temporarily unavailable. Please try again later."
-        except AttributeError as e:
-            logger.error(f"Registration Model Mismatch: {e}")
-            return False, None, "A configuration error occurred on the server."
+            return True, new_user, "Registration successful."
         except Exception as e:
-            import traceback
-            self.db.rollback()
-            logger.error(f"Registration failed error: {str(e)}")
-            return False, None, "An internal error occurred. Please try again later."
+            await self.db.rollback()
+            logger.error(f"Registration failed: {str(e)}")
+            return False, None, "Registration failed."
 
     async def create_refresh_token(self, user_id: int, commit: bool = True) -> str:
         """Generate a secure refresh token, hash it, and store it in the DB."""

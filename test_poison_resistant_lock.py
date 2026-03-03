@@ -408,5 +408,4 @@ def run_all_tests():
 
 if __name__ == "__main__":
     success = run_all_tests()
-    sys.exit(0 if success else 1)</content>
-<parameter name="filePath">c:\Users\Gupta\Downloads\SOUL_SENSE_EXAM\test_poison_resistant_lock.py
+    sys.exit(0 if success else 1)

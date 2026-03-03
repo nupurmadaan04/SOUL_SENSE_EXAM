@@ -208,8 +208,10 @@ async def lifespan(app: FastAPI):
             from .services.outbox_relay_service import OutboxRelayService
             from .services.db_service import AsyncSessionLocal
             relay_task = asyncio.create_task(OutboxRelayService.start_relay_worker(AsyncSessionLocal))
+            monitor_task = asyncio.create_task(OutboxRelayService.monitor_purgatory_volume(AsyncSessionLocal))
             app.state.outbox_relay_task = relay_task
-            print("[OK] Search Index Outbox Relay worker started")
+            app.state.outbox_monitor_task = monitor_task
+            print("[OK] Search Index Outbox Relay & Purgatory Monitor workers started")
         except Exception as e:
             logger.warning(f"Failed to start Search Index Outbox Relay: {e}")
             print(f"[WARNING] Search indexing might drift without outbox relay: {e}")
@@ -259,12 +261,16 @@ async def lifespan(app: FastAPI):
             logger.info("Cache invalidation listener cancelled successfully")
 
     if hasattr(app.state, 'outbox_relay_task'):
-        logger.info("Stopping Search Index Outbox Relay worker...")
+        logger.info("Stopping Search Index Outbox Relay & Monitor workers...")
         app.state.outbox_relay_task.cancel()
+        if hasattr(app.state, 'outbox_monitor_task'):
+            app.state.outbox_monitor_task.cancel()
         try:
             await app.state.outbox_relay_task
+            if hasattr(app.state, 'outbox_monitor_task'):
+                await app.state.outbox_monitor_task
         except asyncio.CancelledError:
-            logger.info("Search Index Outbox Relay worker cancelled successfully")
+            logger.info("Outbox Relay & Monitor workers cancelled successfully")
     
     # Stop analytics scheduler
     if hasattr(app.state, 'analytics_scheduler'):

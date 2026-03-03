@@ -177,7 +177,7 @@ async def register(
     auth_service: AuthService = Depends(get_auth_service)
 ) -> dict:
     """Register a new user. Rate limited to 5 requests per minute per IP/user."""
-    success, new_user, message = auth_service.register_user(user)
+    success, new_user, message = await auth_service.register_user(user)
 
     if not success:
         raise BusinessLogicError(message=message, code="REGISTRATION_FAILED")
@@ -327,7 +327,7 @@ async def refresh(
         raise AuthenticationError(message="Refresh token missing", code="REFRESH_TOKEN_MISSING")
 
     # Check for idempotency to prevent concurrent refresh operations
-    cached_response = await check_idempotency(request, "token_refresh", ttl_seconds=60)  # 1 minute
+    cached_response = await check_idempotency(request, "token_refresh", ttl_seconds=60)
     if cached_response:
         logger.info(f"Returning cached token refresh response")
         return cached_response
@@ -339,25 +339,16 @@ async def refresh(
             key="refresh_token",
             value=new_refresh_token,
             httponly=True,
-            secure=settings.is_production,
+            secure=settings.is_production, 
             samesite="lax",
             max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60
         )
         
-    access_token, new_refresh_token = auth_service.refresh_access_token(refresh_token)
-    
-    response.set_cookie(
-        key="refresh_token",
-        value=new_refresh_token,
-        httponly=True,
-        secure=settings.cookie_secure,
-        samesite=settings.cookie_samesite,
-        max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60
-    )
-    
-    return Token(access_token=access_token, token_type="bearer", refresh_token=new_refresh_token)
-
-        token_response = Token(access_token=access_token, token_type="bearer", refresh_token=new_refresh_token)
+        token_response = Token(
+            access_token=access_token,
+            token_type="bearer",
+            refresh_token=new_refresh_token
+        )
 
         # Cache the successful response for idempotency
         await complete_idempotency(request, token_response.model_dump_json())

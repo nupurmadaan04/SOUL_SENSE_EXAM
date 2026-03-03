@@ -119,21 +119,21 @@ class OutboxRelayService:
             except Exception as e:
                 logger.error(f"[Outbox] Failed to relay event {event.id}: {e}")
 
-                # Exponential backoff using per-event timestamp for accurate scheduling
+                # Exponential backoff with max 3 retries
                 event.retry_count = (event.retry_count or 0) + 1
-                event.error_message = str(e)
+                event.last_error = str(e)
 
-                if event.retry_count >= 10:
-                    event.status = "failed"
+                if event.retry_count >= 3:
+                    event.status = "dead_letter"
                     logger.critical(
-                        f"[Outbox] Permanently aborting event {event.id} after {event.retry_count} retries."
+                        f"[Outbox] Event {event.id} moved to DEAD_LETTER after {event.retry_count} failed attempts."
                     )
                 else:
-                    delay_seconds = 30 * (2 ** (event.retry_count - 1))  # 30s, 60s, 120s ... up to ~4.3h
+                    # Exponential backoff: 30s, 60s, 120s
+                    delay_seconds = 30 * (2 ** (event.retry_count - 1))
                     event.next_retry_at = event_now + timedelta(seconds=delay_seconds)
                     logger.warning(
-                        f"[Outbox] Scheduled retry for event {event.id} "
-                        f"in {delay_seconds}s (attempt {event.retry_count}/10)"
+                        f"[Outbox] Retry scheduled for event {event.id} in {delay_seconds}s (attempt {event.retry_count}/3)"
                     )
 
         # Single batch commit after all events are processed
@@ -157,3 +157,38 @@ class OutboxRelayService:
                 logger.error(f"[Outbox] Critical worker error: {e}", exc_info=True)
 
             await asyncio.sleep(interval_seconds)
+
+    @classmethod
+    async def monitor_purgatory_volume(cls, async_session_factory):
+        """
+        Background task that monitors the outbox table for 'purgatory' risk.
+        Alerts if the volume of pending/failed/dead-letter events exceeds 10,000.
+        """
+        from sqlalchemy import func
+        logger.info("[Outbox] Purgatory Monitor Job started.")
+        
+        while True:
+            try:
+                async with async_session_factory() as db:
+                    # Count pending, failed and dead_letter events
+                    stmt = select(func.count(OutboxEvent.id)).filter(
+                        OutboxEvent.status.in_(["pending", "failed", "dead_letter"])
+                    )
+                    result = await db.execute(stmt)
+                    count = result.scalar() or 0
+                    
+                    if count >= 10000:
+                        logger.critical(
+                            f"[CRITICAL ALERT] Outbox Purgatory Threshold Exceeded! "
+                            f"Current Volume: {count}. Admin intervention required."
+                        )
+                    elif count > 5000:
+                        logger.warning(f"[Outbox] Volume warning: {count} events in purgatory.")
+                    else:
+                        logger.debug(f"[Outbox] Purgatory volume check: {count} events.")
+                        
+            except Exception as e:
+                logger.error(f"[Outbox] Purgatory Monitor Error: {e}")
+            
+            # Check every 5 minutes
+            await asyncio.sleep(300)

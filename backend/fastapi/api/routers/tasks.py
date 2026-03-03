@@ -194,3 +194,168 @@ async def cancel_task(
     
     logger.info(f"Task {job_id} cancelled by user {current_user.id}")
     return {"status": "cancelled", "job_id": job_id}
+
+
+@router.post("/admin/outbox/retry")
+async def retry_outbox_events(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Admin-only recovery API to reset failed/dead-letter outbox events to pending.
+    Enables manual recovery from Transactional Outbox 'purgatory'.
+    """
+    from fastapi import HTTPException
+    from sqlalchemy import update
+    from ..models import OutboxEvent
+
+    if not current_user.is_admin:
+        logger.error(f"Unauthorized access to outbox retry by user {current_user.username}")
+        raise HTTPException(status_code=403, detail="Admin credentials required for this recovery operation")
+
+    # Reset both 'failed' and 'dead_letter' events
+    stmt = (
+        update(OutboxEvent)
+        .where(OutboxEvent.status.in_(["failed", "dead_letter"]))
+        .values(
+            status="pending",
+            retry_count=0,
+            next_retry_at=None,
+            processed_at=None
+        )
+    )
+
+    result = await db.execute(stmt)
+    await db.commit()
+
+    affected_rows = result.rowcount
+    logger.info(f"Admin {current_user.username} triggered outbox recovery. Reset {affected_rows} events.")
+
+    return {
+        "status": "success",
+        "recovered_count": affected_rows,
+        "message": f"Successfully reset {affected_rows} events to pending status."
+    }
+
+
+@router.get("/admin/outbox/stats")
+async def get_outbox_stats(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Admin-only endpoint to surface outbox queue health.
+
+    Returns counts grouped by status, the age of the oldest pending/failed event,
+    and dead-letter details so admins can spot purgatory build-up without tailing logs.
+    """
+    from fastapi import HTTPException
+    from sqlalchemy import func, case, select as sa_select
+    from ..models import OutboxEvent
+    from datetime import datetime, UTC
+
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin credentials required")
+
+    # Count events grouped by status
+    status_stmt = sa_select(
+        OutboxEvent.status,
+        func.count(OutboxEvent.id).label("count")
+    ).group_by(OutboxEvent.status)
+
+    status_result = await db.execute(status_stmt)
+    status_counts = {row.status: row.count for row in status_result.all()}
+
+    # Oldest unresolved event (pending or failed) — indicates backlog age
+    oldest_stmt = sa_select(
+        func.min(OutboxEvent.created_at).label("oldest_created_at")
+    ).filter(OutboxEvent.status.in_(["pending", "failed"]))
+
+    oldest_result = await db.execute(oldest_stmt)
+    oldest_row = oldest_result.first()
+    oldest_created_at = oldest_row.oldest_created_at if oldest_row else None
+
+    oldest_age_seconds = None
+    if oldest_created_at:
+        now = datetime.now(UTC)
+        # Handle both timezone-aware and naive datetimes from DB
+        if oldest_created_at.tzinfo is None:
+            from datetime import timezone
+            oldest_created_at = oldest_created_at.replace(tzinfo=timezone.utc)
+        oldest_age_seconds = int((now - oldest_created_at).total_seconds())
+
+    # Calculate purgatory risk level
+    total_unresolved = status_counts.get("pending", 0) + status_counts.get("failed", 0) + status_counts.get("dead_letter", 0)
+    if total_unresolved >= 10000:
+        purgatory_risk = "CRITICAL"
+    elif total_unresolved >= 5000:
+        purgatory_risk = "WARNING"
+    elif total_unresolved >= 1000:
+        purgatory_risk = "ELEVATED"
+    else:
+        purgatory_risk = "NORMAL"
+
+    return {
+        "status_counts": {
+            "pending": status_counts.get("pending", 0),
+            "processed": status_counts.get("processed", 0),
+            "failed": status_counts.get("failed", 0),
+            "dead_letter": status_counts.get("dead_letter", 0),
+        },
+        "total_unresolved": total_unresolved,
+        "oldest_unresolved_age_seconds": oldest_age_seconds,
+        "purgatory_risk": purgatory_risk,
+        "purgatory_threshold": 10000,
+        "message": (
+            "Purgatory threshold exceeded — admin intervention required!"
+            if purgatory_risk == "CRITICAL"
+            else f"Queue health: {purgatory_risk}"
+        )
+    }
+
+
+@router.get("/admin/outbox/dead-letters")
+async def list_dead_letter_events(
+    limit: int = Query(50, ge=1, le=200, description="Max events to return"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Admin-only endpoint to enumerate dead-letter outbox events for investigation.
+
+    Returns the most recent events stuck in dead_letter status so admins can
+    inspect the payloads and last_error before triggering a retry.
+    """
+    from fastapi import HTTPException
+    from sqlalchemy import select as sa_select, desc
+    from ..models import OutboxEvent
+
+    if not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Admin credentials required")
+
+    stmt = (
+        sa_select(OutboxEvent)
+        .filter(OutboxEvent.status == "dead_letter")
+        .order_by(desc(OutboxEvent.created_at))
+        .limit(limit)
+    )
+
+    result = await db.execute(stmt)
+    events = result.scalars().all()
+
+    return {
+        "total": len(events),
+        "events": [
+            {
+                "id": e.id,
+                "topic": e.topic,
+                "payload": e.payload,
+                "retry_count": e.retry_count,
+                "last_error": e.last_error,
+                "created_at": e.created_at.isoformat() if e.created_at else None,
+                "next_retry_at": e.next_retry_at.isoformat() if e.next_retry_at else None,
+            }
+            for e in events
+        ]
+    }
+

@@ -21,6 +21,7 @@ from ..schemas import (
     JournalCreate,
     JournalUpdate,
     JournalResponse,
+    JournalListResponse,
     JournalCursorResponse,
     JournalAnalytics,
     # JournalSearchParams,
@@ -53,7 +54,7 @@ async def get_journal_service(db: AsyncSession = Depends(get_db)):
 async def create_journal(
     request: Request,
     journal_data: JournalCreate,
-    background_tasks: Annotated[BackgroundTasks, Depends()],
+    background_tasks: BackgroundTasks,
     current_user: Annotated[User, Depends(get_current_user)],
     journal_service: Annotated[JournalService, Depends(get_journal_service)]
 ):

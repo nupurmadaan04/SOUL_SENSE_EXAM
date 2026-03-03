@@ -125,10 +125,10 @@ class PatternRecognitionService:
                     "cached": False
                 }
 
-                # Cache the result
-                cache.set_patterns_cache(username, time_range, result)
-
                 return result
+        except Exception as e:
+            logger.error(f"Error detecting temporal patterns for {username}: {e}")
+            return {"patterns": [], "error": str(e)}
 
     def find_correlations(self, username: str, metrics: List[str] = None) -> Dict[str, Any]:
         """
@@ -259,10 +259,10 @@ class PatternRecognitionService:
                     "cached": False
                 }
 
-                # Cache the result
-                cache.set_correlations_cache(username, str(metrics_hash), result)
-
                 return result
+        except Exception as e:
+            logger.error(f"Error finding correlations for {username}: {e}")
+            return {"correlations": {}, "error": str(e)}
 
     def identify_triggers(self, username: str, journal_entries: List[Dict] = None) -> Dict[str, Any]:
         """
@@ -342,6 +342,9 @@ class PatternRecognitionService:
                     "total_entries_analyzed": len(journal_entries),
                     "analysis_timestamp": datetime.now().isoformat()
                 }
+        except Exception as e:
+            logger.error(f"Error identifying triggers for {username}: {e}")
+            return {"triggers": [], "error": str(e)}
 
     def predict_mood(self, username: str, future_days: int = 7) -> Dict[str, Any]:
         """
@@ -431,10 +434,10 @@ class PatternRecognitionService:
                     "cached": False
                 }
 
-                # Cache the result
-                cache.set_forecast_cache(username, future_days, result)
-
                 return result
+        except Exception as e:
+            logger.error(f"Error predicting mood for {username}: {e}")
+            return {"predictions": [], "error": str(e)}
 
     def _predict_with_arima(self, df: pd.DataFrame, future_days: int) -> List[Dict]:
         """Predict using ARIMA model with confidence intervals."""

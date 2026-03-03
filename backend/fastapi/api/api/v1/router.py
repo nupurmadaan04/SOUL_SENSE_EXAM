@@ -36,4 +36,5 @@ api_router.include_router(tasks.router, prefix="/tasks", tags=["Background Tasks
 api_router.include_router(consent.router, prefix="/consent", tags=["Consent"])
 api_router.include_router(surveys.router, prefix="/surveys", tags=["Surveys"])
 api_router.include_router(flags.router, prefix="/admin/flags", tags=["Feature Flags"])
+api_router.include_router(search.router, tags=["Full-Text Search"])
 
