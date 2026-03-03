@@ -132,6 +132,16 @@ class BaseAppSettings(BaseSettings):
     db_retry_max_attempts: int = Field(default=3, ge=1, le=10, description="Maximum retry attempts for transient database errors")
     db_retry_base_delay_ms: float = Field(default=100.0, ge=10.0, le=5000.0, description="Base delay in milliseconds for exponential backoff")
     db_retry_jitter_factor: float = Field(default=0.1, ge=0.0, le=1.0, description="Jitter factor (0.0-1.0) to prevent thundering herd behavior")
+    
+    # Payload Size Limits and DoS Protection (Issue #1068)
+    max_request_size_bytes: int = Field(default=10 * 1024 * 1024, ge=1024, le=100 * 1024 * 1024, description="Maximum request body size in bytes (default 10MB)")
+    max_json_depth: int = Field(default=20, ge=5, le=100, description="Maximum nesting depth for JSON payloads")
+    max_multipart_parts: int = Field(default=100, ge=1, le=1000, description="Maximum number of parts in multipart/form-data requests")
+    max_multipart_file_size_bytes: int = Field(default=50 * 1024 * 1024, ge=1024, le=500 * 1024 * 1024, description="Maximum file size for multipart uploads (default 50MB)")
+    max_array_size: int = Field(default=10000, ge=100, le=100000, description="Maximum number of elements in a JSON array")
+    max_object_keys: int = Field(default=1000, ge=10, le=10000, description="Maximum number of keys in a JSON object")
+    enable_compression_bomb_check: bool = Field(default=True, description="Enable detection of compression bombs (zip/gzip)")
+    compression_bomb_ratio: float = Field(default=10.0, ge=1.0, le=100.0, description="Compression ratio threshold for bomb detection (compressed:uncompressed)")
     # Deletion Grace Period
     deletion_grace_period_days: int = Field(default=30, ge=0, description="Grace period for account deletion in days")
 

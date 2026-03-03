@@ -465,6 +465,11 @@ def create_app() -> FastAPI:
         lifespan=lifespan
     )
 
+    # Payload Size Limits and DoS Protection Middleware (outermost to block large payloads early)
+    # Issue #1068: Prevents backend crashes due to oversized or malformed payloads
+    from .middleware.payload_limit_middleware import PayloadLimitMiddleware
+    app.add_middleware(PayloadLimitMiddleware)
+    
     # Correlation ID middleware (outermost for logging reference)
     app.add_middleware(CorrelationIDMiddleware)
     @app.get("/favicon.ico", include_in_schema=False)
@@ -615,6 +620,27 @@ def create_app() -> FastAPI:
 
     @app.exception_handler(APIException)
     async def api_exception_handler(request: Request, exc: APIException):
+        return JSONResponse(
+            status_code=exc.status_code,
+            content=exc.detail
+        )
+    
+    # Payload Size Limit Exception Handlers (Issue #1068)
+    from .exceptions import PayloadSizeException
+    
+    @app.exception_handler(PayloadSizeException)
+    async def payload_size_exception_handler(request: Request, exc: PayloadSizeException):
+        logger = logging.getLogger("api.payload_limit")
+        request_id = getattr(request.state, 'request_id', 'unknown')
+        logger.warning(
+            f"Payload size violation: {exc.detail.get('message', 'Unknown')}",
+            extra={
+                "request_id": request_id,
+                "path": request.url.path,
+                "code": exc.detail.get('code'),
+                "details": exc.detail.get('details')
+            }
+        )
         return JSONResponse(
             status_code=exc.status_code,
             content=exc.detail

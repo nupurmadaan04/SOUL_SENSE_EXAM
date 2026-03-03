@@ -26,6 +26,13 @@ class ErrorCode(str, Enum):
     VALIDATION_ERROR = "GLB002"
     NOT_FOUND = "GLB003"
     GLB_RATE_LIMIT = "GLB004"
+    
+    # Payload / DoS Protection Errors
+    PAYLOAD_TOO_LARGE = "DOS001"
+    PAYLOAD_DEPTH_EXCEEDED = "DOS002"
+    PAYLOAD_MALFORMED = "DOS003"
+    PAYLOAD_COMPRESSION_BOMB = "DOS004"
+    MULTIPART_TOO_MANY_PARTS = "DOS005"
 
     # Workflow / Business Logic Errors
     WFK_INVALID_STATE = "WFK001"
