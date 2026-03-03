@@ -172,23 +172,48 @@ class AsyncWorkerManager:
         await self.health_monitor.start_monitoring()
         logger.info("AsyncWorkerManager started")
 
-    async def shutdown(self):
-        """Shutdown all workers and cleanup."""
-        self._shutdown = True
-        logger.info("Shutting down AsyncWorkerManager...")
+    async def shutdown(self, drain_timeout: int = 10):
+        """Shutdown all workers and cleanup.
 
-        # Stop health monitoring
+        Graceful shutdown procedure:
+        1. Flip shutdown flag so worker loops stop scheduling new work.
+        2. Stop health monitoring.
+        3. Wait up to `drain_timeout` seconds for workers to finish naturally.
+        4. Cancel any remaining workers and await their cancellation.
+        5. Run cleanup hooks and clear caches.
+
+        `drain_timeout` can be tuned for deployments to allow in-flight work to finish.
+        """
+        self._shutdown = True
+        logger.info("Shutting down AsyncWorkerManager (graceful)...")
+
+        # Stop health monitoring first
         await self.health_monitor.stop_monitoring()
 
-        # Cancel all workers
-        for name, task in self.workers.items():
-            if not task.done():
-                logger.info(f"Cancelling worker: {name}")
-                task.cancel()
+        # If no workers, proceed to cleanup
+        if not self.workers:
+            logger.info("No workers to shut down")
+        else:
+            # Wait up to drain_timeout seconds for workers to finish
+            tasks = list(self.workers.values())
+            logger.info(f"Waiting up to {drain_timeout}s for {len(tasks)} workers to finish")
+            try:
+                done, pending = await asyncio.wait(tasks, timeout=drain_timeout)
+            except Exception as e:
+                logger.error(f"Error while waiting for workers to finish: {e}")
+                pending = tasks
 
-        # Wait for all workers to finish
-        if self.workers:
-            await asyncio.gather(*self.workers.values(), return_exceptions=True)
+            # Cancel any remaining pending workers
+            if pending:
+                for t in pending:
+                    try:
+                        logger.info(f"Cancelling worker task: {t.get_name() if hasattr(t, 'get_name') else t}")
+                        t.cancel()
+                    except Exception:
+                        t.cancel()
+
+                # Await cancellation completion
+                await asyncio.gather(*pending, return_exceptions=True)
 
         # Run cleanup hooks
         for hook in self._cleanup_hooks:
