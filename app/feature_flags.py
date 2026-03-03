@@ -109,6 +109,12 @@ EXPERIMENTAL_FLAGS: Dict[str, FeatureFlag] = {
         description="Enable testing of edge cases (invalid inputs, timeouts, race conditions)",
         experimental=False,
         category="testing"
+    "capacity_headroom_forecasting": FeatureFlag(
+        name="capacity_headroom_forecasting",
+        default=False,
+        description="Enable capacity headroom forecasting for peak windows",
+        experimental=True,
+        category="infra"
     ),
 }
 
