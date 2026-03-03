@@ -7,14 +7,18 @@ Integrates with the analytics pipeline for automated processing.
 
 import logging
 from datetime import datetime, time
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.jobstores.memory import MemoryJobStore
 from apscheduler.executors.asyncio import AsyncIOExecutor
 import asyncio
 
-from app.ml.analytics_service import AnalyticsService
+try:
+    from app.ml.analytics_service import AnalyticsService
+except Exception:
+    # Defer import errors (tests may monkeypatch `AnalyticsService` on the module)
+    AnalyticsService = None
 from app.db import safe_db_context
 from app.models import User
 
@@ -30,9 +34,9 @@ class AnalyticsScheduler:
             jobstores={
                 'default': MemoryJobStore()
             },
-            executors={
-                'default': AsyncIOExecutor()
-            },
+            executors=(
+                {'default': AsyncIOExecutor()} if asyncio._get_running_loop() is not None else {'default': __import__('apscheduler.executors.pool', fromlist=['ThreadPoolExecutor']).ThreadPoolExecutor(max_workers=2)}
+            ),
             job_defaults={
                 'coalesce': True,
                 'max_instances': 1,
@@ -65,6 +69,13 @@ class AnalyticsScheduler:
             self.scheduler.start()
             self._is_running = True
             logger.info("Analytics scheduler started successfully")
+            # Trigger a lightweight prewarm validation after scheduler start
+            try:
+                loop = asyncio.get_running_loop()
+                loop.create_task(self._prewarm_and_validate())
+            except RuntimeError:
+                # If no event loop is running (e.g., in tests), run synchronously
+                asyncio.run(self._prewarm_and_validate())
 
     def stop(self):
         """Stop the scheduler."""
@@ -160,6 +171,59 @@ class AnalyticsScheduler:
             "forecast": forecast,
             "recommendations": recommendations
         }
+
+    async def _prewarm_and_validate(self, sample_usernames: Optional[List[str]] = None, timeout_seconds: int = 10) -> Dict[str, Any]:
+        """Run lightweight prewarm tasks to validate scheduler cold-start behavior.
+
+        This method runs analytics logic for a small set of users (or synthetic payloads)
+        to warm caches, validate dependencies, and emit structured logs suitable for
+        dashboards and CI validation.
+        """
+        logger.info("Starting scheduler prewarm and validation")
+
+        try:
+            users_to_run: List[str] = []
+
+            if sample_usernames:
+                users_to_run = sample_usernames
+            else:
+                # attempt to sample up to 3 active users from DB
+                try:
+                    with safe_db_context() as session:
+                        q = session.query(User).filter(User.is_active == True, User.is_deleted == False).limit(3).all()
+                        users_to_run = [u.username for u in q]
+                except Exception as e:
+                    logger.warning(f"Failed to sample users for prewarm: {e}")
+
+            if not users_to_run:
+                # use a synthetic user to exercise paths
+                users_to_run = ["__prewarm_synthetic__"]
+
+            tasks = [self._process_user_analytics(u) for u in users_to_run]
+
+            results = await asyncio.wait_for(asyncio.gather(*tasks, return_exceptions=True), timeout=timeout_seconds)
+
+            validation = []
+            failures = 0
+            for idx, r in enumerate(results):
+                if isinstance(r, Exception):
+                    failures += 1
+                    logger.error(f"Prewarm: user {users_to_run[idx]} failed: {r}")
+                    validation.append({"username": users_to_run[idx], "status": "failed", "error": str(r)})
+                else:
+                    logger.info(f"Prewarm: user {users_to_run[idx]} succeeded: patterns={len(r.get('patterns', []))}")
+                    validation.append({"username": users_to_run[idx], "status": "success"})
+
+            summary = {"timestamp": datetime.now().isoformat(), "total": len(users_to_run), "failures": failures, "results": validation}
+            logger.info(f"Prewarm validation completed: {len(users_to_run)-failures} succeeded, {failures} failed")
+            return summary
+
+        except asyncio.TimeoutError:
+            logger.error("Prewarm validation timed out")
+            return {"status": "timeout"}
+        except Exception as e:
+            logger.error(f"Prewarm validation error: {e}")
+            return {"status": "error", "error": str(e)}
 
     async def _cleanup_cache(self) -> Dict[str, Any]:
         """Clean up expired cache entries."""
