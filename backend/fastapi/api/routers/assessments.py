@@ -1,9 +1,17 @@
 """API router for assessment endpoints."""
+import sys
+import os
+# Add the backend/fastapi directory to Python path for imports
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Optional
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional, Annotated
 from ..services.db_service import get_db, AssessmentService
-from app.core import NotFoundError, AuthorizationError
+from app.core.exceptions import NotFoundError, AuthorizationError
 from ..schemas import (
     AssessmentListResponse,
     AssessmentResponse,
@@ -65,6 +73,7 @@ async def get_assessment_stats(
 
     - **username**: Optional filter to get stats for a specific user (Admin only)
     """
+    stats = await AssessmentService.get_assessment_stats(db=db, user_id=current_user.id)
     # Enforce ownership: Non-admins can only see their own stats
     if not getattr(current_user, "is_admin", False):
         username = current_user.username
@@ -85,6 +94,17 @@ async def get_assessment(
 
     - **assessment_id**: The ID of the assessment to retrieve
     """
+    assessment = await AssessmentService.get_assessment_by_id(
+        db=db, assessment_id=assessment_id, user_id=current_user.id
+    )
+    
+    if not assessment:
+        raise HTTPException(status_code=404, detail="Assessment not found")
+    
+    # Get response count
+    responses = await AssessmentService.get_assessment_responses(
+        db=db, assessment_id=assessment_id, user_id=current_user.id
+    )
     assessment = await AssessmentService.get_assessment_by_id(db=db, assessment_id=assessment_id)
 
     if not assessment:

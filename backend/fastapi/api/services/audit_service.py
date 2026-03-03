@@ -5,7 +5,13 @@ import io
 from datetime import datetime, timedelta, UTC
 from typing import Optional, List, Dict, Any, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
+<<<<<<< HEAD
 from sqlalchemy import select, delete, func
+=======
+from sqlalchemy import select, delete, desc
+from ..models import AuditLog
+from sqlalchemy import select, delete
+>>>>>>> 0fb38f167afcb6352c3e8ff1a5ca0488ff3495af
 from ..models import AuditLog, User
 
 logger = logging.getLogger(__name__)
@@ -13,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 class AuditService:
     """
-    Service for securely logging user actions and retrieving audit history.
+    Service for securely logging user actions and retrieving audit history (Async).
     """
 
     # Allowed fields in details JSON to prevent PII leakage
@@ -23,6 +29,7 @@ class AuditService:
     }
 
     @classmethod
+<<<<<<< HEAD
     async def log_event(
         cls,
         user_id: int,
@@ -33,11 +40,31 @@ class AuditService:
         db_session: Optional[AsyncSession] = None
     ) -> bool:
         """Log a security-critical event."""
+=======
+    async def log_event(cls, user_id: int, action: str,
+                 ip_address: Optional[str] = "SYSTEM",
+                 user_agent: Optional[str] = None,
+                 details: Optional[Dict[str, Any]] = None,
+                 db_session: AsyncSession = None) -> bool:
+        """
+        Log a security-critical event (Async).
+        """
+        if db_session is None:
+            logger.error("Async db_session must be provided to log_event")
+                 db_session: Optional[AsyncSession] = None) -> bool:
+        """
+        Log a security-critical event.
+        """
+>>>>>>> 0fb38f167afcb6352c3e8ff1a5ca0488ff3495af
         if not db_session:
             logger.error("AuditLog requires a db_session")
             return False
 
         try:
+<<<<<<< HEAD
+=======
+            # 1. Sanitize Inputs
+>>>>>>> 0fb38f167afcb6352c3e8ff1a5ca0488ff3495af
             safe_ua = (user_agent[:250] + "...") if user_agent and len(user_agent) > 250 else user_agent
 
             safe_details = "{}"
@@ -64,7 +91,15 @@ class AuditService:
             return True
 
         except Exception as e:
+<<<<<<< HEAD
+=======
+            await db_session.rollback()
+>>>>>>> 0fb38f167afcb6352c3e8ff1a5ca0488ff3495af
             logger.critical(f"AUDIT LOG FAILURE: User {user_id} performed {action}. Error: {e}")
+            return False
+
+    @staticmethod
+    async def get_user_logs(user_id: int, page: int = 1, per_page: int = 20, db_session: AsyncSession = None) -> List[AuditLog]:
             await db_session.rollback()
             return False
 
@@ -100,6 +135,7 @@ class AuditService:
         )
 
     @staticmethod
+<<<<<<< HEAD
     async def get_user_logs(
         user_id: int,
         page: int = 1,
@@ -107,11 +143,19 @@ class AuditService:
         db_session: Optional[AsyncSession] = None
     ) -> List[AuditLog]:
         """Retrieve audit logs for a specific user with pagination."""
+=======
+    async def get_user_logs(user_id: int, page: int = 1, per_page: int = 20, db_session: Optional[AsyncSession] = None) -> List[AuditLog]:
+        """
+        Retrieve audit logs for a specific user with pagination (Async).
+        """
+        if db_session is None:
+>>>>>>> 0fb38f167afcb6352c3e8ff1a5ca0488ff3495af
         if not db_session:
             return []
 
         try:
             offset = (page - 1) * per_page
+<<<<<<< HEAD
             stmt = (
                 select(AuditLog)
                 .filter(AuditLog.user_id == user_id)
@@ -119,8 +163,18 @@ class AuditService:
                 .limit(per_page)
                 .offset(offset)
             )
+=======
+            stmt = select(AuditLog).filter(
+                AuditLog.user_id == user_id
+            ).order_by(
+                desc(AuditLog.timestamp)
+                AuditLog.timestamp.desc()
+            ).limit(per_page).offset(offset)
+            
+>>>>>>> 0fb38f167afcb6352c3e8ff1a5ca0488ff3495af
             result = await db_session.execute(stmt)
             return list(result.scalars().all())
+            
         except Exception as e:
             logger.error(f"Failed to fetch audit logs for user {user_id}: {e}")
             return []
@@ -136,6 +190,7 @@ class AuditService:
         db: AsyncSession
     ) -> Tuple[List[AuditLog], int]:
         """
+<<<<<<< HEAD
         Retrieve audit logs with optional filters and pagination.
 
         Supported filter keys: action, user_id, start_date, end_date.
@@ -219,6 +274,19 @@ class AuditService:
         In a production system this would move rows to a cold-storage table
         or an S3 archival pipeline. For now it deletes them from the hot
         table and returns the count so the caller can log the outcome.
+=======
+        Delete logs older than retention period (Async).
+        """
+        try:
+            cutoff_date = datetime.now(UTC) - timedelta(days=days)
+            stmt = delete(AuditLog).filter(
+                AuditLog.timestamp < cutoff_date
+            )
+            result = await db_session.execute(stmt)
+            await db_session.commit()
+            
+        Delete logs older than retention period.
+>>>>>>> 0fb38f167afcb6352c3e8ff1a5ca0488ff3495af
         """
         try:
             cutoff = datetime.now(UTC) - timedelta(days=retention_days)
@@ -251,6 +319,7 @@ class AuditService:
             await db.rollback()
             logger.error(f"Audit cleanup failed: {e}")
             return 0
+<<<<<<< HEAD
 
     # ------------------------------------------------------------------
     # Called by audit router: GET /audit/export
@@ -297,3 +366,6 @@ class AuditService:
             return output.getvalue()
 
         return rows  # default: JSON-serialisable list
+=======
+            return 0
+>>>>>>> 0fb38f167afcb6352c3e8ff1a5ca0488ff3495af

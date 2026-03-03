@@ -9,6 +9,9 @@ from ..models import Score, User, AnalyticsEvent
 from ..utils.telemetry import get_telemetry_exporter
 
 
+from sqlalchemy import select, func, case, distinct, desc
+from sqlalchemy.ext.asyncio import AsyncSession
+
 class AnalyticsService:
     """Service for generating aggregated analytics data.
     
@@ -22,6 +25,7 @@ class AnalyticsService:
     
     @staticmethod
     async def log_event(db: AsyncSession, event_data: dict, ip_address: Optional[str] = None) -> AnalyticsEvent:
+        """Log event (Async)."""
         """Log a user behavior event with environment tracking."""
         import json
         
@@ -57,6 +61,17 @@ class AnalyticsService:
 
     @staticmethod
     async def get_age_group_statistics(db: AsyncSession) -> List[Dict]:
+        """Age group stats (Async)."""
+        stmt = select(
+            Score.detailed_age_group,
+            func.count(Score.id).label('total'),
+            func.avg(Score.total_score).label('avg_score'),
+            func.min(Score.total_score).label('min_score'),
+            func.max(Score.total_score).label('max_score'),
+            func.avg(Score.sentiment_score).label('avg_sentiment')
+        ).filter(Score.detailed_age_group.isnot(None)).group_by(Score.detailed_age_group)
+        result = await db.execute(stmt)
+        stats = result.all()
         """Get pre-computed statistics by age group using CQRS (#1124)."""
         from ..models import CQRSAgeGroupStats
         
@@ -78,6 +93,8 @@ class AnalyticsService:
     
     @staticmethod
     async def get_score_distribution(db: AsyncSession) -> List[Dict]:
+        """Score distribution (Async)."""
+        total_count = (await db.execute(select(func.count(Score.id)))).scalar() or 0
         """Get score distribution across ranges using CQRS (#1124)."""
         from ..models import CQRSDistributionStats
         
@@ -97,6 +114,57 @@ class AnalyticsService:
             }
             for s in stats
         ]
+        
+        distribution = []
+        for name, min_s, max_s in ranges:
+            cnt = (await db.execute(select(func.count(Score.id)).filter(
+                Score.total_score >= min_s,
+                Score.total_score <= max_s
+            ))).scalar() or 0
+            
+            percentage = (cnt / total_count * 100) if total_count > 0 else 0
+            
+            distribution.append({
+                'score_range': name,
+                'count': cnt,
+                'percentage': round(percentage, 2)
+            })
+        
+        return distribution
+    
+    @staticmethod
+    async def get_overall_summary(db: AsyncSession) -> Dict:
+        """Dashboard summary (Async)."""
+        # Overall statistics
+        overall = (await db.execute(select(
+            func.count(Score.id).label('total'),
+            func.count(distinct(Score.username)).label('unique_users'),
+            func.avg(Score.total_score).label('avg_score'),
+            func.avg(Score.sentiment_score).label('avg_sentiment')
+        ))).first()
+        
+        # Quality metrics (aggregated counts)
+        quality = (await db.execute(select(
+            func.sum(case((Score.is_rushed == True, 1), else_=0)).label('rushed'),
+            func.sum(case((Score.is_inconsistent == True, 1), else_=0)).label('inconsistent')
+        ))).first()
+        
+        # Age group stats
+        age_stats = await AnalyticsService.get_age_group_statistics(db)
+        
+        # Score distribution
+        score_dist = await AnalyticsService.get_score_distribution(db)
+        
+        return {
+            'total_assessments': overall.total or 0,
+            'unique_users': overall.unique_users or 0,
+            'global_average_score': round(overall.avg_score or 0, 2),
+            'global_average_sentiment': round(overall.avg_sentiment or 0, 3),
+            'age_group_stats': age_stats,
+            'score_distribution': score_dist,
+            'assessment_quality_metrics': {
+                'rushed_assessments': quality.rushed or 0,
+                'inconsistent_assessments': quality.inconsistent or 0
     
     @staticmethod
     async def get_overall_summary(db: AsyncSession) -> Dict:
@@ -139,6 +207,22 @@ class AnalyticsService:
         limit: int = 12,
         environment: Optional[str] = None
     ) -> Dict:
+        """Trend analytics (Async)."""
+        # For simplicity, we'll do monthly trends
+        # In production, you'd want more sophisticated date handling
+        
+        period_expr = func.substr(Score.timestamp, 1, 7) # YYYY-MM
+        stmt = select(
+            period_expr.label('period'),
+            func.avg(Score.total_score).label('avg_score'),
+            func.count(Score.id).label('count')
+        ).group_by(
+            period_expr
+        ).order_by(
+            period_expr.desc()
+        ).limit(limit)
+        result = await db.execute(stmt)
+        trends = result.all()
         """Get trend analytics over time utilizing CQRS Read Models (#1124)."""
         from ..models import CQRSTrendAnalytics
         
@@ -157,6 +241,8 @@ class AnalyticsService:
             for t in reversed(trends)
         ]
         
+        # Determine trend direction
+        trend_direction = 'stable'
         if len(data_points) >= 2:
             first_avg = data_points[0]['average_score']
             last_avg = data_points[-1]['average_score']
@@ -167,8 +253,6 @@ class AnalyticsService:
                 trend_direction = 'decreasing'
             else:
                 trend_direction = 'stable'
-        else:
-            trend_direction = 'insufficient_data'
         
         return {
             'period_type': period_type,
@@ -179,6 +263,13 @@ class AnalyticsService:
     
     @staticmethod
     async def get_benchmark_comparison(db: AsyncSession) -> List[Dict]:
+        """Benchmarks (Async)."""
+        # Get all scores for percentile calculation
+        stmt = select(Score.total_score).filter(
+            Score.total_score.isnot(None)
+        ).order_by(Score.total_score)
+        result = await db.execute(stmt)
+        scores = result.scalars().all()
         """Get benchmark comparison using CQRS (#1124)."""
         from ..models import CQRSGlobalStats
         
@@ -210,6 +301,8 @@ class AnalyticsService:
         """Get population-level insights using CQRS (#1124)."""
         from ..models import CQRSGlobalStats, CQRSAgeGroupStats
         
+        score_list = list(scores)
+        n = len(score_list)
         # 1. Most common age group
         common_stmt = select(CQRSAgeGroupStats).order_by(desc(CQRSAgeGroupStats.total_assessments)).limit(1)
         common_res = await db.execute(common_stmt)
@@ -241,6 +334,35 @@ class AnalyticsService:
         }
     
     @staticmethod
+    async def get_population_insights(db: AsyncSession) -> Dict:
+        """Population insights (Async)."""
+        # Most common age group
+        most_common = (await db.execute(select(
+            Score.detailed_age_group,
+            func.count(Score.id).label('count')
+        ).filter(
+            Score.detailed_age_group.isnot(None)
+        ).group_by(
+            Score.detailed_age_group
+        ).order_by(
+            desc('count')
+        ))).first()
+        
+        # Highest performing age group
+        highest_perf = (await db.execute(select(
+            Score.detailed_age_group,
+            func.avg(Score.total_score).label('avg')
+        ).filter(
+            Score.detailed_age_group.isnot(None)
+        ).group_by(
+            Score.detailed_age_group
+        ).order_by(
+            desc('avg')
+        ))).first()
+        
+        # Total population
+        total_users = (await db.execute(select(func.count(distinct(Score.username))))).scalar() or 0
+        total_assessments = (await db.execute(select(func.count(Score.id)))).scalar() or 0
     async def get_dashboard_statistics(
         db: AsyncSession,
         timeframe: str = '30d',
@@ -592,6 +714,36 @@ class AnalyticsService:
             db.add(consent)
 
         db.commit()
+
+    @staticmethod
+    async def check_analytics_consent_async(db: AsyncSession, anonymous_id: str) -> Dict[str, Any]:
+        """Async variant of analytics consent validation for async middleware/routes."""
+        from ..models import UserConsent
+
+        stmt = select(UserConsent).filter(
+            UserConsent.anonymous_id == anonymous_id,
+            UserConsent.consent_type == 'analytics',
+            UserConsent.consent_granted == True
+        ).limit(1)
+        result = await db.execute(stmt)
+        consent = result.scalar_one_or_none()
+
+        if consent:
+            return {
+                'analytics_consent_given': True,
+                'consent_version': consent.consent_version,
+                'last_updated': consent.updated_at.isoformat() if consent.updated_at else None
+            }
+
+        return {
+            'most_common_age_group': most_common.detailed_age_group if most_common else 'Unknown',
+            'highest_performing_age_group': highest_perf.detailed_age_group if highest_perf else 'Unknown',
+            'total_population_size': total_users,
+            'assessment_completion_rate': completion_rate
+            'analytics_consent_given': False,
+            'consent_version': None,
+            'last_updated': None
+        }
 
     @staticmethod
     def check_analytics_consent(db: Session, anonymous_id: str) -> Dict[str, Any]:

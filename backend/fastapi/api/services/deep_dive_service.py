@@ -2,6 +2,8 @@ import json
 import logging
 from typing import List, Dict, Optional
 from datetime import datetime, UTC
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 from fastapi import HTTPException
@@ -103,6 +105,9 @@ class DeepDiveService:
 
     @classmethod
     async def submit_assessment(cls, db: AsyncSession, user: User, submission: DeepDiveSubmission) -> DeepDiveResultResponse:
+        """
+        Process a deep dive submission (Async).
+        """
         """Process a deep dive submission."""
         assess_type = submission.assessment_type
         if assess_type not in cls.QUESTION_BANKS:
@@ -152,6 +157,13 @@ class DeepDiveService:
 
     @classmethod
     async def get_history(cls, db: AsyncSession, user: User) -> List[DeepDiveResultResponse]:
+        """Get past deep dive results for the user (Async)."""
+        stmt = select(AssessmentResult).filter(
+            AssessmentResult.user_id == user.id
+        ).order_by(AssessmentResult.id.desc())
+        
+        result = await db.execute(stmt)
+        results = result.scalars().all()
         """Get past deep dive results for the user."""
         stmt = select(AssessmentResult).filter(
             AssessmentResult.user_id == user.id,
@@ -165,6 +177,7 @@ class DeepDiveService:
             DeepDiveResultResponse(
                 id=r.id,
                 assessment_type=r.assessment_type,
+                total_score=0,
                 total_score=0, 
                 normalized_score=r.total_score,
                 timestamp=r.timestamp,
@@ -175,6 +188,9 @@ class DeepDiveService:
 
     @classmethod
     async def get_recommendations(cls, db: AsyncSession, user: User) -> List[str]:
+        """
+        Recommend Deep Dives based on EQ stats (Async).
+        """
         """Recommend Deep Dives based on EQ stats."""
         from ..services.user_analytics_service import UserAnalyticsService
         

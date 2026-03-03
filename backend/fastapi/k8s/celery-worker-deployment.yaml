@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: soulsense-worker
+  namespace: default
+  labels:
+    app: soulsense
+    component: worker
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: soulsense
+      component: worker
+  template:
+    metadata:
+      labels:
+        app: soulsense
+        component: worker
+    spec:
+      containers:
+        - name: worker
+          image: soulsense/api:latest
+          imagePullPolicy: Always
+          command: ["celery", "-A", "api.utils.celery_app", "worker", "--loglevel=info"]
+          envFrom:
+            - configMapRef:
+                name: soulsense-config
+            - secretRef:
+                name: soulsense-secrets
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "1Gi"
+            limits:
+              cpu: "1000m"
+              memory: "2Gi"
+          livenessProbe:
+            exec:
+              command:
+                - celery
+                - -A
+                - api.utils.celery_app
+                - inspect
+                - ping
+            initialDelaySeconds: 60
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3

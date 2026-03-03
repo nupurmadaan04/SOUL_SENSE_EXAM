@@ -40,6 +40,13 @@ from ..utils.limiter import limiter
 router = APIRouter(tags=["Journal"])
 
 
+from sqlalchemy.ext.asyncio import AsyncSession
+
+def get_journal_service(db: AsyncSession = Depends(get_db)):
+    """Dependency to get JournalService."""
+    return JournalService(db)
+
+@router.post("/", response_model=JournalResponse, status_code=status.HTTP_201_CREATED)
 async def get_journal_service(db: AsyncSession = Depends(get_db)):
     """Dependency to get JournalService."""
     return JournalService(db)
@@ -58,6 +65,12 @@ async def create_journal(
     current_user: Annotated[User, Depends(get_current_user)],
     journal_service: Annotated[JournalService, Depends(get_journal_service)]
 ):
+    return await journal_service.create_entry(
+        current_user=current_user,
+        **journal_data.model_dump()
+    )
+
+@router.get("/", response_model=JournalCursorResponse)
     """
     Create a new journal entry. AI sentiment analysis starts asynchronously via gRPC.
     """
@@ -85,11 +98,12 @@ async def list_journals(
     request: Request,
     current_user: Annotated[User, Depends(get_current_user)],
     journal_service: Annotated[JournalService, Depends(get_journal_service)],
-    cursor: Optional[str] = Query(None, description="ISO format date or timestamp|id tie-breaker"),
+    cursor: Optional[str] = Query(None),
     limit: int = Query(25, ge=1, le=100),
-    start_date: Optional[str] = Query(None, description="Format: YYYY-MM-DD"),
-    end_date: Optional[str] = Query(None, description="Format: YYYY-MM-DD")
+    start_date: Optional[str] = Query(None),
+    end_date: Optional[str] = Query(None)
 ):
+    entries, next_cursor, has_more = await journal_service.get_entries_cursor(
     """
     List user's journal entries with pagination and date filtering.
     """
@@ -100,13 +114,21 @@ async def list_journals(
         start_date=start_date,
         end_date=end_date
     )
-    
     return JournalCursorResponse(
         data=[JournalResponse.model_validate(e) for e in entries],
         next_cursor=next_cursor,
         has_more=has_more
     )
 
+@router.get("/smart-prompts", response_model=SmartPromptsResponse)
+async def get_smart_prompts_endpoint(
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: AsyncSession = Depends(get_db),
+    count: int = Query(3, ge=1, le=5)
+):
+    smart_service = SmartPromptService(db)
+    result = await smart_service.get_smart_prompts(user_id=current_user.id, count=count)
+    return SmartPromptsResponse(**result)
 
 # ============================================================================
 # Advanced Features 
@@ -149,12 +171,20 @@ async def get_smart_prompts(
     )
 
 
-@router.get("/search", response_model=JournalListResponse, summary="Search Journal Entries")
+@router.get("/search", response_model=JournalListResponse)
 async def search_journals(
     current_user: Annotated[User, Depends(get_current_user)],
     journal_service: Annotated[JournalService, Depends(get_journal_service)],
     query: Optional[str] = Query(None, min_length=2),
     tags: Optional[List[str]] = Query(None),
+    min_sentiment: Optional[float] = Query(None),
+    max_sentiment: Optional[float] = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(20, ge=1, le=100)
+):
+    entries, total = await journal_service.search_entries(
+        current_user=current_user,
+        query=query, tags=tags,
     sentiment_category: Optional[str] = Query(None, pattern="^(positive|neutral|negative)$", description="Filter by category"),
     min_sentiment: Optional[float] = Query(None, ge=0, le=100),
     max_sentiment: Optional[float] = Query(None, ge=0, le=100),
@@ -171,10 +201,8 @@ async def search_journals(
         sentiment_category=sentiment_category,
         min_sentiment=min_sentiment,
         max_sentiment=max_sentiment,
-        skip=skip,
-        limit=limit
+        skip=skip, limit=limit
     )
-    
     return JournalListResponse(
         total=total,
         entries=[JournalResponse.model_validate(e) for e in entries],
@@ -182,19 +210,58 @@ async def search_journals(
         page_size=limit
     )
 
-
-@router.get("/analytics", response_model=JournalAnalytics, summary="Get Journal Analytics")
-async def get_analytics(
+@router.get("/{journal_id}", response_model=JournalResponse)
+async def get_journal(
+    journal_id: int,
     current_user: Annotated[User, Depends(get_current_user)],
     journal_service: Annotated[JournalService, Depends(get_journal_service)]
 ):
+    return await journal_service.get_entry_by_id(journal_id, current_user)
+
+@router.put("/{journal_id}", response_model=JournalResponse)
+async def update_journal(
+    journal_id: int,
+    journal_data: JournalUpdate,
+    current_user: Annotated[User, Depends(get_current_user)],
+    journal_service: Annotated[JournalService, Depends(get_journal_service)]
+):
+    return await journal_service.update_entry(
+        entry_id=journal_id,
+        current_user=current_user,
+        **journal_data.model_dump(exclude_unset=True)
+    )
+
+@router.delete("/{journal_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_journal(
+    journal_id: int,
+    current_user: Annotated[User, Depends(get_current_user)],
+    journal_service: Annotated[JournalService, Depends(get_journal_service)]
+):
+    await journal_service.delete_entry(journal_id, current_user)
+    return None
+
+@router.get("/prompts", response_model=JournalPromptsResponse)
+async def list_prompts(
+    category: Optional[str] = Query(None, pattern="^(gratitude|reflection|goals|emotions|creativity)$")
+):
+    prompts = get_journal_prompts(category)
+    return JournalPromptsResponse(
+        prompts=[JournalPrompt(**p) for p in prompts],
+        category=category
+    )
     """
     Detailed analytics on journaling patterns.
     """
     return await journal_service.get_analytics(current_user)
 
+@router.get("/analytics", response_model=JournalAnalytics)
+async def get_analytics(
+    current_user: Annotated[User, Depends(get_current_user)],
+    journal_service: Annotated[JournalService, Depends(get_journal_service)]
+):
+    return await journal_service.get_analytics(current_user)
 
-@router.get("/export", summary="Export Journal Entries")
+@router.get("/export")
 async def export_journals(
     current_user: Annotated[User, Depends(get_current_user)],
     journal_service: Annotated[JournalService, Depends(get_journal_service)],
@@ -211,7 +278,6 @@ async def export_journals(
         start_date=start_date,
         end_date=end_date
     )
-    
     media_type = "application/json" if format == "json" else "text/plain"
     return FastApiResponse(
         content=content,

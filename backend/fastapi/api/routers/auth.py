@@ -9,15 +9,20 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from ..config import get_settings_instance, get_settings
-from ..schemas import UserCreate, Token, UserResponse, ErrorResponse, PasswordResetRequest, PasswordResetComplete, TwoFactorLoginRequest, TwoFactorAuthRequiredResponse, TwoFactorConfirmRequest, UsernameAvailabilityResponse, CaptchaResponse, LoginRequest, OAuthAuthorizeRequest, OAuthTokenRequest, OAuthTokenResponse, OAuthUserInfo
+from ..schemas import UserCreate, Token, UserResponse, ErrorResponse, PasswordResetRequest, PasswordResetComplete, TwoFactorLoginRequest, TwoFactorAuthRequiredResponse, TwoFactorConfirmRequest, UsernameAvailabilityResponse, CaptchaResponse, LoginRequest, OAuthAuthorizeRequest, OAuthTokenRequest, OAuthTokenResponse, OAuthUserInfo, StepUpAuthRequest, StepUpAuthResponse, StepUpAuthVerifyRequest, StepUpAuthVerifyResponse
 from ..services.db_router import get_db
 from ..services.auth_service import AuthService
+
+async def get_auth_service(db: AsyncSession = Depends(get_db)) -> AuthService:
+    return AuthService(db)
+
 from ..services.captcha_service import captcha_service
 from ..utils.network import get_real_ip
 from ..utils.timestamps import normalize_utc_iso
 from ..constants.security_constants import REFRESH_TOKEN_EXPIRE_DAYS
 from ..models import User
 from ..utils.limiter import limiter
+from ..utils.device_fingerprinting import DeviceFingerprinting
 from app.core import (
     AuthenticationError,
     AuthorizationError,
@@ -54,11 +59,26 @@ async def get_server_id(request: Request):
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
 async def get_current_user(request: Request, token: Annotated[str, Depends(oauth2_scheme)], db: AsyncSession = Depends(get_db)):
+    """
+    Get current user from JWT token (Async).
+    """
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
     """Get current user from JWT token."""
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.jwt_algorithm])
         
         # Check if token is revoked
+        from ..root_models import TokenRevocation
+        from sqlalchemy import select
+        stmt = select(TokenRevocation).filter(TokenRevocation.token_str == token)
+        result = await db.execute(stmt)
+        revoked = result.scalar_one_or_none()
+        if revoked:
+            raise credentials_exception
         from ..models import TokenRevocation
         rev_stmt = select(TokenRevocation).filter(TokenRevocation.token_str == token)
         rev_res = await db.execute(rev_stmt)
@@ -70,12 +90,14 @@ async def get_current_user(request: Request, token: Annotated[str, Depends(oauth
         if not username:
             raise InvalidCredentialsError()
     except JWTError:
+        raise credentials_exception
+
+    stmt = select(User).filter(User.username == username)
+    result = await db.execute(stmt)
+    user = result.scalar_one_or_none()
+    
+    if user is None:
         raise InvalidCredentialsError()
-    except Exception as e:
-        import traceback
-        logger.error(f"JWT decode or TokenRevocation check failed: {str(e)}")
-        logger.error(traceback.format_exc())
-        raise HTTPException(status_code=500, detail=f"Auth internal error: {str(e)}")
 
     from ..services.cache_service import cache_service
     cache_key = f"user_rbac:{username}"
@@ -117,6 +139,8 @@ async def get_current_user(request: Request, token: Annotated[str, Depends(oauth
         await cache_service.update_version("user", user.id, user_data["version"])
     
     request.state.user_id = user.id
+    
+    # Check if user is active
     if not getattr(user, 'is_active', True):
         raise BusinessLogicError(message="User account is inactive", code="INACTIVE_ACCOUNT")
     
@@ -164,6 +188,19 @@ async def check_username_availability(
     request: Request,
     auth_service: AuthService = Depends(get_auth_service)
 ):
+    """
+    Check if a username is available.
+    Rate limited to 20 requests per minute per IP.
+    """
+    client_ip = get_real_ip(request)
+    count = availability_limiter_cache.get(client_ip, 0)
+    if count >= 20:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many availability checks. Please wait a minute."
+        )
+    availability_limiter_cache[client_ip] = count + 1
+    
     """Check if a username is available."""
     available, message = await auth_service.check_username_available(username)
     return UsernameAvailabilityResponse(available=available, message=message)
@@ -175,7 +212,7 @@ async def register(
     user: UserCreate,
     db: AsyncSession = Depends(get_db),
     auth_service: AuthService = Depends(get_auth_service)
-) -> dict:
+):
     """Register a new user. Rate limited to 5 requests per minute per IP/user."""
     success, new_user, message = await auth_service.register_user(user)
 
@@ -190,12 +227,35 @@ async def login(
     response: Response,
     login_request: LoginRequest,
     request: Request,
-    auth_service: AuthService = Depends(get_auth_service)
+    auth_service: AuthService = Depends(get_auth_service),
+    db = Depends(get_db)
 ):
     """Login endpoint. Rate limited to 5 requests per minute per IP/user."""
     ip = get_real_ip(request)
     user_agent = request.headers.get("user-agent", "Unknown")
 
+    # 1. Start with CAPTCHA Validation
+    if not captcha_service.validate_captcha(login_request.session_id, login_request.captcha_input):
+         raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="The CAPTCHA validation failed. Please refresh the CAPTCHA and try again."
+        )
+
+    # 2. Rate Limit by IP
+    is_limited, wait_time = login_limiter.is_rate_limited(ip)
+    if is_limited:
+         raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Too many login attempts. Please try again in {wait_time}s."
+        )
+
+    # 3. Rate Limit by Username
+    is_limited, wait_time = login_limiter.is_rate_limited(f"login_{login_request.identifier}")
+    if is_limited:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Account temporarily restricted. Please try again in {wait_time}s."
+        )
     if not captcha_service.validate_captcha(login_request.session_id, login_request.captcha_input):
         raise ValidationError(
             message="The CAPTCHA validation failed. Please refresh the CAPTCHA and try again.",
@@ -203,16 +263,47 @@ async def login(
         )
 
     user = await auth_service.authenticate_user(login_request.identifier, login_request.password, ip_address=ip, user_agent=user_agent)
-    
+
     if user.is_2fa_enabled:
         pre_auth_token = await auth_service.initiate_2fa_login(user)
         response.status_code = status.HTTP_202_ACCEPTED
         return TwoFactorAuthRequiredResponse(pre_auth_token=pre_auth_token)
 
+    # Create device fingerprint from request and login data
+    device_fingerprint = DeviceFingerprinting.extract_fingerprint_from_request(request)
+
+    # Override fingerprint with login request data if provided
+    if login_request.device_screen_resolution:
+        device_fingerprint.screen_resolution = login_request.device_screen_resolution
+    if login_request.device_timezone_offset is not None:
+        device_fingerprint.timezone_offset = login_request.device_timezone_offset
+    if login_request.device_platform:
+        device_fingerprint.platform = login_request.device_platform
+    if login_request.device_plugins_hash:
+        device_fingerprint.plugins = login_request.device_plugins_hash
+    if login_request.device_canvas_fingerprint:
+        device_fingerprint.canvas_fingerprint = login_request.device_canvas_fingerprint
+    if login_request.device_webgl_fingerprint:
+        device_fingerprint.webgl_fingerprint = login_request.device_webgl_fingerprint
+
+    # Recalculate fingerprint hash with updated data
+    device_fingerprint.fingerprint_hash = DeviceFingerprinting.calculate_fingerprint_hash(device_fingerprint)
+
+    # Create session with device fingerprint
+    session_id = await auth_service.create_user_session(
+        user.id,
+        user.username,
+        ip,
+        user_agent,
+        device_fingerprint,
+        db_session=db
+    )
+
     access_token = auth_service.create_access_token(data={
-        "sub": user.username, 
-        "uid": user.id, 
-        "tid": str(user.tenant_id) if user.tenant_id else None
+        "sub": user.username,
+        "uid": user.id,
+        "tid": str(user.tenant_id) if user.tenant_id else None,
+        "jti": session_id  # Include session ID in JWT for fingerprint validation
     })
     refresh_token = await auth_service.create_refresh_token(user.id)
     has_multiple_sessions = await auth_service.has_multiple_active_sessions(user.id)
@@ -221,17 +312,17 @@ async def login(
         key="refresh_token",
         value=refresh_token,
         httponly=True,
-        secure=settings.cookie_secure, 
+        secure=settings.cookie_secure,
         samesite=settings.cookie_samesite,
         max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60
     )
-    
+
     return Token(
         access_token=access_token,
         token_type="bearer",
         refresh_token=refresh_token,
         username=user.username,
-        email=user.personal_profile.email if user.personal_profile else None,
+        email=profile.email if profile else None,
         id=user.id,
         created_at=normalize_utc_iso(user.created_at, fallback_now=True),
         warnings=(
@@ -270,19 +361,21 @@ async def verify_2fa(
 ):
     """Verify 2FA code and issue tokens."""
     ip = get_real_ip(request)
-    # PR 10: Session Fixation Protection - Revoke any existing session cookie
+    # Session Fixation Protection
     old_refresh_token = request.cookies.get("refresh_token")
     if old_refresh_token:
-        auth_service.revoke_refresh_token(old_refresh_token)
+        await auth_service.revoke_refresh_token(old_refresh_token)
     
     # Verify 2FA and get user
-    user = auth_service.verify_2fa_login(login_request.pre_auth_token, login_request.code, ip_address=ip)
+    user = await auth_service.verify_2fa_login(login_request.pre_auth_token, login_request.code, ip_address=ip)
     
     # Issue Tokens
     access_token = auth_service.create_access_token(
         data={"sub": user.username}
     )
     user = await auth_service.verify_2fa_login(login_request.pre_auth_token, login_request.code, ip_address=ip)
+    
+    refresh_token = await auth_service.create_refresh_token(user.id)
     
     access_token = auth_service.create_access_token(data={"sub": user.username, "tid": str(user.tenant_id) if user.tenant_id else None})
     refresh_token = await auth_service.create_refresh_token(user.id)
@@ -297,12 +390,17 @@ async def verify_2fa(
         max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60
     )
     
+    from ..models import PersonalProfile
+    stmt = select(PersonalProfile).filter(PersonalProfile.user_id == user.id)
+    res_p = await auth_service.db.execute(stmt)
+    profile = res_p.scalar_one_or_none()
+
     return Token(
         access_token=access_token,
         token_type="bearer",
         refresh_token=refresh_token,
         username=user.username,
-        email=user.personal_profile.email if user.personal_profile else None,
+        email=profile.email if profile else None,
         id=user.id,
         created_at=normalize_utc_iso(user.created_at, fallback_now=True),
         warnings=(
@@ -344,11 +442,15 @@ async def refresh(
             max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60
         )
         
+<<<<<<< HEAD
         token_response = Token(
             access_token=access_token,
             token_type="bearer",
             refresh_token=new_refresh_token
         )
+=======
+        token_response = Token(access_token=access_token, token_type="bearer", refresh_token=new_refresh_token)
+>>>>>>> 0fb38f167afcb6352c3e8ff1a5ca0488ff3495af
 
         # Cache the successful response for idempotency
         await complete_idempotency(request, token_response.model_dump_json())
@@ -372,6 +474,10 @@ async def logout(
     if refresh_token:
         await auth_service.revoke_refresh_token(refresh_token)
     
+    # 2. Revoke Access Token (from header)
+    await auth_service.revoke_access_token(token)
+    
+    # 3. Audit Logout
     await auth_service.revoke_access_token(token)
     
     from .audit_service import AuditService
@@ -434,6 +540,11 @@ async def complete_password_reset(
     if is_limited:
         raise RateLimitError(message=f"Too many attempts. Please try again in {wait_time}s.", wait_seconds=wait_time)
 
+    success, message = await auth_service.complete_password_reset(
+        request.email, 
+        request.otp_code, 
+        request.new_password
+    )
     success, message = await auth_service.complete_password_reset(request.email, request.otp_code, request.new_password)
     if not success:
         raise ValidationError(message=message, details=[{"field": "otp_code", "error": "Invalid or expired OTP"}])
@@ -446,6 +557,7 @@ async def initiate_2fa_setup(
     current_user: Annotated[User, Depends(get_current_user)],
     auth_service: AuthService = Depends(get_auth_service)
 ):
+    """Send OTP to verify email before enabling 2FA."""
     if await auth_service.send_2fa_setup_otp(current_user):
         return {"message": "OTP sent to your email"}
     raise BusinessLogicError(message="Could not send OTP. Check email configuration.", code="OTP_SEND_FAILED")
@@ -458,6 +570,7 @@ async def enable_2fa(
     current_user: Annotated[User, Depends(get_current_user)],
     auth_service: AuthService = Depends(get_auth_service)
 ):
+    """Enable 2FA after verifying OTP."""
     if await auth_service.enable_2fa(current_user.id, confirm_request.code):
         return {"message": "2FA enabled successfully"}
     raise ValidationError(message="Invalid verification code", details=[{"field": "code", "error": "Invalid or expired verification code"}])
@@ -469,6 +582,7 @@ async def disable_2fa(
     current_user: Annotated[User, Depends(get_current_user)],
     auth_service: AuthService = Depends(get_auth_service)
 ):
+    """Disable 2FA."""
     if await auth_service.disable_2fa(current_user.id):
         return {"message": "2FA disabled"}
     raise BusinessLogicError(message="Failed to disable 2FA", code="2FA_DISABLE_FAILED")
@@ -602,3 +716,232 @@ async def oauth_login(
             raise e
         logger.error(f"OAuth login failed: {str(e)}")
         raise BusinessLogicError(message=f"Social login failed: {str(e)}", code="OAUTH_ERROR")
+
+
+# ============================================================================
+# Step-Up Authentication Endpoints (#1245)
+# ============================================================================
+
+@router.post("/step-up/initiate", response_model=StepUpAuthResponse, responses={400: {"model": ErrorResponse}, 401: {"model": ErrorResponse}})
+async def initiate_step_up_auth(
+    request: StepUpAuthRequest,
+    current_user: Annotated[User, Depends(get_current_user)],
+    req: Request,
+    auth_service: Annotated[AuthService, Depends(get_auth_service)]
+):
+    """
+    Initiate step-up authentication for privileged actions.
+    
+    Requires the user to have 2FA enabled. Returns a time-bound token
+    that must be verified with an OTP code before performing sensitive operations.
+    """
+    try:
+        # Extract session ID from JWT token
+        auth_header = req.headers.get("authorization", "")
+        if not auth_header.startswith("Bearer "):
+            raise HTTPException(status_code=401, detail="Invalid authorization header")
+            
+        token = auth_header[7:]  # Remove "Bearer " prefix
+        session_id = None
+        
+        try:
+            payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
+            session_id = payload.get("session_id")
+        except JWTError:
+            # Fallback: try to get from current session
+            session_id = getattr(req.state, "session_id", None)
+            
+        if not session_id:
+            raise HTTPException(status_code=401, detail="Session ID required for step-up auth")
+            
+        ip = get_real_ip(req)
+        user_agent = req.headers.get("user-agent", "Unknown")
+        
+        step_up_token = await auth_service.initiate_step_up_auth(
+            user=current_user,
+            session_id=session_id,
+            purpose=request.purpose,
+            ip_address=ip,
+            user_agent=user_agent
+        )
+        
+        return StepUpAuthResponse(
+            step_up_token=step_up_token,
+            expires_in_seconds=600,  # 10 minutes
+            purpose=request.purpose
+        )
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Step-up auth initiation failed: {e}")
+        raise HTTPException(status_code=500, detail="Step-up authentication initiation failed")
+
+
+@router.post("/step-up/verify", response_model=StepUpAuthVerifyResponse, responses={400: {"model": ErrorResponse}, 401: {"model": ErrorResponse}})
+async def verify_step_up_auth(
+    request: StepUpAuthVerifyRequest,
+    current_user: Annotated[User, Depends(get_current_user)],
+    req: Request,
+    auth_service: Annotated[AuthService, Depends(get_auth_service)]
+):
+    """
+    Verify step-up authentication with OTP code.
+    
+    Validates the step-up token and OTP code. On success, marks the token as used
+    and allows privileged operations for a limited time window.
+    """
+    try:
+        ip = get_real_ip(req)
+        
+        success = await auth_service.verify_step_up_auth(
+            step_up_token=request.step_up_token,
+            otp_code=request.code,
+            ip_address=ip
+        )
+        
+        if success:
+            # Get token details for response
+            from ..models import StepUpToken
+            from sqlalchemy import select
+            
+            stmt = select(StepUpToken).filter(StepUpToken.token == request.step_up_token)
+            result = await auth_service.db.execute(stmt)
+            token_record = result.scalar_one_or_none()
+            
+            return StepUpAuthVerifyResponse(
+                verified=True,
+                expires_at=token_record.expires_at.isoformat() if token_record else None
+            )
+        else:
+            raise HTTPException(status_code=401, detail="Step-up authentication failed")
+            
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"Step-up auth verification failed: {e}")
+        raise HTTPException(status_code=500, detail="Step-up authentication verification failed")
+
+
+# --- Secrets Compliance Monitoring (#1246) ---
+
+@router.get("/compliance/secrets", response_model=Dict[str, Any], tags=["Security Compliance"])
+async def get_secrets_compliance_metrics(
+    current_user: Annotated[User, Depends(get_current_user)] = None,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get current secrets age and rotation compliance metrics.
+
+    Returns compliance statistics and violation details for dashboard monitoring.
+    Requires admin privileges.
+
+    - **total_active_tokens**: Total number of active refresh tokens
+    - **compliant_tokens**: Tokens within rotation policy
+    - **warning_violations**: Tokens needing attention (30+ days)
+    - **critical_violations**: Tokens requiring immediate action (60+ days)
+    - **expired_tokens**: Tokens exceeding maximum age (90+ days)
+    - **compliance_rate**: Percentage of compliant tokens
+    - **violations**: Detailed list of violating tokens
+    """
+    # Check admin privileges (simplified check - in production use proper RBAC)
+    if not getattr(current_user, 'is_admin', False):
+        raise HTTPException(status_code=403, detail="Admin privileges required")
+
+    from ..services.secrets_compliance_service import secrets_compliance_service
+
+    try:
+        # Get current metrics from cache
+        metrics = await secrets_compliance_service.get_compliance_metrics()
+
+        if not metrics:
+            # If no cached metrics, run fresh check
+            metrics = await secrets_compliance_service.check_compliance(db)
+            await secrets_compliance_service.update_metrics(metrics)
+
+        return metrics
+
+    except Exception as e:
+        logger.error(f"Failed to retrieve compliance metrics: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve compliance metrics")
+
+
+@router.post("/compliance/secrets/check", response_model=Dict[str, Any], tags=["Security Compliance"])
+async def run_secrets_compliance_check(
+    current_user: Annotated[User, Depends(get_current_user)] = None,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Manually trigger secrets compliance check.
+
+    Runs full compliance analysis and returns current status.
+    Requires admin privileges.
+    """
+    # Check admin privileges
+    if not getattr(current_user, 'is_admin', False):
+        raise HTTPException(status_code=403, detail="Admin privileges required")
+
+    from ..services.secrets_compliance_service import secrets_compliance_service
+
+    try:
+        # Run fresh compliance check
+        report = await secrets_compliance_service.check_compliance(db)
+
+        # Update metrics cache
+        await secrets_compliance_service.update_metrics(report)
+
+        # Trigger Celery task for alerting if violations found
+        if report.get('violations'):
+            from ..celery_tasks import check_secrets_age_compliance
+            # Run asynchronously (don't wait for completion)
+            check_secrets_age_compliance.delay()
+
+        return report
+
+    except Exception as e:
+        logger.error(f"Failed to run compliance check: {e}")
+        raise HTTPException(status_code=500, detail="Failed to run compliance check")
+
+
+@router.get("/compliance/secrets/thresholds", response_model=Dict[str, int], tags=["Security Compliance"])
+async def get_secrets_rotation_thresholds(
+    current_user: Annotated[User, Depends(get_current_user)] = None
+):
+    """
+    Get current secrets rotation threshold configuration.
+
+    Returns age thresholds in days for compliance monitoring.
+    """
+    # Check admin privileges
+    if not getattr(current_user, 'is_admin', False):
+        raise HTTPException(status_code=403, detail="Admin privileges required")
+
+    from ..services.secrets_compliance_service import secrets_compliance_service
+
+    return secrets_compliance_service.get_rotation_thresholds()
+
+
+@router.get("/compliance/secrets/violations", response_model=List[Dict[str, Any]], tags=["Security Compliance"])
+async def get_secrets_violations(
+    severity: str = Query("warning", description="Minimum severity level: warning, critical, expired"),
+    current_user: Annotated[User, Depends(get_current_user)] = None,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Get list of tokens violating rotation policies.
+
+    Returns detailed information about tokens needing rotation.
+    Requires admin privileges.
+    """
+    # Check admin privileges
+    if not getattr(current_user, 'is_admin', False):
+        raise HTTPException(status_code=403, detail="Admin privileges required")
+
+    from ..services.secrets_compliance_service import secrets_compliance_service
+
+    try:
+        return await secrets_compliance_service.get_tokens_needing_rotation(db, severity)
+
+    except Exception as e:
+        logger.error(f"Failed to retrieve violations: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve violations")

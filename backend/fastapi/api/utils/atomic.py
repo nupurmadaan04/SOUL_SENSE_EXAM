@@ -46,9 +46,14 @@ def atomic_write(filepath: str, mode: str = "w", encoding: str = "utf-8", **kwar
     
     f = None
     try:
-        # Open the file handle returned by mkstemp
-        f = os.fdopen(fd, mode, encoding=encoding if "b" not in mode else None, **kwargs)
-        
+        try:
+            # Open the file handle returned by mkstemp
+            f = os.fdopen(fd, mode, encoding=encoding if "b" not in mode else None, **kwargs)
+        except Exception:
+            # If fdopen fails, we MUST close the raw fd manually
+            os.close(fd)
+            raise
+            
         # Yield file to caller
         yield f
         
@@ -72,22 +77,21 @@ def atomic_write(filepath: str, mode: str = "w", encoding: str = "utf-8", **kwar
         # Atomic rename with retry for Windows locking issues
         _rename_with_retry(temp_path, filepath)
             
-    except Exception as e:
-        # If an error occurred, try to close
+    finally:
+        # Guarantee cleanup: close f if still open and delete temp_path if it exists
         if f:
             try:
                 f.close()
             except Exception:
                 pass
         
-        # Delete temp file
         if os.path.exists(temp_path):
             try:
                 os.remove(temp_path)
             except OSError as cleanup_error:
-                logger.warning(f"Failed to clean up temp file {temp_path}: {cleanup_error}")
-                
-        raise e
+                # If we already renamed it successfully, it shouldn't exist
+                # If the rename failed or some other error happened, we try to clean it up
+                pass
 
 def _rename_with_retry(src: str, dst: str) -> None:
     """

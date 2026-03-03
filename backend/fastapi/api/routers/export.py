@@ -5,6 +5,9 @@ Migrated to Async SQLAlchemy 2.0.
 
 from fastapi import APIRouter, Depends, Query, Body, BackgroundTasks, status
 from fastapi.responses import FileResponse
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, UTC, timedelta
 from typing import Dict, Any, List, Optional
@@ -81,6 +84,9 @@ async def generate_export(
     _check_rate_limit(current_user.id)
 
     try:
+        # Generate Export using V1 service
+        filepath, job_id = await ExportServiceV1.generate_export(db, current_user, export_format)
+
         filepath, job_id = await ExportServiceV1.generate_export(db, current_user, request.format)
         filename = os.path.basename(filepath)
 
@@ -136,6 +142,27 @@ async def export_pdf_direct(
         )
 
 
+@router.post("/v2")
+async def create_export_v2(
+    format: str = Body(..., embed=True),
+    options: Optional[Dict[str, Any]] = Body(None, embed=True),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    V2 Endpoint: Create an export with advanced options.
+
+    Request Body:
+    {
+        "format": "json" | "csv" | "xml" | "html" | "pdf",
+        "options": {
+            "date_range": {
+                "start": "2023-01-01T00:00:00",
+                "end": "2024-12-31T23:59:59"
+            },
+            "data_types": ["profile", "journal", "assessments"],
+            "encrypt": false,
+            "password": "optional_password_for_encryption"
 # ============================================================================
 # ASYNC EXPORT ENDPOINTS (Background Task Queue)
 # ============================================================================
@@ -260,6 +287,7 @@ async def create_export_v2(
 
     try:
         filepath, export_id = await ExportServiceV2.generate_export(
+            db, current_user, format_lower, export_options
             db, current_user, request.format, export_options
         )
 
@@ -291,6 +319,7 @@ async def list_exports_v2(
     """List all exports for the current user."""
     try:
         history = await ExportServiceV2.get_export_history(db, current_user, limit)
+
         return {
             "total": len(history),
             "exports": history
@@ -306,12 +335,17 @@ async def get_export_status_v2(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
+    """
+    Get the status and details of an export job (V2).
+    """
     """Get the status and details of an export job."""
     from sqlalchemy import select
     stmt = select(ExportRecord).filter(
         ExportRecord.export_id == export_id,
         ExportRecord.user_id == current_user.id
     )
+    result = await db.execute(stmt)
+    export = result.scalar_one_or_none()
     res = await db.execute(stmt)
     export = res.scalar_one_or_none()
 
@@ -385,6 +419,19 @@ async def get_export_status(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
+    """
+    V1 Endpoint: Get the status of an export job.
+    """
+    # Check if it's a V2 export (with database record)
+    stmt = select(ExportRecord).filter(
+        ExportRecord.export_id == job_id
+    )
+    result = await db.execute(stmt)
+    export = result.scalar_one_or_none()
+
+    if export:
+        if export.user_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Access denied.")
     """V1 Endpoint: Get the status of an export job."""
     from sqlalchemy import select
     stmt = select(ExportRecord).filter(ExportRecord.export_id == job_id)
@@ -402,6 +449,8 @@ async def get_export_status(
             "download_url": f"/api/v1/export/{job_id}/download"
         }
 
+    # Fallback for V1 exports (no database record)
+    raise HTTPException(status_code=404, detail="Job not found.")
     raise NotFoundError(resource="Export job", resource_id=job_id)
 
 
@@ -411,6 +460,16 @@ async def download_export(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
+    """
+    Download an export file.
+    Supports both V1 (filename) and V2 (export_id) identifiers.
+    """
+    # First, check if it's a V2 export (by export_id)
+    stmt = select(ExportRecord).filter(
+        ExportRecord.export_id == identifier
+    )
+    result = await db.execute(stmt)
+    export = result.scalar_one_or_none()
     """Download an export file."""
     from sqlalchemy import select
     stmt = select(ExportRecord).filter(ExportRecord.export_id == identifier)

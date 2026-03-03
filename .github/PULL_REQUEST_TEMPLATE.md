@@ -1,50 +1,48 @@
-## 📌 Description
-This PR removes hardcoded CORS origins from `backend/fastapi/api/main.py` and externalizes them into environment variables driven by Pydantic's `BaseSettings`. This addresses potential deployment blockers and security risks associated with hardcoded origins.
+# 🚀 Pull Request Template
 
-**Key Changes:**
-- **Moved CORS origins** from `main.py` to `BACKEND_CORS_ORIGINS` in `backend/fastapi/api/config.py`.
-- **Implemented a validator** in the `BaseAppSettings` class that dynamically handles environment variables passed as either comma-separated strings (CSV) or JSON arrays.
-- **Created `.env.example`** to document the new `BACKEND_CORS_ORIGINS` variable and provide examples for local, staging, and production configurations.
-- **Added `.env.example` exception** to `.gitignore` to ensure documentation is available for other developers.
+## 📝 Description
+Provide a clear and concise description of what this PR does. Mention any related issues using the `Fixes #` or `Closes #` syntax.
 
-Fixes: # (issue number, if applicable)
+- **Objective**: What is the main goal of these changes?
+- **Context**: Why are these changes being made?
 
 ---
 
 ## 🔧 Type of Change
-Please mark the relevant option(s):
-
-- [ ] 🐛 Bug fix
-- [x] ✨ New feature
-- [x] 📝 Documentation update
-- [x] ♻️ Refactor / Code cleanup
-- [ ] 🎨 UI / Styling change
-- [x] 🚀 Other (Security Hardening): Prevents unauthorized local domains from hitting production backends.
+Mark the relevant options:
+- [ ] 🐛 **Bug Fix**: A non-breaking change which fixes an issue.
+- [ ] ✨ **New Feature**: A non-breaking change which adds functionality.
+- [ ] 💥 **Breaking Change**: A fix or feature that would cause existing functionality to not work as expected.
+- [ ] ♻️ **Refactor**: Code improvement (no functional changes).
+- [ ] 📝 **Documentation Update**: Changes to README, comments, or external docs.
+- [ ] 🚀 **Performance / Security**: Improvements to app speed or security posture.
 
 ---
 
 ## 🧪 How Has This Been Tested?
-Describe the tests you ran to verify your changes.
+Describe the tests you ran to verify your changes. Include steps to reproduce if necessary.
 
-- [x] Manual testing
-- [x] Automated tests (Verified with a custom configuration test script `test_cors_config.py` against both CSV and JSON inputs)
+- [ ] **Unit Tests**: Ran `pytest` or `npm test`.
+- [ ] **Integration Tests**: Verified API endpoints or end-to-end flows.
+- [ ] **Manual Verification**: Briefly describe manual steps taken.
 
 ---
 
-## 📸 Screenshots (if applicable)
-N/A (Backend logic change)
+## 📸 Screenshots / Recordings (if applicable)
+Add any relevant visual evidence (screenshots, GIFs, or videos) to help reviewers understand the change.
 
 ---
 
 ## ✅ Checklist
-Please confirm the following:
-
-- [x] My code follows the project’s coding style
-- [x] I have tested my changes
-- [x] I have updated documentation where necessary
-- [x] This PR does not introduce breaking changes
+Confirm you have completed the following steps:
+- [ ] My code follows the project's style guidelines.
+- [ ] I have performed a self-review of my code.
+- [ ] I have added/updated necessary comments or documentation.
+- [ ] My changes generate no new warnings or linting errors.
+- [ ] Existing tests pass with my changes.
+- [ ] I have verified this PR on the latest `main` branch.
 
 ---
 
 ## 📝 Additional Notes
-The `BACKEND_CORS_ORIGINS` attribute in `config.py` uses the `Any` type hint and a `mode="before"` validator. This is specifically designed to bypass Pydantic's default JSON parsing for list fields, which often fails when environment variables are provided as standard comma-separated strings.
+Add any other context, edge cases, or "gotchas" that reviewers should be aware of.

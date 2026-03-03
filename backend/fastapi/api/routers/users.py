@@ -1,9 +1,12 @@
 """
-Users Router
+Users Router (Async Version)
 
 Provides authenticated CRUD endpoints for user management.
 """
 
+from typing import Annotated, List
+from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, Depends, HTTPException, status
 from typing import Annotated, List, Dict
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import APIRouter, Depends, status, UploadFile, File, Request
@@ -28,17 +31,20 @@ from ..routers.auth import get_current_user, require_admin
 from ..services.db_service import get_db
 from ..models import User
 from app.core import NotFoundError, ValidationError, InternalServerError
+import aiofiles
 
 
 router = APIRouter(tags=["Users"])
 
 
 async def get_user_service(db: AsyncSession = Depends(get_db)):
+    """Dependency to get UserService with async database session."""
     """Dependency to get UserService with database session."""
     return UserService(db)
 
 
 async def get_profile_service(db: AsyncSession = Depends(get_db)):
+    """Dependency to get ProfileService with async database session."""
     """Dependency to get ProfileService with database session."""
     return ProfileService(db)
 
@@ -87,6 +93,8 @@ async def get_complete_user_profile(
 ):
     """
     Get complete user profile including all sub-profiles.
+    
+    **Authentication Required**
     """
     return await profile_service.get_complete_profile(current_user.id)
 
@@ -99,6 +107,8 @@ async def update_current_user(
 ):
     """
     Update the currently authenticated user's information.
+    
+    **Authentication Required**
     """
     updated_user = await user_service.update_user(
         user_id=current_user.id,
@@ -120,6 +130,8 @@ async def delete_current_user(
 ):
     """
     Delete the currently authenticated user account.
+    
+    **Authentication Required**
     """
     await user_service.delete_user(current_user.id)
     return None
@@ -153,6 +165,9 @@ async def list_users(
     limit: int = 100
 ):
     """
+    List all users with pagination.
+    
+    **Authentication Required**
     List all users with pagination (Admin only).
     """
     if limit > 100:
@@ -177,6 +192,9 @@ async def get_user(
     user_service: Annotated[UserService, Depends(get_user_service)]
 ):
     """
+    Get a specific user by ID.
+    
+    **Authentication Required**
     Get a specific user by ID (Admin only).
     """
     user = await user_service.get_user_by_id(user_id)
@@ -238,6 +256,10 @@ async def complete_onboarding(
     if strengths_data:
         await profile_service.update_user_strengths(current_user.id, strengths_data)
     
+    **Authentication Required**
+    """
+    detail = await user_service.get_user_detail(user_id)
+    return UserDetail(**detail)
     current_user.onboarding_completed = True
     await db.commit()
     
@@ -293,8 +315,8 @@ async def upload_user_avatar(
     avatar_path = avatars_dir / avatar_filename
 
     try:
-        with open(avatar_path, "wb") as buffer:
-            buffer.write(content)
+        async with aiofiles.open(avatar_path, "wb") as buffer:
+            await buffer.write(content)
     except Exception as e:
         raise InternalServerError(
             message="Failed to save avatar file",

@@ -161,6 +161,7 @@ class JournalService:
         stress_triggers: Optional[str] = None,
         daily_schedule: Optional[str] = None
     ) -> JournalEntry:
+        """Create entry (Async)."""
         """Create a new journal entry. Sentiment analysis is offloaded to gRPC microservice (#1126)."""
         
         # Calculate word count synchronously
@@ -213,6 +214,11 @@ class JournalService:
 
         # Step 3: Commit both entry + outbox atomically.
         try:
+            self.db.add(entry)
+            await self.db.commit()
+            await self.db.refresh(entry)
+        except Exception as e:
+            await self.db.rollback()
             await self.db.commit()
             db_id = entry.id # Keep reference
             await self.db.refresh(entry)
@@ -238,12 +244,82 @@ class JournalService:
 
         # Trigger Gamification Post-Commit
         try:
+            await GamificationService.award_xp(self.db, current_user.id, 50, "Journal entry")
+            await GamificationService.update_streak(self.db, current_user.id, "journal")
+            await GamificationService.check_achievements(self.db, current_user.id, "journal")
             await GamificationService.award_xp(self.db, u_id, 50, "Journal entry")
             await GamificationService.update_streak(self.db, u_id, "journal")
             await GamificationService.check_achievements(self.db, u_id, "journal")
         except Exception as e:
             logger.debug(f"Post-commit gamification update failed: {e}")
 
+    async def get_entries_cursor(
+        self,
+        current_user: User,
+        limit: int = 20,
+        cursor: Optional[str] = None,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None
+    ) -> Tuple[List[JournalEntry], Optional[str], bool]:
+        """Keyset pagination (Async)."""
+        
+        # Cap limit at 100
+        limit = min(limit, 100)
+        
+        stmt = select(JournalEntry).filter(
+            JournalEntry.user_id == current_user.id,
+            JournalEntry.is_deleted == False
+        )
+        
+        # Date filtering
+        if start_date:
+            stmt = stmt.filter(JournalEntry.entry_date >= start_date)
+        if end_date:
+            stmt = stmt.filter(JournalEntry.entry_date <= end_date)
+
+        # Apply Keyset Pagination (Cursor)
+        if cursor:
+            try:
+                # Format: timestamp|id for tie-breaking
+                if "|" in cursor:
+                    cursor_ts, cursor_id = cursor.split("|")
+                    stmt = stmt.filter(
+                        or_(
+                            JournalEntry.timestamp < cursor_ts,
+                            and_(
+                                JournalEntry.timestamp == cursor_ts,
+                                JournalEntry.id < int(cursor_id)
+                            )
+                        )
+                    )
+                else:
+                    # Fallback for simple timestamp cursor
+                    stmt = stmt.filter(JournalEntry.timestamp < cursor)
+            except (ValueError, IndexError):
+                pass # Gracefully ignore malformed cursors
+        
+        # Fetch limit + 1 to determine if has_more
+        stmt = stmt.order_by(
+            JournalEntry.timestamp.desc(),
+            JournalEntry.id.desc()
+        ).limit(limit + 1)
+        
+        result = await self.db.execute(stmt)
+        entries = list(result.scalars().all())
+        
+        has_more = len(entries) > limit
+        if has_more:
+            entries = entries[:limit]
+            last_entry = entries[-1]
+            next_cursor = f"{last_entry.timestamp}|{last_entry.id}"
+        else:
+            next_cursor = None
+        
+        # Attach dynamic fields
+        for entry in entries:
+            entry.reading_time_mins = round(entry.word_count / 200, 2)
+        
+        return entries, next_cursor, has_more
         return entry
 
     async def get_entries(
@@ -254,6 +330,8 @@ class JournalService:
         start_date: Optional[str] = None,
         end_date: Optional[str] = None
     ) -> Tuple[List[JournalEntry], int]:
+        """Get paginated entries (Async)."""
+        limit = min(limit, 100)
         """Get paginated journal entries for the current user."""
         
         limit = min(limit, 100)
@@ -267,6 +345,10 @@ class JournalService:
             stmt = stmt.filter(JournalEntry.entry_date >= start_date)
         if end_date:
             stmt = stmt.filter(JournalEntry.entry_date <= end_date)
+        
+        count_stmt = select(func.count()).select_from(stmt.subquery())
+        count_result = await self.db.execute(count_stmt)
+        total = count_result.scalar() or 0
         
         # Count
         count_stmt = select(func.count()).select_from(stmt.subquery())
@@ -290,6 +372,7 @@ class JournalService:
         return entries, total
 
     async def get_entry_by_id(self, entry_id: int, current_user: User) -> JournalEntry:
+        """Get by ID (Async)."""
         """Get a specific journal entry by ID."""
         stmt = select(JournalEntry).filter(
             JournalEntry.id == entry_id,
@@ -300,12 +383,9 @@ class JournalService:
         entry = result.scalar_one_or_none()
         
         if not entry:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Journal entry not found"
-            )
-        
-        # Attach dynamic fields
+            logger.warning(f"Journal entry {entry_id} not found for user {current_user.id}")
+            raise HTTPException(status_code=404, detail="Journal entry not found")
+            
         entry.reading_time_mins = round(entry.word_count / 200, 2)
         
         # Handle Cold Storage retrieval (#1125)
@@ -325,8 +405,12 @@ class JournalService:
         content: Optional[str] = None,
         tags: Optional[List[str]] = None,
         privacy_level: Optional[str] = None,
-        **wellbeing_fields
+        **kwargs
     ) -> JournalEntry:
+        """Update entry (Async)."""
+        entry = await self.get_entry_by_id(entry_id, current_user)
+        
+        if content is not None and content != entry.content:
         """Update a journal entry."""
         
         entry = await self.get_entry_by_id(entry_id, current_user)
@@ -339,7 +423,29 @@ class JournalService:
         
         if tags is not None:
             entry.tags = self._parse_tags(tags)
+        if privacy_level is not None:
+            entry.privacy_level = privacy_level
+            
+        for key, value in kwargs.items():
+            if hasattr(entry, key):
+                setattr(entry, key, value)
         
+        try:
+            await self.db.commit()
+            await self.db.refresh(entry)
+            
+            # Attach dynamic fields
+            entry.reading_time_mins = round(entry.word_count / 200, 2)
+            
+            return entry
+        except Exception as e:
+            await self.db.rollback()
+            raise e
+
+    async def delete_entry(self, entry_id: int, current_user: User) -> bool:
+        """Soft delete (Async)."""
+        entry = await self.get_entry_by_id(entry_id, current_user)
+        entry.is_deleted = True
         for field, value in wellbeing_fields.items():
             if value is not None and hasattr(entry, field):
                 setattr(entry, field, value)
@@ -406,37 +512,21 @@ class JournalService:
         skip: int = 0,
         limit: int = 20
     ) -> Tuple[List[JournalEntry], int]:
-        """Search journal entries with filters.
-
-        SQL Injection safety: all filters use SQLAlchemy ORM parameterised
-        binds.  ilike() passes its argument as a bind parameter, never as
-        inline SQL text.  The explicit string-concatenation pattern below
-        ("% " + value + " %") is the recommended idiomatic form — it avoids
-        any ambiguity while still relying on the ORM for escaping.
-        """
-
+        """Search entries (Async)."""
         limit = min(limit, 100)
-
-        db_query = self.db.query(JournalEntry).filter(
+        stmt = select(JournalEntry).filter(
             JournalEntry.user_id == current_user.id,
             JournalEntry.is_deleted == False
         )
 
-        # Content search — uses parameterised ilike (no raw SQL interpolation)
         if query:
-            # Truncate to prevent DoS via enormous patterns
             safe_query = query[:500]
-            db_query = db_query.filter(
-                JournalEntry.content.ilike("%" + safe_query + "%")
-            )
+            stmt = stmt.filter(JournalEntry.content.ilike("%" + safe_query + "%"))
 
-        # Tag filtering — each tag value is passed as a bind parameter
         if tags:
             for tag in tags:
-                safe_tag = tag[:200]  # sanitise length
-                db_query = db_query.filter(
-                    JournalEntry.tags.ilike("%" + safe_tag + "%")
-                )
+                safe_tag = tag[:200]
+                stmt = stmt.filter(JournalEntry.tags.ilike("%" + safe_tag + "%"))
         
         stmt = select(JournalEntry).filter(
             JournalEntry.user_id == current_user.id,
@@ -469,6 +559,8 @@ class JournalService:
             stmt = stmt.filter(JournalEntry.sentiment_score <= max_sentiment)
         
         count_stmt = select(func.count()).select_from(stmt.subquery())
+        count_result = await self.db.execute(count_stmt)
+        total = count_result.scalar() or 0
         count_res = await self.db.execute(count_stmt)
         total = count_res.scalar() or 0
         
@@ -485,6 +577,7 @@ class JournalService:
         return entries, total
 
     async def get_analytics(self, current_user: User) -> dict:
+        """Get analytics (Async)."""
         """Get journal analytics."""
         
         base_filter = and_(
@@ -497,6 +590,10 @@ class JournalService:
             func.avg(JournalEntry.sentiment_score).label('avg_sentiment'),
             func.avg(JournalEntry.stress_level).label('avg_stress'),
             func.avg(JournalEntry.sleep_quality).label('avg_sleep')
+        ).filter(
+            JournalEntry.user_id == current_user.id,
+            JournalEntry.is_deleted == False
+        )
         ).filter(base_filter)
         
         result = await self.db.execute(stmt)
@@ -509,16 +606,45 @@ class JournalService:
 
         if total_entries == 0:
              return {
-                "total_entries": 0,
-                "average_sentiment": 50.0,
-                "sentiment_trend": "stable",
-                "most_common_tags": [],
-                "average_stress_level": None,
-                "average_sleep_quality": None,
-                "entries_this_week": 0,
-                "entries_this_month": 0
+                "total_entries": 0, "average_sentiment": 50.0, "sentiment_trend": "stable",
+                "most_common_tags": [], "average_stress_level": None, "average_sleep_quality": None,
+                "entries_this_week": 0, "entries_this_month": 0
             }
 
+        now = datetime.utcnow()
+        week_ago = (now - timedelta(days=7)).strftime("%Y-%m-%d")
+        two_weeks_ago = (now - timedelta(days=14)).strftime("%Y-%m-%d")
+
+        recent_stmt = select(func.avg(JournalEntry.sentiment_score)).filter(
+            JournalEntry.user_id == current_user.id,
+            JournalEntry.is_deleted == False,
+            JournalEntry.entry_date >= week_ago
+        )
+        recent_avg = (await self.db.execute(recent_stmt)).scalar() or 50.0
+            
+        older_stmt = select(func.avg(JournalEntry.sentiment_score)).filter(
+            JournalEntry.user_id == current_user.id,
+            JournalEntry.is_deleted == False,
+            JournalEntry.entry_date >= two_weeks_ago,
+            JournalEntry.entry_date < week_ago
+        )
+        older_avg = (await self.db.execute(older_stmt)).scalar() or 50.0
+        
+        trend = "improving" if recent_avg > older_avg + 5 else "declining" if recent_avg < older_avg - 5 else "stable"
+
+        month_ago = (now - timedelta(days=30)).strftime("%Y-%m-%d")
+        
+        week_count = (await self.db.execute(select(func.count(JournalEntry.id)).filter(
+            JournalEntry.user_id == current_user.id, JournalEntry.is_deleted == False, JournalEntry.entry_date >= week_ago
+        ))).scalar() or 0
+            
+        month_count = (await self.db.execute(select(func.count(JournalEntry.id)).filter(
+            JournalEntry.user_id == current_user.id, JournalEntry.is_deleted == False, JournalEntry.entry_date >= month_ago
+        ))).scalar() or 0
+
+        tag_entries = (await self.db.execute(select(JournalEntry.tags).filter(
+            JournalEntry.user_id == current_user.id, JournalEntry.is_deleted == False
+        ))).all()
         now = datetime.now(UTC)
         week_ago_date = (now - timedelta(days=7)).strftime("%Y-%m-%d")
         two_weeks_ago_date = (now - timedelta(days=14)).strftime("%Y-%m-%d")
@@ -562,6 +688,11 @@ class JournalService:
         most_common = [t for t, c in tag_counts.most_common(5)]
         
         return {
+            "total_entries": total_entries, "average_sentiment": round(avg_sentiment, 2),
+            "sentiment_trend": trend, "most_common_tags": most_common,
+            "average_stress_level": round(avg_stress, 1) if avg_stress else None,
+            "average_sleep_quality": round(avg_sleep, 1) if avg_sleep else None,
+            "entries_this_week": week_count, "entries_this_month": month_count
             "total_entries": total_entries,
             "average_sentiment": round(float(avg_sentiment), 2),
             "sentiment_trend": trend,
@@ -580,6 +711,8 @@ class JournalService:
         end_date: Optional[str] = None,
         limit: int = 1000
     ) -> str:
+        """Export (Async)."""
+        entries, _ = await self.get_entries(current_user, skip=0, limit=limit, start_date=start_date, end_date=end_date)
         """Export journal entries."""
         
         entries, _ = await self.get_entries(
@@ -593,6 +726,50 @@ class JournalService:
         if format == "json":
             return json.dumps([
                 {
+                    "id": e.id, "entry_date": e.entry_date, "content": e.content,
+                    "sentiment_score": e.sentiment_score, "tags": self._load_tags(e.tags),
+                    "sleep_hours": e.sleep_hours, "sleep_quality": e.sleep_quality,
+                    "energy_level": e.energy_level, "stress_level": e.stress_level
+                }
+                for e in entries
+            ], indent=2)
+        
+        elif format == "txt":
+            lines = []
+            for e in entries:
+                lines.append(f"=== {e.entry_date} ===")
+                lines.append(f"Sentiment: {e.sentiment_score}/100")
+                lines.append(f"Tags: {', '.join(self._load_tags(e.tags))}")
+                lines.append("")
+                lines.append(e.content)
+                lines.append("")
+                lines.append("-" * 50)
+                lines.append("")
+            return "\n".join(lines)
+        
+        raise HTTPException(status_code=400, detail="Unsupported format")
+
+
+# ============================================================================
+# AI Journal Prompts
+# ============================================================================
+
+JOURNAL_PROMPTS = [
+    {"id": 1, "category": "gratitude", "prompt": "What are three things you're grateful for today?", "description": "Focus on positive aspects of your day"},
+    {"id": 2, "category": "gratitude", "prompt": "Who made a positive impact on your life recently?", "description": "Reflect on supportive relationships"},
+    {"id": 3, "category": "reflection", "prompt": "What lesson did you learn this week?", "description": "Extract wisdom from recent experiences"},
+    {"id": 4, "category": "reflection", "prompt": "How have you grown as a person in the last month?", "description": "Track personal development"},
+    {"id": 5, "category": "goals", "prompt": "What's one small step you can take tomorrow toward your biggest goal?", "description": "Break down big goals into actions"},
+    {"id": 6, "category": "goals", "prompt": "What would you attempt if you knew you couldn't fail?", "description": "Explore ambitions without fear"},
+    {"id": 7, "category": "emotions", "prompt": "How are you really feeling right now? Describe it in detail.", "description": "Deep emotional check-in"},
+    {"id": 8, "category": "emotions", "prompt": "What's been weighing on your mind lately?", "description": "Release mental burdens"},
+    {"id": 9, "category": "creativity", "prompt": "If you could live anywhere for a year, where would you go and why?", "description": "Explore dreams and desires"},
+    {"id": 10, "category": "creativity", "prompt": "Describe your perfect day from start to finish.", "description": "Envision your ideal life"},
+]
+
+
+def get_journal_prompts(category: Optional[str] = None) -> List[dict]:
+    """Get journal prompts, optionally filtered by category."""
                     "id": e.id,
                     "entry_date": e.entry_date,
                     "content": e.content,

@@ -126,6 +126,7 @@ class OutboxRelayService:
                 if event.retry_count >= 3:
                     event.status = "dead_letter"
                     logger.critical(
+<<<<<<< HEAD
                         f"[Outbox] Event {event.id} moved to DEAD_LETTER after {event.retry_count} failed attempts."
                     )
                 else:
@@ -134,11 +135,76 @@ class OutboxRelayService:
                     event.next_retry_at = event_now + timedelta(seconds=delay_seconds)
                     logger.warning(
                         f"[Outbox] Retry scheduled for event {event.id} in {delay_seconds}s (attempt {event.retry_count}/3)"
+=======
+                        f"[Outbox] Permanently moving event {event.id} to DEAD LETTER after {event.retry_count} retries."
+                    )
+                else:
+                    delay_seconds = 60 * (2 ** (event.retry_count - 1))  # 60s, 120s, 240s
+                    event.next_retry_at = event_now + timedelta(seconds=delay_seconds)
+                    logger.warning(
+                        f"[Outbox] Scheduled retry for event {event.id} "
+                        f"in {delay_seconds}s (attempt {event.retry_count}/3)"
+>>>>>>> 0fb38f167afcb6352c3e8ff1a5ca0488ff3495af
                     )
 
         # Single batch commit after all events are processed
         await db.commit()
         return processed_count
+
+    @staticmethod
+    async def cleanup_purgatory(db: AsyncSession, threshold: int = 10000) -> dict:
+        """
+        Check for 'Outbox Purgatory' and alert if thresholds are exceeded.
+        Returns statistics about the outbox state.
+        """
+        from sqlalchemy import func
+        
+        # Count pending and failed/dead_letter events
+        stmt = select(
+            OutboxEvent.status,
+            func.count(OutboxEvent.id).label('count')
+        ).group_by(OutboxEvent.status)
+        
+        result = await db.execute(stmt)
+        stats = {row.status: row.count for row in result.all()}
+        
+        total_purgatory = stats.get('pending', 0) + stats.get('failed', 0) + stats.get('dead_letter', 0)
+        
+        if total_purgatory > threshold:
+            logger.critical(
+                f"🚨 OUTBOX PURGATORY ALERT: {total_purgatory} events pending/failed! "
+                f"Threshold: {threshold}. Admin intervention required."
+            )
+            # In a real system, you'd send an actual alert here (Email, Slack, etc.)
+            
+        return {
+            "total_pending": stats.get('pending', 0),
+            "total_failed": stats.get('failed', 0),
+            "total_dead_letter": stats.get('dead_letter', 0),
+            "is_critical": total_purgatory > threshold,
+            "timestamp": datetime.now(UTC).isoformat()
+        }
+
+    @staticmethod
+    async def retry_all_failed_events(db: AsyncSession) -> int:
+        """
+        Reset all 'failed' or 'dead_letter' events back to 'pending' for retry.
+        """
+        from sqlalchemy import update
+        
+        stmt = update(OutboxEvent).where(
+            OutboxEvent.status.in_(['failed', 'dead_letter'])
+        ).values(
+            status='pending',
+            retry_count=0,
+            next_retry_at=datetime.now(UTC)
+        )
+        
+        result = await db.execute(stmt)
+        await db.commit()
+        
+        logger.info(f"Admin manually triggered retry for {result.rowcount} failed outbox events.")
+        return result.rowcount
 
     @classmethod
     async def start_relay_worker(cls, async_session_factory, interval_seconds: int = 2):

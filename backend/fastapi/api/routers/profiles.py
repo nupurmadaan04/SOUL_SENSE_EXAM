@@ -52,6 +52,7 @@ router = APIRouter(tags=["Profiles"])
 
 
 async def get_profile_service(db: AsyncSession = Depends(get_db)):
+    """Dependency to get ProfileService (Async)."""
     """Dependency to get ProfileService."""
     return ProfileService(db)
 
@@ -89,6 +90,15 @@ async def create_settings(
 ):
     """
     Create settings for the current user.
+    
+    **Fields:**
+    - theme: 'light' or 'dark' (default: 'light')
+    - question_count: Number of questions per assessment, 5-50 (default: 10)
+    - sound_enabled: Enable sound effects (default: true)
+    - notifications_enabled: Enable notifications (default: true)
+    - language: Language code, e.g., 'en', 'es' (default: 'en')
+    
+    **Authentication Required**
     """
     settings = await profile_service.create_user_settings(
         user_id=current_user.id,
@@ -232,6 +242,19 @@ async def create_medical_profile(
 ):
     """
     Create a medical profile for the current user.
+    
+    **Fields (all optional):**
+    - blood_type: Blood type (e.g., 'A+', 'O-')
+    - allergies: Known allergies
+    - medications: Current medications
+    - medical_conditions: Medical conditions
+    - surgeries: History of surgeries
+    - therapy_history: Past counselling/therapy
+    - ongoing_health_issues: Current health concerns
+    - emergency_contact_name: Emergency contact name
+    - emergency_contact_phone: Emergency contact phone
+    
+    **Authentication Required**
     """
     profile = await profile_service.create_medical_profile(
         user_id=current_user.id,
@@ -297,6 +320,25 @@ async def create_personal_profile(
 ):
     """
     Create a personal profile for the current user.
+    
+    **Fields (all optional):**
+    - occupation: Current occupation
+    - education: Education level/background
+    - marital_status: Marital status
+    - hobbies: Hobbies and interests
+    - bio: Personal biography (max 1000 chars)
+    - life_events: Significant life events (JSON format)
+    - email: Email address
+    - phone: Phone number
+    - date_of_birth: Date of birth (YYYY-MM-DD)
+    - gender: Gender
+    - address: Physical address
+    - society_contribution: Community contributions
+    - life_pov: Personal philosophy/perspective
+    - high_pressure_events: Recent high-pressure events
+    - avatar_path: Path to avatar image
+    
+    **Authentication Required**
     """
     profile = await profile_service.create_personal_profile(
         user_id=current_user.id,
@@ -362,6 +404,18 @@ async def create_strengths(
 ):
     """
     Create a strengths profile for the current user.
+    
+    **Fields:**
+    - top_strengths: JSON array of top strengths (default: "[]")
+    - areas_for_improvement: JSON array of areas to improve (default: "[]")
+    - current_challenges: JSON array of current challenges (default: "[]")
+    - learning_style: Preferred learning style (optional)
+    - communication_preference: Communication preference (optional)
+    - comm_style: Detailed communication style (optional)
+    - sharing_boundaries: JSON array of sharing boundaries (default: "[]")
+    - goals: Personal goals (optional)
+    
+    **Authentication Required**
     """
     strengths = await profile_service.create_user_strengths(
         user_id=current_user.id,
@@ -427,6 +481,14 @@ async def create_emotional_patterns(
 ):
     """
     Create emotional patterns for the current user.
+    
+    **Fields:**
+    - common_emotions: JSON array of common emotions (default: "[]")
+    - emotional_triggers: What causes these emotions (optional)
+    - coping_strategies: User's coping strategies (optional)
+    - preferred_support: Preferred support style during distress (optional)
+    
+    **Authentication Required**
     """
     patterns = await profile_service.create_emotional_patterns(
         user_id=current_user.id,
