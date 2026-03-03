@@ -460,7 +460,11 @@ async def download_export(
 ):
     """
     Download an export file.
+<<<<<<< HEAD
     For S3 storage, returns a signed URL. For local storage, serves file directly.
+=======
+    Supports both V1 (filename) and V2 (export_id) identifiers.
+>>>>>>> aa71e7b (ISSUE-1318)
     """
     # First, check if it's a V2 export (by export_id)
     stmt = select(ExportRecord).filter(
@@ -468,6 +472,14 @@ async def download_export(
     )
     result = await db.execute(stmt)
     export = result.scalar_one_or_none()
+<<<<<<< HEAD
+=======
+    """Download an export file."""
+    from sqlalchemy import select
+    stmt = select(ExportRecord).filter(ExportRecord.export_id == identifier)
+    res = await db.execute(stmt)
+    export = res.scalar_one_or_none()
+>>>>>>> aa71e7b (ISSUE-1318)
 
     settings = get_settings_instance()
     filepath = None

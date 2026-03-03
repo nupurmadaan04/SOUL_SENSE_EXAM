@@ -4,6 +4,9 @@ Users Router (Async Version)
 Provides authenticated CRUD endpoints for user management.
 """
 
+from typing import Annotated, List
+from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, Depends, HTTPException, status
 from typing import Annotated, List, Dict
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import APIRouter, Depends, status, UploadFile, File, Request

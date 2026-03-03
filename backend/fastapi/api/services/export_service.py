@@ -124,7 +124,19 @@ class ExportService:
     def _write_json(cls, filepath: str, user: User, scores: List[Score]):
         """Write JSON."""
         data = {
+<<<<<<< HEAD
             "metadata": {
+=======
+            "meta": {
+                "username": user.username, "user_id": user.id, "exported_at": datetime.now().isoformat(),
+                "record_count": len(scores), "version": "1.0"
+            },
+            "data": [
+                {
+                    "timestamp": s.timestamp, "total_score": s.total_score,
+                    "sentiment_score": s.sentiment_score, "reflection_text": s.reflection_text,
+                    "is_rushed": s.is_rushed, "is_inconsistent": s.is_inconsistent,
+>>>>>>> aa71e7b (ISSUE-1318)
                 "username": user.username,
                 "user_id": user.id,
                 "exported_at": datetime.now(UTC).isoformat(),

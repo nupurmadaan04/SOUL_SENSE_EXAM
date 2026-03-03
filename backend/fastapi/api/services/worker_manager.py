@@ -172,6 +172,7 @@ class AsyncWorkerManager:
         await self.health_monitor.start_monitoring()
         logger.info("AsyncWorkerManager started")
 
+<<<<<<< HEAD
     async def shutdown(self, drain_timeout: int = 10):
         """Shutdown all workers and cleanup.
 
@@ -214,6 +215,25 @@ class AsyncWorkerManager:
 
                 # Await cancellation completion
                 await asyncio.gather(*pending, return_exceptions=True)
+=======
+    async def shutdown(self):
+        """Shutdown all workers and cleanup."""
+        self._shutdown = True
+        logger.info("Shutting down AsyncWorkerManager...")
+
+        # Stop health monitoring
+        await self.health_monitor.stop_monitoring()
+
+        # Cancel all workers
+        for name, task in self.workers.items():
+            if not task.done():
+                logger.info(f"Cancelling worker: {name}")
+                task.cancel()
+
+        # Wait for all workers to finish
+        if self.workers:
+            await asyncio.gather(*self.workers.values(), return_exceptions=True)
+>>>>>>> aa71e7b (ISSUE-1318)
 
         # Run cleanup hooks
         for hook in self._cleanup_hooks:

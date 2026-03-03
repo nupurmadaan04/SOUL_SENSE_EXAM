@@ -91,6 +91,8 @@ class GamificationService:
 
     @staticmethod
     async def check_achievements(db: AsyncSession, user_id: int, activity: str) -> List[UserAchievement]:
+        """Check achievements (Async)."""
+        ua_stmt = select(UserAchievement).filter(
         """Check if any achievements are unlocked by the recent activity."""
         # Get all potential achievements for the category/activity
         ua_stmt = select(UserAchievement.achievement_id).filter(
@@ -311,6 +313,12 @@ class GamificationService:
             result = await db.execute(stmt)
             exists = result.scalar_one_or_none()
             if not exists:
+<<<<<<< HEAD
+=======
+            check_stmt = select(Achievement).filter(Achievement.achievement_id == ach_data["achievement_id"])
+            check_res = await db.execute(check_stmt)
+            if not check_res.scalar_one_or_none():
+>>>>>>> aa71e7b (ISSUE-1318)
                 ach = Achievement(**ach_data)
                 db.add(ach)
         await db.commit()
