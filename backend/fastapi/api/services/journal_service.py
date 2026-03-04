@@ -408,12 +408,7 @@ class JournalService:
         privacy_level: Optional[str] = None,
         **kwargs
     ) -> JournalEntry:
-        """Update entry (Async)."""
-        entry = await self.get_entry_by_id(entry_id, current_user)
-        
-        if content is not None and content != entry.content:
         """Update a journal entry."""
-        
         entry = await self.get_entry_by_id(entry_id, current_user)
         
         if content is not None:
@@ -442,38 +437,6 @@ class JournalService:
         except Exception as e:
             await self.db.rollback()
             raise e
-
-    async def delete_entry(self, entry_id: int, current_user: User) -> bool:
-        """Soft delete (Async)."""
-        entry = await self.get_entry_by_id(entry_id, current_user)
-        entry.is_deleted = True
-        for field, value in wellbeing_fields.items():
-            if value is not None and hasattr(entry, field):
-                setattr(entry, field, value)
-        
-        # Outbox Pattern: Write indexing event in same transaction as the update (#1176).
-        # entry.id is already set (entry was fetched from DB), so no flush needed here.
-        if content is not None:
-            import uuid as _uuid
-            from ..models import OutboxEvent
-            self.db.add(OutboxEvent(
-                topic="search_indexing",
-                payload={
-                    "event_id": str(_uuid.uuid4()),  # Stable idempotency key
-                    "journal_id": entry.id,
-                    "action": "upsert",
-                    "event_version": 1,
-                    "timestamp": datetime.now(UTC).isoformat()
-                }
-            ))
-
-        await self.db.commit()
-        await self.db.refresh(entry)
-        
-        # Attach dynamic fields
-        entry.reading_time_mins = round(entry.word_count / 200, 2)
-        
-        return entry
 
     async def delete_entry(self, entry_id: int, current_user: User) -> bool:
         """Soft delete a journal entry."""
@@ -506,69 +469,118 @@ class JournalService:
         query: Optional[str] = None,
         tags: Optional[List[str]] = None,
         sentiment_category: Optional[str] = None,
+        emotion_types: Optional[List[str]] = None,
+        category: Optional[str] = None,
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
         min_sentiment: Optional[float] = None,
         max_sentiment: Optional[float] = None,
+        min_mood: Optional[int] = None,
+        max_mood: Optional[int] = None,
+        min_stress: Optional[int] = None,
+        max_stress: Optional[int] = None,
+        min_energy: Optional[int] = None,
+        max_energy: Optional[int] = None,
+        min_sleep_quality: Optional[int] = None,
+        max_sleep_quality: Optional[int] = None,
         skip: int = 0,
         limit: int = 20
     ) -> Tuple[List[JournalEntry], int]:
-        """Search entries (Async)."""
+        """
+        Advanced emotion filtering with multiple dimensions (Issue #1325).
+        Supports simultaneous filtering across date, emotion type, intensity ranges.
+        """
         limit = min(limit, 100)
+        
+        # Base filter: current user, not deleted
         stmt = select(JournalEntry).filter(
             JournalEntry.user_id == current_user.id,
             JournalEntry.is_deleted == False
         )
 
+        # Text search
         if query:
             safe_query = query[:500]
-            stmt = stmt.filter(JournalEntry.content.ilike("%" + safe_query + "%"))
+            stmt = stmt.filter(JournalEntry.content.ilike(f"%{safe_query}%"))
 
+        # Tag filtering (OR logic - matches any tag)
         if tags:
-            for tag in tags:
-                safe_tag = tag[:200]
-                stmt = stmt.filter(JournalEntry.tags.ilike("%" + safe_tag + "%"))
+            tag_conditions = [
+                JournalEntry.tags.ilike(f"%{tag[:200]}%") 
+                for tag in tags
+            ]
+            stmt = stmt.filter(or_(*tag_conditions))
         
-        stmt = select(JournalEntry).filter(
-            JournalEntry.user_id == current_user.id,
-            JournalEntry.is_deleted == False
-        )
+        # Category filtering
+        if category:
+            stmt = stmt.filter(JournalEntry.category == category)
         
-        if query:
-            stmt = stmt.filter(JournalEntry.content.ilike(f"%{query}%"))
+        # Emotion type filtering (JSON pattern matching)
+        if emotion_types:
+            emotion_conditions = [
+                JournalEntry.emotional_patterns.ilike(f"%{emotion}%")
+                for emotion in emotion_types
+            ]
+            stmt = stmt.filter(or_(*emotion_conditions))
         
-        if tags:
-            for tag in tags:
-                stmt = stmt.filter(JournalEntry.tags.ilike(f"%{tag}%"))
-        
-        if sentiment_category:
-            if sentiment_category == "positive":
-                stmt = stmt.filter(JournalEntry.sentiment_score > 60)
-            elif sentiment_category == "neutral":
-                stmt = stmt.filter(JournalEntry.sentiment_score >= 40, JournalEntry.sentiment_score <= 60)
-            elif sentiment_category == "negative":
-                stmt = stmt.filter(JournalEntry.sentiment_score < 40)
-
+        # Date range filtering
         if start_date:
             stmt = stmt.filter(JournalEntry.entry_date >= start_date)
         if end_date:
             stmt = stmt.filter(JournalEntry.entry_date <= end_date)
+        
+        # Sentiment intensity filtering
+        if sentiment_category:
+            if sentiment_category == "positive":
+                stmt = stmt.filter(JournalEntry.sentiment_score > 60)
+            elif sentiment_category == "neutral":
+                stmt = stmt.filter(and_(
+                    JournalEntry.sentiment_score >= 40, 
+                    JournalEntry.sentiment_score <= 60
+                ))
+            elif sentiment_category == "negative":
+                stmt = stmt.filter(JournalEntry.sentiment_score < 40)
         
         if min_sentiment is not None:
             stmt = stmt.filter(JournalEntry.sentiment_score >= min_sentiment)
         if max_sentiment is not None:
             stmt = stmt.filter(JournalEntry.sentiment_score <= max_sentiment)
         
+        # Mood score filtering
+        if min_mood is not None:
+            stmt = stmt.filter(JournalEntry.mood_score >= min_mood)
+        if max_mood is not None:
+            stmt = stmt.filter(JournalEntry.mood_score <= max_mood)
+        
+        # Stress level filtering
+        if min_stress is not None:
+            stmt = stmt.filter(JournalEntry.stress_level >= min_stress)
+        if max_stress is not None:
+            stmt = stmt.filter(JournalEntry.stress_level <= max_stress)
+        
+        # Energy level filtering
+        if min_energy is not None:
+            stmt = stmt.filter(JournalEntry.energy_level >= min_energy)
+        if max_energy is not None:
+            stmt = stmt.filter(JournalEntry.energy_level <= max_energy)
+        
+        # Sleep quality filtering
+        if min_sleep_quality is not None:
+            stmt = stmt.filter(JournalEntry.sleep_quality >= min_sleep_quality)
+        if max_sleep_quality is not None:
+            stmt = stmt.filter(JournalEntry.sleep_quality <= max_sleep_quality)
+        
+        # Count total matching entries
         count_stmt = select(func.count()).select_from(stmt.subquery())
         count_result = await self.db.execute(count_stmt)
         total = count_result.scalar() or 0
-        count_res = await self.db.execute(count_stmt)
-        total = count_res.scalar() or 0
         
+        # Paginate and sort
         stmt = stmt.order_by(JournalEntry.entry_date.desc()).offset(skip).limit(limit)
         result = await self.db.execute(stmt)
         entries = list(result.scalars().all())
         
+        # Attach dynamic fields
         for entry in entries:
             entry.reading_time_mins = round(entry.word_count / 200, 2)
             if entry.archive_pointer and not entry.content:
@@ -592,10 +604,6 @@ class JournalService:
             func.avg(JournalEntry.sentiment_score).label('avg_sentiment'),
             func.avg(JournalEntry.stress_level).label('avg_stress'),
             func.avg(JournalEntry.sleep_quality).label('avg_sleep')
-        ).filter(
-            JournalEntry.user_id == current_user.id,
-            JournalEntry.is_deleted == False
-        )
         ).filter(base_filter)
         
         result = await self.db.execute(stmt)
@@ -690,11 +698,6 @@ class JournalService:
         most_common = [t for t, c in tag_counts.most_common(5)]
         
         return {
-            "total_entries": total_entries, "average_sentiment": round(avg_sentiment, 2),
-            "sentiment_trend": trend, "most_common_tags": most_common,
-            "average_stress_level": round(avg_stress, 1) if avg_stress else None,
-            "average_sleep_quality": round(avg_sleep, 1) if avg_sleep else None,
-            "entries_this_week": week_count, "entries_this_month": month_count
             "total_entries": total_entries,
             "average_sentiment": round(float(avg_sentiment), 2),
             "sentiment_trend": trend,
@@ -705,98 +708,138 @@ class JournalService:
             "entries_this_month": entries_this_month
         }
 
-    async def export_entries(
-        self,
-        current_user: User,
-        format: str = "json",
-        start_date: Optional[str] = None,
-        end_date: Optional[str] = None,
-        limit: int = 1000
-    ) -> str:
-        """Export (Async)."""
-        entries, _ = await self.get_entries(current_user, skip=0, limit=limit, start_date=start_date, end_date=end_date)
-        """Export journal entries."""
-        
-        entries, _ = await self.get_entries(
-            current_user,
-            skip=0,
-            limit=limit,
-            start_date=start_date,
-            end_date=end_date
+    async def get_filter_options(self, current_user: User) -> dict:
+        """
+        Get available filter options based on user's journal data (Issue #1325).
+        Returns min/max ranges and unique values for filtering.
+        """
+        base_filter = and_(
+            JournalEntry.user_id == current_user.id,
+            JournalEntry.is_deleted == False
         )
         
-        if format == "json":
-            return json.dumps([
-                {
-                    "id": e.id, "entry_date": e.entry_date, "content": e.content,
-                    "sentiment_score": e.sentiment_score, "tags": self._load_tags(e.tags),
-                    "sleep_hours": e.sleep_hours, "sleep_quality": e.sleep_quality,
-                    "energy_level": e.energy_level, "stress_level": e.stress_level
-                }
-                for e in entries
-            ], indent=2)
+        # Get sentiment range
+        from sqlalchemy import func
+        sentiment_stmt = select(
+            func.min(JournalEntry.sentiment_score).label('min_sent'),
+            func.max(JournalEntry.sentiment_score).label('max_sent')
+        ).filter(base_filter)
+        sent_result = await self.db.execute(sentiment_stmt)
+        sent_row = sent_result.first()
+        sentiment_range = {
+            "min": float(sent_row.min_sent or 0),
+            "max": float(sent_row.max_sent or 100)
+        }
         
-        elif format == "txt":
-            lines = []
-            for e in entries:
-                lines.append(f"=== {e.entry_date} ===")
-                lines.append(f"Sentiment: {e.sentiment_score}/100")
-                lines.append(f"Tags: {', '.join(self._load_tags(e.tags))}")
-                lines.append("")
-                lines.append(e.content)
-                lines.append("")
-                lines.append("-" * 50)
-                lines.append("")
-            return "\n".join(lines)
+        # Get mood range
+        mood_stmt = select(
+            func.min(JournalEntry.mood_score).label('min_mood'),
+            func.max(JournalEntry.mood_score).label('max_mood')
+        ).filter(base_filter)
+        mood_result = await self.db.execute(mood_stmt)
+        mood_row = mood_result.first()
+        mood_range = {
+            "min": int(mood_row.min_mood or 1),
+            "max": int(mood_row.max_mood or 10)
+        }
         
-        raise HTTPException(status_code=400, detail="Unsupported format")
-
-
-# ============================================================================
-# AI Journal Prompts
-# ============================================================================
-
-JOURNAL_PROMPTS = [
-    {"id": 1, "category": "gratitude", "prompt": "What are three things you're grateful for today?", "description": "Focus on positive aspects of your day"},
-    {"id": 2, "category": "gratitude", "prompt": "Who made a positive impact on your life recently?", "description": "Reflect on supportive relationships"},
-    {"id": 3, "category": "reflection", "prompt": "What lesson did you learn this week?", "description": "Extract wisdom from recent experiences"},
-    {"id": 4, "category": "reflection", "prompt": "How have you grown as a person in the last month?", "description": "Track personal development"},
-    {"id": 5, "category": "goals", "prompt": "What's one small step you can take tomorrow toward your biggest goal?", "description": "Break down big goals into actions"},
-    {"id": 6, "category": "goals", "prompt": "What would you attempt if you knew you couldn't fail?", "description": "Explore ambitions without fear"},
-    {"id": 7, "category": "emotions", "prompt": "How are you really feeling right now? Describe it in detail.", "description": "Deep emotional check-in"},
-    {"id": 8, "category": "emotions", "prompt": "What's been weighing on your mind lately?", "description": "Release mental burdens"},
-    {"id": 9, "category": "creativity", "prompt": "If you could live anywhere for a year, where would you go and why?", "description": "Explore dreams and desires"},
-    {"id": 10, "category": "creativity", "prompt": "Describe your perfect day from start to finish.", "description": "Envision your ideal life"},
-]
-
-
-def get_journal_prompts(category: Optional[str] = None) -> List[dict]:
-    """Get journal prompts, optionally filtered by category."""
-                    "id": e.id,
-                    "entry_date": e.entry_date,
-                    "content": e.content,
-                    "sentiment_score": e.sentiment_score,
-                    "tags": self._load_tags(e.tags)
-                }
-                for e in entries
-            ], indent=2)
-        return ""
-
-logger = logging.getLogger(__name__)
-
-def get_journal_prompts(category: Optional[str] = None) -> List[Dict[str, Any]]:
-    """Return a list of journaling prompts."""
-    all_prompts = [
-        {"id": 1, "text": "What are you most grateful for today?", "category": "gratitude"},
-        {"id": 2, "text": "Who made a positive impact on your day?", "category": "gratitude"},
-        {"id": 3, "text": "What is one thing you learned about yourself recently?", "category": "reflection"},
-        {"id": 4, "text": "How do you feel at this exact moment?", "category": "emotions"},
-        {"id": 5, "text": "What is your main priority for tomorrow?", "category": "goals"},
-        {"id": 6, "text": "If you could change one thing about your day, what would it be?", "category": "reflection"},
-        {"id": 7, "text": "Describe a dream you had recently.", "category": "creativity"},
-    ]
-    
-    if category:
-        return [p for p in all_prompts if p["category"] == category]
-    return all_prompts
+        # Get stress range
+        stress_stmt = select(
+            func.min(JournalEntry.stress_level).label('min_stress'),
+            func.max(JournalEntry.stress_level).label('max_stress')
+        ).filter(base_filter)
+        stress_result = await self.db.execute(stress_stmt)
+        stress_row = stress_result.first()
+        stress_range = {
+            "min": int(stress_row.min_stress or 1),
+            "max": int(stress_row.max_stress or 10)
+        }
+        
+        # Get energy range
+        energy_stmt = select(
+            func.min(JournalEntry.energy_level).label('min_energy'),
+            func.max(JournalEntry.energy_level).label('max_energy')
+        ).filter(base_filter)
+        energy_result = await self.db.execute(energy_stmt)
+        energy_row = energy_result.first()
+        energy_range = {
+            "min": int(energy_row.min_energy or 1),
+            "max": int(energy_row.max_energy or 10)
+        }
+        
+        # Get sleep quality range
+        sleep_stmt = select(
+            func.min(JournalEntry.sleep_quality).label('min_sleep'),
+            func.max(JournalEntry.sleep_quality).label('max_sleep')
+        ).filter(base_filter)
+        sleep_result = await self.db.execute(sleep_stmt)
+        sleep_row = sleep_result.first()
+        sleep_range = {
+            "min": int(sleep_row.min_sleep or 1),
+            "max": int(sleep_row.max_sleep or 10)
+        }
+        
+        # Get date range
+        date_stmt = select(
+            func.min(JournalEntry.entry_date).label('earliest'),
+            func.max(JournalEntry.entry_date).label('latest')
+        ).filter(base_filter)
+        date_result = await self.db.execute(date_stmt)
+        date_row = date_result.first()
+        date_range = {
+            "earliest": date_row.earliest or None,
+            "latest": date_row.latest or None
+        }
+        
+        # Get unique categories
+        cat_stmt = select(func.distinct(JournalEntry.category)).filter(
+            base_filter,
+            JournalEntry.category.isnot(None)
+        )
+        cat_result = await self.db.execute(cat_stmt)
+        categories = [row[0] for row in cat_result.all() if row[0]]
+        
+        # Get all unique tags
+        tag_stmt = select(JournalEntry.tags).filter(base_filter)
+        tag_entries = await self.db.execute(tag_stmt)
+        all_tags = []
+        for (tag_str,) in tag_entries.all():
+            all_tags.extend(self._load_tags(tag_str))
+        unique_tags = list(set(all_tags))
+        
+        # Get unique emotion types (extract from JSON patterns)
+        emotion_stmt = select(JournalEntry.emotional_patterns).filter(base_filter)
+        emotion_entries = await self.db.execute(emotion_stmt)
+        all_emotions = set()
+        emotion_keywords = {
+            'anxiety', 'sadness', 'joy', 'frustration', 'fatigue', 
+            'hope', 'positivity', 'negative', 'high_positive', 'high_negative'
+        }
+        for (pattern_str,) in emotion_entries.all():
+            if pattern_str:
+                try:
+                    patterns = json.loads(pattern_str)
+                    for p in patterns:
+                        if p in emotion_keywords:
+                            all_emotions.add(p)
+                except json.JSONDecodeError:
+                    pass
+        
+        # Get total entries count
+        total_stmt = select(func.count(JournalEntry.id)).filter(base_filter)
+        total_result = await self.db.execute(total_stmt)
+        total_entries = total_result.scalar() or 0
+        
+        return {
+            "emotion_types": sorted(list(all_emotions)),
+            "categories": sorted(list(set(categories))),
+            "tags": sorted(unique_tags),
+            "sentiment_range": sentiment_range,
+            "mood_range": mood_range,
+            "stress_range": stress_range,
+            "energy_range": energy_range,
+            "sleep_quality_range": sleep_range,
+            "date_range": date_range,
+            "total_entries": total_entries
+        }
 

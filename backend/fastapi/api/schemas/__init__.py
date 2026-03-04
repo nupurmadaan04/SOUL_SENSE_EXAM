@@ -1293,6 +1293,225 @@ class SmartPromptsResponse(BaseModel):
 
 
 # ============================================================================
+# Emotion Filtering Schemas (Issue #1325)
+# ============================================================================
+
+class EmotionFilterRequest(BaseModel):
+    """Schema for advanced emotion filtering with multiple dimensions."""
+    
+    # Date Range Filtering
+    start_date: Optional[str] = Field(
+        None, 
+        pattern="^\\d{4}-\\d{2}-\\d{2}$",
+        description="Start date (YYYY-MM-DD format)"
+    )
+    end_date: Optional[str] = Field(
+        None, 
+        pattern="^\\d{4}-\\d{2}-\\d{2}$",
+        description="End date (YYYY-MM-DD format)"
+    )
+    
+    # Emotion Type Filtering (multiple selection)
+    emotion_types: Optional[List[str]] = Field(
+        None,
+        description="Filter by emotion types: anxiety, sadness, joy, frustration, fatigue, hope, positivity, negative"
+    )
+    
+    # Category Filtering
+    category: Optional[str] = Field(None, max_length=100, description="Filter by category")
+    
+    # Tags Filtering
+    tags: Optional[List[str]] = Field(
+        None, 
+        max_length=20,
+        description="Filter by tags (OR logic - matches any tag)"
+    )
+    
+    # Sentiment Intensity Range (0-100)
+    min_sentiment: Optional[float] = Field(
+        None, 
+        ge=0, 
+        le=100, 
+        description="Minimum sentiment score (0=very negative, 100=very positive)"
+    )
+    max_sentiment: Optional[float] = Field(
+        None, 
+        ge=0, 
+        le=100, 
+        description="Maximum sentiment score (0=very negative, 100=very positive)"
+    )
+    
+    # Mood Score Range (1-10)
+    min_mood: Optional[int] = Field(
+        None, 
+        ge=1, 
+        le=10, 
+        description="Minimum mood score (1=lowest, 10=highest)"
+    )
+    max_mood: Optional[int] = Field(
+        None, 
+        ge=1, 
+        le=10, 
+        description="Maximum mood score (1=lowest, 10=highest)"
+    )
+    
+    # Stress Level Range (1-10)
+    min_stress: Optional[int] = Field(
+        None, 
+        ge=1, 
+        le=10, 
+        description="Minimum stress level (1=no stress, 10=extreme stress)"
+    )
+    max_stress: Optional[int] = Field(
+        None, 
+        ge=1, 
+        le=10, 
+        description="Maximum stress level (1=no stress, 10=extreme stress)"
+    )
+    
+    # Energy Level Range (1-10)
+    min_energy: Optional[int] = Field(
+        None, 
+        ge=1, 
+        le=10, 
+        description="Minimum energy level (1=exhausted, 10=high energy)"
+    )
+    max_energy: Optional[int] = Field(
+        None, 
+        ge=1, 
+        le=10, 
+        description="Maximum energy level (1=exhausted, 10=high energy)"
+    )
+    
+    # Sleep Quality Range (1-10)
+    min_sleep_quality: Optional[int] = Field(
+        None, 
+        ge=1, 
+        le=10, 
+        description="Minimum sleep quality (1=poor, 10=excellent)"
+    )
+    max_sleep_quality: Optional[int] = Field(
+        None, 
+        ge=1, 
+        le=10, 
+        description="Maximum sleep quality (1=poor, 10=excellent)"
+    )
+    
+    # Pagination
+    skip: int = Field(0, ge=0, description="Number of entries to skip")
+    limit: int = Field(20, ge=1, le=100, description="Number of entries to return (max 100)")
+    
+    @field_validator('start_date', 'end_date', mode='before')
+    @classmethod
+    def validate_dates(cls, v):
+        """Validate date format."""
+        if v:
+            try:
+                from datetime import datetime as dt
+                dt.strptime(v, "%Y-%m-%d")
+            except (ValueError, TypeError):
+                raise ValueError("Date must be in YYYY-MM-DD format")
+        return v
+    
+    @field_validator('emotion_types', mode='before')
+    @classmethod
+    def validate_emotion_types(cls, v):
+        """Validate emotion type values."""
+        if v:
+            allowed_emotions = {
+                'anxiety', 'sadness', 'joy', 'frustration', 'fatigue', 
+                'hope', 'positivity', 'negative', 'high_positive', 'high_negative'
+            }
+            invalid = set(v) - allowed_emotions
+            if invalid:
+                raise ValueError(f"Invalid emotion types: {invalid}. Allowed: {allowed_emotions}")
+        return v
+    
+    @field_validator('end_date')
+    @classmethod
+    def validate_date_range(cls, v, info):
+        """Ensure end_date is after start_date."""
+        if v and info.data.get('start_date'):
+            from datetime import datetime as dt
+            start = dt.strptime(info.data['start_date'], "%Y-%m-%d")
+            end = dt.strptime(v, "%Y-%m-%d")
+            if end < start:
+                raise ValueError("end_date must be after or equal to start_date")
+        return v
+    
+    @field_validator('max_sentiment')
+    @classmethod
+    def validate_sentiment_range(cls, v, info):
+        """Ensure max_sentiment >= min_sentiment."""
+        if v is not None and info.data.get('min_sentiment') is not None:
+            if v < info.data['min_sentiment']:
+                raise ValueError("max_sentiment must be >= min_sentiment")
+        return v
+    
+    @field_validator('max_mood')
+    @classmethod
+    def validate_mood_range(cls, v, info):
+        """Ensure max_mood >= min_mood."""
+        if v is not None and info.data.get('min_mood') is not None:
+            if v < info.data['min_mood']:
+                raise ValueError("max_mood must be >= min_mood")
+        return v
+    
+    @field_validator('max_stress')
+    @classmethod
+    def validate_stress_range(cls, v, info):
+        """Ensure max_stress >= min_stress."""
+        if v is not None and info.data.get('min_stress') is not None:
+            if v < info.data['min_stress']:
+                raise ValueError("max_stress must be >= min_stress")
+        return v
+    
+    @field_validator('max_energy')
+    @classmethod
+    def validate_energy_range(cls, v, info):
+        """Ensure max_energy >= min_energy."""
+        if v is not None and info.data.get('min_energy') is not None:
+            if v < info.data['min_energy']:
+                raise ValueError("max_energy must be >= min_energy")
+        return v
+    
+    @field_validator('max_sleep_quality')
+    @classmethod
+    def validate_sleep_range(cls, v, info):
+        """Ensure max_sleep_quality >= min_sleep_quality."""
+        if v is not None and info.data.get('min_sleep_quality') is not None:
+            if v < info.data['min_sleep_quality']:
+                raise ValueError("max_sleep_quality must be >= min_sleep_quality")
+        return v
+
+
+class JournalFilterResponse(BaseModel):
+    """Schema for emotion-filtered journal entries response."""
+    entries: List[JournalResponse] = Field(description="Filtered journal entries")
+    total: int = Field(description="Total number of entries matching filters")
+    filters_applied: EmotionFilterRequest = Field(description="The filters that were applied")
+    has_more: bool = Field(description="Whether there are more results beyond the current page")
+    empty_state_message: Optional[str] = Field(
+        None,
+        description="Helpful message when no entries match the filters"
+    )
+
+
+class FilterOptionsResponse(BaseModel):
+    """Schema for available filter options based on user's journal data."""
+    emotion_types: List[str] = Field(description="Available emotion types in user's entries")
+    categories: List[str] = Field(description="Available categories in user's entries")
+    tags: List[str] = Field(description="Available tags in user's entries")
+    sentiment_range: dict = Field(description="Min/max sentiment values")
+    mood_range: dict = Field(description="Min/max mood values")
+    stress_range: dict = Field(description="Min/max stress values")
+    energy_range: dict = Field(description="Min/max energy values")
+    sleep_quality_range: dict = Field(description="Min/max sleep quality values")
+    date_range: dict = Field(description="Earliest and latest entry dates")
+    total_entries: int = Field(description="Total number of entries for user")
+
+
+# ============================================================================
 # Settings Synchronization Schemas (Issue #396)
 # ============================================================================
 
