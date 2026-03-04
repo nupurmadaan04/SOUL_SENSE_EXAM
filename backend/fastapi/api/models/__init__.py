@@ -754,6 +754,28 @@ class JournalEntry(Base):
     )
     user = relationship("User", back_populates="journal_entries")
 
+class WeeklySummary(Base):
+    """Stores weekly emotional summaries generated from journal entries (Issue #1326)."""
+    __tablename__ = 'weekly_summaries'
+    tenant_id = Column(UUID(as_uuid=True), index=True, nullable=True)
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False, index=True)
+    week_start_date = Column(String, nullable=False, index=True)  # YYYY-MM-DD format
+    week_end_date = Column(String, nullable=False)  # YYYY-MM-DD format
+    dominant_emotion = Column(String, nullable=False)  # e.g., 'positivity', 'sadness', 'anxiety'
+    average_sentiment = Column(Float, nullable=False)  # 0-100, 50 = neutral
+    entry_count = Column(Integer, nullable=False, default=0)  # Number of entries this week
+    summary_text = Column(Text, nullable=False)  # Generated insights about weekly patterns
+    emotional_patterns = Column(Text, nullable=True)  # JSON list of detected patterns
+    created_at = Column(String, default=lambda: datetime.now(UTC).isoformat())
+    updated_at = Column(String, default=lambda: datetime.now(UTC).isoformat())
+    
+    __table_args__ = (
+        Index('idx_weekly_summary_user_week', 'user_id', 'week_start_date'),
+    )
+    
+    user = relationship("User")
+
 class SatisfactionRecord(Base):
     __tablename__ = 'satisfaction_records'
     tenant_id = Column(UUID(as_uuid=True), index=True, nullable=True)

@@ -1244,6 +1244,20 @@ class JournalAnalytics(BaseModel):
     entries_this_month: int
 
 
+class WeeklySummaryResponse(BaseModel):
+    """Schema for weekly emotion summary (Issue #1326)."""
+    id: int
+    week_start_date: str = Field(description="Week start date (YYYY-MM-DD)")
+    week_end_date: str = Field(description="Week end date (YYYY-MM-DD)")
+    dominant_emotion: str = Field(description="Primary emotion detected for the week")
+    average_sentiment: float = Field(ge=0, le=100, description="Average sentiment score (0-100)")
+    entry_count: int = Field(description="Number of journal entries this week")
+    summary_text: str = Field(description="Generated insights about weekly emotional patterns")
+    emotional_patterns: List[str] = Field(description="Detected emotional patterns")
+    created_at: str
+    updated_at: str
+
+
 class JournalSearchParams(BaseModel):
     """Schema for journal search parameters."""
     query: Optional[str] = Field(None, max_length=200, description="Search query")
