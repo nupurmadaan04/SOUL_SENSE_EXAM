@@ -570,6 +570,8 @@ class UserSettings(Base):
     
     # Crisis support settings (Integration with emotional support features)
     crisis_support_preference = Column(Boolean, default=True)
+    onboarding_completed = Column(Boolean, default=False)
+    updated_at = Column(String, default=lambda: datetime.utcnow().isoformat())
     updated_at = Column(String, default=utc_now_iso)
     user = relationship("User", back_populates="settings")
 
@@ -745,6 +747,11 @@ class JournalEntry(Base):
     deleted_at = Column(DateTime(timezone=True), nullable=True)
     privacy_level = Column(String, default="private", index=True)
     word_count = Column(Integer, default=0)
+    
+    __table_args__ = (
+        Index('idx_journal_user_timestamp', 'user_id', 'timestamp'),
+        Index('idx_journal_is_deleted', 'is_deleted'),
+    )
     user = relationship("User", back_populates="journal_entries")
 
 class SatisfactionRecord(Base):
@@ -790,12 +797,45 @@ class AssessmentResult(Base):
     timestamp = Column(String, default=lambda: datetime.now(UTC).isoformat(), index=True)
     overall_score = Column(Float, nullable=True)
     details = Column(Text, nullable=False)
+    journal_entry_id = Column(Integer, ForeignKey('journal_entries.id'), nullable=True)
+    user = relationship("User")
+class Goal(Base):
+    """
+    Structured Emotional Growth Goal tracking (Issue #671).
+    Enables users to set specific emotional metrics and monitor progress.
+    """
+    __tablename__ = 'goals'
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False, index=True)
+    title = Column(String(200), nullable=False)
+    description = Column(Text, nullable=True)
+    category = Column(String(50), nullable=True) # e.g., 'Resilience', 'Empathy', 'Self-Awareness'
+    
+    # Progress Metrics
+    target_value = Column(Float, nullable=False, default=100.0)
+    current_value = Column(Float, nullable=False, default=0.0)
+    unit = Column(String(20), default='percentage') # percentage, count, days
+    
+    # Timeline
+    start_date = Column(DateTime, default=datetime.utcnow)
+    deadline = Column(DateTime, nullable=True)
+    
+    # Status Lifecycle
+    status = Column(String(20), default='active') # active, completed, abandoned, paused
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    user = relationship("User", back_populates="goals")
+
     journal_entry_id = Column(Integer, ForeignKey('journal_entries.id'), nullable=True, index=True)
     is_deleted = Column(Boolean, default=False, nullable=False, index=True)
     deleted_at = Column(DateTime(timezone=True), nullable=True)
     user = relationship("User", back_populates="assessment_results")
     __table_args__ = (
-        Index('idx_assessment_user_type', 'user_id', 'assessment_type'),
+        Index('idx_goals_user_status', 'user_id', 'status'),
+        Index('idx_goals_category', 'category'),
     )
 
 

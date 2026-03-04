@@ -1,52 +1,88 @@
 'use client';
 
-import { Slider } from '@/components/ui';
+import { Slider, EmotionIntensitySlider } from '@/components/ui';
 import { useState } from 'react';
 
 export default function SliderDemo() {
   const [moodRating, setMoodRating] = useState(5);
+  const [energyLevel, setEnergyLevel] = useState(5);
+  const [stressLevel, setStressLevel] = useState(5);
   const [volume, setVolume] = useState(50);
   const [brightness, setBrightness] = useState(75);
   const [fontSize, setFontSize] = useState(16);
 
   return (
     <div className="min-h-screen bg-background p-8">
-      <div className="max-w-4xl mx-auto space-y-8">
+      <div className="max-w-4xl mx-auto space-y-12">
         <div className="text-center">
-          <h1 className="text-3xl font-bold mb-2">Slider Component Demo</h1>
-          <p className="text-muted-foreground">Range slider for mood ratings, settings, and numeric inputs.</p>
+          <h1 className="text-4xl font-extrabold mb-4 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+            Slider Components
+          </h1>
+          <p className="text-muted-foreground text-lg">
+            Compare the basic slider with the new premium Emotion Intensity Slider.
+          </p>
         </div>
 
-        {/* Mood Rating Example */}
-        <div className="space-y-4">
-          <h2 className="text-xl font-semibold">Mood Rating</h2>
-          <div className="max-w-md">
-            <Slider
-              label="How are you feeling today?"
-              showValue
-              min={1}
-              max={10}
-              step={1}
+        {/* Premium Emotion Intensity Sliders */}
+        <section className="space-y-8">
+          <div className="flex items-center gap-3">
+            <h2 className="text-2xl font-bold">Premium Emotion Sliders</h2>
+            <span className="px-2 py-0.5 rounded text-[10px] bg-primary text-primary-foreground font-bold uppercase tracking-wider">
+              NEW
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 gap-12 p-8 rounded-[2rem] bg-secondary/10 border border-secondary/20 shadow-2xl">
+            {/* Mood */}
+            <EmotionIntensitySlider
+              label="Mood Intensity"
               value={moodRating}
               onChange={setMoodRating}
+              type="mood"
             />
-            <div className="flex justify-between text-xs text-muted-foreground mt-1">
-              <span>Very Sad</span>
-              <span>Neutral</span>
-              <span>Very Happy</span>
-            </div>
+
+            {/* Energy */}
+            <EmotionIntensitySlider
+              label="Energy Level"
+              value={energyLevel}
+              onChange={setEnergyLevel}
+              type="energy"
+            />
+
+            {/* Stress */}
+            <EmotionIntensitySlider
+              label="Stress Level"
+              value={stressLevel}
+              onChange={setStressLevel}
+              type="stress"
+            />
           </div>
-        </div>
+        </section>
 
-        {/* Settings Examples */}
-        <div className="space-y-6">
-          <h2 className="text-xl font-semibold">Settings Examples</h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Volume Control */}
-            <div className="space-y-2">
+        {/* Basic Slider Comparison */}
+        <section className="space-y-6">
+          <h2 className="text-2xl font-bold">Basic Sliders (Legacy)</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div className="p-6 rounded-2xl bg-muted/50 border border-border">
               <Slider
-                label="Volume"
+                label="Basic Mood Rating"
+                showValue
+                min={1}
+                max={10}
+                step={1}
+                value={moodRating}
+                onChange={setMoodRating}
+              />
+              <div className="flex justify-between text-xs text-muted-foreground mt-2 px-1 font-medium">
+                <span>Sad</span>
+                <span>Neutral</span>
+                <span>Happy</span>
+              </div>
+            </div>
+
+            <div className="p-6 rounded-2xl bg-muted/50 border border-border">
+              <Slider
+                label="System Volume"
                 showValue
                 min={0}
                 max={100}
@@ -55,147 +91,51 @@ export default function SliderDemo() {
                 onChange={setVolume}
               />
             </div>
-
-            {/* Brightness Control */}
-            <div className="space-y-2">
-              <Slider
-                label="Screen Brightness"
-                showValue
-                min={0}
-                max={100}
-                step={10}
-                value={brightness}
-                onChange={setBrightness}
-              />
-            </div>
-
-            {/* Font Size Control */}
-            <div className="space-y-2">
-              <Slider
-                label="Font Size"
-                showValue
-                min={12}
-                max={24}
-                step={1}
-                value={fontSize}
-                onChange={setFontSize}
-              />
-            </div>
-
-            {/* Custom Range */}
-            <div className="space-y-2">
-              <Slider
-                label="Custom Range (0.0 - 5.0)"
-                showValue
-                min={0}
-                max={5}
-                step={0.1}
-                value={2.5}
-                onChange={() => {}}
-              />
-            </div>
           </div>
-        </div>
+        </section>
 
-        {/* Different Sizes and Styles */}
-        <div className="space-y-4">
-          <h2 className="text-xl font-semibold">Different Configurations</h2>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <p className="text-sm font-medium">Without Label</p>
-              <div className="max-w-md">
-                <Slider
-                  showValue
-                  min={0}
-                  max={100}
-                  value={65}
-                  onChange={() => {}}
-                />
+        {/* Features Table */}
+        <section className="bg-card p-8 rounded-3xl border shadow-xl">
+          <h2 className="text-2xl font-bold mb-6">Enhancements</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-4">
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-primary/5 border border-primary/10">
+              <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center text-primary font-bold">
+                1
+              </div>
+              <div>
+                <p className="font-bold">Animated UI</p>
+                <p className="text-xs text-muted-foreground">Smooth transitions and spring physics</p>
               </div>
             </div>
-
-            <div className="space-y-2">
-              <p className="text-sm font-medium">Without Value Display</p>
-              <div className="max-w-md">
-                <Slider
-                  label="Quiet Setting"
-                  min={0}
-                  max={10}
-                  step={1}
-                  value={3}
-                  onChange={() => {}}
-                />
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-primary/5 border border-primary/10">
+              <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center text-primary font-bold">
+                2
+              </div>
+              <div>
+                <p className="font-bold">Visual Feedback</p>
+                <p className="text-xs text-muted-foreground">Dynamic emoji scaling and color shifts</p>
               </div>
             </div>
-
-            <div className="space-y-2">
-              <p className="text-sm font-medium">Large Step Values</p>
-              <div className="max-w-md">
-                <Slider
-                  label="Temperature (°C)"
-                  showValue
-                  min={-10}
-                  max={40}
-                  step={5}
-                  value={20}
-                  onChange={() => {}}
-                />
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-primary/5 border border-primary/10">
+              <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center text-primary font-bold">
+                3
+              </div>
+              <div>
+                <p className="font-bold">Immediate Response</p>
+                <p className="text-xs text-muted-foreground">Zero latency with optimized state updates</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-primary/5 border border-primary/10">
+              <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center text-primary font-bold">
+                4
+              </div>
+              <div>
+                <p className="font-bold">Premium Aesthetics</p>
+                <p className="text-xs text-muted-foreground">Glowing tracks and magnetic thumbs</p>
               </div>
             </div>
           </div>
-        </div>
-
-        {/* Accessibility Features */}
-        <div className="space-y-4">
-          <h2 className="text-xl font-semibold">Accessibility Features</h2>
-          <div className="bg-muted p-4 rounded-lg">
-            <ul className="text-sm space-y-2">
-              <li>✅ <strong>Keyboard Navigation:</strong> Use arrow keys to adjust values</li>
-              <li>✅ <strong>Screen Reader Support:</strong> Proper ARIA labels and semantic HTML</li>
-              <li>✅ <strong>Touch Support:</strong> Works on mobile devices with touch gestures</li>
-              <li>✅ <strong>Focus Management:</strong> Visible focus indicators for keyboard users</li>
-              <li>✅ <strong>High Contrast:</strong> Styled with design system colors</li>
-            </ul>
-          </div>
-        </div>
-
-        {/* Usage Examples */}
-        <div className="space-y-4">
-          <h2 className="text-xl font-semibold">Usage Examples</h2>
-          <div className="bg-muted p-4 rounded-lg">
-            <pre className="text-sm overflow-x-auto">
-{`// Basic slider
-<Slider
-  value={rating}
-  onChange={setRating}
-  min={1}
-  max={10}
-/>
-
-// With label and value display
-<Slider
-  label="Mood Rating"
-  showValue
-  value={mood}
-  onChange={setMood}
-  min={1}
-  max={10}
-  step={1}
-/>
-
-// Settings slider
-<Slider
-  label="Volume"
-  showValue
-  value={volume}
-  onChange={setVolume}
-  min={0}
-  max={100}
-  step={5}
-/>`}
-            </pre>
-          </div>
-        </div>
+        </section>
       </div>
     </div>
   );

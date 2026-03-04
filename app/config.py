@@ -84,6 +84,16 @@ DEFAULT_CONFIG: Dict[str, Dict[str, Any]] = {
     "features": {
         "enable_journal": True,
         "enable_analytics": True
+    },
+    "capacity_monitoring": {
+        "enabled": False,
+        "collection_interval_seconds": 300,
+        "retention_days": 30,
+        "forecast_window_hours": 24,
+        "min_historical_points": 10,
+        "critical_threshold_pct": 90.0,
+        "warning_threshold_pct": 75.0,
+        "safety_margin_pct": 20.0
     }
 }
 
@@ -98,7 +108,7 @@ def load_config() -> Dict[str, Any]:
             config = json.load(f)
             # Use deepcopy to avoid mutating the global DEFAULT_CONFIG
             merged = copy.deepcopy(DEFAULT_CONFIG)
-            for section in ["database", "ui", "features"]:
+            for section in ["database", "ui", "features", "capacity_monitoring"]:
                 if section in config:
                     merged[section].update(config[section])
             return merged
@@ -244,3 +254,15 @@ try:
 except ImportError:
     FEATURE_FLAGS = None  # type: ignore
 
+
+# Capacity Monitoring Configuration
+_capacity_config = _config.get("capacity_monitoring", {})
+
+CAPACITY_MONITORING_ENABLED: bool = get_env_var("CAPACITY_MONITORING_ENABLED", _capacity_config.get("enabled", False), bool)
+CAPACITY_COLLECTION_INTERVAL_SECONDS: int = get_env_var("CAPACITY_COLLECTION_INTERVAL_SECONDS", _capacity_config.get("collection_interval_seconds", 300), int)
+CAPACITY_RETENTION_DAYS: int = get_env_var("CAPACITY_RETENTION_DAYS", _capacity_config.get("retention_days", 30), int)
+CAPACITY_FORECAST_WINDOW_HOURS: int = get_env_var("CAPACITY_FORECAST_WINDOW_HOURS", _capacity_config.get("forecast_window_hours", 24), int)
+CAPACITY_MIN_HISTORICAL_POINTS: int = get_env_var("CAPACITY_MIN_HISTORICAL_POINTS", _capacity_config.get("min_historical_points", 10), int)
+CAPACITY_CRITICAL_THRESHOLD: float = get_env_var("CAPACITY_CRITICAL_THRESHOLD", _capacity_config.get("critical_threshold_pct", 90.0), float)
+CAPACITY_WARNING_THRESHOLD: float = get_env_var("CAPACITY_WARNING_THRESHOLD", _capacity_config.get("warning_threshold_pct", 75.0), float)
+CAPACITY_SAFETY_MARGIN: float = get_env_var("CAPACITY_SAFETY_MARGIN", _capacity_config.get("safety_margin_pct", 20.0), float)

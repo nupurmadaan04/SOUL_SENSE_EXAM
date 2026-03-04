@@ -1,4 +1,5 @@
 import tkinter as tk
+from tkinter import ttk
 from app.ui.dashboard import AnalyticsDashboard
 from app.ui.journal import JournalFeature
 from app.ui.assessments import AssessmentHub
@@ -31,7 +32,7 @@ class ViewManager:
                     self.app.sidebar.pack(side="left", fill="y")
 
                 # Sync visual selection if it's a valid sidebar item
-                if view_id in ["home", "exam", "dashboard", "journal", "history"]:
+                if view_id in ["home", "exam", "dashboard", "journal", "history", "timeline"]:
                     self.app.sidebar.select_item(view_id, trigger_callback=False)
 
         if view_id == "home":
@@ -42,6 +43,8 @@ class ViewManager:
             self.show_dashboard()
         elif view_id == "journal":
             self.show_journal()
+        elif view_id == "timeline":
+            self.show_timeline()
         elif view_id == "profile":
             self.show_profile()
         elif view_id == "history":
@@ -205,6 +208,33 @@ class ViewManager:
         except Exception as e:
             self.logger.error(f"Journal error: {e}")
             tk.messagebox.showerror("Error", f"Failed to open journal: {e}")
+
+    def show_timeline(self):
+        """Show Emotion History Timeline View (Issue #1324)"""
+        self.clear_screen()
+        try:
+            from app.ui.emotion_timeline import EmotionTimelineView
+            from app.ui.timeline_graph import TimelineGraphView
+            
+            # Create a notebook/tab widget for timeline sections
+            timeline_notebook = ttk.Notebook(self.app.content_area)
+            timeline_notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+            
+            # Tab 1: Timeline View
+            timeline_tab = tk.Frame(timeline_notebook, bg=self.app.colors.get("bg", "#0F172A"))
+            timeline_notebook.add(timeline_tab, text="📋 Timeline")
+            
+            timeline_view = EmotionTimelineView(timeline_tab, self.app.root, self.app.username or "Guest")
+            
+            # Tab 2: Trend Graph
+            graph_tab = tk.Frame(timeline_notebook, bg=self.app.colors.get("bg", "#0F172A"))
+            timeline_notebook.add(graph_tab, text="📈 Trends")
+            
+            graph_view = TimelineGraphView(graph_tab, self.app.root, self.app.username or "Guest")
+            
+        except Exception as e:
+            self.logger.error(f"Timeline error: {e}")
+            tk.messagebox.showerror("Error", f"Failed to open timeline: {e}")
 
     def show_profile(self):
         from app.ui.profile import UserProfileView

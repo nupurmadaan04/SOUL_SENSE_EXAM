@@ -1,0 +1,145 @@
+# Dependabot Configuration for Supply Chain Security
+# Issue #1070: Implement Supply Chain Security Hardening
+#
+# This configuration enables automated dependency monitoring and alerts
+# for security vulnerabilities in Python dependencies and GitHub Actions.
+
+version: 2
+updates:
+  # Enable version updates for Python pip dependencies
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "UTC"
+    # Security updates only
+    open-pull-requests-limit: 10
+    # Labels for PRs
+    labels:
+      - "dependencies"
+      - "security"
+      - "ECWoC26"
+    # Assignees for PRs
+    assignees:
+      - "nupurmadaan04"
+    # Reviewers for PRs
+    reviewers:
+      - "nupurmadaan04"
+    # Commit message settings
+    commit-message:
+      prefix: "security"
+      prefix-development: "dev"
+      include: "scope"
+    # Target branch for PRs
+    target-branch: "main"
+    # Allow updates for direct and transitive dependencies
+    allow:
+      - dependency-type: "direct"
+      - dependency-type: "indirect"
+    # Group security updates together
+    groups:
+      security-updates:
+        applies-to: security-updates
+        patterns:
+          - "*"
+        update-types:
+          - "patch"
+          - "minor"
+    # Vulnerability alert settings
+    vulnerability-alerts:
+      enabled: true
+    
+  # Enable version updates for backend Python dependencies
+  - package-ecosystem: "pip"
+    directory: "/backend/fastapi"
+    schedule:
+      interval: "daily"
+      time: "09:30"
+      timezone: "UTC"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "security"
+      - "backend"
+      - "ECWoC26"
+    assignees:
+      - "nupurmadaan04"
+    reviewers:
+      - "nupurmadaan04"
+    commit-message:
+      prefix: "security"
+      prefix-development: "dev"
+      include: "scope"
+    target-branch: "main"
+    allow:
+      - dependency-type: "direct"
+      - dependency-type: "indirect"
+    groups:
+      security-updates:
+        applies-to: security-updates
+        patterns:
+          - "*"
+        update-types:
+          - "patch"
+          - "minor"
+    vulnerability-alerts:
+      enabled: true
+
+  # Enable version updates for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "10:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "github-actions"
+      - "ECWoC26"
+    assignees:
+      - "nupurmadaan04"
+    reviewers:
+      - "nupurmadaan04"
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    target-branch: "main"
+
+  # Enable version updates for npm (if package.json exists)
+  - package-ecosystem: "npm"
+    directory: "/frontend-web"
+    schedule:
+      interval: "daily"
+      time: "11:00"
+      timezone: "UTC"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "security"
+      - "frontend"
+      - "ECWoC26"
+    assignees:
+      - "nupurmadaan04"
+    reviewers:
+      - "nupurmadaan04"
+    commit-message:
+      prefix: "security"
+      prefix-development: "dev"
+      include: "scope"
+    target-branch: "main"
+    allow:
+      - dependency-type: "direct"
+      - dependency-type: "indirect"
+    groups:
+      security-updates:
+        applies-to: security-updates
+        patterns:
+          - "*"
+        update-types:
+          - "patch"
+          - "minor"
+    vulnerability-alerts:
+      enabled: true

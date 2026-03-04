@@ -1,7 +1,7 @@
 import logging
-from typing import List, Optional, Any, Dict
-from datetime import datetime
-from sqlalchemy import desc
+from typing import List, Optional, Any, Dict, Tuple
+from datetime import datetime, timedelta
+from sqlalchemy import desc, asc
 from app.db import safe_db_context
 from app.models import JournalEntry, User
 from app.exceptions import DatabaseError
@@ -87,6 +87,7 @@ class JournalService:
             with safe_db_context() as session:
                 query = session.query(JournalEntry)\
                     .filter_by(username=username)\
+                    .filter(JournalEntry.is_deleted == False)\
                     .order_by(desc(JournalEntry.entry_date))
                 
                 session.expire_on_commit = False
@@ -128,9 +129,235 @@ class JournalService:
                 entries = session.query(JournalEntry)\
                     .filter(JournalEntry.username == username)\
                     .filter(JournalEntry.entry_date >= start_date)\
+                    .filter(JournalEntry.is_deleted == False)\
                     .order_by(desc(JournalEntry.entry_date))\
                     .all()
                 return entries
         except Exception as e:
             logger.error(f"Failed to retrieve recent entries: {e}")
             return []
+    @staticmethod
+    def delete_entry(entry_id: int) -> bool:
+        """
+        Soft-delete a journal entry (Issue #1331).
+        Sets is_deleted flag and records deletion timestamp.
+        
+        Args:
+            entry_id: The ID of the entry to delete
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            with safe_db_context() as session:
+                entry = session.query(JournalEntry).filter(JournalEntry.id == entry_id).first()
+                if not entry:
+                    logger.warning(f"Entry {entry_id} not found")
+                    return False
+                
+                entry.is_deleted = True
+                entry.deleted_at = datetime.now()
+                session.commit()
+                logger.info(f"Entry {entry_id} soft-deleted successfully")
+                return True
+        except Exception as e:
+            logger.error(f"Failed to delete entry {entry_id}: {e}")
+            return False
+
+    # === TIMELINE METHODS FOR ISSUE #1324 ===
+
+    @staticmethod
+    def get_emotion_timeline(
+        username: str,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        order: str = "desc"
+    ) -> List[JournalEntry]:
+        """
+        Fetches user emotion logs sorted by timestamp for timeline visualization.
+        
+        Args:
+            username: The user's username
+            start_date: Optional start date (YYYY-MM-DD)
+            end_date: Optional end date (YYYY-MM-DD)
+            order: "desc" for newest first (default), "asc" for oldest first
+            
+        Returns:
+            List of JournalEntry objects sorted by timestamp
+        """
+        try:
+            with safe_db_context() as session:
+                session.expire_on_commit = False
+                query = session.query(JournalEntry)\
+                    .filter(JournalEntry.username == username)\
+                    .filter(JournalEntry.is_deleted == False)
+                
+                # Apply date range filters
+                if start_date:
+                    query = query.filter(JournalEntry.entry_date >= start_date)
+                if end_date:
+                    query = query.filter(JournalEntry.entry_date <= end_date)
+                
+                # Sort by timestamp
+                sort_order = desc(JournalEntry.entry_date) if order == "desc" else asc(JournalEntry.entry_date)
+                entries = query.order_by(sort_order).all()
+                
+                return entries
+        except Exception as e:
+            logger.error(f"Failed to retrieve emotion timeline for {username}: {e}")
+            raise DatabaseError("Failed to retrieve emotion timeline", original_exception=e)
+
+    @staticmethod
+    def get_timeline_grouped_by_period(
+        username: str,
+        period: str = "daily",
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None
+    ) -> Dict[str, List[JournalEntry]]:
+        """
+        Groups emotion entries by time period for timeline visualization.
+        
+        Args:
+            username: The user's username
+            period: "daily", "weekly", or "monthly"
+            start_date: Optional start date (YYYY-MM-DD)
+            end_date: Optional end date (YYYY-MM-DD)
+            
+        Returns:
+            Dictionary with period keys and lists of JournalEntry objects
+            Example: {"2025-01-15": [entry1, entry2], "2025-01-16": [entry3]}
+        """
+        try:
+            entries = JournalService.get_emotion_timeline(
+                username, start_date, end_date, order="asc"
+            )
+            
+            grouped = {}
+            
+            for entry in entries:
+                # Parse entry_date timestamp
+                entry_dt = datetime.strptime(entry.entry_date, "%Y-%m-%d %H:%M:%S")
+                
+                if period == "daily":
+                    key = entry_dt.strftime("%Y-%m-%d")
+                elif period == "weekly":
+                    # ISO week format: YYYY-Www (e.g., 2025-W03)
+                    key = entry_dt.strftime("%Y-W%V")
+                elif period == "monthly":
+                    key = entry_dt.strftime("%Y-%m")
+                else:
+                    key = entry_dt.strftime("%Y-%m-%d")  # Default to daily
+                
+                if key not in grouped:
+                    grouped[key] = []
+                grouped[key].append(entry)
+            
+            return grouped
+        except Exception as e:
+            logger.error(f"Failed to group timeline entries for {username}: {e}")
+            raise DatabaseError("Failed to group timeline entries", original_exception=e)
+
+    @staticmethod
+    def get_timeline_paginated(
+        username: str,
+        page: int = 1,
+        limit: int = 20,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None
+    ) -> Tuple[List[JournalEntry], int, int]:
+        """
+        Retrieves paginated emotion entries for timeline with pagination support.
+        
+        Args:
+            username: The user's username
+            page: Page number (1-indexed)
+            limit: Number of entries per page (default 20)
+            start_date: Optional start date (YYYY-MM-DD)
+            end_date: Optional end date (YYYY-MM-DD)
+            
+        Returns:
+            Tuple of (entries_list, total_count, total_pages)
+        """
+        try:
+            if page < 1:
+                page = 1
+            if limit < 1 or limit > 100:
+                limit = 20
+            
+            with safe_db_context() as session:
+                session.expire_on_commit = False
+                query = session.query(JournalEntry)\
+                    .filter(JournalEntry.username == username)\
+                    .filter(JournalEntry.is_deleted == False)
+                
+                # Apply date range filters
+                if start_date:
+                    query = query.filter(JournalEntry.entry_date >= start_date)
+                if end_date:
+                    query = query.filter(JournalEntry.entry_date <= end_date)
+                
+                # Get total count before pagination
+                total_count = query.count()
+                total_pages = (total_count + limit - 1) // limit  # Ceiling division
+                
+                # Apply pagination
+                offset = (page - 1) * limit
+                entries = query.order_by(desc(JournalEntry.entry_date))\
+                    .offset(offset)\
+                    .limit(limit)\
+                    .all()
+                
+                return entries, total_count, total_pages
+        except Exception as e:
+            logger.error(f"Failed to retrieve paginated timeline for {username}: {e}")
+            raise DatabaseError("Failed to retrieve paginated timeline", original_exception=e)
+
+    @staticmethod
+    def get_emotion_trends(
+        username: str,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        period: str = "daily"
+    ) -> Dict[str, Dict[str, float]]:
+        """
+        Calculates emotion trends (average mood, sentiment) for graph visualization.
+        
+        Args:
+            username: The user's username
+            start_date: Optional start date (YYYY-MM-DD)
+            end_date: Optional end date (YYYY-MM-DD)
+            period: "daily", "weekly", or "monthly"
+            
+        Returns:
+            Dictionary with trend data for each period
+            Example: {"2025-01-15": {"avg_mood": 7.2, "sentiment": 0.35, "count": 3}}
+        """
+        try:
+            grouped = JournalService.get_timeline_grouped_by_period(
+                username, period, start_date, end_date
+            )
+            
+            trends = {}
+            
+            for period_key, entries in grouped.items():
+                if not entries:
+                    continue
+                
+                # Calculate averages
+                moods = [e.mood_score for e in entries if e.mood_score is not None]
+                sentiments = [e.sentiment_score for e in entries if e.sentiment_score is not None]
+                energy_levels = [e.energy_level for e in entries if e.energy_level is not None]
+                stress_levels = [e.stress_level for e in entries if e.stress_level is not None]
+                
+                trends[period_key] = {
+                    "avg_mood": sum(moods) / len(moods) if moods else 0,
+                    "avg_sentiment": sum(sentiments) / len(sentiments) if sentiments else 0,
+                    "avg_energy": sum(energy_levels) / len(energy_levels) if energy_levels else 0,
+                    "avg_stress": sum(stress_levels) / len(stress_levels) if stress_levels else 0,
+                    "entry_count": len(entries)
+                }
+            
+            return trends
+        except Exception as e:
+            logger.error(f"Failed to calculate emotion trends for {username}: {e}")
+            raise DatabaseError("Failed to calculate emotion trends", original_exception=e)

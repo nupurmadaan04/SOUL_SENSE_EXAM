@@ -14,7 +14,11 @@ import {
   Layers,
 } from 'lucide-react';
 
-export function AboutSettings() {
+interface AboutSettingsProps {
+  onRestartTutorial?: () => void;
+}
+
+export function AboutSettings({ onRestartTutorial }: AboutSettingsProps) {
   const version = '1.0.0';
   const buildDate = new Date().toLocaleDateString('en-US', {
     month: 'long',
@@ -91,6 +95,17 @@ export function AboutSettings() {
                 <Heart className="h-3 w-3 mr-2 text-rose-500" />
                 Get Support
               </Button>
+              {onRestartTutorial && (
+                <Button
+                  onClick={onRestartTutorial}
+                  variant="outline"
+                  size="sm"
+                  className="h-9 px-6 rounded-full font-black uppercase tracking-widest text-[10px] border-border/60"
+                >
+                  <Star className="h-3 w-3 mr-2 text-yellow-500" />
+                  Restart Tutorial
+                </Button>
+              )}
             </div>
           </div>
         </div>

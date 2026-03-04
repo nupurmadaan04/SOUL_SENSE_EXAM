@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { usePreferences } from '@/hooks/usePreferences';
 import { SystemPreferences } from '@/components/settings';
+import { useOnboarding } from '@/hooks/useOnboarding';
 
 const tabs = [
   { id: 'appearance', label: 'Appearance', icon: Palette },
@@ -48,6 +49,7 @@ export default function SettingsPage() {
     saveStatus: prefsSaveStatus,
     updatePreferencesDebounced,
   } = usePreferences();
+  const { restartTutorial } = useOnboarding();
   const [activeTab, setActiveTab] = useState('appearance');
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [isMobile, setIsMobile] = useState(false);
@@ -348,7 +350,7 @@ export default function SettingsPage() {
                   </div>
                 </CardHeader>
                 <CardContent className="p-8">
-                  <AboutSettings />
+                  <AboutSettings onRestartTutorial={restartTutorial} />
                 </CardContent>
               </Card>
             </TabsContent>

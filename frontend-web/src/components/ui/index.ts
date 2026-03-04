@@ -14,5 +14,6 @@ export * from './select';
 export * from './textarea';
 export * from './loader';
 export * from './label';
-export * from './select';
 export * from './tabs';
+export * from './badge';
+export * from './emotion-intensity-slider';

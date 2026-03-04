@@ -1,0 +1,88 @@
+# Soul Sense EQ Test Requirements
+# This project uses Python built-in libraries and Matplotlib for analytics
+
+# Core dependencies (built-in):
+# - tkinter (GUI framework with ttk for tabs)
+# - sqlite3 (database)
+# - datetime (date/time handling)
+# - re (regular expressions)
+# - collections (Counter for analytics)
+# - datetime (date/time handling)
+# - re (regular expressions)
+# - collections (Counter for analytics)
+# - bcrypt (secure password hashing for authentication)
+
+# UI Enhancements
+# tkcalendar removed due to GPL license violation
+# tkcalendar==1.6.1
+Pillow>=10.4.0
+sqlalchemy>=2.0.36
+
+# External packages (REQUIRED for Graphs):
+matplotlib
+numpy
+
+# Security - Password Hashing
+bcrypt==5.0.0
+cryptography>=41.0.0
+
+# Testing (optional)
+pytest==8.4.0
+pytest-mock==3.14.0
+pytest-cov==6.0.0
+pytest-xdist==3.5.0
+pytest-timeout==2.2.0
+mypy==1.8.0
+types-aiofiles
+requests==2.32.3
+types-requests
+
+# PDF Generation
+reportlab==4.2.5
+
+# ML Dependencies
+scikit-learn
+joblib==1.4.2
+pandas
+nltk==3.9.3
+seaborn==0.13.2
+# Admin CLI
+tabulate==0.9.0
+alembic==1.14.0
+
+# Database drivers
+# Database drivers
+# psycopg2-binary # Legacy, removed for SQLite-only deployment
+
+# Configuration
+python-dotenv==1.0.0
+keyring==24.3.0
+# reportlab (Removed duplicate)
+# Main requirements for Soul Sense Exam
+# For pinned versions with hashes, see requirements-pinned.txt
+
+# Core dependencies
+fastapi>=0.100.0
+uvicorn>=0.23.0
+pydantic>=2.0.0
+sqlalchemy>=2.0.0
+alembic>=1.11.0
+
+# Security
+python-jose>=3.3.0
+passlib>=1.7.4
+bcrypt>=4.0.0
+python-multipart>=0.0.6
+
+# Testing
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+pytest-mock>=3.11.0
+
+# Database
+aiosqlite>=0.19.0
+asyncpg>=0.28.0
+
+# Other utilities
+httpx>=0.24.0
+python-dotenv>=1.0.0

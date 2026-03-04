@@ -5,12 +5,9 @@ import threading
 import logging
 from typing import Dict, Any
 
-# Try importing tkcalendar, fallback if missing
-try:
-    from tkcalendar import DateEntry
-    HAS_CALENDAR = True
-except ImportError:
-    HAS_CALENDAR = False
+# DateEntry replacement logic
+HAS_CALENDAR = False
+DateEntry = None
 
 from app.services.export_service import ExportService
 from app.ui.components.loading_overlay import show_loading, hide_loading
@@ -127,16 +124,16 @@ class ExportWizard(tk.Toplevel):
         date_frame = tk.Frame(scrollable_frame, bg=self.colors.get("card_bg"), padx=15, pady=15)
         date_frame.pack(fill="x", pady=(0, 15), padx=20)
         
-        if HAS_CALENDAR:
-            tk.Label(date_frame, text="Start:", bg=self.colors.get("card_bg")).pack(side="left")
-            self.start_date = DateEntry(date_frame, width=12, background='darkblue', foreground='white', borderwidth=2)
-            self.start_date.pack(side="left", padx=(5, 15))
-            
-            tk.Label(date_frame, text="End:", bg=self.colors.get("card_bg")).pack(side="left")
-            self.end_date = DateEntry(date_frame, width=12, background='darkblue', foreground='white', borderwidth=2)
-            self.end_date.pack(side="left", padx=5)
-        else:
-             tk.Label(date_frame, text="Date picker not available (install tkcalendar)", bg=self.colors.get("card_bg")).pack()
+        # Date Range replacement (GPL Concern)
+        tk.Label(date_frame, text="Start (YYYY-MM-DD):", bg=self.colors.get("card_bg")).pack(side="left")
+        self.start_date_entry = tk.Entry(date_frame, width=12)
+        self.start_date_entry.pack(side="left", padx=(5, 15))
+        self.start_date_entry.insert(0, datetime.now().strftime("%Y-%m-%d"))
+        
+        tk.Label(date_frame, text="End (YYYY-MM-DD):", bg=self.colors.get("card_bg")).pack(side="left")
+        self.end_date_entry = tk.Entry(date_frame, width=12)
+        self.end_date_entry.pack(side="left", padx=5)
+        self.end_date_entry.insert(0, datetime.now().strftime("%Y-%m-%d"))
 
         # --- Section 3: Export Format ---
         self._create_section_label(scrollable_frame, "3. Export Format")
@@ -242,15 +239,12 @@ class ExportWizard(tk.Toplevel):
             "include_assessments": self.var_assessments.get()
         }
         
-        if HAS_CALENDAR:
-            # Logic: If user didn't change them, they might be today?
-            # We pass them as strings if valid
-            try:
-                # Convert date object to string YYYY-MM-DD
-                options["start_date"] = self.start_date.get_date().strftime("%Y-%m-%d")
-                options["end_date"] = self.end_date.get_date().strftime("%Y-%m-%d")
-            except:
-                pass # Ignore date errors
+        # Get dates from simple entries
+        try:
+            options["start_date"] = self.start_date_entry.get().strip()
+            options["end_date"] = self.end_date_entry.get().strip()
+        except:
+            pass # Ignore date errors
         
         # 4. Start Background Thread
         self.loading_overlay = show_loading(self, f"Generating {fmt.upper()} export...")

@@ -13,6 +13,7 @@ from functools import wraps
 # Import model classes from models module
 from ..models import Base, Score, Response, Question, QuestionCategory
 from ..config import get_settings
+from ..utils.cache import cache_manager
 
 settings = get_settings()
 logger = logging.getLogger("api.db")
@@ -196,6 +197,7 @@ class AssessmentService:
         return result.scalar_one_or_none()
 
     @staticmethod
+    @cache_manager.cache(ttl=600, prefix="stats")
     async def get_assessment_stats(
         db: AsyncSession,
         user_id: Optional[int] = None,

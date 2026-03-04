@@ -1,17 +1,38 @@
 'use client';
 
+import { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useQuery } from '@tanstack/react-query';
 import {
-  WelcomeCard,
-  QuickActions,
-  MoodWidget,
-  RecentActivity,
-  InsightCard,
   DashboardSkeleton,
-  ActivityItem,
   BentoGrid,
   SectionWrapper,
 } from '@/components/dashboard';
+import type { ActivityItem } from '@/components/dashboard';
+
+// Dynamic imports for heavy dashboard components
+const WelcomeCard = dynamic(() => import('@/components/dashboard').then(mod => mod.WelcomeCard), {
+  loading: () => <div className="h-full w-full animate-pulse bg-muted rounded-xl" />,
+  ssr: false
+});
+
+const QuickActions = dynamic(() => import('@/components/dashboard').then(mod => mod.QuickActions), {
+  ssr: false
+});
+
+const MoodWidget = dynamic(() => import('@/components/dashboard').then(mod => mod.MoodWidget), {
+  loading: () => <div className="h-full w-full animate-pulse bg-muted rounded-xl" />,
+  ssr: false
+});
+
+const RecentActivity = dynamic(() => import('@/components/dashboard').then(mod => mod.RecentActivity), {
+  loading: () => <div className="h-full w-full animate-pulse bg-muted rounded-xl" />,
+  ssr: false
+});
+
+const InsightCard = dynamic(() => import('@/components/dashboard').then(mod => mod.InsightCard), {
+  ssr: false
+});
 // Dynamically import heavy chart components to reduce initial bundle size
 import { DashboardCharts } from '@/lib/dynamic-imports';
 import { apiClient } from '@/lib/api/client';
@@ -178,8 +199,8 @@ export default function DashboardPage() {
                 'Your data is encrypted and only accessible by you. We prioritize your privacy.',
               type: 'safety',
             }}
-            onDismiss={() => {}}
-            onAction={() => {}}
+            onDismiss={() => { }}
+            onAction={() => { }}
             className="md:col-span-1"
           />
         </SectionWrapper>
