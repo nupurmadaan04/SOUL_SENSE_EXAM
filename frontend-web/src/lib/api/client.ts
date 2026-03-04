@@ -227,6 +227,13 @@ apiClient.put = <T>(endpoint: string, data?: any, options: RequestOptions = {}) 
     body: data instanceof FormData ? data : JSON.stringify(data),
   });
 
+apiClient.patch = <T>(endpoint: string, data?: any, options: RequestOptions = {}) =>
+  apiClient<T>(endpoint, {
+    ...options,
+    method: 'PATCH',
+    body: data instanceof FormData ? data : JSON.stringify(data),
+  });
+
 apiClient.delete = <T>(endpoint: string, options: RequestOptions = {}) =>
   apiClient<T>(endpoint, { ...options, method: 'DELETE' });
 
