@@ -430,6 +430,7 @@ class JournalFeature:
         with safe_db_context() as session:
             entries = session.query(JournalEntry)\
                 .filter_by(username=self.username)\
+                .filter(JournalEntry.is_deleted == False)\
                 .order_by(desc(JournalEntry.entry_date))\
                 .all()
 
@@ -666,7 +667,10 @@ class JournalFeature:
             
             self.show_analysis_results(sentiment_score, emotional_patterns, health_insights)
             
-            # 5. Clear Input
+            # 5. Check for Crisis Alert Pattern (Issue #1332)
+            self._check_crisis_alert_after_journal_entry()
+            
+            # 6. Clear Input
             self.text_area.delete("1.0", tk.END)
             # Reset word count
             if hasattr(self, 'word_count_label'):
@@ -1089,6 +1093,7 @@ class JournalFeature:
         with safe_db_context() as session:
             entries = session.query(JournalEntry)\
                 .filter_by(username=self.username)\
+                .filter(JournalEntry.is_deleted == False)\
                 .order_by(JournalEntry.entry_date)\
                 .all()
 
@@ -1284,6 +1289,51 @@ class JournalFeature:
                        bg=self.colors.get("surface", "#fff"), fg=self.colors.get("text_secondary", "#999"))
         hint.pack(anchor="e", padx=15, pady=(0, 8))
         hint.bind("<Button-1>", open_day_detail)
+        
+        # --- Delete Button ---
+        def on_delete_click(e=None):
+            """Handle delete button click with confirmation"""
+            if messagebox.askyesno(
+                "Delete Entry", 
+                "Are you sure you want to delete this entry?\nThis action cannot be undone.",
+                icon="warning"
+            ):
+                try:
+                    from app.services.journal_service import JournalService
+                    success = JournalService.delete_entry(entry.id)
+                    if success:
+                        messagebox.showinfo("Success", "Entry deleted successfully.")
+                        # Refresh the view
+                        self.update_inline_results()
+                    else:
+                        messagebox.showerror("Error", "Failed to delete entry.")
+                except Exception as e:
+                    logging.error(f"Error deleting entry: {e}")
+                    messagebox.showerror("Error", f"An error occurred: {e}")
+        
+        delete_btn = tk.Button(
+            card,
+            text="🗑 Delete",
+            font=("Segoe UI", 9),
+            bg="#DC2626",
+            fg="white",
+            relief="flat",
+            padx=10,
+            pady=5,
+            cursor="hand2",
+            command=on_delete_click
+        )
+        delete_btn.pack(anchor="e", padx=15, pady=(0, 12))
+        
+        # Hover effects
+        def on_btn_enter(event):
+            delete_btn.config(bg="#EF4444")
+        
+        def on_btn_leave(event):
+            delete_btn.config(bg="#DC2626")
+        
+        delete_btn.bind("<Enter>", on_btn_enter)
+        delete_btn.bind("<Leave>", on_btn_leave)
     
     def open_dashboard(self):
         """Open analytics dashboard with lazy import"""
@@ -1606,6 +1656,66 @@ class JournalFeature:
                  font=("Segoe UI", 10), bg=colors.get("surface", "#e0e0e0"),
                  fg=colors.get("text_primary", "#000"),
                  relief="flat", padx=15).pack(side="right")
+    
+    def _check_crisis_alert_after_journal_entry(self):
+        """
+        Check for crisis-level distress patterns after journal entry submission.
+        Shows intervention modal if extreme distress patterns are detected.
+        
+        This integrates Issue #1332: Crisis Alert Mode
+        """
+        try:
+            from app.services.crisis_detection_service import CrisisDetectionService
+            from app.ui.components.crisis_alert_modal import show_crisis_alert
+            
+            # Get user information
+            username = getattr(self, 'username', None)
+            if not username and self.app:
+                username = getattr(self.app, 'current_username', None)
+            
+            # Get user_id
+            user_id = None
+            if self.app:
+                user_id = getattr(self.app, 'current_user_id', None)
+            
+            if not user_id or not username:
+                logging.warning("Cannot check crisis pattern: missing user info")
+                return
+            
+            # Check for crisis pattern
+            is_crisis, alert = CrisisDetectionService.check_crisis_pattern(user_id, username)
+            
+            if is_crisis and alert:
+                # Get support resources
+                resources = CrisisDetectionService.get_support_resources()
+                
+                # Show crisis alert modal
+                def on_alert_close(alert_id: int):
+                    CrisisDetectionService.acknowledge_alert(alert_id)
+                
+                crisis_colors = self.colors if hasattr(self, 'colors') else {
+                    "bg": "#F8FAFC",
+                    "surface": "#E2E8F0",
+                    "primary": "#3B82F6",
+                    "text_primary": "#1E293B",
+                    "text_secondary": "#64748B"
+                }
+                
+                modal = show_crisis_alert(
+                    self.journal_window,
+                    user_id=user_id,
+                    alert_id=alert.id,
+                    severity=alert.severity,
+                    resources=resources,
+                    on_close=on_alert_close,
+                    colors=crisis_colors
+                )
+                
+                logging.info(f"Crisis alert modal shown for user {username} (severity: {alert.severity})")
+        
+        except Exception as e:
+            # Log but don't interrupt journal entry flow
+            logging.error(f"Error checking crisis pattern after journal entry: {e}")
 
 
 # Standalone test function

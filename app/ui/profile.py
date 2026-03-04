@@ -12,14 +12,9 @@ from app.ui.sidebar import SidebarNav
 from app.ui.sidebar import SidebarNav
 from app.ui.components.timeline import LifeTimeline
 from app.ui.components.tag_input import TagInput
-# Conditional import for tkcalendar - calendar widget is optional
-try:
-    from tkcalendar import DateEntry
-    TKCALENDAR_AVAILABLE = True
-except ImportError:
-    logging.warning("tkcalendar not available - date picker will use text entry")
-    DateEntry = None
-    TKCALENDAR_AVAILABLE = False
+# DateEntry replacement logic
+TKCALENDAR_AVAILABLE = False
+DateEntry = None
 from app.ui.settings import SettingsManager
 from app.validation import (
     sanitize_text, validate_email, validate_phone, 
@@ -1210,23 +1205,13 @@ class UserProfileView:
         
         dob_col = tk.Frame(dob_gender_frame, bg=self.colors.get("card_bg"))
         dob_col.pack(side="left", fill="x", expand=True, padx=(0, 10))
-        tk.Label(dob_col, text="Date of Birth", font=self.styles.get_font("xs", "bold"), bg=self.colors.get("card_bg"), fg="gray").pack(anchor="w")
+        # Date Picker replacement (GPL Concern)
+        tk.Label(dob_col, text="Date of Birth (YYYY-MM-DD)", font=self.styles.get_font("xs", "bold"), bg=self.colors.get("card_bg"), fg="gray").pack(anchor="w")
         
-        # Use DateEntry if available, otherwise fallback to text entry
-        if TKCALENDAR_AVAILABLE and DateEntry:
-            self.dob_entry = DateEntry(
-                dob_col, date_pattern="yyyy-mm-dd", font=self.styles.get_font("sm"),
-                background=self.colors.get("primary"), foreground="white"
-            )
-        else:
-            # Fallback to text entry with placeholder
-            self.dob_entry = tk.Entry(
-                dob_col, font=self.styles.get_font("sm"),
-                bg=self.colors.get("input_bg", "#fff"), fg=self.colors.get("input_fg", "#000")
-            )
-            self.dob_entry.insert(0, "YYYY-MM-DD")
-            self.dob_entry.bind("<FocusIn>", lambda e: self.dob_entry.delete(0, tk.END) if self.dob_entry.get() == "YYYY-MM-DD" else None)
-        
+        self.dob_entry = tk.Entry(
+            dob_col, font=self.styles.get_font("sm"),
+            bg=self.colors.get("input_bg", "#fff"), fg=self.colors.get("input_fg", "#000")
+        )
         self.dob_entry.pack(fill="x", pady=5)
         
         gender_col = tk.Frame(dob_gender_frame, bg=self.colors.get("card_bg"))
@@ -1296,9 +1281,13 @@ class UserProfileView:
             entry.pack(fill="x", padx=20)
             return var
 
-        # Date Field with DateEntry
-        tk.Label(dialog, text="Date", font=("Segoe UI", 10, "bold"), bg=self.colors.get("card_bg"), fg="gray").pack(anchor="w", padx=20, pady=(10, 5))
-        date_entry = DateEntry(dialog, width=12, background='darkblue', foreground='white', borderwidth=2, font=self.styles.get_font("sm"), date_pattern='yyyy-mm-dd')
+        # Date Field with simple text entry (GPL Concern)
+        tk.Label(dialog, text="Date (YYYY-MM-DD)", font=("Segoe UI", 10, "bold"), bg=self.colors.get("card_bg"), fg="gray").pack(anchor="w", padx=20, pady=(10, 5))
+        self.event_date_var = tk.StringVar(value=datetime.now().strftime("%Y-%m-%d"))
+        if is_edit:
+            self.event_date_var.set(event_to_edit['date'])
+            
+        date_entry = tk.Entry(dialog, textvariable=self.event_date_var, font=("Segoe UI", 11))
         date_entry.pack(fill="x", padx=20)
         
         if is_edit:
@@ -1324,7 +1313,7 @@ class UserProfileView:
             desc_text.insert("1.0", event_to_edit.get('description', ''))
             
         def save():
-            date_str = date_entry.get_date().strftime("%Y-%m-%d")
+            date_str = date_entry.get().strip()
             title = sanitize_text(title_var.get())
             desc = sanitize_text(desc_text.get("1.0", tk.END))
             

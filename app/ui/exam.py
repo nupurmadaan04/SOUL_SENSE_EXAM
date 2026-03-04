@@ -577,6 +577,9 @@ class ExamManager:
                 except Exception as e:
                     logging.warning(f"Could not show satisfaction survey: {e}")
             
+            # Check for Crisis Alert Pattern (Issue #1332)
+            self._check_crisis_alert_after_exam()
+            
             # Determine Recommendations
             score_data = {"total_score": self.app.current_score} 
             # In future: fetch stress/energy from recent journal or specific question IDs
@@ -841,3 +844,55 @@ class ExamManager:
         except Exception as e:
             logging.error(f"PDF Export failed: {e}")
             messagebox.showerror("Export Error", f"Failed to generate PDF:\n{str(e)}")
+    
+    def _check_crisis_alert_after_exam(self):
+        """
+        Check for crisis-level distress patterns after exam completion.
+        Shows intervention modal if extreme distress patterns are detected.
+        
+        This integrates Issue #1332: Crisis Alert Mode
+        """
+        try:
+            from app.services.crisis_detection_service import CrisisDetectionService
+            from app.ui.components.crisis_alert_modal import show_crisis_alert
+            
+            user_id = getattr(self.app, 'current_user_id', None)
+            username = getattr(self.app, 'current_username', 'user')
+            
+            if not user_id:
+                return
+            
+            # Check for crisis pattern
+            is_crisis, alert = CrisisDetectionService.check_crisis_pattern(user_id, username)
+            
+            if is_crisis and alert:
+                # Get support resources
+                resources = CrisisDetectionService.get_support_resources()
+                
+                # Show crisis alert modal
+                def on_alert_close(alert_id: int):
+                    CrisisDetectionService.acknowledge_alert(alert_id)
+                
+                crisis_colors = getattr(self.app, 'colors', {
+                    "bg": "#F8FAFC",
+                    "surface": "#E2E8F0",
+                    "primary": "#3B82F6",
+                    "text_primary": "#1E293B",
+                    "text_secondary": "#64748B"
+                })
+                
+                modal = show_crisis_alert(
+                    self.root,
+                    user_id=user_id,
+                    alert_id=alert.id,
+                    severity=alert.severity,
+                    resources=resources,
+                    on_close=on_alert_close,
+                    colors=crisis_colors
+                )
+                
+                logging.info(f"Crisis alert modal shown for user {username} (severity: {alert.severity})")
+        
+        except Exception as e:
+            # Log but don't interrupt exam flow
+            logging.error(f"Error checking crisis pattern after exam: {e}")

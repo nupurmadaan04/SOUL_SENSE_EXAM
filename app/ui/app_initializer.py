@@ -100,6 +100,7 @@ class AppInitializer:
                 {"id": "exam", "label": "Assessment", "icon": "🧠"},
                 {"id": "dashboard", "label": "Dashboard", "icon": "📊"},
                 {"id": "journal", "label": "Journal", "icon": "📝"},
+                {"id": "timeline", "label": "Timeline", "icon": "📋"},
                 {"id": "assessments", "label": "Deep Dive", "icon": "🔍"},
                 {"id": "history", "label": "History", "icon": "📚"},
             ],

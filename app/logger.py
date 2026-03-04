@@ -236,3 +236,55 @@ def log_exception(
     
     logger.log(level, full_message, exc_info=(level >= logging.ERROR))
 
+
+def log_test_metric(
+    test_name: str,
+    category: str,
+    passed: bool,
+    duration_ms: float,
+    error: Optional[str] = None
+) -> None:
+    """
+    Log a test execution metric (Issue #1315).
+    
+    Used by test environment fidelity monitoring to track:
+    - Unit, integration, and edge case tests
+    - Pass/fail status
+    - Execution duration
+    - Error details
+    
+    Args:
+        test_name: Name of the test
+        category: Test category ('unit', 'integration', 'edge_case')
+        passed: Whether test passed
+        duration_ms: Test execution duration in milliseconds
+        error: Error message if test failed
+    """
+    status = "PASS" if passed else "FAIL"
+    logger = get_logger("tests.fidelity")
+    
+    msg = f"TEST[{category.upper()}] {test_name}: {status} ({duration_ms:.2f}ms)"
+    
+    if error:
+        logger.error(f"{msg} - Error: {error}")
+    else:
+        logger.info(msg)
+
+
+def log_environment_context(environment: str, metadata: Optional[Dict] = None) -> None:
+    """
+    Log test environment context (Issue #1315).
+    
+    Used to document environment in which tests run.
+    
+    Args:
+        environment: Environment name ('test', 'ci', 'local', etc.)
+        metadata: Optional dict with environment metadata
+    """
+    logger = get_logger("tests.environment")
+    
+    msg = f"Environment: {environment}"
+    if metadata:
+        msg += f" | {metadata}"
+    
+    logger.info(msg)

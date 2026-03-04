@@ -93,6 +93,35 @@ jobs:
           # Run serial tests sequentially with per-test timeout
           pytest tests/ -m "serial" --maxfail=5 --timeout=180
 
+      - name: Test Environment Fidelity (Issue #1315)
+        timeout-minutes: 10
+        run: |
+          # Run fidelity tests with metrics collection
+          pytest tests/test_environment_fidelity.py -v --tb=short
+          
+          # Generate scorecard and check threshold
+          python scripts/generate_fidelity_scorecard.py --output fidelity-scorecard.json --text > fidelity-scorecard.txt
+          python scripts/generate_fidelity_scorecard.py --html fidelity-scorecard.html
+          
+          # Fail if scorecard indicates issues
+          SCORE=$(python -c "import json; data = json.load(open('fidelity-scorecard.json')); print(int(data['overall_score']))")
+          if [ $SCORE -lt 75 ]; then
+            echo "❌ Fidelity score ($SCORE) below threshold (75)"
+            exit 1
+          fi
+          echo "✓ Fidelity score: $SCORE/100"
+
+      - name: Upload Fidelity Scorecard
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fidelity-scorecard-${{ github.sha }}
+          path: |
+            fidelity-scorecard.json
+            fidelity-scorecard.txt
+            fidelity-scorecard.html
+          retention-days: 30
+
       - timeout-minutes: 10
         name: Test Backend App
         run: |
