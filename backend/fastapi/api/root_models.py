@@ -38,6 +38,7 @@ UserEmotionalPatterns = _models_module.UserEmotionalPatterns
 UserSyncSetting = _models_module.UserSyncSetting
 LoginAttempt = _models_module.LoginAttempt
 RefreshToken = _models_module.RefreshToken
+Goal = _models_module.Goal
 
 # Export all for easy discovery
 __all__ = [
@@ -56,4 +57,5 @@ __all__ = [
     'UserSyncSetting',
     'LoginAttempt',
     'RefreshToken',
+    'Goal',
 ]

@@ -49,6 +49,7 @@ class User(Base):
     refresh_tokens = relationship("RefreshToken", back_populates="user", cascade="all, delete-orphan")
     audit_logs = relationship("AuditLog", back_populates="user", cascade="all, delete-orphan")
     sessions = relationship("UserSession", back_populates="user", cascade="all, delete-orphan")
+    goals = relationship("Goal", back_populates="user", cascade="all, delete-orphan")
 
 
 class LoginAttempt(Base):
@@ -262,6 +263,41 @@ class UserStrengths(Base):
     last_updated = Column(String, default=lambda: datetime.now(UTC).isoformat())
 
     user = relationship("User", back_populates="strengths")
+
+
+class Goal(Base):
+    """
+    Structured Emotional Growth Goal for users.
+    Tracks progress on specific emotional competencies.
+    """
+    __tablename__ = 'goals'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
+    
+    title = Column(String(100), nullable=False)
+    description = Column(Text, nullable=True)
+    category = Column(String(50), nullable=False, index=True)  # Empathy, Resilience, etc.
+    
+    # Progress Tracking
+    target_value = Column(Float, nullable=False, default=100.0)
+    current_value = Column(Float, nullable=False, default=0.0)
+    unit = Column(String(50), nullable=False, default="percentage")  # days, sessions, percentage
+    
+    # Lifecycle
+    start_date = Column(String, default=lambda: datetime.now(UTC).isoformat())
+    deadline = Column(String, nullable=True)
+    status = Column(String(20), nullable=False, default='active', index=True)  # active, completed, abandoned, paused
+    
+    created_at = Column(String, default=lambda: datetime.now(UTC).isoformat())
+    updated_at = Column(String, default=lambda: datetime.now(UTC).isoformat())
+
+    user = relationship("User", back_populates="goals")
+
+    __table_args__ = (
+        Index('idx_goals_user_status', 'user_id', 'status'),
+        Index('idx_goals_category', 'category'),
+    )
 
 
 class UserEmotionalPatterns(Base):

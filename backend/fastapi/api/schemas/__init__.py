@@ -919,4 +919,39 @@ class AuditLogResponse(BaseModel):
                 return None
         return v
 
+class GoalBase(BaseModel):
+    title: str = Field(..., max_length=100)
+    description: Optional[str] = None
+    category: str = Field(..., max_length=50)
+    target_value: float = Field(..., gt=0)
+    unit: str = Field(default="percentage", max_length=50)
+    deadline: Optional[str] = None
 
+class GoalCreate(GoalBase):
+    pass
+
+class GoalUpdate(BaseModel):
+    title: Optional[str] = Field(None, max_length=100)
+    description: Optional[str] = None
+    category: Optional[str] = Field(None, max_length=50)
+    target_value: Optional[float] = Field(None, gt=0)
+    current_value: Optional[float] = Field(None, ge=0)
+    status: Optional[str] = Field(None, pattern="^(active|completed|abandoned|paused)$")
+    deadline: Optional[str] = None
+
+class GoalResponse(GoalBase):
+    id: int
+    user_id: int
+    current_value: float
+    status: str
+    created_at: str
+    updated_at: str
+    progress_percentage: float
+    
+    model_config = ConfigDict(from_attributes=True)
+
+class GoalListResponse(BaseModel):
+    total: int
+    goals: List[GoalResponse]
+    page: int
+    page_size: int
