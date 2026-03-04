@@ -82,6 +82,12 @@ EXPERIMENTAL_FLAGS: Dict[str, FeatureFlag] = {
         experimental=True,
         category="data"
     ),
+    "macos_keychain_integration": FeatureFlag(
+        name="macos_keychain_integration",
+        default=False,
+        description="Enable native macOS Keychain integration for secure local secrets storage",
+        experimental=True,
+        category="security"
     "migration_blast_radius": FeatureFlag(
         name="migration_blast_radius",
         default=False,

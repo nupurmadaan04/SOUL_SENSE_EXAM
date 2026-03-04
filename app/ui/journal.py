@@ -667,7 +667,10 @@ class JournalFeature:
             
             self.show_analysis_results(sentiment_score, emotional_patterns, health_insights)
             
-            # 5. Clear Input
+            # 5. Check for Crisis Alert Pattern (Issue #1332)
+            self._check_crisis_alert_after_journal_entry()
+            
+            # 6. Clear Input
             self.text_area.delete("1.0", tk.END)
             # Reset word count
             if hasattr(self, 'word_count_label'):
@@ -1653,6 +1656,66 @@ class JournalFeature:
                  font=("Segoe UI", 10), bg=colors.get("surface", "#e0e0e0"),
                  fg=colors.get("text_primary", "#000"),
                  relief="flat", padx=15).pack(side="right")
+    
+    def _check_crisis_alert_after_journal_entry(self):
+        """
+        Check for crisis-level distress patterns after journal entry submission.
+        Shows intervention modal if extreme distress patterns are detected.
+        
+        This integrates Issue #1332: Crisis Alert Mode
+        """
+        try:
+            from app.services.crisis_detection_service import CrisisDetectionService
+            from app.ui.components.crisis_alert_modal import show_crisis_alert
+            
+            # Get user information
+            username = getattr(self, 'username', None)
+            if not username and self.app:
+                username = getattr(self.app, 'current_username', None)
+            
+            # Get user_id
+            user_id = None
+            if self.app:
+                user_id = getattr(self.app, 'current_user_id', None)
+            
+            if not user_id or not username:
+                logging.warning("Cannot check crisis pattern: missing user info")
+                return
+            
+            # Check for crisis pattern
+            is_crisis, alert = CrisisDetectionService.check_crisis_pattern(user_id, username)
+            
+            if is_crisis and alert:
+                # Get support resources
+                resources = CrisisDetectionService.get_support_resources()
+                
+                # Show crisis alert modal
+                def on_alert_close(alert_id: int):
+                    CrisisDetectionService.acknowledge_alert(alert_id)
+                
+                crisis_colors = self.colors if hasattr(self, 'colors') else {
+                    "bg": "#F8FAFC",
+                    "surface": "#E2E8F0",
+                    "primary": "#3B82F6",
+                    "text_primary": "#1E293B",
+                    "text_secondary": "#64748B"
+                }
+                
+                modal = show_crisis_alert(
+                    self.journal_window,
+                    user_id=user_id,
+                    alert_id=alert.id,
+                    severity=alert.severity,
+                    resources=resources,
+                    on_close=on_alert_close,
+                    colors=crisis_colors
+                )
+                
+                logging.info(f"Crisis alert modal shown for user {username} (severity: {alert.severity})")
+        
+        except Exception as e:
+            # Log but don't interrupt journal entry flow
+            logging.error(f"Error checking crisis pattern after journal entry: {e}")
 
 
 # Standalone test function

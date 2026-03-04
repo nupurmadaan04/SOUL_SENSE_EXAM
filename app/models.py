@@ -947,6 +947,48 @@ class CapacityForecast(Base):
         Index('idx_capacity_forecast_risk_level', 'risk_level'),
     )
 
+
+class CrisisAlert(Base):
+    """Track crisis alerts for extreme distress pattern detection (Issue #1332).
+    
+    Monitors consecutive negative intensity logs and triggers intervention
+    support when patterns indicate extreme emotional distress. Prevents false
+    positives by tracking alert timing and intervention history.
+    """
+    __tablename__ = 'crisis_alerts'
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id'), nullable=False, index=True)
+    username = Column(String, index=True, nullable=False)
+    
+    # Pattern detection
+    consecutive_negative_count = Column(Integer, default=0, nullable=False)
+    total_negative_entries = Column(Integer, default=0, nullable=False)
+    average_negative_intensity = Column(Float, default=0.0, nullable=False)
+    
+    # Alert timing
+    detected_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
+    last_alerted_at = Column(DateTime, nullable=True)  # Track last alert to prevent spam
+    acknowledged_at = Column(DateTime, nullable=True)
+    is_acknowledged = Column(Boolean, default=False, nullable=False)
+    
+    # Support resources provided
+    support_resources_provided = Column(Boolean, default=False, nullable=False)
+    intervention_modal_shown = Column(Boolean, default=False, nullable=False)
+    
+    # Alert state
+    is_active = Column(Boolean, default=True, nullable=False, index=True)
+    severity = Column(String, default="high", nullable=False)  # low, medium, high, critical
+    notes = Column(Text, nullable=True)  # Additional context or user notes
+    
+    user = relationship("User")
+    
+    __table_args__ = (
+        Index('idx_crisis_alert_user_active', 'user_id', 'is_active'),
+        Index('idx_crisis_alert_detected', 'detected_at'),
+        Index('idx_crisis_alert_last_alerted', 'last_alerted_at'),
+    )
+
 # Initialize logger
 logging.basicConfig(level=logging.INFO)
 # End of models

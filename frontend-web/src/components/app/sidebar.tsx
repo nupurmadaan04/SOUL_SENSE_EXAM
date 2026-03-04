@@ -33,6 +33,7 @@ interface NavItem {
   label: string;
   href: string;
   icon: React.ReactNode;
+  tooltip: string;
 }
 
 const navigationItems: NavItem[] = [
@@ -40,31 +41,37 @@ const navigationItems: NavItem[] = [
     label: 'Dashboard',
     href: '/dashboard',
     icon: <Home className="h-5 w-5" />,
+    tooltip: 'View your emotional trends and insights',
   },
   {
     label: 'Take Exam',
     href: '/exam',
     icon: <ClipboardList className="h-5 w-5" />,
+    tooltip: 'Start a new EQ assessment',
   },
   {
     label: 'Journal',
     href: '/journal',
     icon: <BookOpen className="h-5 w-5" />,
+    tooltip: 'Write about your day and feelings',
   },
   {
     label: 'Results',
     href: '/results',
     icon: <BarChart3 className="h-5 w-5" />,
+    tooltip: 'Analyze your assessment history',
   },
   {
     label: 'Profile',
     href: '/profile',
     icon: <User className="h-5 w-5" />,
+    tooltip: 'Manage your personal patterns',
   },
   {
     label: 'Settings',
     href: '/settings',
     icon: <Settings className="h-5 w-5" />,
+    tooltip: 'Configure app and privacy preferences',
   },
 ];
 
@@ -406,7 +413,12 @@ export function Sidebar() {
                       </motion.div>
                     </Link>
                   </TooltipTrigger>
-                  {isCollapsed && <TooltipContent>{item.label}</TooltipContent>}
+                  <TooltipContent side="right">
+                    <div className="flex flex-col gap-1">
+                      <p className="font-bold">{item.label}</p>
+                      <p className="text-xs opacity-70">{item.tooltip}</p>
+                    </div>
+                  </TooltipContent>
                 </Tooltip>
               </div>
             );

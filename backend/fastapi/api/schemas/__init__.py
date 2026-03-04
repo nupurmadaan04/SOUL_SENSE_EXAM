@@ -551,6 +551,7 @@ class UserSettingsCreate(BaseModel):
     data_usage_consent: bool = False
     emergency_disclaimer_accepted: bool = False
     crisis_support_preference: bool = True
+    onboarding_completed: bool = False
     crisis_mode_enabled: bool = False  # Enable crisis intervention routing (Issue #930)
     
     # Data Usage Consent (Issue #929)
@@ -578,6 +579,7 @@ class UserSettingsUpdate(BaseModel):
     data_usage_consent: Optional[bool] = None
     emergency_disclaimer_accepted: Optional[bool] = None
     crisis_support_preference: Optional[bool] = None
+    onboarding_completed: Optional[bool] = None
     crisis_mode_enabled: Optional[bool] = None  # Enable crisis intervention routing (Issue #930)
     
     # Data Usage Consent (Issue #929)
@@ -604,6 +606,10 @@ class UserSettingsResponse(BaseModel):
     advice_boundaries: Optional[List[str]] = None
     ai_trust_level: Optional[int] = None
     
+    data_usage_consent: bool
+    emergency_disclaimer_accepted: bool
+    crisis_support_preference: bool
+    onboarding_completed: bool
     data_usage_consent: Optional[bool] = None
     emergency_disclaimer_accepted: Optional[bool] = None
     crisis_support_preference: Optional[bool] = None
@@ -1338,15 +1344,12 @@ class SyncSettingConflictResponse(BaseModel):
     """Schema for conflict response (409)."""
     detail: str = "Version conflict"
     key: str
-    current_version: int
-    current_value: Any
-    
-
-# ============================================================================
-# Audit Log Schemas
 # ============================================================================
 
 class AuditLogResponse(BaseModel):
+    """Schema for individual audit log entry."""
+    ip_address: Optional[str]
+    user_agent: Optional[str]
     """Schema for individual audit log entry with tamper-evident hash chaining (#1265)."""
     id: int
     user_id: int
@@ -1439,6 +1442,68 @@ class GamificationSummary(BaseModel):
     recent_achievements: List[AchievementResponse]
     active_challenges: List[ChallengeResponse]
 
+# ============================================================================
+# Goal Schemas - Structured Emotional Growth
+# ============================================================================
+
+class GoalBase(BaseModel):
+    """Base schema for structured goal sharing common fields."""
+    title: str = Field(..., min_length=1, max_length=200, description="Goal title")
+    description: Optional[str] = Field(None, max_length=1000, description="Goal description")
+    category: str = Field(..., description="Goal category (e.g., Resilience, Empathy)")
+    target_value: float = Field(default=100.0, ge=0.01, description="Goal target value")
+    unit: str = Field(default='percentage', description="Metric unit (percentage, sessions, days)")
+    deadline: Optional[datetime] = None
+
+class GoalCreate(GoalBase):
+    """Schema for creating a new emotional goal."""
+    @field_validator('title', 'description', mode='before')
+    @classmethod
+    def sanitize_goal_info(cls, v: Optional[str]) -> Optional[str]:
+        if isinstance(v, str):
+            return sanitize_string(v)
+        return v
+
+class GoalUpdate(BaseModel):
+    """Schema for updating an existing goal or its progress."""
+    title: Optional[str] = Field(None, min_length=1, max_length=200)
+    description: Optional[str] = Field(None, max_length=1000)
+    category: Optional[str] = None
+    target_value: Optional[float] = Field(None, ge=0.01)
+    current_value: Optional[float] = Field(None, ge=0)
+    status: Optional[str] = Field(None, pattern='^(active|completed|abandoned|paused)$')
+    deadline: Optional[datetime] = None
+
+    @field_validator('title', 'description', mode='before')
+    @classmethod
+    def sanitize_update_info(cls, v: Optional[str]) -> Optional[str]:
+        if isinstance(v, str):
+            return sanitize_string(v)
+        return v
+
+class GoalResponse(GoalBase):
+    """Detailed schema for goal responses."""
+    id: int
+    user_id: int
+    current_value: float
+    status: str
+    progress_percentage: float = 0.0
+    created_at: datetime
+    updated_at: datetime
+
+    @model_validator(mode="after")
+    def calculate_progress(self) -> "GoalResponse":
+        self.progress_percentage = min(100.0, (self.current_value / self.target_value) * 100.0) if self.target_value > 0 else 0
+        return self
+
+    model_config = ConfigDict(from_attributes=True)
+
+class GoalListResponse(BaseModel):
+    """Paginated list of goals."""
+    total: int
+    goals: List[GoalResponse]
+    page: int
+    page_size: int
 
 class DashboardStatisticsResponse(BaseModel):
     """Response for dashboard statistics with historical trends."""

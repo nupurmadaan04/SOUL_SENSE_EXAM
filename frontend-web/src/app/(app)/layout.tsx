@@ -5,6 +5,13 @@ import { useAuth } from '@/hooks/useAuth';
 import { useOnboardingGuard } from '@/hooks/useOnboardingGuard';
 import { OnboardingModal } from '@/components/onboarding';
 import { Sidebar, Header } from '@/components/app';
+import { useOnboarding } from '@/hooks/useOnboarding';
+import { OnboardingTutorial } from '@/components/onboarding/OnboardingTutorial';
+
+export default function AppLayout({ children }: { children: React.ReactNode }) {
+  // Authentication checks are handled by Edge middleware; this hook is used only for UI state
+  const { isAuthenticated, isLoading } = useAuth();
+  const { showTutorial, completeOnboarding, skipOnboarding } = useOnboarding();
 import { Loader } from '@/components/ui';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -46,6 +53,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </main>
         </div>
       </div>
+
+      {showTutorial && (
+        <OnboardingTutorial
+          onComplete={completeOnboarding}
+          onSkip={skipOnboarding}
+        />
+      )}
+    </div>
     </>
   );
 }

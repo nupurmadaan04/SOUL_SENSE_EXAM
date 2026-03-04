@@ -4,6 +4,7 @@ from ...routers import (
     auth, users, profiles, assessments, 
     questions, analytics, journal, health,
     settings_sync, community, contact, exams, export, deep_dive,
+    gamification, goals
     gamification, audit, tasks, consent, surveys, advanced_analytics, archival, notifications, flags, search, team_vision,
     api_keys, tamper_evident_audit
 )
@@ -32,6 +33,7 @@ api_router.include_router(contact.router, prefix="/contact", tags=["Contact"])
 api_router.include_router(export.router, prefix="/reports/export", tags=["Exports"])
 api_router.include_router(deep_dive.router, prefix="/deep-dive", tags=["Deep Dive"])
 api_router.include_router(gamification.router, prefix="/gamification", tags=["Gamification"])
+api_router.include_router(goals.router, prefix="/goals", tags=["Goals"])
 api_router.include_router(audit.router, prefix="/audit", tags=["Audit"])
 api_router.include_router(tasks.router, prefix="/tasks", tags=["Background Tasks"])
 api_router.include_router(consent.router, prefix="/consent", tags=["Consent"])

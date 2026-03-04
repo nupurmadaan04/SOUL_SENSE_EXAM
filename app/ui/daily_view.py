@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
-from tkcalendar import DateEntry
+# DateEntry removed due to GPL license violation
+DateEntry = None
 from datetime import datetime, timedelta
 import matplotlib
 matplotlib.use("Agg")
@@ -56,13 +57,16 @@ class DailyHistoryView:
                 font=("Segoe UI", 24, "bold"), bg=self.colors["bg"], fg=self.colors["text_primary"]).pack(side=tk.LEFT)
         
         # Date Picker (Styled)
-        self.date_var = tk.StringVar()
-        self.date_entry = DateEntry(header_frame, width=12, background=self.colors["primary"],
-                                   foreground='white', borderwidth=0, 
-                                   date_pattern='y-mm-dd',
-                                   textvariable=self.date_var, font=("Segoe UI", 12))
+        # Date Picker replacement (GPL Concern)
+        self.date_entry = tk.Entry(header_frame, width=12, font=("Segoe UI", 12))
         self.date_entry.pack(side=tk.RIGHT)
-        self.date_entry.bind("<<DateEntrySelected>>", self.load_data)
+        self.date_entry.insert(0, datetime.now().strftime("%Y-%m-%d"))
+        
+        # Add a refresh button since we can't easily detect date change in Entry
+        tk.Button(header_frame, text="🔍", command=self.load_data, 
+                  font=("Segoe UI", 10), bg=self.colors["primary"], fg="white", relief="flat").pack(side=tk.RIGHT, padx=5)
+        
+        self.date_entry.bind("<Return>", lambda e: self.load_data())
 
         # --- Main Layout (Scrollable) ---
         self.canvas = tk.Canvas(self.parent, bg=self.colors["bg"], highlightthickness=0)
@@ -144,10 +148,11 @@ class DailyHistoryView:
         btn.pack(pady=5)
 
     def load_data(self, event=None):
-        date_str = self.date_var.get()
-        if not date_str:
+        date_str = self.date_entry.get().strip()
+        if not date_str or date_str == "":
             date_str = datetime.now().strftime("%Y-%m-%d")
-            self.date_var.set(date_str)
+            self.date_entry.delete(0, tk.END)
+            self.date_entry.insert(0, date_str)
             
         self.selected_date_str = date_str
         

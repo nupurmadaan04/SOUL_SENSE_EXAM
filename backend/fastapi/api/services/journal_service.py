@@ -22,6 +22,7 @@ from fastapi import HTTPException, status
 # Import models from models module
 from ..models import JournalEntry, User
 from .gamification_service import GamificationService
+from ..utils.cache import cache_manager
 try:
     from ..celery_tasks import generate_journal_embedding_task
 except ImportError:
@@ -576,6 +577,7 @@ class JournalService:
         
         return entries, total
 
+    @cache_manager.cache(ttl=300, prefix="journal_analytics")
     async def get_analytics(self, current_user: User) -> dict:
         """Get analytics (Async)."""
         """Get journal analytics."""

@@ -37,6 +37,7 @@ export interface UserSettings {
     ai_tone_preference: 'Clinical' | 'Warm' | 'Direct' | 'Philosophical';
     storage_retention_days: number;
   };
+  onboarding_completed: boolean;
 }
 
 export const settingsApi = {
@@ -82,6 +83,7 @@ export const settingsApi = {
           ai_tone_preference: 'Warm',
           storage_retention_days: 180,
         },
+        onboarding_completed: false,
       };
     }
   },

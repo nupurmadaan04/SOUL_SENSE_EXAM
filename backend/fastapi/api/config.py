@@ -145,6 +145,9 @@ class BaseAppSettings(BaseSettings):
     # Deletion Grace Period
     deletion_grace_period_days: int = Field(default=30, ge=0, description="Grace period for account deletion in days")
 
+    # Security & OS Integration
+    macos_keychain_enabled: bool = Field(default=False, description="Enable native macOS Keychain integration")
+
     # JWT configuration
     SECRET_KEY: str = Field(default_factory=lambda: secrets.token_urlsafe(32), description="JWT secret key")
     jwt_algorithm: str = Field(default="HS256", description="JWT algorithm")
