@@ -16,3 +16,4 @@ export * from './loader';
 export * from './label';
 export * from './tabs';
 export * from './badge';
+export * from './emotion-intensity-slider';

@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { useApi } from '@/hooks/useApi';
 import { journalApi, JournalEntry, CreateJournalEntry } from '@/lib/api/journal';
 import { ErrorDisplay, Skeleton } from '@/components/common';
-import { Button, Card, CardContent, Input, Slider } from '@/components/ui';
+import { Button, Card, CardContent, Input, EmotionIntensitySlider } from '@/components/ui';
 import {
   ArrowLeft,
   Calendar,
@@ -311,12 +311,13 @@ export default function JournalEntryDetailPage() {
                     Mood Rating
                   </label>
                   <div className="flex items-center gap-4">
-                    <Slider
+                    <EmotionIntensitySlider
                       value={editForm.mood_rating || 5}
                       onChange={(value) => setEditForm((prev) => ({ ...prev, mood_rating: value }))}
                       max={10}
                       min={1}
                       step={1}
+                      type="mood"
                       className="flex-1"
                     />
                     <div className="flex items-center gap-2 min-w-[100px]">
@@ -337,7 +338,7 @@ export default function JournalEntryDetailPage() {
                     Energy Level
                   </label>
                   <div className="flex items-center gap-4">
-                    <Slider
+                    <EmotionIntensitySlider
                       value={editForm.energy_level || 5}
                       onChange={(value) =>
                         setEditForm((prev) => ({ ...prev, energy_level: value }))
@@ -345,6 +346,7 @@ export default function JournalEntryDetailPage() {
                       max={10}
                       min={1}
                       step={1}
+                      type="energy"
                       className="flex-1"
                     />
                     <div className="flex items-center gap-2 min-w-[60px]">
@@ -360,7 +362,7 @@ export default function JournalEntryDetailPage() {
                     Stress Level
                   </label>
                   <div className="flex items-center gap-4">
-                    <Slider
+                    <EmotionIntensitySlider
                       value={editForm.stress_level || 5}
                       onChange={(value) =>
                         setEditForm((prev) => ({ ...prev, stress_level: value }))
@@ -368,6 +370,7 @@ export default function JournalEntryDetailPage() {
                       max={10}
                       min={1}
                       step={1}
+                      type="stress"
                       className="flex-1"
                     />
                     <div className="flex items-center gap-2 min-w-[60px]">

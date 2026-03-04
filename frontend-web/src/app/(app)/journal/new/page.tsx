@@ -6,8 +6,8 @@ import { format } from 'date-fns';
 import { ArrowLeft, Save, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-import { MoodSlider, TagSelector, JournalEditor } from '@/components/journal';
-import { Button, Card, CardContent, useToast } from '@/components/ui';
+import { TagSelector, JournalEditor } from '@/components/journal';
+import { Button, Card, CardContent, useToast, EmotionIntensitySlider } from '@/components/ui';
 import { journalApi } from '@/lib/api/journal';
 import { JournalEntryCreate } from '@/types/journal';
 
@@ -180,12 +180,13 @@ export default function NewJournalEntryPage() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="space-y-8">
           {/* Mood Slider - Prominent */}
-          <Card>
-            <CardContent className="p-4 sm:p-6">
-              <MoodSlider
+          <Card className="overflow-hidden border-none shadow-2xl bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl">
+            <CardContent className="p-6 sm:p-8">
+              <EmotionIntensitySlider
                 value={entry.mood_rating}
                 onChange={handleMoodChange}
                 label="How are you feeling today?"
+                type="mood"
               />
             </CardContent>
           </Card>
@@ -218,15 +219,16 @@ export default function NewJournalEntryPage() {
           {/* Optional Fields */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Energy Level */}
-            <Card>
+            <Card className="overflow-hidden border-none shadow-xl bg-white/40 dark:bg-slate-900/40 backdrop-blur-lg">
               <CardContent className="p-4 sm:p-6">
-                <MoodSlider
+                <EmotionIntensitySlider
                   value={energyLevel || 5}
                   onChange={(value) => setEnergyLevel(value)}
-                  label="Energy Level (Optional)"
-                  showEmoji={false}
+                  label="Energy Level"
+                  type="energy"
+                  showEmoji={true}
                 />
-                <div className="mt-2 text-center">
+                <div className="mt-4 text-center">
                   <Button
                     variant="ghost"
                     size="sm"
@@ -241,15 +243,16 @@ export default function NewJournalEntryPage() {
             </Card>
 
             {/* Stress Level */}
-            <Card>
+            <Card className="overflow-hidden border-none shadow-xl bg-white/40 dark:bg-slate-900/40 backdrop-blur-lg">
               <CardContent className="p-4 sm:p-6">
-                <MoodSlider
+                <EmotionIntensitySlider
                   value={stressLevel || 5}
                   onChange={(value) => setStressLevel(value)}
-                  label="Stress Level (Optional)"
-                  showEmoji={false}
+                  label="Stress Level"
+                  type="stress"
+                  showEmoji={true}
                 />
-                <div className="mt-2 text-center">
+                <div className="mt-4 text-center">
                   <Button
                     variant="ghost"
                     size="sm"
