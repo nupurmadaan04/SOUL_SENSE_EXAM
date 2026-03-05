@@ -14,6 +14,37 @@
     "exam": {
         "num_questions": 5
     },
+    "latency_budgets": {
+        "enabled": true,
+        "alert_on_breach": true,
+        "budgets": {
+            "exam_service.get_results": {
+                "budget_ms": 500,
+                "operation_type": "query",
+                "alert_threshold_percent": 80
+            },
+            "exam_service.check_retake_allowed": {
+                "budget_ms": 400,
+                "operation_type": "query",
+                "alert_threshold_percent": 80
+            },
+            "journal_service.create_entry": {
+                "budget_ms": 1000,
+                "operation_type": "command",
+                "alert_threshold_percent": 75
+            },
+            "journal_service.get_entries": {
+                "budget_ms": 600,
+                "operation_type": "query",
+                "alert_threshold_percent": 80
+            },
+            "profile_service.get_profile": {
+                "budget_ms": 500,
+                "operation_type": "query",
+                "alert_threshold_percent": 80
+            }
+        }
+    },
     "experimental": {
         "ai_journal_suggestions": false,
         "advanced_analytics": false,

@@ -7,6 +7,7 @@ from sqlalchemy import desc, func
 from app.db import safe_db_context
 from app.models import Score, Response, User, AssessmentResult
 from app.exceptions import DatabaseError
+from app.latency_budget import monitor_latency
 
 
 class RetakeNotAllowedError(Exception):
@@ -93,9 +94,18 @@ class ExamService:
             return 1
     
     @staticmethod
+    @monitor_latency(
+        operation_name="exam_service.check_retake_allowed",
+        budget_ms=400,
+        operation_type="query",
+        alert_threshold_percent=80
+    )
     def check_retake_allowed(user_id: Optional[int]) -> Tuple[bool, str]:
         """
         Check if a user is allowed to take/retake an assessment.
+        
+        Latency Budget: 400ms (Query operation)
+        Alert Threshold: 80% (320ms)
         
         Args:
             user_id: The ID of the user (None for anonymous users)

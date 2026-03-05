@@ -5,6 +5,7 @@ from sqlalchemy import desc, asc
 from app.db import safe_db_context
 from app.models import JournalEntry, User
 from app.exceptions import DatabaseError
+from app.latency_budget import monitor_latency
 
 logger = logging.getLogger(__name__)
 
@@ -15,6 +16,12 @@ class JournalService:
     """
 
     @staticmethod
+    @monitor_latency(
+        operation_name="journal_service.create_entry",
+        budget_ms=1000,
+        operation_type="command",
+        alert_threshold_percent=75
+    )
     def create_entry(
         username: str, 
         content: str, 
@@ -25,6 +32,9 @@ class JournalService:
     ) -> JournalEntry:
         """
         Creates and saves a new journal entry.
+        
+        Latency Budget: 1000ms (Command operation)
+        Alert Threshold: 75% (750ms)
         
         Args:
             username: The user's username
@@ -67,6 +77,12 @@ class JournalService:
             raise DatabaseError("Failed to save journal entry", original_exception=e)
 
     @staticmethod
+    @monitor_latency(
+        operation_name="journal_service.get_entries",
+        budget_ms=600,
+        operation_type="query",
+        alert_threshold_percent=80
+    )
     def get_entries(
         username: str, 
         month_filter: Optional[str] = None, 
@@ -74,6 +90,9 @@ class JournalService:
     ) -> List[JournalEntry]:
         """
         Retrieves journal entries for a user with optional filters.
+        
+        Latency Budget: 600ms (Query operation)
+        Alert Threshold: 80% (480ms)
         
         Args:
             username: The user's username
