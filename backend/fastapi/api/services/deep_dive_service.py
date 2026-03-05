@@ -2,10 +2,11 @@ import json
 import logging
 from typing import List, Dict, Optional
 from datetime import datetime, UTC
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi import HTTPException
 
-from app.models import AssessmentResult, User
+from ..models import AssessmentResult, User
 from ..schemas import (
     DeepDiveType, 
     DeepDiveQuestion, 
@@ -92,26 +93,18 @@ class DeepDiveService:
         if assessment_type not in cls.QUESTION_BANKS:
             raise HTTPException(status_code=404, detail="Assessment type not found")
             
-        # Get bank (defaults to full list)
         bank = cls.QUESTION_BANKS[assessment_type]["questions"]
-        
-        # Limit count
         actual_questions = bank[:min(count, len(bank))]
         
-        # Return with index as ID (MVP only - eventually move to DB IDs)
         return [
             DeepDiveQuestion(id=idx, text=text) 
             for idx, text in enumerate(actual_questions)
         ]
 
     @classmethod
-    def submit_assessment(cls, db: Session, user: User, submission: DeepDiveSubmission) -> DeepDiveResultResponse:
+    async def submit_assessment(cls, db: AsyncSession, user: User, submission: DeepDiveSubmission) -> DeepDiveResultResponse:
         """
-        Process a deep dive submission.
-        - Validates type.
-        - Validates score ranges (1-5).
-        - Prevents submitting answers for ghost questions.
-        - Calculates and saves result.
+        Process a deep dive submission (Async).
         """
         assess_type = submission.assessment_type
         if assess_type not in cls.QUESTION_BANKS:
@@ -120,37 +113,25 @@ class DeepDiveService:
         valid_questions = cls.QUESTION_BANKS[assess_type]["questions"]
         valid_question_set = set(valid_questions)
         
-        # 1. Validate Scores & Questions
         raw_score = 0
         response_count = 0
         
         for q_text, score in submission.responses.items():
             if q_text not in valid_question_set:
-                # Ghost question check
                 raise HTTPException(status_code=400, detail=f"Invalid question for this assessment: '{q_text}'")
                 
             if not isinstance(score, int) or score < 1 or score > 5:
-                # Strict range validation
                 raise HTTPException(status_code=400, detail="Scores must be between 1 and 5")
                 
             raw_score += score
             response_count += 1
             
-        # 2. Check Completeness
-        # We enforce at least 50% completeness to be valid (arbitrary logic for data quality)
-        total_questions = len(valid_questions)
-        # Note: Frontend might send varying 'counts', but we validate against the bank.
-        # If user requested 5 questions but bank has 10, we accept 5.
-        
         if response_count == 0:
              raise HTTPException(status_code=400, detail="Submission cannot be empty")
              
-        # 3. Calculate Normalized Score (0-100)
-        # Max per question is 5.
         max_possible = response_count * 5
         normalized = int((raw_score / max_possible) * 100)
         
-        # 4. Save to DB
         result = AssessmentResult(
             user_id=user.id,
             assessment_type=assess_type,
@@ -159,8 +140,8 @@ class DeepDiveService:
             timestamp=datetime.now(UTC).isoformat()
         )
         db.add(result)
-        db.commit()
-        db.refresh(result)
+        await db.commit()
+        await db.refresh(result)
         
         return DeepDiveResultResponse(
             id=result.id,
@@ -172,17 +153,20 @@ class DeepDiveService:
         )
 
     @classmethod
-    def get_history(cls, db: Session, user: User) -> List[DeepDiveResultResponse]:
-        """Get past deep dive results for the user."""
-        results = db.query(AssessmentResult).filter(
+    async def get_history(cls, db: AsyncSession, user: User) -> List[DeepDiveResultResponse]:
+        """Get past deep dive results for the user (Async)."""
+        stmt = select(AssessmentResult).filter(
             AssessmentResult.user_id == user.id
-        ).order_by(AssessmentResult.id.desc()).all()
+        ).order_by(AssessmentResult.id.desc())
+        
+        result = await db.execute(stmt)
+        results = result.scalars().all()
         
         return [
             DeepDiveResultResponse(
                 id=r.id,
                 assessment_type=r.assessment_type,
-                total_score=0, # We store normalized only in DB main column for now, or need to parse details
+                total_score=0,
                 normalized_score=r.total_score,
                 timestamp=r.timestamp,
                 details=json.loads(r.details) if r.details else {}
@@ -191,30 +175,22 @@ class DeepDiveService:
         ]
 
     @classmethod
-    def get_recommendations(cls, db: Session, user: User) -> List[str]:
+    async def get_recommendations(cls, db: AsyncSession, user: User) -> List[str]:
         """
-        Recommend Deep Dives based on EQ stats.
-        Ported from QuestionCurator.recommend_tests logic.
+        Recommend Deep Dives based on EQ stats (Async).
         """
         from ..services.user_analytics_service import UserAnalyticsService
         
-        stats = UserAnalyticsService.get_dashboard_summary(db, user.id)
+        stats = await UserAnalyticsService.get_dashboard_summary(db, user.id)
         
-        # Logic ported from legacy app
         recommendations = []
         
-        # Age-based logic requires profile, assuming user profile fetch separately or passed
-        # Simplification: Use available stats
-        
-        # If score low (<50 avg or latest), suggest Strengths
         if stats.average_score > 0 and stats.average_score < 50:
             recommendations.append("strengths_deep_dive")
             
-        # If score very high (>80), suggest Career Clarity (growth)
         if stats.average_score > 80:
             recommendations.append("career_clarity")
             
-        # Default fallback
         if not recommendations:
              recommendations.append("strengths_deep_dive")
              

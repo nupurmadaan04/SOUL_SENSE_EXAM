@@ -1,5 +1,8 @@
 from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi import Request
+from ..config import get_settings
+
+settings = get_settings()
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
     """
@@ -19,7 +22,8 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         # Control referrer information
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         
-        # Enforce HTTPS (HSTS) - strict in production, but good practice to have logic ready
-        # response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+        # Enforce HTTPS (HSTS) - strict in production
+        if settings.cookie_secure:
+            response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
         
         return response

@@ -1,0 +1,35 @@
+# serializer version: 1
+# name: test_auth_register_missing_body_contract
+  dict({
+    'detail_is_list': True,
+    'has_detail': True,
+    'status_code': 422,
+  })
+# ---
+# name: test_error_404_contract
+  dict({
+    'detail': 'Not Found',
+  })
+# ---
+# name: test_health_endpoint_contract
+  dict({
+    'details': None,
+    'services': None,
+    'status': 'healthy',
+    'timestamp': '<REDACTED>',
+    'version': '1.0.0',
+  })
+# ---
+# name: test_root_endpoint_contract
+  dict({
+    'documentation': '/docs',
+    'name': 'SoulSense API',
+    'versions': list([
+      dict({
+        'path': '/api/v1',
+        'status': 'current',
+        'version': 'v1',
+      }),
+    ]),
+  })
+# ---

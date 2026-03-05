@@ -2,13 +2,13 @@ from pathlib import Path
 import os
 import sys
 import secrets
-from typing import Optional
+from typing import Optional, Any
 
 from dotenv import load_dotenv
 from pydantic import Field, field_validator, ValidationError
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-ROOT_DIR = Path(__file__).resolve().parent.parent.parent.parent
+ROOT_DIR = Path(__file__).resolve().parent.parent.parent
 BACKEND_DIR = ROOT_DIR / "backend"
 FASTAPI_DIR = BACKEND_DIR / "fastapi"
 ENV_FILE = ROOT_DIR / ".env"
@@ -29,17 +29,45 @@ class BaseAppSettings(BaseSettings):
 
     # Application settings
     app_env: str = Field(default="development", description="Application environment")
+    ENVIRONMENT: str = Field(default="development", description="Environment alias")
     host: str = Field(default="127.0.0.1", description="Server host")
     port: int = Field(default=8000, ge=1, le=65535, description="Server port")
     debug: bool = Field(default=True, description="Debug mode")
     welcome_message: str = Field(default="Welcome to Soul Sense!", description="Welcome message")
+    
+    # Mock Authentication Mode (for testing/development)
+    mock_auth_mode: bool = Field(default=False, description="Enable mock authentication for testing")
 
     # Database configuration
     database_type: str = Field(default="sqlite", description="Database type")
     database_url: str = Field(default="sqlite:///../../data/soulsense.db", description="Database URL")
 
+    # Redis configuration
+    redis_host: str = Field(default="localhost", description="Redis host")
+    redis_port: int = Field(default=6379, ge=1, le=65535, description="Redis port")
+    redis_password: Optional[str] = Field(default=None, description="Redis password")
+    redis_db: int = Field(default=0, description="Redis database index")
+    redis_url: Optional[str] = Field(default=None, description="Redis URL (if set, overrides individual host/port)")
+    redis_ttl_seconds: int = Field(default=60, description="Default lock TTL in seconds")
+    
+    # Celery configuration
+    celery_broker_url: Optional[str] = Field(default=None, description="Celery broker URL")
+    celery_result_backend: Optional[str] = Field(default=None, description="Celery result backend")
+    celery_worker_max_tasks_per_child: int = Field(default=100, ge=1, description="Restart worker children after serving 100 tasks to prevent memory leaks")
+
+    # Database connection pool configuration
+    database_pool_size: int = Field(default=20, ge=1, description="The number of connections to keep open inside the connection pool")
+    database_max_overflow: int = Field(default=10, ge=0, description="The number of connections to allow in connection pool ‘overflow’")
+    database_pool_timeout: int = Field(default=30, ge=0, description="The number of seconds to wait before giving up on getting a connection from the pool")
+    database_pool_recycle: int = Field(default=1800, ge=-1, description="Number of seconds after which a connection is automatically recycled")
+    database_pool_pre_ping: bool = Field(default=True, description="Enable pool pre-ping to handle DB node failures")
+    database_statement_timeout: int = Field(default=30000, ge=0, description="Database statement timeout in milliseconds")
+
+    # Deletion Grace Period
+    deletion_grace_period_days: int = Field(default=30, ge=0, description="Grace period for account deletion in days")
+
     # JWT configuration
-    jwt_secret_key: str = Field(default_factory=lambda: secrets.token_urlsafe(32), description="JWT secret key")
+    SECRET_KEY: str = Field(default_factory=lambda: secrets.token_urlsafe(32), description="JWT secret key")
     jwt_algorithm: str = Field(default="HS256", description="JWT algorithm")
     jwt_expiration_hours: int = Field(default=24, ge=1, description="JWT expiration hours")
 
@@ -49,26 +77,42 @@ class BaseAppSettings(BaseSettings):
     github_repo_name: str = Field(default="SOUL_SENSE_EXAM", description="GitHub Repository Name")
 
     # CORS Configuration
-    allowed_origins: str = Field(
-        default='["http://localhost:3000", "http://localhost:8000", "http://127.0.0.1:8000", "http://localhost:3005"]',
+    # Cookie Security Settings
+    cookie_secure: bool = Field(default=False, description="Use Secure flag for cookies (Requires HTTPS)")
+    cookie_samesite: str = Field(default="lax", description="SameSite attribute for cookies (lax, strict, none)")
+    cookie_domain: Optional[str] = Field(default=None, description="Domain attribute for cookies")
+    access_token_expire_minutes: int = Field(default=30, description="Access token expiration in minutes")
+
+    # CORS Configuration
+    BACKEND_CORS_ORIGINS: Any = Field(
+        default=["http://localhost:3000", "http://localhost:3005", "tauri://localhost"],
         description="Allowed origins for CORS"
     )
 
-    @property
-    def cors_origins(self) -> list[str]:
-        """Parse allowed_origins JSON string."""
-        import json
-        import logging
-        
-        logger = logging.getLogger("app.config")
-        
-        try:
-            return json.loads(self.allowed_origins)
-        except json.JSONDecodeError as e:
-            logger.warning(
-                f"Failed to parse allowed_origins JSON: '{self.allowed_origins}'. Error: {e}"
-            )
-            return []
+    # Security Configuration
+    ALLOWED_HOSTS: list[str] = Field(
+        default=["localhost", "127.0.0.1", "0.0.0.0"],
+        description="List of valid hostnames for Host header validation"
+    )
+    TRUSTED_PROXIES: list[str] = Field(
+        default=["127.0.0.1"],
+        description="List of trusted proxy IP addresses"
+    )
+
+    @field_validator("BACKEND_CORS_ORIGINS", mode="before")
+    @classmethod
+    def assemble_cors_origins(cls, v: str | list[str]) -> list[str]:
+        if isinstance(v, str) and not v.startswith("["):
+            return [i.strip() for i in v.split(",")]
+        elif isinstance(v, (list, str)):
+            if isinstance(v, str):
+                import json
+                try:
+                    return json.loads(v)
+                except json.JSONDecodeError:
+                    return [v]
+            return v
+        raise ValueError(v)
 
     model_config = SettingsConfigDict(
         env_file=str(ENV_FILE),
@@ -76,13 +120,31 @@ class BaseAppSettings(BaseSettings):
         case_sensitive=False,
     )
 
+    @property
+    def is_production(self) -> bool:
+        """Alias for checking if environment is production."""
+        return self.app_env == "production"
+
+    @property
+    def ENVIRONMENT(self) -> str:
+        """Alias for app_env to match issue requirements."""
+        return self.app_env
+
     @field_validator('app_env')
     @classmethod
     def validate_app_env(cls, v: str) -> str:
-        allowed_envs = {'development', 'staging', 'production'}
+        allowed_envs = {'development', 'staging', 'production', 'testing'}
         if v.lower() not in allowed_envs:
             raise ValueError(f'app_env must be one of {allowed_envs}, got {v}')
         return v.lower()
+
+    @field_validator('mock_auth_mode')
+    @classmethod
+    def validate_mock_auth_mode(cls, v: bool, info) -> bool:
+        # Forcibly ignore mock auth in production
+        if info.data.get('app_env') == 'production':
+            return False
+        return v
 
     @field_validator('database_url')
     @classmethod
@@ -94,18 +156,21 @@ class BaseAppSettings(BaseSettings):
             raise ValueError('database_url must be a valid database URL')
         return v
 
-    @field_validator('jwt_secret_key')
+    @field_validator('SECRET_KEY')
     @classmethod
-    def validate_jwt_secret_key(cls, v: str) -> str:
+    def validate_secret_key_entropy(cls, v: str) -> str:
         if len(v) < 32:
-            raise ValueError('jwt_secret_key must be at least 32 characters long')
+            raise ValueError("SECRET_KEY is cryptographically weak. It must be at least 32 characters long.")
         return v
 
 
 class DevelopmentSettings(BaseAppSettings):
     """Settings for development environment."""
 
+    ENVIRONMENT: str = "development"
     debug: bool = True
+    SECRET_KEY: str = Field(default="dev_jwt_secret_key_for_development_only_not_secure", description="Development JWT key")
+    mock_auth_mode: bool = True
     jwt_secret_key: str = Field(default="dev_jwt_secret_key_for_development_only_not_secure", description="Development JWT key")
 
 
@@ -113,6 +178,7 @@ class StagingSettings(BaseAppSettings):
     """Settings for staging environment."""
 
     app_env: str = "staging"
+    ENVIRONMENT: str = "staging"
     debug: bool = False
 
     # Required staging database settings
@@ -121,6 +187,11 @@ class StagingSettings(BaseAppSettings):
     database_name: str = Field(..., description="Database name")
     database_user: str = Field(..., description="Database user")
     database_password: str = Field(..., description="Database password")
+
+    # Redis staging settings
+    redis_host: str = Field(..., description="Redis host")
+    redis_port: int = Field(default=6379, ge=1, le=65535, description="Redis port")
+    redis_password: str = Field(..., description="Redis password")
 
     @field_validator('database_host')
     @classmethod
@@ -134,7 +205,12 @@ class ProductionSettings(BaseAppSettings):
     """Settings for production environment."""
 
     app_env: str = "production"
+    ENVIRONMENT: str = "production"
     debug: bool = False
+
+    # Enforce secure cookies in production
+    cookie_secure: bool = True
+    cookie_samesite: str = "lax"  # Or 'strict' if API and FE are on same domain
 
     # Required production database settings
     database_host: str = Field(..., description="Database host")
@@ -142,6 +218,11 @@ class ProductionSettings(BaseAppSettings):
     database_name: str = Field(..., description="Database name")
     database_user: str = Field(..., description="Database user")
     database_password: str = Field(..., description="Database password")
+
+    # Redis production settings
+    redis_host: str = Field(..., description="Redis host")
+    redis_port: int = Field(default=6379, ge=1, le=65535, description="Redis port")
+    redis_password: str = Field(..., description="Redis password")
 
     @field_validator('database_host')
     @classmethod

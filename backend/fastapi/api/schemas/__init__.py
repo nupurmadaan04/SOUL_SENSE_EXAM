@@ -2,7 +2,9 @@ from typing import Any, Dict, List, Optional
 from datetime import datetime
 
 import json
-from pydantic import BaseModel, EmailStr, Field, ConfigDict, field_validator
+from pydantic import BaseModel, EmailStr, Field, ConfigDict, field_validator, model_validator
+
+from ..utils.sanitization import sanitize_string, clean_identifier
 
 
 class ServiceStatus(BaseModel):
@@ -37,10 +39,9 @@ class UserCreate(BaseModel):
 
     @field_validator('username', 'email', mode='before')
     @classmethod
-    def normalize_identifiers(cls, v: str) -> str:
+    def sanitize_identifiers(cls, v: str) -> str:
         if isinstance(v, str):
-            v_norm = v.strip().lower()
-            return v_norm
+            return clean_identifier(v)
         return v
 
     @field_validator('username')
@@ -55,11 +56,29 @@ class UserCreate(BaseModel):
             raise ValueError('This username is reserved')
         return v
 
+    @field_validator('password')
+    @classmethod
+    def validate_password_complexity(cls, v: str) -> str:
+        import re
+        from ..utils.weak_passwords import WEAK_PASSWORDS
+        
+        if len(v) < 8:
+            raise ValueError('Password must be at least 8 characters')
+        if not re.search(r'[A-Z]', v):
+            raise ValueError('Password must contain at least one uppercase letter')
+        if not re.search(r'[0-9]', v):
+            raise ValueError('Password must contain at least one number')
+        if not re.search(r'[^A-Za-z0-9]', v):
+            raise ValueError('Password must contain at least one special character')
+        if v.lower() in WEAK_PASSWORDS:
+            raise ValueError('This password is too common. Please choose a stronger password.')
+        return v
+
     @field_validator('first_name', 'last_name', mode='before')
     @classmethod
-    def trim_names(cls, v: Optional[str]) -> Optional[str]:
+    def sanitize_personal_info(cls, v: Optional[str]) -> Optional[str]:
         if isinstance(v, str):
-            return v.strip()
+            return sanitize_string(v)
         return v
 
 
@@ -70,9 +89,9 @@ class UserLogin(BaseModel):
 
     @field_validator('username', mode='before')
     @classmethod
-    def normalize_username(cls, v: str) -> str:
+    def sanitize_username(cls, v: str) -> str:
         if isinstance(v, str):
-            return v.strip().lower()
+            return clean_identifier(v)
         return v
 
 
@@ -100,10 +119,16 @@ class PasswordResetRequest(BaseModel):
 
     @field_validator('email', mode='before')
     @classmethod
-    def normalize_email(cls, v: str) -> str:
+    def sanitize_email(cls, v: str) -> str:
         if isinstance(v, str):
-            return v.strip().lower()
+            return clean_identifier(v)
         return v
+
+
+class UsernameAvailabilityResponse(BaseModel):
+    """Response for username availability check."""
+    available: bool
+    message: str
 
 
 class PasswordResetComplete(BaseModel):
@@ -114,9 +139,27 @@ class PasswordResetComplete(BaseModel):
 
     @field_validator('email', mode='before')
     @classmethod
-    def normalize_email(cls, v: str) -> str:
+    def sanitize_email(cls, v: str) -> str:
         if isinstance(v, str):
-            return v.strip().lower()
+            return clean_identifier(v)
+        return v
+
+    @field_validator('new_password')
+    @classmethod
+    def validate_new_password_complexity(cls, v: str) -> str:
+        import re
+        from ..utils.weak_passwords import WEAK_PASSWORDS
+        
+        if len(v) < 8:
+            raise ValueError('Password must be at least 8 characters')
+        if not re.search(r'[A-Z]', v):
+            raise ValueError('Password must contain at least one uppercase letter')
+        if not re.search(r'[0-9]', v):
+            raise ValueError('Password must contain at least one number')
+        if not re.search(r'[^A-Za-z0-9]', v):
+            raise ValueError('Password must contain at least one special character')
+        if v.lower() in WEAK_PASSWORDS:
+            raise ValueError('This password is too common. Please choose a stronger password.')
         return v
 
 
@@ -125,6 +168,27 @@ class Token(BaseModel):
     access_token: str
     token_type: str
     refresh_token: Optional[str] = None
+    username: Optional[str] = None
+    email: Optional[str] = None
+    id: int
+    created_at: Optional[str] = None
+    id: Optional[int] = None
+    created_at: Optional[datetime] = None
+    warnings: Optional[List[Dict[str, str]]] = None
+
+
+class CaptchaResponse(BaseModel):
+    """Schema for CAPTCHA generation response."""
+    captcha_code: str = Field(..., description="The CAPTCHA code to display")
+    session_id: str = Field(..., description="Session ID for CAPTCHA validation")
+
+
+class LoginRequest(BaseModel):
+    """Schema for login request with CAPTCHA."""
+    identifier: str = Field(..., description="Username or email")
+    password: str = Field(..., description="User password")
+    captcha_input: str = Field(..., description="User's CAPTCHA input")
+    session_id: str = Field(..., description="Session ID from CAPTCHA generation")
 
 
 class TokenData(BaseModel):
@@ -155,6 +219,68 @@ class ErrorResponse(BaseModel):
     message: str = Field(..., description="Human-readable error message")
     details: Optional[Dict[str, Any]] = Field(None, description="Additional context or debugging info")
     fields: Optional[List[FieldError]] = Field(None, description="Granular field-level errors for forms")
+
+
+# ============================================================================
+# Exam Submission Schemas (Issue 6.5 — API Answer Validation)
+# ============================================================================
+
+class AnswerSubmit(BaseModel):
+    """Schema for a single answer item within an exam submission payload."""
+    question_id: int = Field(
+        ...,
+        ge=1,
+        description="ID of the question being answered",
+    )
+    value: int = Field(
+        ...,
+        ge=1,
+        le=5,
+        description="Likert scale answer value (1-5)",
+    )
+
+
+class ExamSubmit(BaseModel):
+    """Schema for a batch exam submission payload.
+
+    Validates structural geometry of the answers array:
+    - Duplicate question_id values are rejected immediately with a 422.
+    - Completeness against expected question count is enforced in the router
+      after a DB lookup so that async context issues are avoided cleanly.
+    """
+
+    session_id: str = Field(
+        ...,
+        min_length=1,
+        description="Active exam session identifier",
+    )
+    answers: List[AnswerSubmit] = Field(
+        ...,
+        min_length=1,
+        description="List of question/answer pairs — must be non-empty and duplicate-free",
+    )
+    is_draft: bool = Field(
+        default=False,
+        description="When True, completeness validation is skipped (draft saves are allowed)",
+    )
+
+    @model_validator(mode="after")
+    def check_question_uniqueness(self) -> "ExamSubmit":
+        """Reject payloads that submit the same question_id more than once.
+
+        A hacker submitting question_id=5 twenty times must receive a 422 before
+        any database write occurs.  Draft status does NOT exempt this check because
+        duplicate IDs are always a structural error regardless of draft vs. final.
+        """
+        question_ids = [a.question_id for a in self.answers]
+        if len(question_ids) != len(set(question_ids)):
+            from collections import Counter
+            dupes = [qid for qid, count in Counter(question_ids).items() if count > 1]
+            raise ValueError(
+                f"Submitted payload contains duplicate question answers for "
+                f"question_id(s): {dupes}.  Each question may only be answered once."
+            )
+        return self
 
 
 # ============================================================================
@@ -199,6 +325,34 @@ class AssessmentDetailResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class CategoryScore(BaseModel):
+    """Score breakdown for a specific question category."""
+    category_name: str
+    score: float
+    max_score: float
+    percentage: float
+
+
+class Recommendation(BaseModel):
+    """Personalized recommendation based on category performance."""
+    category_name: str
+    message: str
+    priority: str  # 'high', 'medium', 'low'
+
+
+class DetailedExamResult(BaseModel):
+    """Comprehensive exam result breakdown."""
+    assessment_id: int
+    total_score: float
+    max_possible_score: float
+    overall_percentage: float
+    timestamp: str
+    category_breakdown: List[CategoryScore]
+    recommendations: List[Recommendation]
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class AssessmentStatsResponse(BaseModel):
     """Schema for assessment statistics."""
     total_assessments: int
@@ -212,7 +366,7 @@ class AssessmentStatsResponse(BaseModel):
 class ExamResponseCreate(BaseModel):
     """Schema for saving a single question response (click)."""
     question_id: int
-    value: int = Field(..., ge=1, le=4, description="Answer value (1-4)")
+    value: int = Field(..., ge=1, le=5, description="Likert Scale metric (1-5)")
     age_group: Optional[str] = Field(None, description="Age group context")
     session_id: Optional[str] = Field(None, description="Exam session ID")
 
@@ -303,6 +457,16 @@ class UserUpdate(BaseModel):
             return v.strip()
         return v
 
+    @field_validator('password')
+    @classmethod
+    def reject_weak_password(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return v
+        from ..utils.weak_passwords import WEAK_PASSWORDS
+        if v.lower() in WEAK_PASSWORDS:
+            raise ValueError('This password is too common. Please choose a stronger password.')
+        return v
+
 
 class UserDetail(BaseModel):
     """Detailed user information including relationships."""
@@ -331,6 +495,20 @@ class UserSettingsCreate(BaseModel):
     sound_enabled: bool = True
     notifications_enabled: bool = True
     language: str = Field(default='en', min_length=2, max_length=5)
+    
+    # Wave 2 Phase 2.3 & 2.4
+    decision_making_style: Optional[str] = None
+    risk_tolerance: Optional[int] = Field(None, ge=1, le=10)
+    readiness_for_change: Optional[int] = Field(None, ge=1, le=10)
+    advice_frequency: Optional[str] = None
+    reminder_style: Optional[str] = Field(default='Gentle', pattern='^(Gentle|Motivational)$')
+    advice_boundaries: Optional[List[str]] = Field(default=[])
+    ai_trust_level: Optional[int] = Field(None, ge=1, le=10)
+    
+    data_usage_consent: bool = False
+    emergency_disclaimer_accepted: bool = False
+    crisis_support_preference: bool = True
+    onboarding_completed: bool = False
 
 
 class UserSettingsUpdate(BaseModel):
@@ -340,6 +518,20 @@ class UserSettingsUpdate(BaseModel):
     sound_enabled: Optional[bool] = None
     notifications_enabled: Optional[bool] = None
     language: Optional[str] = Field(None, min_length=2, max_length=5)
+    
+    # Wave 2 Phase 2.3 & 2.4
+    decision_making_style: Optional[str] = None
+    risk_tolerance: Optional[int] = Field(None, ge=1, le=10)
+    readiness_for_change: Optional[int] = Field(None, ge=1, le=10)
+    advice_frequency: Optional[str] = None
+    reminder_style: Optional[str] = Field(None, pattern='^(Gentle|Motivational)$')
+    advice_boundaries: Optional[List[str]] = None
+    ai_trust_level: Optional[int] = Field(None, ge=1, le=10)
+    
+    data_usage_consent: Optional[bool] = None
+    emergency_disclaimer_accepted: Optional[bool] = None
+    crisis_support_preference: Optional[bool] = None
+    onboarding_completed: Optional[bool] = None
 
 
 class UserSettingsResponse(BaseModel):
@@ -351,6 +543,21 @@ class UserSettingsResponse(BaseModel):
     sound_enabled: bool
     notifications_enabled: bool
     language: str
+    
+    # Wave 2 Phase 2.3 & 2.4
+    decision_making_style: Optional[str]
+    risk_tolerance: Optional[int]
+    readiness_for_change: Optional[int]
+    advice_frequency: Optional[str]
+    reminder_style: str
+    advice_boundaries: List[str]
+    ai_trust_level: Optional[int]
+    
+    data_usage_consent: bool
+    emergency_disclaimer_accepted: bool
+    crisis_support_preference: bool
+    onboarding_completed: bool
+    
     updated_at: str
 
     model_config = ConfigDict(from_attributes=True)
@@ -390,15 +597,15 @@ class MedicalProfileResponse(BaseModel):
     """Schema for medical profile response."""
     id: int
     user_id: int
-    blood_type: Optional[str]
-    allergies: Optional[str]
-    medications: Optional[str]
-    medical_conditions: Optional[str]
-    surgeries: Optional[str]
-    therapy_history: Optional[str]
-    ongoing_health_issues: Optional[str]
-    emergency_contact_name: Optional[str]
-    emergency_contact_phone: Optional[str]
+    blood_type: Optional[str] = None
+    allergies: Optional[str] = None
+    medications: Optional[str] = None
+    medical_conditions: Optional[str] = None
+    surgeries: Optional[str] = None
+    therapy_history: Optional[str] = None
+    ongoing_health_issues: Optional[str] = None
+    emergency_contact_name: Optional[str] = None
+    emergency_contact_phone: Optional[str] = None
     last_updated: str
 
     model_config = ConfigDict(from_attributes=True)
@@ -425,6 +632,15 @@ class PersonalProfileCreate(BaseModel):
     life_pov: Optional[str] = None
     high_pressure_events: Optional[str] = None
     avatar_path: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    age: Optional[int] = None
+    
+    # Wave 2 Phase 2.1
+    support_system: Optional[str] = None
+    social_interaction_freq: Optional[str] = None
+    exercise_freq: Optional[str] = None
+    dietary_patterns: Optional[str] = None
 
 
 class PersonalProfileUpdate(BaseModel):
@@ -444,6 +660,15 @@ class PersonalProfileUpdate(BaseModel):
     life_pov: Optional[str] = None
     high_pressure_events: Optional[str] = None
     avatar_path: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    age: Optional[int] = None
+    
+    # Wave 2 Phase 2.1
+    support_system: Optional[str] = None
+    social_interaction_freq: Optional[str] = None
+    exercise_freq: Optional[str] = None
+    dietary_patterns: Optional[str] = None
 
     @field_validator('email', mode='before')
     @classmethod
@@ -452,26 +677,43 @@ class PersonalProfileUpdate(BaseModel):
             return v.strip().lower()
         return v
 
+    @field_validator('occupation', 'education', 'marital_status', 'hobbies', 'bio', 'life_events', 'phone', 'date_of_birth', 'gender', 'address', 'society_contribution', 'life_pov', 'high_pressure_events', mode='before')
+    @classmethod
+    def sanitize_profile_info(cls, v: Optional[str]) -> Optional[str]:
+        if isinstance(v, str):
+            return sanitize_string(v)
+        return v
+
 
 class PersonalProfileResponse(BaseModel):
     """Schema for personal profile response."""
     id: int
     user_id: int
-    occupation: Optional[str]
-    education: Optional[str]
-    marital_status: Optional[str]
-    hobbies: Optional[str]
-    bio: Optional[str]
-    life_events: Optional[str]
-    email: Optional[str]
-    phone: Optional[str]
-    date_of_birth: Optional[str]
-    gender: Optional[str]
-    address: Optional[str]
-    society_contribution: Optional[str]
-    life_pov: Optional[str]
-    high_pressure_events: Optional[str]
-    avatar_path: Optional[str]
+    occupation: Optional[str] = None
+    education: Optional[str] = None
+    marital_status: Optional[str] = None
+    hobbies: Optional[str] = None
+    bio: Optional[str] = None
+    life_events: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    date_of_birth: Optional[str] = None
+    gender: Optional[str] = None
+    address: Optional[str] = None
+    society_contribution: Optional[str] = None
+    life_pov: Optional[str] = None
+    high_pressure_events: Optional[str] = None
+    avatar_path: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    age: Optional[int] = None
+    
+    # Wave 2 Phase 2.1
+    support_system: Optional[str] = None
+    social_interaction_freq: Optional[str] = None
+    exercise_freq: Optional[str] = None
+    dietary_patterns: Optional[str] = None
+    
     last_updated: str
 
     model_config = ConfigDict(from_attributes=True)
@@ -491,6 +733,12 @@ class UserStrengthsCreate(BaseModel):
     comm_style: Optional[str] = None
     sharing_boundaries: str = "[]"
     goals: Optional[str] = None
+    
+    # Wave 2 Phase 2.1 & 2.2
+    relationship_stress: Optional[int] = Field(None, ge=1, le=10)
+    short_term_goals: Optional[str] = None
+    long_term_vision: Optional[str] = None
+    primary_help_area: Optional[str] = None
 
 
 class UserStrengthsUpdate(BaseModel):
@@ -503,6 +751,12 @@ class UserStrengthsUpdate(BaseModel):
     comm_style: Optional[str] = None
     sharing_boundaries: Optional[str] = None
     goals: Optional[str] = None
+    
+    # Wave 2 Phase 2.1 & 2.2
+    relationship_stress: Optional[int] = Field(None, ge=1, le=10)
+    short_term_goals: Optional[str] = None
+    long_term_vision: Optional[str] = None
+    primary_help_area: Optional[str] = None
 
 
 class UserStrengthsResponse(BaseModel):
@@ -517,6 +771,13 @@ class UserStrengthsResponse(BaseModel):
     comm_style: Optional[str]
     sharing_boundaries: str
     goals: Optional[str]
+    
+    # Wave 2 Phase 2.1 & 2.2
+    relationship_stress: Optional[int]
+    short_term_goals: Optional[str]
+    long_term_vision: Optional[str]
+    primary_help_area: Optional[str]
+    
     last_updated: str
 
     model_config = ConfigDict(from_attributes=True)
@@ -569,6 +830,30 @@ class CompleteProfileResponse(BaseModel):
     emotional_patterns: Optional[UserEmotionalPatternsResponse] = None
 
 
+
+# ============================================================================
+# Core Analytics Schemas
+# ============================================================================
+
+class AnalyticsEventCreate(BaseModel):
+    """Schema for tracking frontend events (signup drop-off, etc)."""
+    anonymous_id: str = Field(..., min_length=10, description="Client-generated anonymous ID")
+    event_type: str = Field(..., max_length=50)
+    event_name: str = Field(..., max_length=100)
+    event_data: Optional[Dict[str, Any]] = Field(None, description="Metadata (No PII)")
+
+    @field_validator('event_data')
+    @classmethod
+    def validate_no_pii(cls, v: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+        if v:
+            import json
+            s = json.dumps(v).lower()
+            # Only block absolutely critical items to avoid false positives in development
+            forbidden = ['password', 'credit_card'] 
+            for term in forbidden:
+                if term in s:
+                     raise ValueError(f"Potential PII detected: {term}")
+        return v
 
 # ============================================================================
 # User Analytics Schemas (PR 6.3)
@@ -765,6 +1050,7 @@ class JournalResponse(BaseModel):
     emotional_patterns: Optional[str] = None
     tags: Optional[List[str]] = []
     entry_date: str
+    timestamp: str
     word_count: int = Field(default=0, description="Number of words in content")
     reading_time_mins: Optional[float] = Field(None, description="Estimated reading time in minutes")
     privacy_level: str = Field(default="private")
@@ -801,6 +1087,13 @@ class JournalListResponse(BaseModel):
     page_size: int
 
 
+class JournalCursorResponse(BaseModel):
+    """Schema for cursor-paginated journal entry list."""
+    data: List[JournalResponse]
+    next_cursor: Optional[str] = None
+    has_more: bool
+
+
 class JournalAnalytics(BaseModel):
     """Schema for journal analytics."""
     total_entries: int
@@ -835,6 +1128,30 @@ class JournalPromptsResponse(BaseModel):
     """Schema for list of journal prompts."""
     prompts: List[JournalPrompt]
     category: Optional[str] = None
+
+
+# ============================================================================
+# Smart Journal Prompts Schemas (Issue #586)
+# ============================================================================
+
+class SmartPrompt(BaseModel):
+    """Schema for a personalized AI journal prompt."""
+    id: int
+    prompt: str
+    category: str = Field(description="Prompt category (anxiety, stress, gratitude, etc.)")
+    context_reason: str = Field(description="Why this prompt was selected for the user")
+    description: Optional[str] = Field(None, description="Brief description of prompt purpose")
+
+
+class SmartPromptsResponse(BaseModel):
+    """Response with AI-personalized journal prompts."""
+    prompts: List[SmartPrompt] = Field(description="Personalized prompts (usually 3)")
+    user_mood: str = Field(description="Detected mood: positive, neutral, or low")
+    detected_patterns: List[str] = Field(
+        default=[], 
+        description="Emotional patterns detected from recent entries"
+    )
+    sentiment_avg: float = Field(description="Average sentiment from last 7 days")
 
 
 # ============================================================================
@@ -889,18 +1206,10 @@ class SyncSettingConflictResponse(BaseModel):
     """Schema for conflict response (409)."""
     detail: str = "Version conflict"
     key: str
-    current_version: int
-    current_value: Any
-    
-
-# ============================================================================
-# Audit Log Schemas
 # ============================================================================
 
 class AuditLogResponse(BaseModel):
     """Schema for individual audit log entry."""
-    id: int
-    action: str
     ip_address: Optional[str]
     user_agent: Optional[str]
     details: Optional[Dict[str, Any]] = None
@@ -920,3 +1229,131 @@ class AuditLogResponse(BaseModel):
         return v
 
 
+# ============================================================================
+# Gamification Schemas
+# ============================================================================
+
+class AchievementRequirement(BaseModel):
+    type: str # 'count', 'streak', 'score', 'activity'
+    target: str # 'journal', 'assessment', 'days', 'pattern'
+    value: int
+
+class AchievementResponse(BaseModel):
+    achievement_id: str
+    name: str
+    description: str
+    icon: Optional[str] = None
+    category: str
+    rarity: str
+    points_reward: int
+    unlocked: bool = False
+    progress: int = 0
+    unlocked_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+class UserXPResponse(BaseModel):
+    total_xp: int
+    current_level: int
+    xp_to_next_level: int
+    level_progress: float # 0.0 to 1.0
+
+    model_config = ConfigDict(from_attributes=True)
+
+class UserStreakResponse(BaseModel):
+    activity_type: str
+    current_streak: int
+    longest_streak: int
+    last_activity_date: Optional[datetime] = None
+    is_active_today: bool
+
+    model_config = ConfigDict(from_attributes=True)
+
+class LeaderboardEntry(BaseModel):
+    rank: int
+    username: str
+    total_xp: int
+    current_level: int
+    avatar_path: Optional[str] = None
+
+class ChallengeResponse(BaseModel):
+    id: int
+    title: str
+    description: str
+    challenge_type: str
+    start_date: datetime
+    end_date: datetime
+    reward_xp: int
+    status: str = "available" # available, joined, completed, failed
+    progress: Optional[Dict[str, Any]] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+class GamificationSummary(BaseModel):
+    xp: UserXPResponse
+    streaks: List[UserStreakResponse]
+    recent_achievements: List[AchievementResponse]
+    active_challenges: List[ChallengeResponse]
+
+# ============================================================================
+# Goal Schemas - Structured Emotional Growth
+# ============================================================================
+
+class GoalBase(BaseModel):
+    """Base schema for structured goal sharing common fields."""
+    title: str = Field(..., min_length=1, max_length=200, description="Goal title")
+    description: Optional[str] = Field(None, max_length=1000, description="Goal description")
+    category: str = Field(..., description="Goal category (e.g., Resilience, Empathy)")
+    target_value: float = Field(default=100.0, ge=0.01, description="Goal target value")
+    unit: str = Field(default='percentage', description="Metric unit (percentage, sessions, days)")
+    deadline: Optional[datetime] = None
+
+class GoalCreate(GoalBase):
+    """Schema for creating a new emotional goal."""
+    @field_validator('title', 'description', mode='before')
+    @classmethod
+    def sanitize_goal_info(cls, v: Optional[str]) -> Optional[str]:
+        if isinstance(v, str):
+            return sanitize_string(v)
+        return v
+
+class GoalUpdate(BaseModel):
+    """Schema for updating an existing goal or its progress."""
+    title: Optional[str] = Field(None, min_length=1, max_length=200)
+    description: Optional[str] = Field(None, max_length=1000)
+    category: Optional[str] = None
+    target_value: Optional[float] = Field(None, ge=0.01)
+    current_value: Optional[float] = Field(None, ge=0)
+    status: Optional[str] = Field(None, pattern='^(active|completed|abandoned|paused)$')
+    deadline: Optional[datetime] = None
+
+    @field_validator('title', 'description', mode='before')
+    @classmethod
+    def sanitize_update_info(cls, v: Optional[str]) -> Optional[str]:
+        if isinstance(v, str):
+            return sanitize_string(v)
+        return v
+
+class GoalResponse(GoalBase):
+    """Detailed schema for goal responses."""
+    id: int
+    user_id: int
+    current_value: float
+    status: str
+    progress_percentage: float = 0.0
+    created_at: datetime
+    updated_at: datetime
+
+    @model_validator(mode="after")
+    def calculate_progress(self) -> "GoalResponse":
+        self.progress_percentage = min(100.0, (self.current_value / self.target_value) * 100.0) if self.target_value > 0 else 0
+        return self
+
+    model_config = ConfigDict(from_attributes=True)
+
+class GoalListResponse(BaseModel):
+    """Paginated list of goals."""
+    total: int
+    goals: List[GoalResponse]
+    page: int
+    page_size: int

@@ -4,7 +4,7 @@ Contact Us router for handling contact form submissions.
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
-from api.services.contact_service import contact_service
+from ..services.contact_service import contact_service
 
 router = APIRouter(tags=["Contact"])
 
