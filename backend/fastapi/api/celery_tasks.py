@@ -822,3 +822,201 @@ async def _execute_dlq_health_check():
         except Exception as e:
             logger.error(f"DLQ health check failed: {e}")
             raise
+
+
+# ============================================================================
+# Push Notification Reminder System (Issue #1328)
+# ============================================================================
+
+@celery_app.task(bind=True, max_retries=2, name="api.celery_tasks.send_scheduled_reminders")
+def send_scheduled_reminders(self):
+    """
+    Periodic task to send scheduled emotion logging reminders.
+    Runs every 5-10 minutes to catch pending reminders.
+    
+    Issue #1328: Push Notification Reminder System
+    - Schedule local push notifications
+    - Reminders trigger on schedule
+    - User can disable anytime
+    """
+    try:
+        run_async(_execute_send_scheduled_reminders())
+        cleanup_memory()
+    except Exception as exc:
+        logger.error(f"Scheduled reminders task failed: {exc}")
+        backoff_delay = 5 ** (self.request.retries + 1)
+        try:
+            self.retry(exc=exc, countdown=backoff_delay)
+        except MaxRetriesExceededError:
+            logger.error("Max retries exceeded for scheduled reminders task.")
+
+
+async def _execute_send_scheduled_reminders():
+    """Send all pending reminders that are due."""
+    from api.services.notification_reminder_service import NotificationReminderService
+    from api.models import NotificationReminder
+    from datetime import datetime, UTC
+    
+    async with AsyncSessionLocal() as db:
+        try:
+            # Get all pending reminders
+            pending_reminders = NotificationReminderService.get_pending_reminders(
+                db=db,
+                cutoff_time=datetime.now(UTC),
+                limit=100
+            )
+            
+            if not pending_reminders:
+                logger.debug("No pending reminders to send")
+                return 0
+            
+            sent_count = 0
+            failed_count = 0
+            
+            for reminder in pending_reminders:
+                try:
+                    # Send the reminder notification
+                    await _send_reminder_notification(db, reminder)
+                    
+                    # Mark as sent and schedule next
+                    NotificationReminderService.mark_reminder_sent(
+                        db=db,
+                        reminder_id=reminder.id,
+                        channel=reminder.delivery_channel
+                    )
+                    sent_count += 1
+                    
+                except Exception as e:
+                    logger.error(f"Failed to send reminder {reminder.id}: {e}")
+                    NotificationReminderService.mark_reminder_failed(
+                        db=db,
+                        reminder_id=reminder.id,
+                        error_message=str(e)
+                    )
+                    failed_count += 1
+            
+            logger.info(f"Reminders processed: {sent_count} sent, {failed_count} failed")
+            return {"sent": sent_count, "failed": failed_count}
+            
+        except Exception as e:
+            logger.error(f"Error executing send_scheduled_reminders: {e}")
+            raise
+
+
+async def _send_reminder_notification(db, reminder):
+    """
+    Send a reminder notification to the user through their preferred channel.
+    
+    Args:
+        db: Database session
+        reminder: NotificationReminder instance
+    """
+    from api.services.notification_service import NotificationOrchestrator
+    from api.models import User
+    
+    try:
+        # Get user
+        stmt = select(User).where(User.id == reminder.user_id)
+        result = await db.execute(stmt)
+        user = result.scalar_one_or_none()
+        
+        if not user:
+            raise ValueError(f"User {reminder.user_id} not found")
+        
+        # Prepare reminder content
+        content = {
+            "title": reminder.reminder_title,
+            "body": reminder.reminder_body or "Time to check in with your emotions",
+            "reminder_type": reminder.reminder_type
+        }
+        
+        # Send via preferred channel
+        channel = reminder.delivery_channel
+        logger.info(f"Sending reminder to user {user.id} via {channel}: {content['title']}")
+        
+        # Mock implementation - in production, integrate with FCM, email service, etc.
+        if channel == "push":
+            # Send push notification (integrate with Firebase Cloud Messaging, OneSignal, etc.)
+            await _send_push_notification(user, content)
+        elif channel == "email":
+            # Send email notification
+            await _send_email_reminder(user, content)
+        elif channel == "in_app":
+            # Create in-app notification
+            await _create_in_app_reminder(db, user, content)
+        
+    except Exception as e:
+        logger.error(f"Error sending reminder notification: {e}")
+        raise
+
+
+async def _send_push_notification(user, content: dict):
+    """
+    Send a push notification to the user.
+    
+    Integration points:
+    - Firebase Cloud Messaging (FCM) for mobile
+    - OneSignal for cross-platform
+    - Custom push service implementation
+    """
+    try:
+        # TODO: Integrate with FCM, OneSignal, or custom service
+        # Example stub:
+        logger.info(f"[MOCK] Push notification to user {user.id}: {content['title']}")
+        
+        # In production:
+        # from api.services.fcm_service import fcm_service
+        # await fcm_service.send_notification(user.id, content)
+        
+    except Exception as e:
+        logger.error(f"Failed to send push notification: {e}")
+        raise
+
+
+async def _send_email_reminder(user, content: dict):
+    """Send an email reminder to the user."""
+    try:
+        # TODO: Integrate with email service
+        logger.info(f"[MOCK] Email reminder to user {user.email}: {content['title']}")
+        
+        # In production:
+        # from api.services.email_service import email_service
+        # await email_service.send_reminder(
+        #     to=user.email,
+        #     subject=content['title'],
+        #     body=content['body']
+        # )
+        
+    except Exception as e:
+        logger.error(f"Failed to send email reminder: {e}")
+        raise
+
+
+async def _create_in_app_reminder(db, user, content: dict):
+    """Create an in-app notification for the user."""
+    try:
+        from api.models import NotificationLog
+        from datetime import datetime, UTC
+        
+        # Create notification log entry
+        notification = NotificationLog(
+            user_id=user.id,
+            template_name="emotion_reminder",
+            channel="in_app",
+            status="sent"
+        )
+        db.add(notification)
+        await db.commit()
+        
+        # Notify user via WebSocket if connected
+        notify_user_via_ws(user.id, {
+            "type": "reminder",
+            "title": content['title'],
+            "body": content['body'],
+            "action": "log_emotions"
+        })
+        
+    except Exception as e:
+        logger.error(f"Failed to create in-app reminder: {e}")
+        raise
+

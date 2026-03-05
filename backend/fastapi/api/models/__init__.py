@@ -147,7 +147,15 @@ class NotificationPreference(Base):
     insight_alerts = Column(Boolean, default=True) # E.g. behavioral insights, weekly recaps
     reminder_alerts = Column(Boolean, default=True) # E.g. journal reminders
     
+    # Daily notification reminder settings (Issue #1328: Push Notification Reminder System)
+    daily_reminder_enabled = Column(Boolean, default=False, nullable=False)
+    reminder_time = Column(String, default="09:00", nullable=False)  # HH:MM format in user's timezone
+    reminder_frequency = Column(String, default="daily", nullable=False, index=True)  # daily, weekly, custom
+    reminder_days = Column(JSON, nullable=True)  # Days of week ["mon", "tue", ...]
+    reminder_message = Column(String, nullable=True)  # Custom reminder message
+    
     user = relationship("User", back_populates="notification_preferences")
+    reminders = relationship("NotificationReminder", back_populates="preference", cascade="all, delete-orphan")
 
 class NotificationTemplate(Base):
     """Jinja2 Templates stored in DB for dynamic text/HTML rendering."""
@@ -174,6 +182,41 @@ class NotificationLog(Base):
     created_at = Column(DateTime, default=lambda: datetime.now(UTC), index=True)
     
     user = relationship("User", back_populates="notification_logs")
+
+
+class NotificationReminder(Base):
+    """Scheduled reminders for emotion logging (Issue #1328: Push Notification Reminder System)."""
+    __tablename__ = 'notification_reminders'
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.id'), index=True, nullable=False)
+    preference_id = Column(Integer, ForeignKey('notification_preferences.id'), index=True, nullable=False)
+    
+    # Reminder Schedule
+    scheduled_time = Column(DateTime, nullable=False, index=True)  # Next reminder time (UTC)
+    last_sent_at = Column(DateTime, nullable=True)  # Last time this reminder was sent
+    status = Column(String, default="active", nullable=False, index=True)  # active, paused, disabled
+    
+    # Reminder type and content
+    reminder_type = Column(String, default="emotion_logging", nullable=False)  # emotion_logging, check_in, journal
+    reminder_title = Column(String, default="Time to log your emotions", nullable=False)
+    reminder_body = Column(Text, nullable=True)  # Custom body text
+    
+    # Execution tracking
+    is_sent = Column(Boolean, default=False, nullable=False)
+    delivery_channel = Column(String, default="push", nullable=False)  # push, email, in_app
+    delivery_attempts = Column(Integer, default=0, nullable=False)
+    last_error = Column(Text, nullable=True)
+    
+    created_at = Column(DateTime, default=lambda: datetime.now(UTC))
+    updated_at = Column(DateTime, default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC))
+    
+    user = relationship("User", foreign_keys=[user_id])
+    preference = relationship("NotificationPreference", back_populates="reminders")
+    
+    __table_args__ = (
+        Index('idx_reminder_user_scheduled', 'user_id', 'scheduled_time'),
+        Index('idx_reminder_status_scheduled', 'status', 'scheduled_time'),
+    )
 
 
 import enum

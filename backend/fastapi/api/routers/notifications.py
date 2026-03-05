@@ -7,13 +7,16 @@ from sqlalchemy import select, update
 
 from ..services.db_service import get_db
 from ..services.notification_service import NotificationOrchestrator
+from ..services.notification_reminder_service import NotificationReminderService
 from ..schemas.notifications import (
     NotificationPreferenceResponse, NotificationPreferenceBase,
     NotificationTemplateCreate, NotificationTemplateResponse,
-    NotificationSendRequest, NotificationLogResponse
+    NotificationSendRequest, NotificationLogResponse,
+    NotificationReminderCreate, NotificationReminderUpdate, NotificationReminderResponse,
+    ReminderSettingsUpdate
 )
 from .auth import get_current_user, require_admin
-from ..models import User, NotificationTemplate, NotificationLog, NotificationPreference
+from ..models import User, NotificationTemplate, NotificationLog, NotificationPreference, NotificationReminder
 
 router = APIRouter(tags=["Notifications"])
 logger = logging.getLogger("api.notifications")
@@ -147,3 +150,124 @@ async def trigger_test_notification(
     )
     
     return {"message": f"Successfully queued notification to user {req.user_id}"}
+
+
+# =====================================================================
+# REMINDER ENDPOINTS: Issue #1328 - Push Notification Reminder System
+# =====================================================================
+
+@router.get("/reminders/settings", response_model=NotificationPreferenceResponse)
+async def get_reminder_settings(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)]
+):
+    """Get the current user's reminder settings."""
+    stmt = select(NotificationPreference).where(NotificationPreference.user_id == current_user.id)
+    res = await db.execute(stmt)
+    pref = res.scalar_one_or_none()
+    
+    if not pref:
+        # Create default preferences
+        pref = NotificationPreference(user_id=current_user.id)
+        db.add(pref)
+        await db.commit()
+        await db.refresh(pref)
+        
+    return pref
+
+@router.put("/reminders/settings", response_model=NotificationPreferenceResponse)
+async def update_reminder_settings(
+    req: ReminderSettingsUpdate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)]
+):
+    """
+    Update the current user's reminder settings.
+    Automatically schedules reminders when enabled.
+    """
+    pref = NotificationReminderService.update_preference_settings(
+        db=db,
+        user_id=current_user.id,
+        daily_reminder_enabled=req.daily_reminder_enabled,
+        reminder_time=req.reminder_time,
+        reminder_frequency=req.reminder_frequency,
+        reminder_days=req.reminder_days,
+        reminder_message=req.reminder_message,
+    )
+    
+    return pref
+
+@router.get("/reminders", response_model=List[NotificationReminderResponse])
+async def get_my_reminders(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+    status: Optional[str] = None
+):
+    """Get the current user's scheduled reminders."""
+    reminders = NotificationReminderService.get_reminders_by_user(
+        db=db,
+        user_id=current_user.id,
+        status=status
+    )
+    
+    return reminders
+
+@router.post("/reminders", response_model=NotificationReminderResponse, status_code=status.HTTP_201_CREATED)
+async def create_reminder(
+    req: NotificationReminderCreate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)]
+):
+    """Create a new reminder for the current user."""
+    reminder = NotificationReminderService.create_reminder(
+        db=db,
+        user_id=current_user.id,
+        reminder_data=req,
+    )
+    
+    return reminder
+
+@router.put("/reminders/{reminder_id}", response_model=NotificationReminderResponse)
+async def update_reminder(
+    reminder_id: int,
+    req: NotificationReminderUpdate,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)]
+):
+    """Update a specific reminder."""
+    # Verify ownership
+    stmt = select(NotificationReminder).where(NotificationReminder.id == reminder_id)
+    reminder = (await db.execute(stmt)).scalar_one_or_none()
+    
+    if not reminder or reminder.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Reminder not found")
+    
+    updated = NotificationReminderService.update_reminder(
+        db=db,
+        reminder_id=reminder_id,
+        reminder_data=req,
+    )
+    
+    return updated
+
+@router.delete("/reminders/{reminder_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_reminder(
+    reminder_id: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)]
+):
+    """Delete a specific reminder."""
+    # Verify ownership
+    stmt = select(NotificationReminder).where(NotificationReminder.id == reminder_id)
+    reminder = (await db.execute(stmt)).scalar_one_or_none()
+    
+    if not reminder or reminder.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Reminder not found")
+    
+    success = NotificationReminderService.delete_reminder(db=db, reminder_id=reminder_id)
+    
+    if not success:
+        raise HTTPException(status_code=404, detail="Reminder not found")
+    
+    return None
+
