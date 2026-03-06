@@ -37,9 +37,13 @@ jobs:
 
             // Post comment for reviewer
             const body = '⚠️ **API Response Contract (Snapshot) has changed!**\n\nPlease review the snapshot diffs carefully to ensure that there are no unintended breaking changes to the frontend or downstream consumers. Reviewer approval is required before merging.';
-            await github.rest.issues.createComment({
-              owner: owner,
-              repo: repo,
-              issue_number: prNumber,
-              body: body
-            });
+            try {
+              await github.rest.issues.createComment({
+                owner: owner,
+                repo: repo,
+                issue_number: prNumber,
+                body: body
+              });
+            } catch (error) {
+              console.log("Could not create comment:", error.message);
+            }
