@@ -7,7 +7,8 @@ Issue: #979 - Environment & Data Hygiene Issues
 """
 import pytest
 import os
-from datetime import datetime, UTC
+from datetime import datetime, timezone
+UTC = timezone.utc
 from unittest.mock import Mock, patch, AsyncMock
 
 # Import after path setup

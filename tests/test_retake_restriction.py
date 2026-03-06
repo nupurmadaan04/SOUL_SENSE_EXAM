@@ -9,7 +9,10 @@ This module tests:
 """
 
 import pytest
-from datetime import datetime, UTC
+from datetime import datetime, timezone
+
+# Python 3.10 compatibility
+UTC = timezone.utc
 from unittest.mock import MagicMock, patch
 from sqlalchemy import func
 

@@ -5,7 +5,8 @@ Handles CRUD operations for users with proper authorization and validation.
 """
 
 from typing import Optional, List, Tuple, Any
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta, timezone
+UTC = timezone.utc
 import asyncio
 
 from sqlalchemy.ext.asyncio import AsyncSession

@@ -63,7 +63,8 @@ class AuditService:
             logger.error(f"AUDIT LOG FAILURE: User {user_id} performed {action}. Error: {e}")
             await db_session.rollback()
             return False
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta, timezone
+UTC = timezone.utc
 from typing import Optional, List, Dict, Any, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete, desc

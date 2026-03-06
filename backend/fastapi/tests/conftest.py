@@ -5,7 +5,8 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 import sys
 import os
-from datetime import datetime, UTC
+from datetime import datetime, timezone
+UTC = timezone.utc
 
 # Ensure both backend/fastapi and the project root are in sys.path
 backend_fastapi_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))

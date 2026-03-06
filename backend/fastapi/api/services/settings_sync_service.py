@@ -9,7 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete, desc
-from datetime import datetime, UTC
+from datetime import datetime, timezone
+UTC = timezone.utc
 import json
 
 from ..models import UserSyncSetting

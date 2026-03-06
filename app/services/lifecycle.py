@@ -1,5 +1,8 @@
 import logging
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta, timezone
+
+# Python 3.10 compatibility
+UTC = timezone.utc
 from app.db import safe_db_context
 from app.models import User
 

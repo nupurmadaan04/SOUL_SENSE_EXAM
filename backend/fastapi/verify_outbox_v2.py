@@ -1,7 +1,8 @@
 import asyncio
 import sys
 import os
-from datetime import datetime, UTC, timedelta
+from datetime import datetime, timezone, timedelta
+UTC = timezone.utc
 from unittest.mock import MagicMock, patch
 
 # Add relevant paths

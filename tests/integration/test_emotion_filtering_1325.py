@@ -18,7 +18,8 @@ Tests comprehensive multi-dimensional emotion filtering capabilities:
 
 import pytest
 import json
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta, timezone
+UTC = timezone.utc
 from typing import Dict, Any
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession

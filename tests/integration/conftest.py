@@ -7,7 +7,8 @@ Uses SQLAlchemy synchronous session for compatibility with existing project patt
 
 import pytest
 import json
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta, timezone
+UTC = timezone.utc
 from sqlalchemy.orm import Session
 
 from app.models import User, JournalEntry

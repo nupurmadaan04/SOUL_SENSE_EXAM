@@ -3,7 +3,8 @@ import logging
 import uuid
 import json
 from pprint import pprint
-from datetime import datetime, UTC
+from datetime import datetime, timezone
+UTC = timezone.utc
 
 # Configure minimal logging to avoid cluttering output
 logging.basicConfig(level=logging.ERROR)

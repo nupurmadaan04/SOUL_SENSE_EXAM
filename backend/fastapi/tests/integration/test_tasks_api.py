@@ -31,7 +31,8 @@ class TestTasksAPI:
     @pytest.fixture
     def mock_job(self):
         """Create a mock background job."""
-        from datetime import UTC, datetime
+        from datetime import timezone, datetime
+        UTC = timezone.utc
         job = Mock()
         job.job_id = "test-job-uuid-123"
         job.user_id = 1
@@ -50,7 +51,8 @@ class TestTasksAPI:
     @pytest.fixture
     def mock_completed_job(self, mock_job):
         """Create a mock completed job."""
-        from datetime import UTC, datetime
+        from datetime import timezone, datetime
+        UTC = timezone.utc
         mock_job.status = "completed"
         mock_job.progress = 100
         mock_job.result = '{"filepath": "/exports/test.pdf", "export_id": "export-123"}'

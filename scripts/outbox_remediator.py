@@ -7,7 +7,8 @@ This tool is safe to run repeatedly and intended for cron/alert-driven remediati
 """
 from __future__ import annotations
 
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta, timezone
+UTC = timezone.utc
 import logging
 from typing import List
 

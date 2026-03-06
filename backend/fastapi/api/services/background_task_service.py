@@ -8,7 +8,8 @@ import uuid
 import logging
 import traceback
 import json
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta, timezone
+UTC = timezone.utc
 from enum import Enum
 from typing import Any, Callable, Dict, Optional, Tuple, List
 from functools import wraps

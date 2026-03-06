@@ -1,6 +1,7 @@
 import logging
 import uuid
-from datetime import datetime, UTC, timedelta
+from datetime import datetime, timezone, timedelta
+UTC = timezone.utc
 from typing import List, Tuple, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, text

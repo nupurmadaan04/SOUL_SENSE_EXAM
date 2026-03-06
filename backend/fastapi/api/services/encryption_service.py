@@ -62,7 +62,8 @@ class EncryptionService:
                 if user_id:
                     try:
                         from .kafka_producer import get_kafka_producer
-                        from datetime import datetime, UTC
+                        from datetime import datetime, timezone
+                        UTC = timezone.utc
                         producer = get_kafka_producer()
                         producer.queue_event({
                             "type": "DATA_ACCESS",

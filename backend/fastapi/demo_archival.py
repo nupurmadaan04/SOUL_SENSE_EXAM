@@ -4,7 +4,8 @@ Demonstrates moving stale journals to cold storage and seamless retrieval.
 """
 import asyncio
 import logging
-from datetime import datetime, UTC, timedelta
+from datetime import datetime, timezone, timedelta
+UTC = timezone.utc
 from sqlalchemy import select
 from api.services.db_router import PrimarySessionLocal
 from api.models import JournalEntry, User

@@ -1,6 +1,7 @@
 import pytest
 import asyncio
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta, timezone
+UTC = timezone.utc
 from unittest.mock import AsyncMock, MagicMock, patch
 from typing import Optional
 from sqlalchemy.ext.asyncio import AsyncSession

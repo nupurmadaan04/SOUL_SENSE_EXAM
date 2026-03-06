@@ -1,6 +1,7 @@
 import pytest
 from unittest.mock import MagicMock, patch
-from datetime import datetime, UTC
+from datetime import datetime, timezone
+UTC = timezone.utc
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
 from api.services.exam_service import ExamService

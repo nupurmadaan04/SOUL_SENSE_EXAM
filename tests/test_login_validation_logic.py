@@ -19,7 +19,8 @@ Covers:
 
 import pytest
 from unittest.mock import patch, MagicMock
-from datetime import datetime, timedelta, timezone, UTC
+from datetime import datetime, timedelta, timezone
+UTC = timezone.utc
 
 from app.auth import AuthManager
 from app.validation import (

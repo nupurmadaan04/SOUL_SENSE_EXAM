@@ -11,7 +11,8 @@ Provides authenticated API endpoints for journal management:
 - AI Journaling prompts
 """
 
-from datetime import datetime, UTC
+from datetime import datetime, timezone
+UTC = timezone.utc
 from typing import Annotated, List, Optional
 from fastapi import APIRouter, Depends, Query, status, Request, BackgroundTasks
 from fastapi.responses import Response as FastApiResponse

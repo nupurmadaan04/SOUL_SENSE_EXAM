@@ -2,7 +2,8 @@ import asyncio
 import sys
 import os
 import time
-from datetime import datetime, UTC
+from datetime import datetime, timezone
+UTC = timezone.utc
 
 # Add parent directory to path
 sys.path.append(os.path.join(os.getcwd(), 'backend', 'fastapi'))

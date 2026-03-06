@@ -87,6 +87,34 @@ class DistributedLock:
             finally:
                 self._acquired = False
 
+    async def extend(self, additional_seconds: int) -> bool:
+        """
+        Extend the current lock TTL by additional_seconds.
+        """
+        if not self._acquired or not self.redis:
+            return False
+            
+        # Lua script to safely extend a lock only if we still hold it
+        EXTEND_LOCK_SCRIPT = """
+        if redis.call("get", KEYS[1]) == ARGV[1] then
+            return redis.call("pexpire", KEYS[1], ARGV[2])
+        else
+            return 0
+        end
+        """
+        try:
+            result = await self.redis.eval(
+                EXTEND_LOCK_SCRIPT, 
+                1, 
+                self.name, 
+                self.lock_value, 
+                additional_seconds * 1000
+            )
+            return bool(result)
+        except Exception as e:
+            logger.error(f"Failed to extend lock {self.name}: {e}")
+            return False
+
 def require_lock(name: str, timeout: int = 60):
     """
     Decorator to prevent concurrent execution of the same job across worker nodes.

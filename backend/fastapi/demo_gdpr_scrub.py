@@ -2,7 +2,8 @@ import asyncio
 import os
 import sys
 from pathlib import Path
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta, timezone
+UTC = timezone.utc
 
 # Add project root to sys.path
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent

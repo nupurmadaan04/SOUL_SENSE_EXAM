@@ -9,7 +9,10 @@ from app.utils import save_settings
 
 
 import logging
-from datetime import datetime, UTC
+from datetime import datetime, timezone
+
+# Python 3.10 compatibility
+UTC = timezone.utc
 
 class SettingsManager:
     """Manages application settings with premium UI"""

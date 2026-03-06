@@ -3,7 +3,8 @@ import json
 import csv
 import uuid
 import logging
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta, timezone
+UTC = timezone.utc
 from typing import List, Optional, Tuple, Dict, Any
 from pathlib import Path
 from sqlalchemy.ext.asyncio import AsyncSession

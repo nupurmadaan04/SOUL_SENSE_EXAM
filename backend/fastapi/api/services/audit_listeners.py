@@ -1,7 +1,8 @@
 import logging
 import asyncio
 import json
-from datetime import datetime, UTC
+from datetime import datetime, timezone
+UTC = timezone.utc
 from typing import Any
 from sqlalchemy import event, inspect
 from .kafka_producer import get_kafka_producer

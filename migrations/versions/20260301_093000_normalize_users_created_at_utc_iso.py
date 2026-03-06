@@ -5,7 +5,10 @@ Revises: f0e1d2c3b4a5
 Create Date: 2026-03-01 09:30:00.000000
 
 """
-from datetime import UTC, datetime
+from datetime import timezone, datetime
+
+# Python 3.10 compatibility
+UTC = timezone.utc
 from typing import Optional, Sequence, Union
 
 from alembic import op

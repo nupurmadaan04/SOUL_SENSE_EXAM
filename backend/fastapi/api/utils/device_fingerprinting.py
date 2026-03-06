@@ -17,7 +17,8 @@ import json
 import logging
 from typing import Dict, Optional, Any, Tuple
 from dataclasses import dataclass
-from datetime import datetime, UTC
+from datetime import datetime, timezone
+UTC = timezone.utc
 
 logger = logging.getLogger(__name__)
 

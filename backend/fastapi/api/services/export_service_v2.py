@@ -12,7 +12,8 @@ import zipfile
 import io
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta, timezone
+UTC = timezone.utc
 from typing import List, Optional, Tuple, Dict, Any, Set
 from pathlib import Path
 from sqlalchemy import select, func, case, distinct, desc

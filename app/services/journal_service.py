@@ -3,7 +3,7 @@ from typing import List, Optional, Any, Dict, Tuple
 from datetime import datetime, timedelta
 from sqlalchemy import desc, asc
 from app.db import safe_db_context
-from app.models import JournalEntry, User
+from app.models import JournalEntry, User, UserStreak
 from app.exceptions import DatabaseError
 from app.latency_budget import monitor_latency
 
@@ -65,6 +65,15 @@ class JournalService:
                     **kwargs
                 )
                 session.add(entry)
+                
+                # Update streak
+                try:
+                    user = session.query(User).filter_by(username=username).first()
+                    if user:
+                        JournalService._update_streak(session, user.id, entry_date)
+                except Exception as streak_err:
+                    logger.warning(f"Failed to update streak for {username}: {streak_err}")
+
                 # Commit is handled by safe_db_context
                 
                 # Refresh/Expunge to allow usage outside session if needed, 
@@ -380,3 +389,68 @@ class JournalService:
         except Exception as e:
             logger.error(f"Failed to calculate emotion trends for {username}: {e}")
             raise DatabaseError("Failed to calculate emotion trends", original_exception=e)
+
+    @staticmethod
+    def _update_streak(session, user_id: int, entry_date_str: str):
+        """
+        Internal logic to update user journal streak using the UserStreak model.
+        
+        Args:
+            session: SQLAlchemy session
+            user_id: ID of the user
+            entry_date_str: Date of the entry (YYYY-MM-DD HH:MM:SS)
+        """
+        try:
+            # Parse entry date (ignoring time for streak calculation)
+            entry_date = datetime.strptime(entry_date_str, "%Y-%m-%d %H:%M:%S").date()
+            today = datetime.now().date()
+            yesterday = today - timedelta(days=1)
+
+            # Get or create streak record for journal activity
+            streak_record = session.query(UserStreak).filter_by(
+                user_id=user_id, 
+                activity_type='journal'
+            ).first()
+
+            if not streak_record:
+                streak_record = UserStreak(
+                    user_id=user_id,
+                    activity_type='journal',
+                    current_streak=1,
+                    longest_streak=1,
+                    last_activity_date=datetime.combine(entry_date, datetime.min.time())
+                )
+                session.add(streak_record)
+                return
+
+            if streak_record.last_activity_date:
+                last_date = streak_record.last_activity_date.date()
+                
+                # If already recorded for this day, do nothing
+                if last_date == entry_date:
+                    return
+
+                # If it's consecutive (e.g., last was yesterday and entry is today)
+                if last_date == entry_date - timedelta(days=1):
+                    streak_record.current_streak += 1
+                # If there's a gap (except if entering a past date that doesn't break the current "today" streak)
+                elif entry_date > last_date + timedelta(days=1):
+                    streak_record.current_streak = 1
+                # If entry is in the past, we don't necessarily reset the current forward streak,
+                # but for simplicity in this version, any non-consecutive forward entry resets.
+                # If entry_date is before last_date, we just ignore it for streak increment.
+                elif entry_date < last_date:
+                    return
+
+            else:
+                streak_record.current_streak = 1
+
+            # Update last activity and longest streak
+            streak_record.last_activity_date = datetime.combine(entry_date, datetime.min.time())
+            if streak_record.current_streak > streak_record.longest_streak:
+                streak_record.longest_streak = streak_record.current_streak
+
+        except Exception as e:
+            logger.error(f"Error in _update_streak: {e}")
+            # Don't raise, as streak update shouldn't break the main flow
+

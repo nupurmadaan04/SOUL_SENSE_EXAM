@@ -14,7 +14,8 @@ Usage:
 import sys
 import argparse
 from pathlib import Path
-from datetime import datetime, UTC
+from datetime import datetime, timezone
+UTC = timezone.utc
 from tabulate import tabulate
 
 # Add parent directory to path

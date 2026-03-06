@@ -13,6 +13,8 @@ from apscheduler.triggers.cron import CronTrigger
 from apscheduler.jobstores.memory import MemoryJobStore
 from apscheduler.executors.asyncio import AsyncIOExecutor
 import asyncio
+import uuid
+import socket
 
 try:
     from app.ml.analytics_service import AnalyticsService
@@ -22,11 +24,23 @@ except Exception:
 from app.db import safe_db_context
 from app.models import User
 
+# Import DistributedLock for leader election
+try:
+    from backend.fastapi.api.utils.distributed_lock import DistributedLock
+except ImportError:
+    # Fallback/Mock if backend is not available
+    class DistributedLock:
+        def __init__(self, name, timeout=60): 
+            self.name = name
+            self.timeout = timeout
+        async def __aenter__(self): return self
+        async def __aexit__(self, *args): pass
+
 logger = logging.getLogger(__name__)
 
 
 class AnalyticsScheduler:
-    """Scheduler for automated analytics processing."""
+    """Scheduler for automated analytics processing with Single-Leader Election."""
 
     def __init__(self):
         """Initialize the scheduler."""
@@ -44,52 +58,131 @@ class AnalyticsScheduler:
             }
         )
         self._is_running = False
+        self._is_leader = False
+        self._leader_lock = None
+        self._scheduler_id = f"{socket.gethostname()}-{uuid.uuid4().hex[:8]}"
+        self._heartbeat_job = None
 
     def start(self):
-        """Start the scheduler."""
+        """Start the scheduler service.
+        
+        Note: This only starts the leader election process. Jobs are only
+        scheduled and executed if this instance becomes the leader.
+        """
         if not self._is_running:
-            # Schedule daily analytics processing at 2 AM
-            self.scheduler.add_job(
-                func=self._run_daily_analytics,
-                trigger=CronTrigger(hour=2, minute=0),
-                id='daily_analytics',
-                name='Daily Analytics Pipeline',
-                replace_existing=True
-            )
-
-            # Schedule cache cleanup at 3 AM
-            self.scheduler.add_job(
-                func=self._cleanup_cache,
-                trigger=CronTrigger(hour=3, minute=0),
-                id='cache_cleanup',
-                name='Cache Cleanup',
-                replace_existing=True
-            )
-
             self.scheduler.start()
             self._is_running = True
-            logger.info("Analytics scheduler started successfully")
-            # Trigger a lightweight prewarm validation after scheduler start
+            logger.info(f"Analytics scheduler service [{self._scheduler_id}] started. Starting leader election...")
+            
+            # Start leader election process
             try:
                 loop = asyncio.get_running_loop()
-                loop.create_task(self._prewarm_and_validate())
+                loop.create_task(self._leader_election_loop())
             except RuntimeError:
-                # If no event loop is running (e.g., in tests), run synchronously
-                asyncio.run(self._prewarm_and_validate())
+                # If no event loop is running (e.g., in legacy scripts), 
+                # we might need to handle this differently or start one.
+                # For now, we assume an event loop exists as per APScheduler config.
+                pass
 
     def stop(self):
-        """Stop the scheduler."""
+        """Stop the scheduler and release leadership."""
         if self._is_running:
+            self._is_leader = False
             self.scheduler.shutdown(wait=True)
             self._is_running = False
-            logger.info("Analytics scheduler stopped")
+            logger.info(f"Analytics scheduler [{self._scheduler_id}] stopped")
+
+    async def _leader_election_loop(self):
+        """Continuous loop to acquire and maintain leader lock."""
+        lock_name = "analytics_scheduler_leader"
+        lock_timeout = 60
+        refresh_interval = 20
+
+        while self._is_running:
+            try:
+                if not self._is_leader:
+                    self._leader_lock = DistributedLock(name=lock_name, timeout=lock_timeout)
+                    try:
+                        async with self._leader_lock:
+                            logger.info(f"Instance [{self._scheduler_id}] elected as LEADER")
+                            self._is_leader = True
+                            self._schedule_leader_jobs()
+                            
+                            # Maintain leadership by extending the lock
+                            while self._is_running and self._is_leader:
+                                await asyncio.sleep(refresh_interval)
+                                extended = await self._leader_lock.extend(lock_timeout)
+                                if extended:
+                                    logger.debug(f"Instance [{self._scheduler_id}] extended leadership lock")
+                                else:
+                                    logger.warning(f"Instance [{self._scheduler_id}] FAILED to extend leadership lock")
+                                    # Try to re-enter loop to regain leadership
+                                    break
+                    except RuntimeError:
+                        # Lock currently held by someone else
+                        if self._is_leader:
+                            logger.info(f"Instance [{self._scheduler_id}] lost leadership (held by another)")
+                            self._is_leader = False
+                            self._unschedule_all_jobs()
+                        # Wait before retry
+                        await asyncio.sleep(15)
+                else:
+                    # Should not reach here if the loop inside with context works
+                    self._is_leader = False
+                    await asyncio.sleep(1)
+            except Exception as e:
+                logger.error(f"Error in leader election loop: {e}")
+                self._is_leader = False
+                await asyncio.sleep(10)
+
+    def _schedule_leader_jobs(self):
+        """Schedule jobs that only the leader should run."""
+        logger.info(f"Instance [{self._scheduler_id}] scheduling background jobs")
+        
+        # Schedule daily analytics processing at 2 AM
+        self.scheduler.add_job(
+            func=self._run_daily_analytics,
+            trigger=CronTrigger(hour=2, minute=0),
+            id='daily_analytics',
+            name='Daily Analytics Pipeline',
+            replace_existing=True
+        )
+
+        # Schedule cache cleanup at 3 AM
+        self.scheduler.add_job(
+            func=self._cleanup_cache,
+            trigger=CronTrigger(hour=3, minute=0),
+            id='cache_cleanup',
+            name='Cache Cleanup',
+            replace_existing=True
+        )
+        
+        # Trigger a lightweight prewarm validation after scheduler start
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(self._prewarm_and_validate())
+        except RuntimeError:
+            asyncio.run(self._prewarm_and_validate())
+
+    def _unschedule_all_jobs(self):
+        """Remove all scheduled jobs when leadership is lost."""
+        self.scheduler.remove_all_jobs()
+        logger.warning(f"Instance [{self._scheduler_id}] cleared all jobs due to leadership loss")
 
     def is_running(self) -> bool:
-        """Check if scheduler is running."""
+        """Check if scheduler service is running."""
         return self._is_running
 
+    def is_leader(self) -> bool:
+        """Check if this instance is the active leader."""
+        return self._is_leader
+
     def run_daily_analytics_now(self) -> Dict[str, Any]:
-        """Manually trigger daily analytics processing."""
+        """Manually trigger daily analytics processing.
+        Only allowed if this instance is leader or for manual debugging.
+        """
+        if not self._is_leader:
+            logger.warning("Manual trigger on non-leader instance. This may cause duplicates.")
         return asyncio.run(self._run_daily_analytics())
 
     async def _run_daily_analytics(self) -> Dict[str, Any]:

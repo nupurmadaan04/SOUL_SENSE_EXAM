@@ -15,9 +15,12 @@ Tests cover:
 import pytest
 import sys
 from pathlib import Path
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta, timezone
 from unittest.mock import Mock, patch, MagicMock
 import time
+
+# Python 3.10 compatibility
+UTC = timezone.utc
 
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -224,7 +227,6 @@ class TestSessionTimeoutIntegration:
         from app.auth import AuthManager
         from app.db import get_session
         from backend.fastapi.api.root_models import UserSession
-        from datetime import datetime, timedelta, UTC
         
         auth_manager = AuthManager()
         

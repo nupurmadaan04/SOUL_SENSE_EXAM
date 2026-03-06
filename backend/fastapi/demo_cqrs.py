@@ -5,7 +5,8 @@ Demonstrates the separation of Command (Writes) and Query (Read Models).
 import asyncio
 import logging
 import time
-from datetime import datetime, UTC
+from datetime import datetime, timezone
+UTC = timezone.utc
 from sqlalchemy import select, func
 from api.services.db_router import PrimarySessionLocal
 from api.services.db_service import AsyncSessionLocal

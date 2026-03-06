@@ -2,7 +2,8 @@ import numpy as np
 import pandas as pd
 import logging
 from typing import Dict, List, Optional, Tuple, Any
-from datetime import datetime, UTC
+from datetime import datetime, timezone
+UTC = timezone.utc
 from pathlib import Path
 import json
 import pickle

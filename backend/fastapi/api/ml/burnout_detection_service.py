@@ -3,7 +3,8 @@ import json
 import logging
 from typing import Dict, Any, List, Optional
 from sqlalchemy import select, func, desc, and_
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta, timezone
+UTC = timezone.utc
 from ..models import JournalEntry, User
 from ..services.kafka_producer import get_kafka_producer
 from ..services.websocket_manager import manager as ws_manager

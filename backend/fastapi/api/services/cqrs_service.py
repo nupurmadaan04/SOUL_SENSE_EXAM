@@ -3,7 +3,8 @@ CQRS Service for Read Model Materialization (#1124)
 Handles the incremental updates of analytics read models.
 """
 import logging
-from datetime import datetime, UTC
+from datetime import datetime, timezone
+UTC = timezone.utc
 from sqlalchemy import select, update, func, desc, case
 from sqlalchemy.ext.asyncio import AsyncSession
 from ..models import (

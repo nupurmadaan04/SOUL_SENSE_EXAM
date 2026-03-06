@@ -9,8 +9,11 @@ from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Float, Text
 from sqlalchemy.orm import relationship, declarative_base, Session
 from sqlalchemy.engine import Engine, Connection
 from typing import List, Optional, Any, Dict, Tuple, Union
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta, timezone
 import logging
+
+# Python 3.10 compatibility
+UTC = timezone.utc
 from ..utils.timestamps import normalize_utc_iso, utc_now, utc_now_iso
 
 try:

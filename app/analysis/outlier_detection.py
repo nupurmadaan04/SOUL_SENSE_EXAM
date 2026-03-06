@@ -3,7 +3,10 @@
 import logging
 import numpy as np
 from typing import List, Dict, Tuple, Optional
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta, timezone
+
+# Python 3.10 compatibility
+UTC = timezone.utc
 from sqlalchemy.orm import Session
 from app.models import Score, User
 from sqlalchemy import func

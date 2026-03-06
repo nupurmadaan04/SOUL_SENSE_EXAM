@@ -10,7 +10,8 @@ Manages dead-lettered async tasks:
 
 import json
 import logging
-from datetime import datetime, UTC, timedelta
+from datetime import datetime, timezone, timedelta
+UTC = timezone.utc
 from typing import Optional, List, Dict, Any
 from sqlalchemy import select, update, func, and_, desc
 from sqlalchemy.ext.asyncio import AsyncSession

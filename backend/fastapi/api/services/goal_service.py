@@ -6,7 +6,8 @@ tracking progress metrics, and managing goal lifecycles.
 """
 
 from typing import Optional, List, Tuple, Any
-from datetime import datetime, UTC
+from datetime import datetime, timezone
+UTC = timezone.utc
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update, delete, func, and_, case
 from fastapi import HTTPException, status

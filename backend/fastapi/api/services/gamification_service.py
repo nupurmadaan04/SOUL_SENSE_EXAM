@@ -1,4 +1,5 @@
-from datetime import datetime, UTC, timedelta
+from datetime import datetime, timezone, timedelta
+UTC = timezone.utc
 import json
 import logging
 from typing import List, Dict, Any, Optional

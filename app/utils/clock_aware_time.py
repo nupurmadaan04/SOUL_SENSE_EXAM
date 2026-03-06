@@ -6,7 +6,10 @@ for all time-sensitive operations (tokens, OTP, sessions).
 """
 
 import time
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta, timezone
+
+# Python 3.10 compatibility
+UTC = timezone.utc
 from typing import Tuple
 import logging
 

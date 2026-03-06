@@ -1,0 +1,166 @@
+name: Dependency Linting
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "backend/**/*.py"
+      - "app/**/*.py"
+      - "scripts/dependency_*.py"
+      - "scripts/ci_dependency_lint.py"
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "backend/**/*.py"
+      - "app/**/*.py"
+      - "scripts/dependency_*.py"
+      - "scripts/ci_dependency_lint.py"
+
+jobs:
+  dependency-lint:
+    name: Check Dependencies
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      - name: Cache Python dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          pip install pytest
+
+      - name: Run dependency analyzer tests
+        run: |
+          python -m pytest tests/test_dependency_analyzer.py -v
+
+      - name: Check backend dependencies
+        id: backend_check
+        run: |
+          python scripts/ci_dependency_lint.py backend/ \
+            --output reports/backend_dependencies.json
+        continue-on-error: true
+
+      - name: Check app dependencies
+        id: app_check
+        run: |
+          python scripts/ci_dependency_lint.py app/ \
+            --output reports/app_dependencies.json
+        continue-on-error: true
+
+      - name: Generate visualization
+        if: always()
+        run: |
+          # Install Graphviz for visualization
+          sudo apt-get update
+          sudo apt-get install -y graphviz
+
+          # Create reports directory
+          mkdir -p reports
+
+          # Generate both backend and app visualizations
+          python scripts/dependency_visualizer.py backend/ \
+            --output reports/backend_deps \
+            --format both
+
+          python scripts/dependency_visualizer.py app/ \
+            --output reports/app_deps \
+            --format both
+        continue-on-error: true
+
+      - name: Upload dependency reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-reports
+          path: |
+            reports/*.json
+            reports/*.html
+            reports/*.svg
+            reports/*.dot
+          retention-days: 30
+
+      - name: Comment PR with results
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && always()
+        uses: actions/github-script@v6
+        continue-on-error: true
+        with:
+          script: |
+            const fs = require('fs');
+
+            let comment = '## 🔍 Dependency Analysis Results\n\n';
+
+            try {
+              // Read backend report
+              const backendReport = JSON.parse(
+                fs.readFileSync('reports/backend_dependencies.json', 'utf8')
+              );
+              
+              comment += '### Backend Dependencies\n';
+              comment += `- **Status**: ${backendReport.status === 'passed' ? '✅ PASSED' : '❌ FAILED'}\n`;
+              comment += `- **Modules**: ${backendReport.summary.total_modules}\n`;
+              comment += `- **Dependencies**: ${backendReport.summary.total_dependencies}\n`;
+              comment += `- **Circular Dependencies**: ${backendReport.summary.errors}\n`;
+              comment += `- **Warnings**: ${backendReport.summary.warnings}\n\n`;
+              
+              if (backendReport.violations.circular.length > 0) {
+                comment += '#### ⚠️ Circular Dependencies Found:\n';
+                backendReport.violations.circular.forEach(dep => {
+                  comment += `- ${dep.cycle.join(' → ')}\n`;
+                });
+                comment += '\n';
+              }
+            } catch (e) {
+              comment += '❌ Failed to read backend report\n\n';
+            }
+
+            try {
+              // Read app report
+              const appReport = JSON.parse(
+                fs.readFileSync('reports/app_dependencies.json', 'utf8')
+              );
+              
+              comment += '### App Dependencies\n';
+              comment += `- **Status**: ${appReport.status === 'passed' ? '✅ PASSED' : '❌ FAILED'}\n`;
+              comment += `- **Modules**: ${appReport.summary.total_modules}\n`;
+              comment += `- **Dependencies**: ${appReport.summary.total_dependencies}\n`;
+              comment += `- **Circular Dependencies**: ${appReport.summary.errors}\n`;
+              comment += `- **Warnings**: ${appReport.summary.warnings}\n\n`;
+            } catch (e) {
+              comment += '❌ Failed to read app report\n\n';
+            }
+
+            comment += '\n📊 [View detailed reports in artifacts]';
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+      - name: Fail if errors found
+        if: steps.backend_check.outcome == 'failure' || steps.app_check.outcome == 'failure'
+        run: |
+          echo "❌ Dependency checks failed!"
+          echo "Please fix circular dependencies and layer violations before merging."
+          exit 1
+
+      - name: Success
+        if: steps.backend_check.outcome == 'success' && steps.app_check.outcome == 'success'
+        run: |
+          echo "✅ All dependency checks passed!"

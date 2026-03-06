@@ -7,7 +7,10 @@ Tests clock-aware token/OTP expiry handling under NTP drift conditions.
 import unittest
 import sys
 import os
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta, timezone
+
+# Python 3.10 compatibility
+UTC = timezone.utc
 from unittest.mock import patch, MagicMock
 
 # Add parent directory to path

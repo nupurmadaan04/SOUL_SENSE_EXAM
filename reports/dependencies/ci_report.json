@@ -1,0 +1,1251 @@
+{
+  "status": "failed",
+  "summary": {
+    "total_modules": 51,
+    "total_dependencies": 1388,
+    "errors": 115,
+    "warnings": 14,
+    "critical_issues": 14
+  },
+  "violations": {
+    "circular": [
+      {
+        "cycle": [
+          "core.validators",
+          "core.validators"
+        ],
+        "severity": "error"
+      },
+      {
+        "cycle": [
+          "fastapi.api.routers.exams",
+          "fastapi.api.routers.exams"
+        ],
+        "severity": "error"
+      },
+      {
+        "cycle": [
+          "fastapi.api.routers.exams",
+          "fastapi.start_server",
+          "fastapi.api.routers.exams"
+        ],
+        "severity": "error"
+      },
+      {
+        "cycle": [
+          "fastapi.api.routers.exams",
+          "fastapi.start_server",
+          "fastapi.api.exceptions",
+          "fastapi.api.routers.exams"
+        ],
+        "severity": "error"
+      },
+      {
+        "cycle": [
+          "fastapi.api.routers.exams",
+          "fastapi.start_server",
+          "fastapi.api.exceptions",
+          "fastapi.api.main",
+          "fastapi.api.routers.exams"
+        ],
+        "severity": "error"
+      },
+      {
+        "cycle": [
+          "fastapi.api.routers.exams",
+          "fastapi.start_server",
+          "fastapi.api.exceptions",
+          "fastapi.api.main",
+          "fastapi.api.middleware.rate_limiter",
+          "fastapi.api.routers.exams"
+        ],
+        "severity": "error"
+      },
+      {
+        "cycle": [
+          "fastapi.api.routers.exams",
+          "fastapi.start_server",
+          "fastapi.api.exceptions",
+          "fastapi.api.main",
+          "fastapi.api.middleware.rate_limiter",
+          "fastapi.api.middleware.security",
+          "fastapi.api.routers.exams"
+        ],
+        "severity": "error"
+      },
+      {
+        "cycle": [
+          "fastapi.api.routers.exams",
+          "fastapi.start_server",
+          "fastapi.api.exceptions",
+          "fastapi.api.main",
+          "fastapi.api.middleware.rate_limiter",
+          "fastapi.api.middleware.security",
+          "fastapi.api.routers.analytics",
+          "fastapi.api.routers.exams"
+        ],
+        "severity": "error"
+      },
+      {
+        "cycle": [
+          "fastapi.api.routers.exams",
+          "fastapi.start_server",
+          "fastapi.api.exceptions",
+          "fastapi.api.main",
+          "fastapi.api.middleware.rate_limiter",
+          "fastapi.api.middleware.security",
+          "fastapi.api.routers.analytics",
+          "fastapi.api.routers.assessments",
+          "fastapi.api.routers.exams"
+        ],
+        "severity": "error"
+      },
+      {
+        "cycle": [
+          "fastapi.api.routers.exams",
+          "fastapi.start_server",
+          "fastapi.api.exceptions",
+          "fastapi.api.main",
+          "fastapi.api.middleware.rate_limiter",
+          "fastapi.api.middleware.security",
+          "fastapi.api.routers.analytics",
+          "fastapi.api.routers.assessments",
+          "fastapi.api.routers.auth",
+          "fastapi.api.routers.exams"
+        ],
+        "severity": "error"
+      },
+      {
+        "cycle": [
+          "fastapi.api.routers.exams",
+          "fastapi.start_server",
+          "fastapi.api.exceptions",
+          "fastapi.api.main",
+          "fastapi.api.middleware.rate_limiter",
+          "fastapi.api.middleware.security",
+          "fastapi.api.routers.analytics",
+          "fastapi.api.routers.assessments",
+          "fastapi.api.routers.auth",
+          "fastapi.api.routers.community",
+          "fastapi.api.routers.exams"
+        ],
+        "severity": "error"
+      },
+      {
+        "cycle": [
+          "fastapi.api.routers.exams",
+          "fastapi.start_server",
+          "fastapi.api.exceptions",
+          "fastapi.api.main",
+          "fastapi.api.middleware.rate_limiter",
+          "fastapi.api.middleware.security",
+          "fastapi.api.routers.analytics",
+          "fastapi.api.routers.assessments",
+          "fastapi.api.routers.auth",
+          "fastapi.api.routers.community",
+          "fastapi.api.routers.contact",
+          "fastapi.api.routers.exams"
+        ],
+        "severity": "error"
+      },
+      {
+        "cycle": [
+          "fastapi.api.routers.exams",
+          "fastapi.start_server",
+          "fastapi.api.exceptions",
+          "fastapi.api.main",
+          "fastapi.api.middleware.rate_limiter",
+          "fastapi.api.middleware.security",
+          "fastapi.api.routers.analytics",
+          "fastapi.api.routers.assessments",
+          "fastapi.api.routers.auth",
+          "fastapi.api.routers.community",
+          "fastapi.api.routers.contact",
+          "fastapi.api.routers.deep_dive",
+          "fastapi.api.routers.exams"
+        ],
+        "severity": "error"
+      },
+      {
+        "cycle": [
+          "fastapi.api.routers.exams",
+          "fastapi.start_server",
+          "fastapi.api.exceptions",
+          "fastapi.api.main",
+          "fastapi.api.middleware.rate_limiter",
+          "fastapi.api.middleware.security",
+          "fastapi.api.routers.analytics",
+          "fastapi.api.routers.assessments",
+          "fastapi.api.routers.auth",
+          "fastapi.api.routers.community",
+          "fastapi.api.routers.contact",
+          "fastapi.api.routers.deep_dive",
+          "fastapi.api.routers.export",
+          "fastapi.api.routers.exams"
+        ],
+        "severity": "error"
+      },
+      {
+        "cycle": [
+          "fastapi.api.routers.exams",
+          "fastapi.start_server",
+          "fastapi.api.exceptions",
+          "fastapi.api.main",
+          "fastapi.api.middleware.rate_limiter",
+          "fastapi.api.middleware.security",
+          "fastapi.api.routers.analytics",
+          "fastapi.api.routers.assessments",
+          "fastapi.api.routers.auth",
+          "fastapi.api.routers.community",
+          "fastapi.api.routers.contact",
+          "fastapi.api.routers.deep_dive",
+          "fastapi.api.routers.export",
+          "fastapi.api.routers.health",
+          "fastapi.api.routers.exams"
+        ],
+        "severity": "error"
+      },
+      {
+        "cycle": [
+          "fastapi.api.routers.exams",
+          "fastapi.start_server",
+          "fastapi.api.exceptions",
+          "fastapi.api.main",
+          "fastapi.api.middleware.rate_limiter",
+          "fastapi.api.middleware.security",
+          "fastapi.api.routers.analytics",
+          "fastapi.api.routers.assessments",
+          "fastapi.api.routers.auth",
+          "fastapi.api.routers.community",
+          "fastapi.api.routers.contact",
+          "fastapi.api.routers.deep_dive",
+          "fastapi.api.routers.export",
+          "fastapi.api.routers.health",
+          "fastapi.api.routers.journal",
+          "fastapi.api.routers.exams"
+        ],
+        "severity": "error"
+      },
+      {
+        "cycle": [
+          "fastapi.api.routers.exams",
+          "fastapi.start_server",
+          "fastapi.api.exceptions",
+          "fastapi.api.main",
+          "fastapi.api.middleware.rate_limiter",
+          "fastapi.api.middleware.security",
+          "fastapi.api.routers.analytics",
+          "fastapi.api.routers.assessments",
+          "fastapi.api.routers.auth",
+          "fastapi.api.routers.community",
+          "fastapi.api.routers.contact",
+          "fastapi.api.routers.deep_dive",
+          "fastapi.api.routers.export",
+          "fastapi.api.routers.health",
+          "fastapi.api.routers.journal",
+          "fastapi.api.routers.profiles",
+          "fastapi.api.routers.exams"
+        ],
+        "severity": "error"
+      },
+      {
+        "cycle": [
+          "fastapi.api.routers.exams",
+          "fastapi.start_server",
+          "fastapi.api.exceptions",
+          "fastapi.api.main",
+          "fastapi.api.middleware.rate_limiter",
+          "fastapi.api.middleware.security",
+          "fastapi.api.routers.analytics",
+          "fastapi.api.routers.assessments",
+          "fastapi.api.routers.auth",
+          "fastapi.api.routers.community",
+          "fastapi.api.routers.contact",
+          "fastapi.api.routers.deep_dive",
+          "fastapi.api.routers.export",
+          "fastapi.api.routers.health",
+          "fastapi.api.routers.journal",
+          "fastapi.api.routers.profiles",
+          "fastapi.api.routers.questions",
+          "fastapi.api.routers.exams"
+        ],
+        "severity": "error"
+      },
+      {
+        "cycle": [
+          "fastapi.api.routers.exams",
+          "fastapi.start_server",
+          "fastapi.api.exceptions",
+          "fastapi.api.main",
+          "fastapi.api.middleware.rate_limiter",
+          "fastapi.api.middleware.security",
+          "fastapi.api.routers.analytics",
+          "fastapi.api.routers.assessments",
+          "fastapi.api.routers.auth",
+          "fastapi.api.routers.community",
+          "fastapi.api.routers.contact",
+          "fastapi.api.routers.deep_dive",
+          "fastapi.api.routers.export",
+          "fastapi.api.routers.health",
+          "fastapi.api.routers.journal",
+          "fastapi.api.routers.profiles",
+          "fastapi.api.routers.questions",
+          "fastapi.api.routers.settings_sync",
+          "fastapi.api.routers.exams"
+        ],
+        "severity": "error"
+      },
+      {
+        "cycle": [
+          "fastapi.api.routers.exams",
+          "fastapi.start_server",
+          "fastapi.api.exceptions",
+          "fastapi.api.main",
+          "fastapi.api.middleware.rate_limiter",
+          "fastapi.api.middleware.security",
+          "fastapi.api.routers.analytics",
+          "fastapi.api.routers.assessments",
+          "fastapi.api.routers.auth",
+          "fastapi.api.routers.community",
+          "fastapi.api.routers.contact",
+          "fastapi.api.routers.deep_dive",
+          "fastapi.api.routers.export",
+          "fastapi.api.routers.health",
+          "fastapi.api.routers.journal",
+          "fastapi.api.routers.profiles",
+          "fastapi.api.routers.questions",
+          "fastapi.api.routers.settings_sync",
+          "fastapi.api.routers.users",
+          "fastapi.api.routers.exams"
+        ],
+        "severity": "error"
+      },
+      {
+        "cycle": [
+          "core.validators",
+          "fastapi.sidecar",
+          "fastapi.api.routers.exams",
+          "fastapi.start_server",
+          "fastapi.api.exceptions",
+          "fastapi.api.main",
+          "fastapi.api.middleware.rate_limiter",
+          "fastapi.api.middleware.security",
+          "fastapi.api.routers.analytics",
+          "fastapi.api.routers.assessments",
+          "fastapi.api.routers.auth",
+          "fastapi.api.routers.community",
+          "fastapi.api.routers.contact",
+          "fastapi.api.routers.deep_dive",
+          "fastapi.api.routers.export",
+          "fastapi.api.routers.health",
+          "fastapi.api.routers.journal",
+          "fastapi.api.routers.profiles",
+          "fastapi.api.routers.questions",
+          "fastapi.api.routers.settings_sync",
+          "fastapi.api.routers.users",
+          "fastapi.api.schemas",
+          "core.validators"
+        ],
+        "severity": "error"
+      },
+      {
+        "cycle": [
+          "fastapi.api.routers.exams",
+          "fastapi.start_server",
+          "fastapi.api.exceptions",
+          "fastapi.api.main",
+          "fastapi.api.middleware.rate_limiter",
+          "fastapi.api.middleware.security",
+          "fastapi.api.routers.analytics",
+          "fastapi.api.routers.assessments",
+          "fastapi.api.routers.auth",
+          "fastapi.api.routers.community",
+          "fastapi.api.routers.contact",
+          "fastapi.api.routers.deep_dive",
+          "fastapi.api.routers.export",
+          "fastapi.api.routers.health",
+          "fastapi.api.routers.journal",
+          "fastapi.api.routers.profiles",
+          "fastapi.api.routers.questions",
+          "fastapi.api.routers.settings_sync",
+          "fastapi.api.routers.users",
+          "fastapi.api.schemas",
+          "fastapi.api.services.analytics_service",
+          "fastapi.api.routers.exams"
+        ],
+        "severity": "error"
+      },
+      {
+        "cycle": [
+          "fastapi.api.routers.exams",
+          "fastapi.start_server",
+          "fastapi.api.exceptions",
+          "fastapi.api.main",
+          "fastapi.api.middleware.rate_limiter",
+          "fastapi.api.middleware.security",
+          "fastapi.api.routers.analytics",
+          "fastapi.api.routers.assessments",
+          "fastapi.api.routers.auth",
+          "fastapi.api.routers.community",
+          "fastapi.api.routers.contact",
+          "fastapi.api.routers.deep_dive",
+          "fastapi.api.routers.export",
+          "fastapi.api.routers.health",
+          "fastapi.api.routers.journal",
+          "fastapi.api.routers.profiles",
+          "fastapi.api.routers.questions",
+          "fastapi.api.routers.settings_sync",
+          "fastapi.api.routers.users",
+          "fastapi.api.schemas",
+          "fastapi.api.services.analytics_service",
+          "fastapi.api.services.auth_service",
+          "fastapi.api.routers.exams"
+        ],
+        "severity": "error"
+      },
+      {
+        "cycle": [
+          "fastapi.api.routers.exams",
+          "fastapi.start_server",
+          "fastapi.api.exceptions",
+          "fastapi.api.main",
+          "fastapi.api.middleware.rate_limiter",
+          "fastapi.api.middleware.security",
+          "fastapi.api.routers.analytics",
+          "fastapi.api.routers.assessments",
+          "fastapi.api.routers.auth",
+          "fastapi.api.routers.community",
+          "fastapi.api.routers.contact",
+          "fastapi.api.routers.deep_dive",
+          "fastapi.api.routers.export",
+          "fastapi.api.routers.health",
+          "fastapi.api.routers.journal",
+          "fastapi.api.routers.profiles",
+          "fastapi.api.routers.questions",
+          "fastapi.api.routers.settings_sync",
+          "fastapi.api.routers.users",
+          "fastapi.api.schemas",
+          "fastapi.api.services.analytics_service",
+          "fastapi.api.services.auth_service",
+          "fastapi.api.services.deep_dive_service",
+          "fastapi.api.routers.exams"
+        ],
+        "severity": "error"
+      },
+      {
+        "cycle": [
+          "fastapi.api.schemas",
+          "fastapi.api.services.analytics_service",
+          "fastapi.api.services.auth_service",
+          "fastapi.api.services.deep_dive_service",
+          "fastapi.api.services.exam_service",
+          "fastapi.api.schemas"
+        ],
+        "severity": "error"
+      },
+      {
+        "cycle": [
+          "fastapi.api.routers.exams",
+          "fastapi.start_server",
+          "fastapi.api.exceptions",
+          "fastapi.api.main",
+          "fastapi.api.middleware.rate_limiter",
+          "fastapi.api.middleware.security",
+          "fastapi.api.routers.analytics",
+          "fastapi.api.routers.assessments",
+          "fastapi.api.routers.auth",
+          "fastapi.api.routers.community",
+          "fastapi.api.routers.contact",
+          "fastapi.api.routers.deep_dive",
+          "fastapi.api.routers.export",
+          "fastapi.api.routers.health",
+          "fastapi.api.routers.journal",
+          "fastapi.api.routers.profiles",
+          "fastapi.api.routers.questions",
+          "fastapi.api.routers.settings_sync",
+          "fastapi.api.routers.users",
+          "fastapi.api.schemas",
+          "fastapi.api.services.analytics_service",
+          "fastapi.api.services.auth_service",
+          "fastapi.api.services.deep_dive_service",
+          "fastapi.api.services.exam_service",
+          "fastapi.api.services.journal_service",
+          "fastapi.api.routers.exams"
+        ],
+        "severity": "error"
+      },
+      {
+        "cycle": [
+          "fastapi.api.routers.exams",
+          "fastapi.start_server",
+          "fastapi.api.exceptions",
+          "fastapi.api.main",
+          "fastapi.api.middleware.rate_limiter",
+          "fastapi.api.middleware.security",
+          "fastapi.api.routers.analytics",
+          "fastapi.api.routers.assessments",
+          "fastapi.api.routers.auth",
+          "fastapi.api.routers.community",
+          "fastapi.api.routers.contact",
+          "fastapi.api.routers.deep_dive",
+          "fastapi.api.routers.export",
+          "fastapi.api.routers.health",
+          "fastapi.api.routers.journal",
+          "fastapi.api.routers.profiles",
+          "fastapi.api.routers.questions",
+          "fastapi.api.routers.settings_sync",
+          "fastapi.api.routers.users",
+          "fastapi.api.schemas",
+          "fastapi.api.services.analytics_service",
+          "fastapi.api.services.auth_service",
+          "fastapi.api.services.deep_dive_service",
+          "fastapi.api.services.exam_service",
+          "fastapi.api.services.journal_service",
+          "fastapi.api.services.profile_service",
+          "fastapi.api.routers.exams"
+        ],
+        "severity": "error"
+      },
+      {
+        "cycle": [
+          "fastapi.api.routers.exams",
+          "fastapi.start_server",
+          "fastapi.api.exceptions",
+          "fastapi.api.main",
+          "fastapi.api.middleware.rate_limiter",
+          "fastapi.api.middleware.security",
+          "fastapi.api.routers.analytics",
+          "fastapi.api.routers.assessments",
+          "fastapi.api.routers.auth",
+          "fastapi.api.routers.community",
+          "fastapi.api.routers.contact",
+          "fastapi.api.routers.deep_dive",
+          "fastapi.api.routers.export",
+          "fastapi.api.routers.health",
+          "fastapi.api.routers.journal",
+          "fastapi.api.routers.profiles",
+          "fastapi.api.routers.questions",
+          "fastapi.api.routers.settings_sync",
+          "fastapi.api.routers.users",
+          "fastapi.api.schemas",
+          "fastapi.api.services.analytics_service",
+          "fastapi.api.services.auth_service",
+          "fastapi.api.services.deep_dive_service",
+          "fastapi.api.services.exam_service",
+          "fastapi.api.services.journal_service",
+          "fastapi.api.services.profile_service",
+          "fastapi.api.services.settings_sync_service",
+          "fastapi.api.routers.exams"
+        ],
+        "severity": "error"
+      },
+      {
+        "cycle": [
+          "fastapi.api.schemas",
+          "fastapi.api.services.analytics_service",
+          "fastapi.api.services.auth_service",
+          "fastapi.api.services.deep_dive_service",
+          "fastapi.api.services.exam_service",
+          "fastapi.api.services.journal_service",
+          "fastapi.api.services.profile_service",
+          "fastapi.api.services.settings_sync_service",
+          "fastapi.api.services.user_analytics_service",
+          "fastapi.api.schemas"
+        ],
+        "severity": "error"
+      },
+      {
+        "cycle": [
+          "fastapi.api.routers.exams",
+          "fastapi.start_server",
+          "fastapi.api.exceptions",
+          "fastapi.api.main",
+          "fastapi.api.middleware.rate_limiter",
+          "fastapi.api.middleware.security",
+          "fastapi.api.routers.analytics",
+          "fastapi.api.routers.assessments",
+          "fastapi.api.routers.auth",
+          "fastapi.api.routers.community",
+          "fastapi.api.routers.contact",
+          "fastapi.api.routers.deep_dive",
+          "fastapi.api.routers.export",
+          "fastapi.api.routers.health",
+          "fastapi.api.routers.journal",
+          "fastapi.api.routers.profiles",
+          "fastapi.api.routers.questions",
+          "fastapi.api.routers.settings_sync",
+          "fastapi.api.routers.users",
+          "fastapi.api.schemas",
+          "fastapi.api.services.analytics_service",
+          "fastapi.api.services.auth_service",
+          "fastapi.api.services.deep_dive_service",
+          "fastapi.api.services.exam_service",
+          "fastapi.api.services.journal_service",
+          "fastapi.api.services.profile_service",
+          "fastapi.api.services.settings_sync_service",
+          "fastapi.api.services.user_analytics_service",
+          "fastapi.api.services.user_service",
+          "fastapi.api.routers.exams"
+        ],
+        "severity": "error"
+      },
+      {
+        "cycle": [
+          "fastapi.api.services.exam_service",
+          "fastapi.api.services.journal_service",
+          "fastapi.api.services.profile_service",
+          "fastapi.api.services.settings_sync_service",
+          "fastapi.api.services.user_analytics_service",
+          "fastapi.api.services.user_service",
+          "fastapi.api.services",
+          "fastapi.api.services.exam_service"
+        ],
+        "severity": "error"
+      },
+      {
+        "cycle": [
+          "fastapi.api.routers.exams",
+          "fastapi.start_server",
+          "fastapi.api.exceptions",
+          "fastapi.api.main",
+          "fastapi.api.middleware.rate_limiter",
+          "fastapi.api.middleware.security",
+          "fastapi.api.routers.analytics",
+          "fastapi.api.routers.assessments",
+          "fastapi.api.routers.auth",
+          "fastapi.api.routers.community",
+          "fastapi.api.routers.contact",
+          "fastapi.api.routers.deep_dive",
+          "fastapi.api.routers.export",
+          "fastapi.api.routers.health",
+          "fastapi.api.routers.journal",
+          "fastapi.api.routers.profiles",
+          "fastapi.api.routers.questions",
+          "fastapi.api.routers.settings_sync",
+          "fastapi.api.routers.users",
+          "fastapi.api.schemas",
+          "fastapi.api.services.analytics_service",
+          "fastapi.api.services.auth_service",
+          "fastapi.api.services.deep_dive_service",
+          "fastapi.api.services.exam_service",
+          "fastapi.api.services.journal_service",
+          "fastapi.api.services.profile_service",
+          "fastapi.api.services.settings_sync_service",
+          "fastapi.api.services.user_analytics_service",
+          "fastapi.api.services.user_service",
+          "fastapi.api.services",
+          "fastapi.api.api.v1.router",
+          "fastapi.api.routers.exams"
+        ],
+        "severity": "error"
+      }
+    ],
+    "layer": [
+      {
+        "from": "fastapi.api.exceptions",
+        "to": "fastapi.api.constants.errors",
+        "reason": "exception layer cannot import from exception layer",
+        "severity": "error"
+      },
+      {
+        "from": "fastapi.api.exceptions",
+        "to": "fastapi.sidecar",
+        "reason": "exception layer cannot import from unknown layer",
+        "severity": "error"
+      },
+      {
+        "from": "fastapi.api.routers.analytics",
+        "to": "fastapi.scripts.tools.debug_auth_v1",
+        "reason": "router layer cannot import from unknown layer",
+        "severity": "error"
+      },
+      {
+        "from": "fastapi.api.routers.analytics",
+        "to": "fastapi.sidecar",
+        "reason": "router layer cannot import from unknown layer",
+        "severity": "error"
+      },
+      {
+        "from": "fastapi.api.routers.analytics",
+        "to": "fastapi.api.middleware.rate_limiter",
+        "reason": "router layer cannot import from unknown layer",
+        "severity": "error"
+      },
+      {
+        "from": "fastapi.api.routers.assessments",
+        "to": "fastapi.sidecar",
+        "reason": "router layer cannot import from unknown layer",
+        "severity": "error"
+      },
+      {
+        "from": "fastapi.api.routers.auth",
+        "to": "fastapi.sidecar",
+        "reason": "router layer cannot import from unknown layer",
+        "severity": "error"
+      },
+      {
+        "from": "fastapi.api.routers.auth",
+        "to": "fastapi.sidecar",
+        "reason": "router layer cannot import from unknown layer",
+        "severity": "error"
+      },
+      {
+        "from": "fastapi.api.routers.auth",
+        "to": "fastapi.api.config",
+        "reason": "router layer cannot import from unknown layer",
+        "severity": "error"
+      },
+      {
+        "from": "fastapi.api.routers.community",
+        "to": "fastapi.sidecar",
+        "reason": "router layer cannot import from unknown layer",
+        "severity": "error"
+      },
+      {
+        "from": "fastapi.api.routers.community",
+        "to": "fastapi.sidecar",
+        "reason": "router layer cannot import from unknown layer",
+        "severity": "error"
+      },
+      {
+        "from": "fastapi.api.routers.contact",
+        "to": "fastapi.sidecar",
+        "reason": "router layer cannot import from unknown layer",
+        "severity": "error"
+      },
+      {
+        "from": "fastapi.api.routers.contact",
+        "to": "fastapi.sidecar",
+        "reason": "router layer cannot import from unknown layer",
+        "severity": "error"
+      },
+      {
+        "from": "fastapi.api.routers.deep_dive",
+        "to": "fastapi.scripts.tools.debug_auth_v1",
+        "reason": "router layer cannot import from unknown layer",
+        "severity": "error"
+      },
+      {
+        "from": "fastapi.api.routers.deep_dive",
+        "to": "fastapi.sidecar",
+        "reason": "router layer cannot import from unknown layer",
+        "severity": "error"
+      },
+      {
+        "from": "fastapi.api.routers.exams",
+        "to": "fastapi.scripts.tools.debug_auth_v1",
+        "reason": "router layer cannot import from unknown layer",
+        "severity": "error"
+      },
+      {
+        "from": "fastapi.api.routers.exams",
+        "to": "fastapi.sidecar",
+        "reason": "router layer cannot import from unknown layer",
+        "severity": "error"
+      },
+      {
+        "from": "fastapi.api.routers.export",
+        "to": "fastapi.scripts.tools.debug_auth_v1",
+        "reason": "router layer cannot import from unknown layer",
+        "severity": "error"
+      },
+      {
+        "from": "fastapi.api.routers.export",
+        "to": "fastapi.sidecar",
+        "reason": "router layer cannot import from unknown layer",
+        "severity": "error"
+      },
+      {
+        "from": "fastapi.api.routers.health",
+        "to": "fastapi.sidecar",
+        "reason": "router layer cannot import from unknown layer",
+        "severity": "error"
+      },
+      {
+        "from": "fastapi.api.routers.health",
+        "to": "fastapi.api.config",
+        "reason": "router layer cannot import from unknown layer",
+        "severity": "error"
+      },
+      {
+        "from": "fastapi.api.routers.journal",
+        "to": "fastapi.sidecar",
+        "reason": "router layer cannot import from unknown layer",
+        "severity": "error"
+      },
+      {
+        "from": "fastapi.api.routers.journal",
+        "to": "fastapi.api.routers.analytics",
+        "reason": "router layer cannot import from router layer",
+        "severity": "error"
+      },
+      {
+        "from": "fastapi.api.routers.journal",
+        "to": "fastapi.sidecar",
+        "reason": "router layer cannot import from unknown layer",
+        "severity": "error"
+      },
+      {
+        "from": "fastapi.api.routers.profiles",
+        "to": "fastapi.sidecar",
+        "reason": "router layer cannot import from unknown layer",
+        "severity": "error"
+      },
+      {
+        "from": "fastapi.api.routers.profiles",
+        "to": "fastapi.api.routers.analytics",
+        "reason": "router layer cannot import from router layer",
+        "severity": "error"
+      },
+      {
+        "from": "fastapi.api.routers.profiles",
+        "to": "fastapi.sidecar",
+        "reason": "router layer cannot import from unknown layer",
+        "severity": "error"
+      },
+      {
+        "from": "fastapi.api.routers.questions",
+        "to": "fastapi.sidecar",
+        "reason": "router layer cannot import from unknown layer",
+        "severity": "error"
+      },
+      {
+        "from": "fastapi.api.routers.settings_sync",
+        "to": "fastapi.sidecar",
+        "reason": "router layer cannot import from unknown layer",
+        "severity": "error"
+      },
+      {
+        "from": "fastapi.api.routers.settings_sync",
+        "to": "fastapi.api.routers.analytics",
+        "reason": "router layer cannot import from router layer",
+        "severity": "error"
+      },
+      {
+        "from": "fastapi.api.routers.settings_sync",
+        "to": "fastapi.sidecar",
+        "reason": "router layer cannot import from unknown layer",
+        "severity": "error"
+      },
+      {
+        "from": "fastapi.api.routers.users",
+        "to": "fastapi.sidecar",
+        "reason": "router layer cannot import from unknown layer",
+        "severity": "error"
+      },
+      {
+        "from": "fastapi.api.routers.users",
+        "to": "fastapi.api.routers.analytics",
+        "reason": "router layer cannot import from router layer",
+        "severity": "error"
+      },
+      {
+        "from": "fastapi.api.routers.users",
+        "to": "fastapi.sidecar",
+        "reason": "router layer cannot import from unknown layer",
+        "severity": "error"
+      },
+      {
+        "from": "fastapi.api.schemas",
+        "to": "core.validators",
+        "reason": "schema layer cannot import from unknown layer",
+        "severity": "error"
+      },
+      {
+        "from": "fastapi.api.services.analytics_service",
+        "to": "fastapi.sidecar",
+        "reason": "service layer cannot import from unknown layer",
+        "severity": "error"
+      },
+      {
+        "from": "fastapi.api.services.auth_service",
+        "to": "fastapi.sidecar",
+        "reason": "service layer cannot import from unknown layer",
+        "severity": "error"
+      },
+      {
+        "from": "fastapi.api.services.auth_service",
+        "to": "fastapi.api.config",
+        "reason": "service layer cannot import from unknown layer",
+        "severity": "error"
+      },
+      {
+        "from": "fastapi.api.services.auth_service",
+        "to": "fastapi.api.services.db_service",
+        "reason": "service layer cannot import from service layer",
+        "severity": "error"
+      },
+      {
+        "from": "fastapi.api.services.db_service",
+        "to": "fastapi.api.config",
+        "reason": "service layer cannot import from unknown layer",
+        "severity": "error"
+      },
+      {
+        "from": "fastapi.api.services.deep_dive_service",
+        "to": "fastapi.api.services.analytics_service",
+        "reason": "service layer cannot import from service layer",
+        "severity": "error"
+      },
+      {
+        "from": "fastapi.api.services.deep_dive_service",
+        "to": "fastapi.sidecar",
+        "reason": "service layer cannot import from unknown layer",
+        "severity": "error"
+      },
+      {
+        "from": "fastapi.api.services.exam_service",
+        "to": "fastapi.api.services.db_service",
+        "reason": "service layer cannot import from service layer",
+        "severity": "error"
+      },
+      {
+        "from": "fastapi.api.services.journal_service",
+        "to": "fastapi.sidecar",
+        "reason": "service layer cannot import from unknown layer",
+        "severity": "error"
+      },
+      {
+        "from": "fastapi.api.services.journal_service",
+        "to": "fastapi.sidecar",
+        "reason": "service layer cannot import from unknown layer",
+        "severity": "error"
+      },
+      {
+        "from": "fastapi.api.services.profile_service",
+        "to": "fastapi.sidecar",
+        "reason": "service layer cannot import from unknown layer",
+        "severity": "error"
+      },
+      {
+        "from": "fastapi.api.services.profile_service",
+        "to": "fastapi.sidecar",
+        "reason": "service layer cannot import from unknown layer",
+        "severity": "error"
+      },
+      {
+        "from": "fastapi.api.services.settings_sync_service",
+        "to": "fastapi.sidecar",
+        "reason": "service layer cannot import from unknown layer",
+        "severity": "error"
+      },
+      {
+        "from": "fastapi.api.services.user_service",
+        "to": "fastapi.sidecar",
+        "reason": "service layer cannot import from unknown layer",
+        "severity": "error"
+      },
+      {
+        "from": "fastapi.api.services.user_service",
+        "to": "fastapi.sidecar",
+        "reason": "service layer cannot import from unknown layer",
+        "severity": "error"
+      },
+      {
+        "from": "fastapi.api.services",
+        "to": "fastapi.api.services.export_service",
+        "reason": "service layer cannot import from service layer",
+        "severity": "error"
+      },
+      {
+        "from": "fastapi.api.services",
+        "to": "fastapi.api.services.exam_service",
+        "reason": "service layer cannot import from service layer",
+        "severity": "error"
+      },
+      {
+        "from": "fastapi.api.services",
+        "to": "fastapi.api.services.db_service",
+        "reason": "service layer cannot import from service layer",
+        "severity": "error"
+      },
+      {
+        "from": "fastapi.api.api.v1.router",
+        "to": "fastapi.api.routers.analytics",
+        "reason": "router layer cannot import from router layer",
+        "severity": "error"
+      },
+      {
+        "from": "fastapi.api.api.v1.router",
+        "to": "fastapi.sidecar",
+        "reason": "router layer cannot import from unknown layer",
+        "severity": "error"
+      }
+    ],
+    "excessive": [
+      {
+        "module": "fastapi.sidecar",
+        "layer": "unknown",
+        "count": 49,
+        "max_allowed": 15,
+        "severity": "error"
+      },
+      {
+        "module": "fastapi.start_server",
+        "layer": "unknown",
+        "count": 49,
+        "max_allowed": 15,
+        "severity": "error"
+      },
+      {
+        "module": "fastapi.api.exceptions",
+        "layer": "exception",
+        "count": 49,
+        "max_allowed": 0,
+        "severity": "error"
+      },
+      {
+        "module": "fastapi.api.main",
+        "layer": "unknown",
+        "count": 49,
+        "max_allowed": 15,
+        "severity": "error"
+      },
+      {
+        "module": "fastapi.api.middleware.rate_limiter",
+        "layer": "unknown",
+        "count": 49,
+        "max_allowed": 15,
+        "severity": "error"
+      },
+      {
+        "module": "fastapi.api.middleware.security",
+        "layer": "unknown",
+        "count": 49,
+        "max_allowed": 15,
+        "severity": "error"
+      },
+      {
+        "module": "fastapi.api.routers.analytics",
+        "layer": "router",
+        "count": 49,
+        "max_allowed": 8,
+        "severity": "error"
+      },
+      {
+        "module": "fastapi.api.routers.assessments",
+        "layer": "router",
+        "count": 49,
+        "max_allowed": 8,
+        "severity": "error"
+      },
+      {
+        "module": "fastapi.api.routers.auth",
+        "layer": "router",
+        "count": 49,
+        "max_allowed": 8,
+        "severity": "error"
+      },
+      {
+        "module": "fastapi.api.routers.community",
+        "layer": "router",
+        "count": 49,
+        "max_allowed": 8,
+        "severity": "error"
+      },
+      {
+        "module": "fastapi.api.routers.contact",
+        "layer": "router",
+        "count": 49,
+        "max_allowed": 8,
+        "severity": "error"
+      },
+      {
+        "module": "fastapi.api.routers.deep_dive",
+        "layer": "router",
+        "count": 49,
+        "max_allowed": 8,
+        "severity": "error"
+      },
+      {
+        "module": "fastapi.api.routers.exams",
+        "layer": "router",
+        "count": 49,
+        "max_allowed": 8,
+        "severity": "error"
+      },
+      {
+        "module": "fastapi.api.routers.export",
+        "layer": "router",
+        "count": 49,
+        "max_allowed": 8,
+        "severity": "error"
+      },
+      {
+        "module": "fastapi.api.routers.health",
+        "layer": "router",
+        "count": 49,
+        "max_allowed": 8,
+        "severity": "error"
+      },
+      {
+        "module": "fastapi.api.routers.journal",
+        "layer": "router",
+        "count": 49,
+        "max_allowed": 8,
+        "severity": "error"
+      },
+      {
+        "module": "fastapi.api.routers.profiles",
+        "layer": "router",
+        "count": 49,
+        "max_allowed": 8,
+        "severity": "error"
+      },
+      {
+        "module": "fastapi.api.routers.questions",
+        "layer": "router",
+        "count": 49,
+        "max_allowed": 8,
+        "severity": "error"
+      },
+      {
+        "module": "fastapi.api.routers.settings_sync",
+        "layer": "router",
+        "count": 49,
+        "max_allowed": 8,
+        "severity": "error"
+      },
+      {
+        "module": "fastapi.api.routers.users",
+        "layer": "router",
+        "count": 49,
+        "max_allowed": 8,
+        "severity": "error"
+      },
+      {
+        "module": "fastapi.api.services.analytics_service",
+        "layer": "service",
+        "count": 49,
+        "max_allowed": 10,
+        "severity": "error"
+      },
+      {
+        "module": "fastapi.api.services.auth_service",
+        "layer": "service",
+        "count": 49,
+        "max_allowed": 10,
+        "severity": "error"
+      },
+      {
+        "module": "fastapi.api.services.deep_dive_service",
+        "layer": "service",
+        "count": 49,
+        "max_allowed": 10,
+        "severity": "error"
+      },
+      {
+        "module": "fastapi.api.services.journal_service",
+        "layer": "service",
+        "count": 49,
+        "max_allowed": 10,
+        "severity": "error"
+      },
+      {
+        "module": "fastapi.api.services.profile_service",
+        "layer": "service",
+        "count": 49,
+        "max_allowed": 10,
+        "severity": "error"
+      },
+      {
+        "module": "fastapi.api.services.settings_sync_service",
+        "layer": "service",
+        "count": 49,
+        "max_allowed": 10,
+        "severity": "error"
+      },
+      {
+        "module": "fastapi.api.services.user_service",
+        "layer": "service",
+        "count": 49,
+        "max_allowed": 10,
+        "severity": "error"
+      },
+      {
+        "module": "fastapi.api.api.v1.router",
+        "layer": "router",
+        "count": 49,
+        "max_allowed": 8,
+        "severity": "error"
+      }
+    ],
+    "critical": [
+      {
+        "module": "fastapi.api.services.auth_service",
+        "issue": "Circular dependency in critical module",
+        "severity": "critical"
+      },
+      {
+        "module": "fastapi.api.services.auth_service",
+        "issue": "Circular dependency in critical module",
+        "severity": "critical"
+      },
+      {
+        "module": "fastapi.api.services.auth_service",
+        "issue": "Circular dependency in critical module",
+        "severity": "critical"
+      },
+      {
+        "module": "fastapi.api.services.auth_service",
+        "issue": "Circular dependency in critical module",
+        "severity": "critical"
+      },
+      {
+        "module": "fastapi.api.services.auth_service",
+        "issue": "Circular dependency in critical module",
+        "severity": "critical"
+      },
+      {
+        "module": "fastapi.api.services.auth_service",
+        "issue": "Circular dependency in critical module",
+        "severity": "critical"
+      },
+      {
+        "module": "fastapi.api.services.auth_service",
+        "issue": "Circular dependency in critical module",
+        "severity": "critical"
+      },
+      {
+        "module": "fastapi.api.services.auth_service",
+        "issue": "Circular dependency in critical module",
+        "severity": "critical"
+      },
+      {
+        "module": "fastapi.api.services.auth_service",
+        "issue": "Circular dependency in critical module",
+        "severity": "critical"
+      },
+      {
+        "module": "fastapi.api.services.auth_service",
+        "issue": "Too many dependencies for critical module: 49",
+        "severity": "warning"
+      },
+      {
+        "module": "fastapi.api.services.user_service",
+        "issue": "Circular dependency in critical module",
+        "severity": "critical"
+      },
+      {
+        "module": "fastapi.api.services.user_service",
+        "issue": "Circular dependency in critical module",
+        "severity": "critical"
+      },
+      {
+        "module": "fastapi.api.services.user_service",
+        "issue": "Circular dependency in critical module",
+        "severity": "critical"
+      },
+      {
+        "module": "fastapi.api.services.user_service",
+        "issue": "Too many dependencies for critical module: 49",
+        "severity": "warning"
+      }
+    ]
+  },
+  "metadata": {
+    "root_path": "backend",
+    "strict_mode": true,
+    "timestamp": "2026-03-06T20:57:22.614303"
+  }
+}

@@ -13,7 +13,10 @@ Key Features:
 """
 
 import logging
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta, timezone
+
+# Python 3.10 compatibility
+UTC = timezone.utc
 from collections import defaultdict
 from statistics import mean, stdev
 from typing import Dict, List, Tuple, Optional

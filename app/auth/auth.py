@@ -1,7 +1,10 @@
 import bcrypt
 import secrets
 import time
-from datetime import datetime, timedelta, UTC, timezone
+from datetime import datetime, timedelta, timezone
+
+# Python 3.10 compatibility
+UTC = timezone.utc
 from app.db import get_session
 from app.models import User
 from app.security_config import PASSWORD_HASH_ROUNDS, LOCKOUT_DURATION_MINUTES, PASSWORD_HISTORY_LIMIT

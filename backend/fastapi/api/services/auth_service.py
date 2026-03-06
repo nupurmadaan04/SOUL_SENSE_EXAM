@@ -1,5 +1,6 @@
 from ..config import get_settings_instance
-from datetime import datetime, timedelta, timezone, UTC
+from datetime import datetime, timedelta, timezone
+UTC = timezone.utc
 import asyncio
 import time
 import logging

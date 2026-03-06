@@ -10,7 +10,8 @@ mock_es = MagicMock()
 sys.modules['elasticsearch'] = mock_es
 # --- MOCK DONE ---
 
-from datetime import datetime, UTC, timedelta
+from datetime import datetime, timezone, timedelta
+UTC = timezone.utc
 # Ensure current directory is in path for imports
 sys.path.append(os.getcwd())
 

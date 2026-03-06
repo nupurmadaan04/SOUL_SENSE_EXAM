@@ -5,7 +5,8 @@ Handles CRUD operations for all user profile types using AsyncSession.
 """
 
 from typing import Optional, Dict, Any, List
-from datetime import datetime, UTC
+from datetime import datetime, timezone
+UTC = timezone.utc
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete

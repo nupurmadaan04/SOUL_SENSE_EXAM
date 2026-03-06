@@ -1,7 +1,8 @@
 import logging
 import asyncio
 from typing import Dict, Any, List, Optional
-from datetime import datetime, UTC
+from datetime import datetime, timezone
+UTC = timezone.utc
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
 from jinja2 import Environment, DictLoader, select_autoescape

@@ -1,5 +1,6 @@
 import pytest
-from datetime import datetime, UTC
+from datetime import datetime, timezone
+UTC = timezone.utc
 from sqlalchemy.ext.asyncio import AsyncSession
 from backend.fastapi.api.models import Goal, User
 from backend.fastapi.api.services.goal_service import GoalService

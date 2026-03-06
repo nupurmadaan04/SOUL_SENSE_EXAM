@@ -11,7 +11,10 @@ import sys
 import os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from datetime import datetime, UTC
+from datetime import datetime, timezone
+
+# Python 3.10 compatibility
+UTC = timezone.utc
 from app.db import SessionLocal
 from backend.fastapi.api.models import JournalEntry, AssessmentResult, User
 

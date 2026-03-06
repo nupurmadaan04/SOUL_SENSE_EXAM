@@ -11,7 +11,8 @@ Provides AI-personalized journal prompts based on:
 import json
 import logging
 import random
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta, timezone
+UTC = timezone.utc
 from typing import List, Optional, Dict, Any
 from cachetools import TTLCache
 from sqlalchemy.ext.asyncio import AsyncSession

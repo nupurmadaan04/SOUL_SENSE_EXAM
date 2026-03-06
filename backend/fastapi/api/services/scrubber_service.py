@@ -3,7 +3,8 @@ import logging
 from typing import List, Dict, Any, Optional
 from sqlalchemy import select, delete, text
 from sqlalchemy.ext.asyncio import AsyncSession
-from datetime import datetime, UTC
+from datetime import datetime, timezone
+UTC = timezone.utc
 
 from ..models import User, ExportRecord, OutboxEvent, GDPRScrubLog
 from .storage_service import storage_service

@@ -1,4 +1,5 @@
-from datetime import UTC, datetime, timedelta, timezone
+from datetime import timezone, datetime, timedelta
+UTC = timezone.utc
 
 from api.utils.timestamps import normalize_utc_iso, utc_now_iso
 

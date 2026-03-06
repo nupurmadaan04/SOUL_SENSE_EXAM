@@ -7,7 +7,8 @@ Prevents false positives through alert timing and intervention history tracking.
 """
 
 import logging
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta, timezone
+UTC = timezone.utc
 from typing import Optional, List, Tuple
 from sqlalchemy import desc, and_
 from app.db import safe_db_context

@@ -1,7 +1,10 @@
 import time
 import statistics
 import logging
-from datetime import datetime, UTC
+from datetime import datetime, timezone
+
+# Python 3.10 compatibility
+UTC = timezone.utc
 from typing import List, Tuple, Optional, Any
 from sqlalchemy import desc, func
 from app.db import safe_db_context

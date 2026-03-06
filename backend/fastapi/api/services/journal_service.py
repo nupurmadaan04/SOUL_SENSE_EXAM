@@ -11,7 +11,8 @@ Handles business logic for journal entries including:
 
 import json
 import os
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta, timezone
+UTC = timezone.utc
 from typing import List, Optional, Tuple, Dict, Any, Callable
 from fastapi import BackgroundTasks
 

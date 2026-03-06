@@ -215,7 +215,8 @@ class DeviceFingerprintValidationMiddleware(BaseHTTPMiddleware):
         """Log security event for audit purposes."""
         try:
             from ..models import AuditLog
-            from datetime import datetime, UTC
+            from datetime import datetime, timezone
+            UTC = timezone.utc
 
             audit_log = AuditLog(
                 event_id=f"fp_{session_id}_{datetime.now(UTC).timestamp()}",

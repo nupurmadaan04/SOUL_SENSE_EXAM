@@ -189,7 +189,8 @@ def send_notification_task(self, log_id: int, channel: str, user_id: int, conten
             ))
 
 async def _execute_send_notification(log_id: int, channel: str, user_id: int, content: Dict[str, str]):
-    from datetime import datetime, UTC
+    from datetime import datetime, timezone
+    UTC = timezone.utc
     async with AsyncSessionLocal() as db:
         stmt = select(NotificationLog).where(NotificationLog.id == log_id)
         res = await db.execute(stmt)
@@ -855,7 +856,8 @@ async def _execute_send_scheduled_reminders():
     """Send all pending reminders that are due."""
     from api.services.notification_reminder_service import NotificationReminderService
     from api.models import NotificationReminder
-    from datetime import datetime, UTC
+    from datetime import datetime, timezone
+    UTC = timezone.utc
     
     async with AsyncSessionLocal() as db:
         try:
@@ -996,7 +998,8 @@ async def _create_in_app_reminder(db, user, content: dict):
     """Create an in-app notification for the user."""
     try:
         from api.models import NotificationLog
-        from datetime import datetime, UTC
+        from datetime import datetime, timezone
+        UTC = timezone.utc
         
         # Create notification log entry
         notification = NotificationLog(

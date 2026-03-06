@@ -5,7 +5,8 @@ Tests for hardened signed URL generation and validation.
 """
 
 import pytest
-from datetime import datetime, UTC, timedelta
+from datetime import datetime, timezone, timedelta
+UTC = timezone.utc
 from unittest.mock import Mock, patch, AsyncMock
 import json
 

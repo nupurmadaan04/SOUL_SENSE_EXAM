@@ -2,7 +2,8 @@ import os
 import uuid
 import logging
 from typing import Annotated
-from datetime import datetime, UTC, timedelta
+from datetime import datetime, timezone, timedelta
+UTC = timezone.utc
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from fastapi.responses import FileResponse

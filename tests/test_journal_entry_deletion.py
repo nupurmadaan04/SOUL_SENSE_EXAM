@@ -6,7 +6,8 @@ Tests the soft deletion feature for journal entries with confirmation.
 
 import pytest
 import logging
-from datetime import datetime, UTC
+from datetime import datetime, timezone
+UTC = timezone.utc
 from app.models import JournalEntry, User, Base
 from app.services.journal_service import JournalService
 from app.db import engine, safe_db_context

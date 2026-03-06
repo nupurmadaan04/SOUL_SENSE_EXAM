@@ -2,7 +2,8 @@ import asyncio
 import os
 import sys
 import json
-from datetime import datetime, UTC
+from datetime import datetime, timezone
+UTC = timezone.utc
 
 # Set PYTHONPATH
 test_dir = os.path.dirname(os.path.abspath(__file__))

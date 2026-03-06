@@ -3,7 +3,8 @@ from sqlalchemy import select, update, desc
 from sqlalchemy.orm import selectinload
 from typing import List, Optional, Tuple, Dict, Any
 from uuid import uuid4
-from datetime import datetime, UTC
+from datetime import datetime, timezone
+UTC = timezone.utc
 import logging
 
 from ..models import (

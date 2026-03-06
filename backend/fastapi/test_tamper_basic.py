@@ -1,4 +1,5 @@
-from datetime import datetime, UTC
+from datetime import datetime, timezone
+UTC = timezone.utc
 from api.services.tamper_evident_audit_service import TamperEvidentAuditService
 
 # Test basic functionality

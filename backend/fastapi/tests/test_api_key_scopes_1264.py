@@ -12,7 +12,8 @@ Tests cover:
 
 import pytest
 import asyncio
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta, timezone
+UTC = timezone.utc
 from unittest.mock import Mock, AsyncMock
 from fastapi import HTTPException, Request
 from fastapi.testclient import TestClient

@@ -7,7 +7,8 @@ extreme distress patterns and creates appropriate crisis alerts.
 
 import pytest
 import logging
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta, timezone
+UTC = timezone.utc
 from unittest.mock import Mock, patch, MagicMock
 
 from app.models import Response, JournalEntry, CrisisAlert, User, Base

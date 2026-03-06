@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional, Dict, Any
-from datetime import datetime, UTC
+from datetime import datetime, timezone
+UTC = timezone.utc
 from ..services.db_service import get_db
 from ..services.audit_service import AuditService
 from ..models import User

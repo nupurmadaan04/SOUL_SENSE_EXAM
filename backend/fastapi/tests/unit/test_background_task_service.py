@@ -11,7 +11,8 @@ Tests cover:
 
 import pytest
 from unittest.mock import Mock, patch, MagicMock
-from datetime import UTC, datetime, timedelta
+from datetime import timezone, datetime, timedelta
+UTC = timezone.utc
 import json
 
 from api.services.background_task_service import (

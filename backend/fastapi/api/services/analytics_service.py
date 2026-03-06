@@ -3,7 +3,8 @@ from sqlalchemy import func, case, distinct, select, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import Session
 from typing import List, Dict, Tuple, Optional, Any
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta, timezone
+UTC = timezone.utc
 
 from ..models import Score, User, AnalyticsEvent
 from ..utils.telemetry import get_telemetry_exporter

@@ -15,7 +15,8 @@ from fastapi.testclient import TestClient
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 import asyncio
-from datetime import datetime, timedelta, UTC
+from datetime import datetime, timedelta, timezone
+UTC = timezone.utc
 
 from api.main import app
 from api.services.auth_service import AuthService

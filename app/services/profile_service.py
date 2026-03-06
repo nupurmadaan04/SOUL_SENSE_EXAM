@@ -1,7 +1,10 @@
 import logging
 import json
 from typing import Optional, Dict, Any, List
-from datetime import datetime, UTC
+from datetime import datetime, timezone
+
+# Python 3.10 compatibility
+UTC = timezone.utc
 from app.db import safe_db_context
 from app.models import (
     User, UserProfile, PersonalProfile, MedicalProfile, 

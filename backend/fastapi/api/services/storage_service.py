@@ -2,7 +2,8 @@ import os
 import logging
 from pathlib import Path
 from typing import Optional, List
-from datetime import datetime, UTC
+from datetime import datetime, timezone
+UTC = timezone.utc
 from ..utils.fd_guard import FDGuard
 
 logger = logging.getLogger("api.storage")
