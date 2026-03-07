@@ -29,6 +29,12 @@ try:
 except ImportError:
     BACKFILL_REGISTRY_AVAILABLE = False
 
+# Import cross-region migration sequencer
+try:
+    from app.infra.cross_region_migration_registry import get_cross_region_registry
+    CROSS_REGION_AVAILABLE = True
+except ImportError:
+    CROSS_REGION_AVAILABLE = False
 # Import shadow table swap validator
 try:
     from app.infra.shadow_table_swap_validator import ShadowTableSwapValidator
@@ -136,6 +142,9 @@ def log_backfill_registry_status() -> None:
         pass  # Graceful degradation
 
 
+def log_cross_region_sequencer_status() -> None:
+    """Log cross-region migration sequencer availability."""
+    if not CROSS_REGION_AVAILABLE:
 def log_shadow_table_validator_status() -> None:
     """Log shadow table swap validator availability."""
     if not SHADOW_VALIDATOR_AVAILABLE:
@@ -144,6 +153,9 @@ def log_shadow_table_validator_status() -> None:
     try:
         import logging
         log = logging.getLogger(__name__)
+        
+        registry = get_cross_region_registry()
+        log.info("✓ Cross-Region Migration Sequencer: Available for multi-region migrations")
         log.info("✓ Shadow Table Swap Validator: Available for zero-downtime migrations")
     except Exception:
         pass  # Graceful degradation
@@ -176,6 +188,7 @@ def run_migrations_offline() -> None:
     url = DATABASE_URL # Use app config
     log_index_policy_info(url)
     log_backfill_registry_status()
+    log_cross_region_sequencer_status()
     log_shadow_table_validator_status()
     log_rollback_rehearsal_status()
     
@@ -218,6 +231,7 @@ def run_migrations_online() -> None:
     # Log index policy and backfill registry information
     log_index_policy_info(target_url)
     log_backfill_registry_status()
+    log_cross_region_sequencer_status()
     log_shadow_table_validator_status()
     log_rollback_rehearsal_status()
         

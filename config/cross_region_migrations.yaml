@@ -1,0 +1,30 @@
+# Cross-Region Migration Configuration
+#
+# Define regions and their migration execution order.
+# Regions are executed in priority order.
+# Use replica_of to create dependencies (executed after parent region).
+
+regions:
+  # Primary region - executes first
+  - name: us-east-1
+    database_url: ${DATABASE_URL_USEAST}
+    environment: production
+    priority: 1
+    timeout_seconds: 120
+    replica_of: null
+
+  # First replica - depends on us-east-1
+  - name: us-west-2
+    database_url: ${DATABASE_URL_USWEST}
+    environment: production
+    priority: 2
+    timeout_seconds: 120
+    replica_of: us-east-1
+
+  # EU region - can execute independently
+  - name: eu-west-1
+    database_url: ${DATABASE_URL_EUWEST}
+    environment: production
+    priority: 3
+    timeout_seconds: 120
+    replica_of: null
