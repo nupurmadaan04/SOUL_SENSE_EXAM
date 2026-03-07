@@ -104,6 +104,17 @@ jobs:
           path: vulnerability-report.json
           retention-days: 90
 
+      - name: Check Breaking Changes Changelog Gate
+        if: github.event_name == 'pull_request'
+        run: python scripts/changelog_gate.py --pr-body "${{ github.event.pull_request.body }}" --project-root . --report changelog-report.json
+
+      - name: Upload Changelog Report
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: changelog-report-${{ github.sha }}
+          path: changelog-report.json
+          retention-days: 90
       - name: Enforce Static Analysis Budget
         run: python scripts/static_analysis_gate.py --config config/static_analysis_budget.json --report static-analysis-budget-report.json
 
