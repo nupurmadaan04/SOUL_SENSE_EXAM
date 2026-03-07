@@ -6,15 +6,92 @@
 
 export type MoodLevel = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
 
-export const PRESET_TAGS = [
+/**
+ * Emotion tag categories for granular emotion tracking (Issue #1334)
+ */
+export const EMOTION_CATEGORIES = {
+    positive: ['happy', 'excited', 'grateful', 'peaceful', 'proud', 'hopeful', 'energized'],
+    negative: ['sad', 'angry', 'frustrated', 'anxious', 'disappointed', 'overwhelmed', 'exhausted'],
+    neutral: ['calm', 'focused', 'curious', 'neutral', 'thoughtful', 'contemplative'],
+} as const;
+
+/**
+ * Emoji mappings for emotion tags (Issue #1334)
+ */
+export const EMOTION_EMOJIS: Record<string, string> = {
+    // Positive emotions
+    happy: '😊',
+    excited: '🤩',
+    grateful: '🙏',
+    peaceful: '😌',
+    proud: '🎉',
+    hopeful: '🌟',
+    energized: '⚡',
+    // Negative emotions
+    sad: '😢',
+    angry: '😠',
+    frustrated: '😤',
+    anxious: '😰',
+    disappointed: '😞',
+    overwhelmed: '😵',
+    exhausted: '😫',
+    // Neutral emotions
+    calm: '🧘',
+    focused: '🎯',
+    curious: '🤔',
+    neutral: '😐',
+    thoughtful: '💭',
+    contemplative: '🤐',
+};
+
+/**
+ * General tags for journal categorization
+ */
+export const GENERAL_TAGS = [
     "work",
     "family",
     "health",
     "relationships",
     "personal",
-    "gratitude",
     "goals",
-    "stress",
+    "achievement",
+    "learning",
+] as const;
+
+/**
+ * All available preset tags combining emotions and general categories (Issue #1334)
+ */
+export const PRESET_TAGS = [
+    // Positive emotions
+    "happy",
+    "excited",
+    "grateful",
+    "peaceful",
+    "proud",
+    "hopeful",
+    "energized",
+    // Negative emotions
+    "sad",
+    "angry",
+    "frustrated",
+    "anxious",
+    "disappointed",
+    "overwhelmed",
+    "exhausted",
+    // Neutral emotions
+    "calm",
+    "focused",
+    "curious",
+    "neutral",
+    "thoughtful",
+    "contemplative",
+    // General categories
+    "work",
+    "family",
+    "health",
+    "relationships",
+    "personal",
+    "goals",
     "achievement",
     "learning",
 ] as const;

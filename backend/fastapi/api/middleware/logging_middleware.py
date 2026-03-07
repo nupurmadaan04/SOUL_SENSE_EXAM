@@ -7,7 +7,8 @@ Provides comprehensive request/response logging with:
 - JSON-formatted structured logs
 - X-Request-ID response header for frontend tracing
 - PII protection (no body logging for sensitive endpoints)
-- Context variable propagation for nested logging
+- Context variable propagation for nested logging and async tasks
+- Integration with context propagation system for traceability across async boundaries
 """
 
 import json
@@ -15,16 +16,38 @@ import logging
 import time
 import uuid
 from contextvars import ContextVar
-from typing import Callable, Optional
+from typing import Callable, Optional, Dict, Any
 
 from ..utils.deep_redactor import DeepRedactorFormatter
+from ..utils.context_propagation import (
+    request_id_ctx,
+    user_id_ctx,
+    correlation_id_ctx,
+    request_path_ctx,
+    client_ip_ctx,
+    trace_parent_ctx,
+    RequestContext,
+    capture_request_context,
+    set_context_vars,
+    reset_context_vars,
+    TracingContextFilter,
+)
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
-# Context variable to store request_id for the current request
-# This allows nested functions/services to access request_id without passing it explicitly
-request_id_ctx: ContextVar[Optional[str]] = ContextVar("request_id", default=None)
+# Re-export for backward compatibility
+from ..utils.context_propagation import (
+    get_request_id,
+    get_user_id,
+    get_correlation_id,
+    get_trace_parent,
+    get_full_context,
+    propagate_context,
+    propagate_context_sync,
+    create_task_with_context,
+    ContextPropagator,
+)
 
 
 class RequestIdFilter(logging.Filter):
@@ -33,6 +56,7 @@ class RequestIdFilter(logging.Filter):
     def filter(self, record: logging.LogRecord) -> bool:
         record.request_id = request_id_ctx.get() or "-"
         return True
+
 
 logger = logging.getLogger("api.requests")
 
@@ -48,6 +72,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
     - Adds X-Request-ID header to responses for frontend tracing
     - Protects PII by avoiding body logging on sensitive endpoints
     - Uses contextvars for request ID propagation throughout request lifecycle
+    - Sets up context for propagation into async tasks (Issue #1363)
     """
     
     # Sensitive endpoints where we should NOT log request/response bodies
@@ -83,6 +108,8 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         root_logger = logging.getLogger()
         for root_handler in root_logger.handlers:
             root_handler.addFilter(RequestIdFilter())
+            # Also add TracingContextFilter for enhanced tracing (Issue #1363)
+            root_handler.addFilter(TracingContextFilter())
     
     def _get_client_ip(self, request: Request) -> str:
         """
@@ -139,26 +166,60 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         
         return sanitized
     
+    def _capture_full_context(self, request: Request) -> RequestContext:
+        """
+        Capture full request context including distributed tracing info.
+        
+        Issue #1363: Request Context Propagation into Async Tasks
+        Captures all relevant context for propagation to async boundaries.
+        """
+        request_id = str(uuid.uuid4())
+        
+        # Get user_id if authenticated
+        user_id = getattr(request.state, "user_id", None)
+        
+        # Get correlation ID from headers (for distributed tracing)
+        correlation_id = request.headers.get("X-Correlation-ID")
+        
+        # Get W3C trace context
+        trace_parent = request.headers.get("traceparent")
+        
+        return RequestContext(
+            request_id=request_id,
+            user_id=user_id,
+            correlation_id=correlation_id,
+            request_path=str(request.url.path),
+            client_ip=self._get_client_ip(request),
+            trace_parent=trace_parent,
+            metadata={
+                "user_agent": request.headers.get("User-Agent", "unknown"),
+                "method": request.method,
+            }
+        )
+    
     async def dispatch(self, request: Request, call_next: Callable) -> Response:
         """
-        Process the request with comprehensive logging.
+        Process the request with comprehensive logging and context setup.
         
         1. Generate unique request ID
-        2. Set request ID in context variable
+        2. Set request context in context variables for propagation
         3. Record start time
         4. Process request
         5. Calculate processing time
         6. Log structured request/response data
         7. Add X-Request-ID header to response
-        """
-        # Generate unique request ID
-        request_id = str(uuid.uuid4())
         
-        # Set request ID in context variable for propagation
-        token = request_id_ctx.set(request_id)
+        Issue #1363: Sets up context that can be captured and propagated to async tasks
+        """
+        # Capture full request context
+        context = self._capture_full_context(request)
+        
+        # Set all context variables for propagation
+        tokens = set_context_vars(context)
         
         # Store request_id in request state for access in route handlers
-        request.state.request_id = request_id
+        request.state.request_id = context.request_id
+        request.state.request_context = context  # Store full context for easy access
         
         # Record start time
         start_time = time.time()
@@ -166,19 +227,27 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         # Extract request metadata
         method = request.method
         path = request.url.path
-        client_ip = self._get_client_ip(request)
+        client_ip = context.client_ip
         user_agent = request.headers.get("User-Agent", "unknown")
         is_sensitive = self._is_sensitive_path(path)
         
         # Log incoming request
         request_log = {
             "event": "request_started",
-            "request_id": request_id,
+            "request_id": context.request_id,
             "method": method,
             "path": path,
             "client_ip": client_ip,
             "user_agent": user_agent,
         }
+        
+        # Add correlation ID if present
+        if context.correlation_id:
+            request_log["correlation_id"] = context.correlation_id
+        
+        # Add trace parent if present
+        if context.trace_parent:
+            request_log["trace_parent"] = context.trace_parent
         
         # Add query params if not sensitive
         if not is_sensitive and request.query_params:
@@ -195,15 +264,21 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             process_time = (time.time() - start_time) * 1000  # Convert to milliseconds
             
             # Add X-Request-ID header to response for frontend correlation
-            response.headers["X-Request-ID"] = request_id
+            response.headers["X-Request-ID"] = context.request_id
+            
+            # Add correlation ID header if it was provided
+            if context.correlation_id:
+                response.headers["X-Correlation-ID"] = context.correlation_id
             
             # Extract user ID from request state if available (set by auth middleware)
             user_id = getattr(request.state, "user_id", None)
+            if user_id and not context.user_id:
+                context.user_id = user_id
             
             # Log request completion
             response_log = {
                 "event": "request_completed",
-                "request_id": request_id,
+                "request_id": context.request_id,
                 "method": method,
                 "path": path,
                 "client_ip": client_ip,
@@ -212,8 +287,12 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             }
             
             # Add user ID if authenticated
-            if user_id:
-                response_log["user_id"] = user_id
+            if context.user_id:
+                response_log["user_id"] = context.user_id
+            
+            # Add correlation ID if present
+            if context.correlation_id:
+                response_log["correlation_id"] = context.correlation_id
             
             # Add response size if available
             if "content-length" in response.headers:
@@ -231,12 +310,14 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             if process_time > 500:
                 slow_log = {
                     "event": "slow_request",
-                    "request_id": request_id,
+                    "request_id": context.request_id,
                     "method": method,
                     "path": path,
                     "process_time_ms": round(process_time, 2),
                     "threshold_ms": 500,
                 }
+                if context.user_id:
+                    slow_log["user_id"] = context.user_id
                 logger.warning(json.dumps(slow_log))
             
             return response
@@ -245,7 +326,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             process_time = (time.time() - start_time) * 1000
             error_log = {
                 "event": "request_error",
-                "request_id": request_id,
+                "request_id": context.request_id,
                 "method": method,
                 "path": path,
                 "client_ip": client_ip,
@@ -253,30 +334,13 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
                 "error_type": type(e).__name__,
                 "process_time_ms": round(process_time, 2),
             }
+            if context.user_id:
+                error_log["user_id"] = context.user_id
             logger.error(json.dumps(error_log), exc_info=True)
             raise
         finally:
-            request_id_ctx.reset(token)
-
-
-def get_request_id() -> Optional[str]:
-    """
-    Get the current request ID from context.
-    
-    This function can be called from anywhere in the request lifecycle
-    (services, utilities, etc.) to get the current request ID for logging.
-    
-    Returns:
-        str: Current request ID or None if not in request context
-        
-    Example:
-        from api.middleware.logging_middleware import get_request_id
-        
-        def some_service_function():
-            request_id = get_request_id()
-            logger.info(f"Processing data for request {request_id}")
-    """
-    return request_id_ctx.get()
+            # Always reset context to prevent leakage
+            reset_context_vars(tokens)
 
 
 class ContextualLogger:
@@ -297,12 +361,21 @@ class ContextualLogger:
     def _add_context(self, msg: str, **kwargs) -> str:
         from ..utils.deep_redactor import DeepRedactor
         request_id = get_request_id()
+        correlation_id = get_correlation_id()
+        user_id = get_user_id()
+        
         # Redact the message itself
         redacted_msg = DeepRedactor.redact(msg)
         log_data = {"message": redacted_msg}
         
         if request_id:
             log_data["request_id"] = request_id
+        
+        if correlation_id:
+            log_data["correlation_id"] = correlation_id
+        
+        if user_id:
+            log_data["user_id"] = user_id
         
         # Add and redact any extra context
         if kwargs:
@@ -326,3 +399,27 @@ class ContextualLogger:
     def debug(self, msg: str, **kwargs):
         """Log debug message with context."""
         self.logger.debug(self._add_context(msg, **kwargs))
+
+
+def create_request_context_from_state(request: Request) -> Optional[RequestContext]:
+    """
+    Helper function to get request context from request state.
+    
+    Useful when scheduling background tasks from route handlers.
+    
+    Args:
+        request: FastAPI request object
+        
+    Returns:
+        RequestContext if available, None otherwise
+        
+    Example:
+        @app.post("/export")
+        async def export_data(request: Request):
+            context = create_request_context_from_state(request)
+            # Pass context to background task
+            asyncio.create_task(
+                propagate_context(context, process_export, data)
+            )
+    """
+    return getattr(request.state, "request_context", None)

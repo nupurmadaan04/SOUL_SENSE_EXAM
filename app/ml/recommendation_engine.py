@@ -86,6 +86,9 @@ class RecommendationEngine:
                     "categories": list(set(insight.get("category", "general") for insight in insights)),
                     "generated_at": datetime.now().isoformat()
                 }
+        except Exception as e:
+            logger.error(f"Error generating insights for {username}: {e}")
+            return {"insights": [], "error": str(e)}
 
     def suggest_interventions(self, username: str, risk_level: str = "medium") -> Dict[str, Any]:
         """
@@ -126,6 +129,9 @@ class RecommendationEngine:
                     "total_suggestions": len(interventions),
                     "generated_at": datetime.now().isoformat()
                 }
+        except Exception as e:
+            logger.error(f"Error suggesting interventions for {username}: {e}")
+            return {"interventions": [], "error": str(e)}
 
     def create_personalized_prompts(self, username: str, trends: List[Dict]) -> List[Dict[str, Any]]:
         """
@@ -203,6 +209,9 @@ class RecommendationEngine:
                     prompts.append(personalized)
 
                 return prompts
+        except Exception as e:
+            logger.error(f"Error creating personalized prompts for {username}: {e}")
+            return []
 
     def _analyze_patterns(self, patterns: List[Dict], recent_scores: List) -> List[Dict[str, Any]]:
         """Analyze patterns and generate insights."""

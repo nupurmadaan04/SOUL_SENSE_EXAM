@@ -34,7 +34,6 @@ api_router.include_router(export.router, prefix="/reports/export", tags=["Export
 api_router.include_router(deep_dive.router, prefix="/deep-dive", tags=["Deep Dive"])
 api_router.include_router(goals.router, prefix="/goals", tags=["Goals"])
 api_router.include_router(gamification.router, prefix="/gamification", tags=["Gamification"])
-api_router.include_router(goals.router, prefix="/goals", tags=["Goals"])
 api_router.include_router(audit.router, prefix="/audit", tags=["Audit"])
 api_router.include_router(tasks.router, prefix="/tasks", tags=["Background Tasks"])
 api_router.include_router(consent.router, prefix="/consent", tags=["Consent"])
@@ -43,4 +42,3 @@ api_router.include_router(flags.router, prefix="/admin/flags", tags=["Feature Fl
 api_router.include_router(api_keys.router, prefix="/api-keys", tags=["API Keys"])
 api_router.include_router(tamper_evident_audit.router, prefix="/tamper-evident-audit", tags=["Tamper-Evident Audit"])
 api_router.include_router(dlq.router, prefix="/admin/dlq", tags=["Dead-Letter Queue (Admin)"])
-

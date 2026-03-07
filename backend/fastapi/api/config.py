@@ -57,7 +57,17 @@ class BaseAppSettings(BaseSettings):
     replica_database_url: Optional[str] = Field(
         default=None, 
         description="Read-replica database URL"
-    )    # Connection pooling configuration
+    )
+    
+    # Read-Replica Lag Detection Configuration
+    enable_replica_lag_detection: bool = Field(default=True, description="Enable replica lag detection and routing")
+    replica_lag_threshold_ms: int = Field(default=5000, ge=0, le=60000, description="Maximum acceptable replica lag in milliseconds")
+    replica_lag_check_interval_seconds: int = Field(default=10, ge=1, le=300, description="Interval to check replica lag in seconds")
+    replica_lag_cache_ttl_seconds: int = Field(default=5, ge=1, le=60, description="TTL for cached lag measurements in seconds")
+    replica_lag_timeout_seconds: float = Field(default=2.0, ge=0.1, le=10.0, description="Timeout for lag check queries in seconds")
+    replica_lag_fallback_on_error: bool = Field(default=True, description="Fallback to primary on lag check errors")
+    
+    # Connection pooling configuration
     use_pgbouncer: bool = Field(default=False, description="Use PgBouncer for connection pooling")
     pgbouncer_host: str = Field(default="localhost", description="PgBouncer host")
     pgbouncer_port: int = Field(default=6432, description="PgBouncer port")

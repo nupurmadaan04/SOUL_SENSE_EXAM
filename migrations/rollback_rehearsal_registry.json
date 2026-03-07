@@ -1,0 +1,446 @@
+{
+  "version": "1.0",
+  "created_at": "2026-03-07T05:10:48.652483",
+  "rehearsals": [
+    {
+      "migration_version": "026c42076d07_add_session_id_to_scores_and_responses",
+      "migration_name": "Add session_id to scores and responses",
+      "status": "failed",
+      "reversibility_score": 0,
+      "duration_up_ms": 0.0,
+      "duration_down_ms": 0.0,
+      "warnings": [
+        "DROP COLUMN - data loss",
+        "\u26a0 CREATE INDEX may lock table"
+      ],
+      "error_message": "No upgrade() function found",
+      "non_reversible_ops": [
+        "DROP COLUMN - data loss"
+      ],
+      "timestamp": "2026-03-07T05:11:37.681159"
+    },
+    {
+      "migration_version": "0394250e44ad_pr1_foundation",
+      "migration_name": "pr1_foundation",
+      "status": "failed",
+      "reversibility_score": 0,
+      "duration_up_ms": 0.0,
+      "duration_down_ms": 0.0,
+      "warnings": [
+        "DROP TABLE - data cannot be restored",
+        "DROP COLUMN - data loss",
+        "\u26a0 CREATE INDEX may lock table"
+      ],
+      "error_message": "No upgrade() function found",
+      "non_reversible_ops": [
+        "DROP TABLE - data cannot be restored",
+        "DROP COLUMN - data loss"
+      ],
+      "timestamp": "2026-03-07T05:11:37.682211"
+    },
+    {
+      "migration_version": "1bbd171978ec_add_device_fingerprinting_to_sessions",
+      "migration_name": "add_device_fingerprinting_to_sessions",
+      "status": "failed",
+      "reversibility_score": 0,
+      "duration_up_ms": 0.0,
+      "duration_down_ms": 0.0,
+      "warnings": [
+        "DROP COLUMN - data loss",
+        "\u26a0 CREATE INDEX may lock table"
+      ],
+      "error_message": "No upgrade() function found",
+      "non_reversible_ops": [
+        "DROP COLUMN - data loss"
+      ],
+      "timestamp": "2026-03-07T05:11:37.682211"
+    },
+    {
+      "migration_version": "1fc597e57c19_add_user_strengths_table",
+      "migration_name": "add user_strengths table",
+      "status": "failed",
+      "reversibility_score": 0,
+      "duration_up_ms": 0.0,
+      "duration_down_ms": 0.0,
+      "warnings": [
+        "DROP TABLE - data cannot be restored",
+        "\u26a0 CREATE INDEX may lock table"
+      ],
+      "error_message": "No upgrade() function found",
+      "non_reversible_ops": [
+        "DROP TABLE - data cannot be restored"
+      ],
+      "timestamp": "2026-03-07T05:11:37.683166"
+    },
+    {
+      "migration_version": "20260227102116_normalize_score_response_user_id_fk",
+      "migration_name": "normalize_score_response_user_id_fk",
+      "status": "failed",
+      "reversibility_score": 0,
+      "duration_up_ms": 0.0,
+      "duration_down_ms": 0.0,
+      "warnings": [
+        "DROP COLUMN - data loss",
+        "\u26a0 CREATE INDEX may lock table"
+      ],
+      "error_message": "No upgrade() function found",
+      "non_reversible_ops": [
+        "DROP COLUMN - data loss"
+      ],
+      "timestamp": "2026-03-07T05:11:37.683166"
+    },
+    {
+      "migration_version": "20260227_160145_add_performance_indexes",
+      "migration_name": "add_performance_indexes",
+      "status": "failed",
+      "reversibility_score": 0,
+      "duration_up_ms": 0.0,
+      "duration_down_ms": 0.0,
+      "warnings": [
+        "\u26a0 CREATE INDEX may lock table"
+      ],
+      "error_message": "No upgrade() function found",
+      "non_reversible_ops": [],
+      "timestamp": "2026-03-07T05:11:37.684206"
+    },
+    {
+      "migration_version": "20260301_093000_normalize_users_created_at_utc_iso",
+      "migration_name": "normalize_users_created_at_utc_iso",
+      "status": "failed",
+      "reversibility_score": 0,
+      "duration_up_ms": 0.0,
+      "duration_down_ms": 0.0,
+      "warnings": [
+        "DELETE FROM - data loss"
+      ],
+      "error_message": "No upgrade() function found",
+      "non_reversible_ops": [
+        "DELETE FROM - data loss"
+      ],
+      "timestamp": "2026-03-07T05:11:37.684206"
+    },
+    {
+      "migration_version": "28f7f5014a54_add_tags_to_journal_entries",
+      "migration_name": "add_tags_to_journal_entries",
+      "status": "failed",
+      "reversibility_score": 0,
+      "duration_up_ms": 0.0,
+      "duration_down_ms": 0.0,
+      "warnings": [],
+      "error_message": "No upgrade() function found",
+      "non_reversible_ops": [],
+      "timestamp": "2026-03-07T05:11:37.684206"
+    },
+    {
+      "migration_version": "2eaa9d975b79_add_personal_profiles_table",
+      "migration_name": "Add personal_profiles table",
+      "status": "failed",
+      "reversibility_score": 0,
+      "duration_up_ms": 0.0,
+      "duration_down_ms": 0.0,
+      "warnings": [
+        "DROP TABLE - data cannot be restored",
+        "\u26a0 CREATE INDEX may lock table"
+      ],
+      "error_message": "No upgrade() function found",
+      "non_reversible_ops": [
+        "DROP TABLE - data cannot be restored"
+      ],
+      "timestamp": "2026-03-07T05:11:37.685210"
+    },
+    {
+      "migration_version": "33d85e6f18ff_add_medical_profiles",
+      "migration_name": "add medical profiles",
+      "status": "failed",
+      "reversibility_score": 0,
+      "duration_up_ms": 0.0,
+      "duration_down_ms": 0.0,
+      "warnings": [
+        "DROP TABLE - data cannot be restored",
+        "\u26a0 CREATE INDEX may lock table"
+      ],
+      "error_message": "No upgrade() function found",
+      "non_reversible_ops": [
+        "DROP TABLE - data cannot be restored"
+      ],
+      "timestamp": "2026-03-07T05:11:37.685210"
+    },
+    {
+      "migration_version": "49d6f6cd21b6_add_unique_constraint_user_question_",
+      "migration_name": "add_unique_constraint_user_question_responses",
+      "status": "failed",
+      "reversibility_score": 0,
+      "duration_up_ms": 0.0,
+      "duration_down_ms": 0.0,
+      "warnings": [],
+      "error_message": "No upgrade() function found",
+      "non_reversible_ops": [],
+      "timestamp": "2026-03-07T05:11:37.685210"
+    },
+    {
+      "migration_version": "51f39ae2a4d0_merge_multiple_heads",
+      "migration_name": "Merge multiple heads",
+      "status": "failed",
+      "reversibility_score": 0,
+      "duration_up_ms": 0.0,
+      "duration_down_ms": 0.0,
+      "warnings": [],
+      "error_message": "No upgrade() function found",
+      "non_reversible_ops": [],
+      "timestamp": "2026-03-07T05:11:37.686206"
+    },
+    {
+      "migration_version": "64a9bde24d3d_add_profile_enhanced_columns",
+      "migration_name": "Add profile enhanced columns",
+      "status": "failed",
+      "reversibility_score": 0,
+      "duration_up_ms": 0.0,
+      "duration_down_ms": 0.0,
+      "warnings": [
+        "DROP TABLE - data cannot be restored",
+        "DROP COLUMN - data loss"
+      ],
+      "error_message": "No upgrade() function found",
+      "non_reversible_ops": [
+        "DROP TABLE - data cannot be restored",
+        "DROP COLUMN - data loss"
+      ],
+      "timestamp": "2026-03-07T05:11:37.686206"
+    },
+    {
+      "migration_version": "679f6276cf18_add_soft_delete_fields",
+      "migration_name": "add_soft_delete_fields",
+      "status": "failed",
+      "reversibility_score": 0,
+      "duration_up_ms": 0.0,
+      "duration_down_ms": 0.0,
+      "warnings": [
+        "DROP COLUMN - data loss",
+        "DELETE FROM - data loss"
+      ],
+      "error_message": "No upgrade() function found",
+      "non_reversible_ops": [
+        "DROP COLUMN - data loss",
+        "DELETE FROM - data loss"
+      ],
+      "timestamp": "2026-03-07T05:11:37.686206"
+    },
+    {
+      "migration_version": "9883f3a97d37_merge_heads_before_device_fingerprinting",
+      "migration_name": "merge_heads_before_device_fingerprinting",
+      "status": "failed",
+      "reversibility_score": 0,
+      "duration_up_ms": 0.0,
+      "duration_down_ms": 0.0,
+      "warnings": [],
+      "error_message": "No upgrade() function found",
+      "non_reversible_ops": [],
+      "timestamp": "2026-03-07T05:11:37.686206"
+    },
+    {
+      "migration_version": "a1b2c3d4e5f6_add_step_up_tokens_table",
+      "migration_name": "add_step_up_tokens_table",
+      "status": "failed",
+      "reversibility_score": 0,
+      "duration_up_ms": 0.0,
+      "duration_down_ms": 0.0,
+      "warnings": [
+        "DROP TABLE - data cannot be restored",
+        "\u26a0 CREATE INDEX may lock table"
+      ],
+      "error_message": "No upgrade() function found",
+      "non_reversible_ops": [
+        "DROP TABLE - data cannot be restored"
+      ],
+      "timestamp": "2026-03-07T05:11:37.687157"
+    },
+    {
+      "migration_version": "a7b8c9d0e1f2_add_wave2_missing_columns",
+      "migration_name": "Add Wave 2 missing columns to personal_profiles, user_settings, user_strengths",
+      "status": "failed",
+      "reversibility_score": 0,
+      "duration_up_ms": 0.0,
+      "duration_down_ms": 0.0,
+      "warnings": [
+        "DROP COLUMN - data loss"
+      ],
+      "error_message": "No upgrade() function found",
+      "non_reversible_ops": [
+        "DROP COLUMN - data loss"
+      ],
+      "timestamp": "2026-03-07T05:11:37.687157"
+    },
+    {
+      "migration_version": "b33b18452387_initial_schema",
+      "migration_name": "Initial schema",
+      "status": "failed",
+      "reversibility_score": 0,
+      "duration_up_ms": 0.0,
+      "duration_down_ms": 0.0,
+      "warnings": [
+        "DROP TABLE - data cannot be restored"
+      ],
+      "error_message": "No upgrade() function found",
+      "non_reversible_ops": [
+        "DROP TABLE - data cannot be restored"
+      ],
+      "timestamp": "2026-03-07T05:11:37.688167"
+    },
+    {
+      "migration_version": "bb3da7500d82_add_support_system_fields",
+      "migration_name": "Add support system fields to personal_profiles",
+      "status": "failed",
+      "reversibility_score": 0,
+      "duration_up_ms": 0.0,
+      "duration_down_ms": 0.0,
+      "warnings": [
+        "DROP COLUMN - data loss"
+      ],
+      "error_message": "No upgrade() function found",
+      "non_reversible_ops": [
+        "DROP COLUMN - data loss"
+      ],
+      "timestamp": "2026-03-07T05:11:37.688167"
+    },
+    {
+      "migration_version": "c0d9a527bd0e_enhance_audit_logs_schema",
+      "migration_name": "Enhance audit logs schema for comprehensive security monitoring",
+      "status": "failed",
+      "reversibility_score": 0,
+      "duration_up_ms": 0.0,
+      "duration_down_ms": 0.0,
+      "warnings": [
+        "DROP COLUMN - data loss",
+        "DELETE FROM - data loss",
+        "\u26a0 CREATE INDEX may lock table"
+      ],
+      "error_message": "No upgrade() function found",
+      "non_reversible_ops": [
+        "DROP COLUMN - data loss",
+        "DELETE FROM - data loss"
+      ],
+      "timestamp": "2026-03-07T05:11:37.689159"
+    },
+    {
+      "migration_version": "c62bcfa45980_add_daily_metrics_to_journal",
+      "migration_name": "add_daily_metrics_to_journal",
+      "status": "failed",
+      "reversibility_score": 0,
+      "duration_up_ms": 0.0,
+      "duration_down_ms": 0.0,
+      "warnings": [
+        "DROP TABLE - data cannot be restored",
+        "DROP COLUMN - data loss",
+        "\u26a0 CREATE INDEX may lock table"
+      ],
+      "error_message": "No upgrade() function found",
+      "non_reversible_ops": [
+        "DROP TABLE - data cannot be restored",
+        "DROP COLUMN - data loss"
+      ],
+      "timestamp": "2026-03-07T05:11:37.690156"
+    },
+    {
+      "migration_version": "cd7e021130c1_add_journal_v2_metrics",
+      "migration_name": "Add journal v2 metrics",
+      "status": "failed",
+      "reversibility_score": 0,
+      "duration_up_ms": 0.0,
+      "duration_down_ms": 0.0,
+      "warnings": [
+        "DROP COLUMN - data loss"
+      ],
+      "error_message": "No upgrade() function found",
+      "non_reversible_ops": [
+        "DROP COLUMN - data loss"
+      ],
+      "timestamp": "2026-03-07T05:11:37.691162"
+    },
+    {
+      "migration_version": "d108d0b41e08_add_constraint_for_answer_scale",
+      "migration_name": "Add constraint for answer scale",
+      "status": "failed",
+      "reversibility_score": 0,
+      "duration_up_ms": 0.0,
+      "duration_down_ms": 0.0,
+      "warnings": [
+        "DELETE FROM - data loss"
+      ],
+      "error_message": "No upgrade() function found",
+      "non_reversible_ops": [
+        "DELETE FROM - data loss"
+      ],
+      "timestamp": "2026-03-07T05:11:37.691162"
+    },
+    {
+      "migration_version": "e4f5a6b7c8d9_add_advanced_analytics_tables",
+      "migration_name": "Add advanced analytics tables for emotional pattern recognition",
+      "status": "failed",
+      "reversibility_score": 0,
+      "duration_up_ms": 0.0,
+      "duration_down_ms": 0.0,
+      "warnings": [
+        "DROP TABLE - data cannot be restored",
+        "\u26a0 CREATE INDEX may lock table"
+      ],
+      "error_message": "No upgrade() function found",
+      "non_reversible_ops": [
+        "DROP TABLE - data cannot be restored"
+      ],
+      "timestamp": "2026-03-07T05:11:37.692177"
+    },
+    {
+      "migration_version": "ec4851e5e16c_add_data_usage_consent_fields_to_user_",
+      "migration_name": "Add data usage consent fields to user_settings",
+      "status": "failed",
+      "reversibility_score": 0,
+      "duration_up_ms": 0.0,
+      "duration_down_ms": 0.0,
+      "warnings": [
+        "DROP COLUMN - data loss"
+      ],
+      "error_message": "No upgrade() function found",
+      "non_reversible_ops": [
+        "DROP COLUMN - data loss"
+      ],
+      "timestamp": "2026-03-07T05:11:37.693163"
+    },
+    {
+      "migration_version": "f0e1d2c3b4a5_add_environment_separation_columns",
+      "migration_name": "Add environment separation columns for data hygiene",
+      "status": "failed",
+      "reversibility_score": 0,
+      "duration_up_ms": 0.0,
+      "duration_down_ms": 0.0,
+      "warnings": [
+        "DROP COLUMN - data loss",
+        "\u26a0 CREATE INDEX may lock table"
+      ],
+      "error_message": "No upgrade() function found",
+      "non_reversible_ops": [
+        "DROP COLUMN - data loss"
+      ],
+      "timestamp": "2026-03-07T05:11:37.693163"
+    },
+    {
+      "migration_version": "f62984ab805f_feat_all_profile_gaps",
+      "migration_name": "feat_all_profile_gaps",
+      "status": "failed",
+      "reversibility_score": 0,
+      "duration_up_ms": 0.0,
+      "duration_down_ms": 0.0,
+      "warnings": [
+        "DROP TABLE - data cannot be restored",
+        "DROP COLUMN - data loss",
+        "\u26a0 CREATE INDEX may lock table"
+      ],
+      "error_message": "No upgrade() function found",
+      "non_reversible_ops": [
+        "DROP TABLE - data cannot be restored",
+        "DROP COLUMN - data loss"
+      ],
+      "timestamp": "2026-03-07T05:11:37.695157"
+    }
+  ],
+  "last_updated": "2026-03-07T05:11:37.739060"
+}

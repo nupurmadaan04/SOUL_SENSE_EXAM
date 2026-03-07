@@ -20,6 +20,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../.
 
 from ..schemas import HealthResponse, ServiceStatus
 from ..services.db_service import get_db
+from ..services.replica_lag_monitor import get_lag_monitor
 from ..config import get_settings
 from scripts.utilities.poison_resistant_lock import PoisonResistantLock, register_lock
 
@@ -143,6 +144,62 @@ async def check_event_loop_health(request) -> ServiceStatus:
         return ServiceStatus(status="unhealthy", message=str(e), latency_ms=None)
 
 
+async def check_replica_lag(request) -> ServiceStatus:
+    """Check read-replica lag status and health."""
+    try:
+        settings = get_settings()
+        
+        # Check if replica is configured
+        if not settings.replica_database_url:
+            return ServiceStatus(
+                status="healthy", 
+                latency_ms=None, 
+                message="Replica not configured"
+            )
+        
+        # Check if lag monitoring is disabled
+        if not settings.enable_replica_lag_detection:
+            return ServiceStatus(
+                status="healthy",
+                latency_ms=None,
+                message="Replica lag monitoring disabled"
+            )
+        
+        # Get lag monitor
+        lag_monitor = get_lag_monitor()
+        if not lag_monitor:
+            return ServiceStatus(
+                status="unhealthy",
+                latency_ms=None,
+                message="Replica lag monitor not initialized"
+            )
+        
+        # Get lag metrics
+        metrics = await lag_monitor.get_lag_metrics()
+        last_lag_ms = metrics.get('last_lag_ms')
+        
+        # Determine status
+        if last_lag_ms is None:
+            status = "unhealthy"
+            message = "Unable to determine replica lag"
+        elif not metrics['replica_healthy']:
+            status = "degraded"
+            message = f"Replica lag high: {last_lag_ms:.2f}ms (threshold: {metrics['threshold_ms']}ms)"
+        else:
+            status = "healthy"
+            message = f"Replica lag: {last_lag_ms:.2f}ms"
+        
+        return ServiceStatus(
+            status=status,
+            latency_ms=last_lag_ms,
+            message=message
+        )
+        
+    except Exception as e:
+        logger.warning(f"Replica lag health check failed: {e}")
+        return ServiceStatus(status="unhealthy", message=str(e), latency_ms=None)
+
+
 def get_diagnostics() -> Dict[str, Any]:
     """Get detailed diagnostics for ?full=true."""
     import os
@@ -166,13 +223,15 @@ def get_diagnostics() -> Dict[str, Any]:
         # Resource exhaustion monitoring (FD/Handle leaks)
         if platform.system() == "Windows":
             # On Windows, we track 'handles'
-            diagnostics["open_handles"] = process.num_handles()
-        else:
-            # On Linux/macOS, we track 'file descriptors'
-            try:
-                diagnostics["open_file_descriptors"] = process.num_fds()
-            except AttributeError:
-                # Fallback for platforms where num_fds() is missing
+    replica_lag_status = await check_replica_lag(request)
+
+    services = {
+        "database": db_status,
+        "redis": redis_status,
+        "event_loop": event_loop_status,
+        "clock_skew": clock_skew_status,
+        "fd_guardrails": fd_guardrails_status,
+        "replica_lag": replica_lagms where num_fds() is missing
                 diagnostics["open_files"] = len(process.open_files())
                 diagnostics["open_connections"] = len(process.connections())
 
@@ -459,3 +518,127 @@ async def trigger_fd_cleanup(
             status_code=500,
             detail=f"Cleanup failed: {str(e)}"
         )
+
+
+# --- Replica Lag Monitoring Endpoints (Read-Replica Lag Aware Routing) ---
+
+@router.get("/replica-lag", tags=["Health", "Database"])
+async def replica_lag_status() -> Dict[str, Any]:
+    """
+    Get current replica lag metrics.
+    
+    Returns lag measurements, health status, and configuration.
+    Useful for monitoring database replication health.
+    """
+    try:
+        settings = get_settings()
+        
+        # Check if replica is configured
+        if not settings.replica_database_url:
+            return {
+                "enabled": False,
+                "message": "Read replica not configured",
+                "primary_only": True
+            }
+        
+        # Check if lag monitoring is disabled
+        if not settings.enable_replica_lag_detection:
+            return {
+                "enabled": False,
+                "message": "Replica lag monitoring disabled",
+                "replica_configured": True,
+                "reads_routed_to_replica": True
+            }
+        
+        # Get lag monitor
+        lag_monitor = get_lag_monitor()
+        if not lag_monitor:
+            raise HTTPException(
+                status_code=503,
+                detail="Replica lag monitor not initialized"
+            )
+        
+        # Get lag metrics
+        metrics = await lag_monitor.get_lag_metrics()
+        
+        return {
+            "enabled": True,
+            "replica_configured": True,
+            "metrics": metrics,
+            "configuration": {
+                "threshold_ms": settings.replica_lag_threshold_ms,
+                "check_interval_seconds": settings.replica_lag_check_interval_seconds,
+                "cache_ttl_seconds": settings.replica_lag_cache_ttl_seconds,
+                "timeout_seconds": settings.replica_lag_timeout_seconds,
+                "fallback_on_error": settings.replica_lag_fallback_on_error
+            }
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting replica lag status: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Could not retrieve replica lag status: {str(e)}"
+        )
+
+
+@router.post("/replica-lag/check", tags=["Health", "Database"])
+async def trigger_replica_lag_check() -> Dict[str, Any]:
+    """
+    Trigger manual replica lag check.
+    
+    Forces an immediate lag measurement, bypassing cache.
+    Useful for testing and troubleshooting.
+    """
+    try:
+        settings = get_settings()
+        
+        if not settings.replica_database_url:
+            raise HTTPException(
+                status_code=400,
+                detail="Read replica not configured"
+            )
+        
+        if not settings.enable_replica_lag_detection:
+            raise HTTPException(
+                status_code=400,
+                detail="Replica lag monitoring is disabled"
+            )
+        
+        lag_monitor = get_lag_monitor()
+        if not lag_monitor:
+            raise HTTPException(
+                status_code=503,
+                detail="Replica lag monitor not initialized"
+            )
+        
+        # Force a lag check
+        lag_ms = await lag_monitor.check_lag()
+        
+        if lag_ms is None:
+            return {
+                "success": False,
+                "message": "Unable to determine replica lag",
+                "metrics": await lag_monitor.get_lag_metrics()
+            }
+        
+        return {
+            "success": True,
+            "lag_ms": lag_ms,
+            "replica_healthy": lag_monitor.is_replica_healthy(),
+            "threshold_ms": settings.replica_lag_threshold_ms,
+            "within_threshold": lag_ms <= settings.replica_lag_threshold_ms,
+            "metrics": await lag_monitor.get_lag_metrics()
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error checking replica lag: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Replica lag check failed: {str(e)}"
+        )
+

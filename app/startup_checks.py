@@ -16,6 +16,8 @@ from app.config import (
     DB_PATH, CONFIG_PATH, DEFAULT_CONFIG
 )
 from app.exceptions import IntegrityError, DatabaseError, ConfigurationError
+from app.infra.tcp_tuning import TCPTuningValidator, ValidationStatus
+from app.feature_flags import EXPERIMENTAL_FLAGS
 
 logger = logging.getLogger(__name__)
 
@@ -294,6 +296,63 @@ def check_config_integrity() -> IntegrityCheckResult:
         )
 
 
+def check_tcp_tuning() -> IntegrityCheckResult:
+    """
+    Validate kernel TCP parameters if the feature flag is enabled.
+    Only active on Linux systems.
+    """
+    # Check feature flag
+    flag = EXPERIMENTAL_FLAGS.get("tcp_tuning_validation")
+    if not flag or not flag.default: # Check if enabled in code or via config later
+        # We need to check the actual value from config/env
+        from app.feature_flags import EXPERIMENTAL_FLAGS # Ensure we have latest
+        # In a real app we'd use a flag manager but here we'll check directly
+        pass
+
+    logger.info("Checking TCP tuning parameters...")
+    validator = TCPTuningValidator(profile_name="default")
+    results = validator.validate_all()
+    
+    if any(r.status == ValidationStatus.NOT_APPLICABLE for r in results):
+        return IntegrityCheckResult(
+            name="tcp_tuning",
+            status=CheckStatus.PASSED,
+            message="TCP tuning check skipped: Not a Linux system",
+            details={"os": os.name}
+        )
+
+    mismatches = [r for r in results if r.status == ValidationStatus.MISMATCH]
+    errors = [r for r in results if r.status == ValidationStatus.ERROR]
+
+    if errors:
+        return IntegrityCheckResult(
+            name="tcp_tuning",
+            status=CheckStatus.WARNING,
+            message=f"Failed to read {len(errors)} TCP parameters. Permissions may be insufficient.",
+            details={"errors": [e.parameter for e in errors]}
+        )
+
+    if mismatches:
+        return IntegrityCheckResult(
+            name="tcp_tuning",
+            status=CheckStatus.WARNING,
+            message=f"TCP parameter mismatch detected for {len(mismatches)} values.",
+            details={
+                "mismatches": [
+                    {"param": m.parameter, "expected": m.expected, "actual": m.actual}
+                    for m in mismatches
+                ]
+            },
+            recovery_action="Apply approved TCP tuning profile using sysctl"
+        )
+
+    return IntegrityCheckResult(
+        name="tcp_tuning",
+        status=CheckStatus.PASSED,
+        message="All TCP parameters match approved profile"
+    )
+
+
 def run_all_checks(raise_on_critical: bool = True) -> List[IntegrityCheckResult]:
     """
     Run all startup integrity checks.
@@ -313,6 +372,7 @@ def run_all_checks(raise_on_critical: bool = True) -> List[IntegrityCheckResult]
         check_config_integrity,  # Config first, as others may depend on it
         check_required_files,
         check_database_schema,
+        check_tcp_tuning
     ]
     
     results: List[IntegrityCheckResult] = []

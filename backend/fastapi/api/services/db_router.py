@@ -28,6 +28,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from sqlalchemy import text
 
 from ..config import get_settings_instance
+from .replica_lag_monitor import init_lag_monitor, get_lag_monitor
 
 log = logging.getLogger(__name__)
 
@@ -90,6 +91,20 @@ if settings.async_replica_database_url:
         autoflush=False,
     )
     log.info("Read‑replica engine initialised with optimized connection pooling.")
+    
+    # Initialize replica lag monitor if lag detection is enabled
+    if settings.enable_replica_lag_detection:
+        _replica_lag_monitor = init_lag_monitor(
+            replica_engine=_replica_engine,
+            primary_engine=_primary_engine
+        )
+        log.info(
+            f"Replica lag monitoring enabled: "
+            f"threshold={settings.replica_lag_threshold_ms}ms, "
+            f"interval={settings.replica_lag_check_interval_seconds}s"
+        )
+    else:
+        log.info("Replica lag monitoring disabled by configuration")
 else:
     log.warning("No replica_database_url configured – all reads will hit primary.")
 
@@ -194,6 +209,22 @@ async def get_db(request: Request) -> AsyncGenerator[AsyncSession, None]:
         if await _has_recent_write(extracted_username):
             use_primary = True
             log.debug(f"Read‑your‑own‑writes guard: routing GET for user {extracted_username} to primary.")
+    
+    # Replica Lag Check - fallback to primary if unhealthy
+    if not use_primary and _ReplicaSessionLocal:
+        lag_monitor = get_lag_monitor()
+        if lag_monitor:
+            # Periodically check lag (async background check)
+            if not lag_monitor.is_replica_healthy():
+                use_primary = True
+                log.warning(
+                    "Replica lag exceeds threshold or replica unhealthy - "
+                    f"routing read to primary (lag: {lag_monitor._last_lag_ms}ms)"
+                )
+        elif settings.enable_replica_lag_detection:
+            # Lag detection enabled but monitor not initialized - fail safe to primary
+            use_primary = True
+            log.warning("Replica lag detection enabled but monitor not initialized - routing to primary")
 
     SessionMaker = PrimarySessionLocal if use_primary else (_ReplicaSessionLocal or PrimarySessionLocal)
 

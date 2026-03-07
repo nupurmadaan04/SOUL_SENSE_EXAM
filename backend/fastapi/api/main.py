@@ -131,6 +131,26 @@ async def lifespan(app: FastAPI):
             await db.execute(text("SELECT 1"))
             print("[OK] Database connectivity verified")
         
+        # Initialize Replica Lag Monitor (Read-Replica Lag Aware Routing)
+        try:
+            from .services.replica_lag_monitor import get_lag_monitor
+            lag_monitor = get_lag_monitor()
+            if lag_monitor and settings.enable_replica_lag_detection:
+                await lag_monitor.start_background_monitoring()
+                print(f"[OK] Replica lag monitoring started (threshold={settings.replica_lag_threshold_ms}ms)")
+                logger.info(
+                    f"Replica lag monitoring active: "
+                    f"threshold={settings.replica_lag_threshold_ms}ms, "
+                    f"interval={settings.replica_lag_check_interval_seconds}s"
+                )
+            elif settings.replica_database_url and not settings.enable_replica_lag_detection:
+                print("[INFO] Replica configured but lag monitoring disabled")
+            else:
+                print("[INFO] No replica configured - all operations use primary")
+        except Exception as e:
+            logger.warning(f"Replica lag monitor initialization failed: {e}")
+            print(f"[WARNING] Replica lag monitoring not available: {e}")
+        
         # Initialize Redis for rate limiting with proper connection pool settings
         try:
             import redis.asyncio as redis
@@ -336,6 +356,16 @@ async def lifespan(app: FastAPI):
         logger.info("Clock skew monitoring shutdown successfully")
     except Exception as e:
         logger.warning(f"Clock skew monitoring shutdown failed: {e}")
+    
+    # Stop Replica Lag Monitor (Read-Replica Lag Aware Routing)
+    try:
+        from .services.replica_lag_monitor import get_lag_monitor
+        lag_monitor = get_lag_monitor()
+        if lag_monitor:
+            await lag_monitor.stop_background_monitoring()
+            logger.info("Replica lag monitoring shutdown successfully")
+    except Exception as e:
+        logger.warning(f"Replica lag monitor shutdown failed: {e}")
     
     # Cancel background tasks (fallback for non-worker-manager tasks)
     if hasattr(app.state, 'purge_task') and not worker_manager:

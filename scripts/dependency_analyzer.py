@@ -117,6 +117,8 @@ class DependencyAnalyzer:
             return 'schema'
         elif 'exception' in path_lower or 'error' in path_lower:
             return 'exception'
+        elif 'infra' in path_lower:
+            return 'infra'
         elif 'util' in path_lower or 'helper' in path_lower:
             return 'util'
         
