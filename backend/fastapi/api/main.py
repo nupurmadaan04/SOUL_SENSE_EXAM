@@ -666,6 +666,10 @@ def create_app() -> FastAPI:
     from .routers.ttl_management import router as ttl_router
     app.include_router(ttl_router, prefix="/api/v1")
 
+    # Register Orphan Scanner Router (#1414: Foreign key integrity orphan scanner)
+    from .routers.orphan_scanner import router as orphan_scanner_router
+    app.include_router(orphan_scanner_router, prefix="/api/v1")
+
     from .exceptions import APIException
     from .constants.errors import ErrorCode
 
