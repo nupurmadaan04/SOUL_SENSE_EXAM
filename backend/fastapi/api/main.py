@@ -670,6 +670,10 @@ def create_app() -> FastAPI:
     from .routers.orphan_scanner import router as orphan_scanner_router
     app.include_router(orphan_scanner_router, prefix="/api/v1")
 
+    # Register Vacuum Scheduler Router (#1415: Adaptive vacuum/analyze scheduler)
+    from .routers.vacuum_scheduler import router as vacuum_scheduler_router
+    app.include_router(vacuum_scheduler_router, prefix="/api/v1")
+
     from .exceptions import APIException
     from .constants.errors import ErrorCode
 
