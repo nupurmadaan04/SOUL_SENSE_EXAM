@@ -51,6 +51,11 @@ LAYER_HIERARCHY = {
         'allowed': ['exception'],
         'forbidden': ['router', 'service', 'model', 'schema', 'util', 'repository'],
         'description': 'Configuration and settings'
+    },
+    'infra': {
+        'allowed': ['exception', 'config', 'util'],
+        'forbidden': ['router', 'service', 'model', 'schema'],
+        'description': 'Infrastructure and OS-level operations'
     }
 }
 
