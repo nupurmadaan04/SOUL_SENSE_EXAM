@@ -1,0 +1,26 @@
+{
+  "version": "1.0",
+  "created_at": "2026-03-07T00:00:00Z",
+  "description": "Registry tracking all shadow table swaps for audit and rollback capability",
+  "swaps": [
+    {
+      "swap_id": "swap_001_example",
+      "original_table": "users",
+      "shadow_table": "users_new",
+      "status": "pending",
+      "migration_version": "20260307_001_add_phone_column",
+      "created_by": "admin",
+      "created_at": "2026-03-07T00:00:00Z",
+      "pre_swap_validation": {
+        "passed": false,
+        "schema_valid": false,
+        "data_valid": false,
+        "fk_safe": false,
+        "timestamp": "2026-03-07T00:00:00Z"
+      },
+      "post_swap_validation": null,
+      "swapped_at": null,
+      "notes": "Example swap entry - remove when actual swaps occur"
+    }
+  ]
+}
