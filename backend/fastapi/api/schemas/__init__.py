@@ -1139,7 +1139,7 @@ class JournalCreate(BaseModel):
     tags: Optional[List[str]] = Field(
         default=[],
         max_length=20,
-        description="Tags for organizing entries (max 20)"
+        description="Emotion or category tags for organizing entries (Issue #1334, max 10 tags)"
     )
     privacy_level: str = Field(
         default="private",
@@ -1155,6 +1155,40 @@ class JournalCreate(BaseModel):
     stress_level: Optional[int] = Field(None, ge=1, le=10, description="Stress level (1-10)")
     stress_triggers: Optional[str] = Field(None, max_length=500, description="What triggered stress")
     daily_schedule: Optional[str] = Field(None, max_length=1000, description="Daily routine/schedule")
+
+    @field_validator('tags', mode='before')
+    @classmethod
+    def validate_tags(cls, v: Optional[List[str]]) -> Optional[List[str]]:
+        """Validate and normalize tags (Issue #1334)."""
+        if not v:
+            return []
+        
+        if not isinstance(v, list):
+            raise ValueError("Tags must be a list")
+        
+        # Limit to 10 tags (Issue #1334)
+        if len(v) > 10:
+            raise ValueError("Maximum 10 tags allowed per entry")
+        
+        normalized_tags = []
+        for tag in v:
+            if not isinstance(tag, str):
+                continue
+            
+            tag_clean = tag.strip().lower()
+            
+            # Validate tag length
+            if len(tag_clean) < 2 or len(tag_clean) > 20:
+                raise ValueError(f"Tag '{tag}' must be 2-20 characters")
+            
+            # Allow alphanumeric and hyphens
+            if not tag_clean.replace("-", "").replace("_", "").isalnum():
+                raise ValueError(f"Tag '{tag}' contains invalid characters")
+            
+            if tag_clean not in normalized_tags:
+                normalized_tags.append(tag_clean)
+        
+        return normalized_tags
 
 
 class JournalUpdate(BaseModel):
@@ -1176,6 +1210,40 @@ class JournalUpdate(BaseModel):
     stress_level: Optional[int] = Field(None, ge=1, le=10)
     stress_triggers: Optional[str] = Field(None, max_length=500)
     daily_schedule: Optional[str] = Field(None, max_length=1000)
+
+    @field_validator('tags', mode='before')
+    @classmethod
+    def validate_tags(cls, v: Optional[List[str]]) -> Optional[List[str]]:
+        """Validate and normalize tags (Issue #1334)."""
+        if not v:
+            return None
+        
+        if not isinstance(v, list):
+            raise ValueError("Tags must be a list")
+        
+        # Limit to 10 tags (Issue #1334)
+        if len(v) > 10:
+            raise ValueError("Maximum 10 tags allowed per entry")
+        
+        normalized_tags = []
+        for tag in v:
+            if not isinstance(tag, str):
+                continue
+            
+            tag_clean = tag.strip().lower()
+            
+            # Validate tag length
+            if len(tag_clean) < 2 or len(tag_clean) > 20:
+                raise ValueError(f"Tag '{tag}' must be 2-20 characters")
+            
+            # Allow alphanumeric and hyphens
+            if not tag_clean.replace("-", "").replace("_", "").isalnum():
+                raise ValueError(f"Tag '{tag}' contains invalid characters")
+            
+            if tag_clean not in normalized_tags:
+                normalized_tags.append(tag_clean)
+        
+        return normalized_tags if normalized_tags else None
 
 
 class JournalResponse(BaseModel):
