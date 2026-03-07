@@ -104,19 +104,35 @@ jobs:
           path: vulnerability-report.json
           retention-days: 90
 
-      - name: Test Root App (Unit + Integration)
-        timeout-minutes: 20
+      - name: Profile and Balance Tests (Issue #1436)
+        timeout-minutes: 5
+        if: ${{ needs.detect-changes.outputs.run_all == 'true' || contains('["app", "all"]', needs.detect-changes.outputs.modules) }}
+        run: |
+          # Profile test durations
+          python scripts/test_profiler.py tests/ --output data/test_durations.json
+          
+          # Generate balanced shard assignments
+          python scripts/test_shard_balancer.py tests/ --shards 4 --output data/shards.json
+          
+          # Show metrics
+          python -c "import json; data = json.load(open('data/shards.json')); print(json.dumps(data['metrics'], indent=2))"
+
+      - name: Test Root App (Balanced Shards)
+        timeout-minutes: 25
         if: ${{ needs.detect-changes.outputs.run_all == 'true' || contains('["app", "all"]', needs.detect-changes.outputs.modules) }}
         env:
           DISPLAY: ":0.0"
         run: |
-          # Run unit tests in parallel with coverage
-          pytest tests/ -n 2 --maxfail=5 -m "not serial" --timeout=120 -v \
-            --cov=app --cov=backend --cov-report=term-missing --cov-report=html:htmlcov
-          
+          # Run balanced shards
+          python scripts/run_balanced_shards.py --shards data/shards.json --output reports/shard_metrics.json
+      
+      - name: Run Serial Tests
+        timeout-minutes: 15
+        if: ${{ needs.detect-changes.outputs.run_all == 'true' || contains('["app", "all"]', needs.detect-changes.outputs.modules) }}
+        run: |
           # Run serial tests sequentially with per-test timeout
           pytest tests/ -m "serial" --maxfail=5 --timeout=180 -v \
-            --cov=app --cov=backend --cov-report=term-missing --cov-report=html:htmlcov --cov-append
+            --cov=app --cov=backend --cov-report=term-missing --cov-report=html:htmlcov
 
       - name: Cache Correctness Verification (Issue #1434)
         timeout-minutes: 10
@@ -197,6 +213,17 @@ jobs:
         with:
           name: coverage-report-${{ github.sha }}
           path: htmlcov
+          retention-days: 30
+
+      - name: Upload Shard Metrics (Issue #1436)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shard-metrics-${{ github.sha }}
+          path: |
+            reports/shard_metrics.json
+            data/shards.json
+            data/test_durations.json
           retention-days: 30
 
       - name: Upload Cache Verification Report

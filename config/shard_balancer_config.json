@@ -1,0 +1,12 @@
+{
+  "enabled": true,
+  "algorithm": "lpt",
+  "default_shard_count": 4,
+  "fallback_shard_count": 2,
+  "test_timeout_seconds": 180,
+  "enable_profiling": true,
+  "feature_flags": {
+    "metrics_dashboard": true,
+    "marker_aware_sharding": true
+  }
+}

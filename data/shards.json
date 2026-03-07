@@ -1,0 +1,25 @@
+{
+  "shards": [
+    [
+      "tests\\unit\\test_cache_correctness_verifier.py"
+    ],
+    [
+      "tests\\unit\\test_shard_balancer.py"
+    ]
+  ],
+  "metrics": {
+    "shard_loads": [
+      1.0,
+      1.0
+    ],
+    "max_load": 1.0,
+    "avg_load": 1.0,
+    "imbalance_ratio": 1.0,
+    "test_count": 2
+  },
+  "config": {
+    "algorithm": "lpt",
+    "num_shards": 2,
+    "test_count": 2
+  }
+}
