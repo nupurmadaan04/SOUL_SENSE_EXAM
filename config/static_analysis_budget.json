@@ -1,0 +1,20 @@
+{
+  "mypy": {
+    "critical": 0,
+    "high": 10,
+    "medium": 30,
+    "low": 100
+  },
+  "flake8": {
+    "critical": 0,
+    "high": 5,
+    "medium": 20,
+    "low": 100
+  },
+  "bandit": {
+    "critical": 0,
+    "high": 0,
+    "medium": 3,
+    "low": 10
+  }
+}
