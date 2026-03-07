@@ -427,6 +427,9 @@ class JournalService:
             if hasattr(entry, key):
                 setattr(entry, key, value)
         
+        # Update the timestamp to reflect modification (Issue #1330)
+        entry.updated_at = datetime.now(UTC).isoformat()
+        
         try:
             await self.db.commit()
             await self.db.refresh(entry)

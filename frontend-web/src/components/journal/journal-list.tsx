@@ -13,8 +13,8 @@ function adaptEntry(entry: any) {
       (entry.sentiment_score ? Math.round((entry.sentiment_score + 1) * 5) : undefined),
     tags: entry.tags || [],
     sentiment_score: entry.sentiment_score,
-    created_at: entry.timestamp,
-    updated_at: entry.timestamp,
+    created_at: entry.updated_at || entry.timestamp,
+    updated_at: entry.updated_at || entry.timestamp,
   };
 }
 

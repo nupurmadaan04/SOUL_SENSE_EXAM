@@ -777,6 +777,7 @@ class JournalEntry(Base):
     sentiment_score = Column(Float, default=0.0)
     emotional_patterns = Column(Text, nullable=True) # JSON list
     timestamp = Column(String, default=lambda: datetime.now(UTC).isoformat(), index=True)
+    updated_at = Column(String, default=lambda: datetime.now(UTC).isoformat(), nullable=True)
     entry_date = Column(String, nullable=True, index=True) # For legacy/charting
     category = Column(String, nullable=True, index=True)
     mood_score = Column(Integer, nullable=True) # 1-10

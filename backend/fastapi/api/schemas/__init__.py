@@ -1256,6 +1256,7 @@ class JournalResponse(BaseModel):
     tags: Optional[List[str]] = []
     entry_date: str
     timestamp: str
+    updated_at: Optional[str] = Field(None, description="Last modification timestamp (Issue #1330)")
     word_count: int = Field(default=0, description="Number of words in content")
     reading_time_mins: Optional[float] = Field(None, description="Estimated reading time in minutes")
     privacy_level: str = Field(default="private")
