@@ -367,6 +367,14 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Replica lag monitor shutdown failed: {e}")
     
+    # Stop Connection Pool Diagnostics (#1408)
+    try:
+        from .utils.connection_pool_diagnostics import shutdown_pool_diagnostics
+        await shutdown_pool_diagnostics()
+        logger.info("Connection pool diagnostics shutdown successfully")
+    except Exception as e:
+        logger.warning(f"Connection pool diagnostics shutdown failed: {e}")
+    
     # Cancel background tasks (fallback for non-worker-manager tasks)
     if hasattr(app.state, 'purge_task') and not worker_manager:
         logger.info("Cancelling background purge task...")

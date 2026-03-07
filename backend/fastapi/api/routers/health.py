@@ -200,6 +200,56 @@ async def check_replica_lag(request) -> ServiceStatus:
         return ServiceStatus(status="unhealthy", message=str(e), latency_ms=None)
 
 
+async def check_connection_pool(request) -> ServiceStatus:
+    """
+    Check connection pool health and detect starvation (#1408).
+    
+    Monitors pool utilization, detects starvation risk, and provides
+    recommendations for optimization.
+    """
+    try:
+        from ..utils.connection_pool_diagnostics import (
+            PoolDiagnostics, 
+            ConnectionPoolHealthCheck,
+            get_pool_diagnostics
+        )
+        from ..services.db_service import engine
+        
+        # Get pool diagnostics
+        diagnostics = await get_pool_diagnostics(engine)
+        
+        # Run health check
+        report = await diagnostics.health_check()
+        
+        # Map to ServiceStatus
+        status_map = {
+            "healthy": "healthy",
+            "degraded": "degraded",
+            "critical": "unhealthy",
+            "unknown": "unknown",
+        }
+        
+        # Build message
+        if report.alerts:
+            message = f"Pool {report.status.value}: {', '.join(report.alerts[:2])}"
+        else:
+            message = f"Pool healthy: {report.metrics.utilization_percent:.1f}% utilization"
+        
+        # Add starvation risk if elevated
+        if report.starvation_risk.value in ['high', 'critical']:
+            message += f" (STARVATION RISK: {report.starvation_risk.value})"
+        
+        return ServiceStatus(
+            status=status_map.get(report.status.value, "unknown"),
+            latency_ms=None,
+            message=message
+        )
+        
+    except Exception as e:
+        logger.warning(f"Connection pool health check failed: {e}")
+        return ServiceStatus(status="unhealthy", message=str(e), latency_ms=None)
+
+
 def get_diagnostics() -> Dict[str, Any]:
     """Get detailed diagnostics for ?full=true."""
     import os
@@ -223,15 +273,24 @@ def get_diagnostics() -> Dict[str, Any]:
         # Resource exhaustion monitoring (FD/Handle leaks)
         if platform.system() == "Windows":
             # On Windows, we track 'handles'
-    replica_lag_status = await check_replica_lag(request)
-
-    services = {
-        "database": db_status,
-        "redis": redis_status,
-        "event_loop": event_loop_status,
-        "clock_skew": clock_skew_status,
-        "fd_guardrails": fd_guardrails_status,
-        "replica_lag": replica_lagms where num_fds() is missing
+            try:
+                import ctypes
+                from ctypes import wintypes
+                
+                # Get process handle count using Windows API
+                kernel32 = ctypes.windll.kernel32
+                handle = kernel32.GetCurrentProcess()
+                handle_count = wintypes.DWORD()
+                kernel32.GetProcessHandleCount(handle, ctypes.byref(handle_count))
+                diagnostics["open_handles"] = handle_count.value
+            except Exception:
+                pass
+        else:
+            # On Linux/Unix, track file descriptors
+            try:
+                diagnostics["open_file_descriptors"] = process.num_fds()
+            except AttributeError:
+                # Fallback for systems where num_fds() is missing
                 diagnostics["open_files"] = len(process.open_files())
                 diagnostics["open_connections"] = len(process.connections())
 
@@ -245,8 +304,6 @@ def get_diagnostics() -> Dict[str, Any]:
         logger.debug("psutil not available for diagnostics")
     except Exception as e:
         logger.warning(f"Failed to gather diagnostics: {e}")
-    
-        pass
 
     # Add FD monitoring diagnostics if available
     try:
@@ -281,13 +338,15 @@ async def health_check(
     event_loop_status = await check_event_loop_health(request)
     clock_skew_status = await check_clock_skew(request)
     fd_guardrails_status = await check_fd_guardrails(request)
+    connection_pool_status = await check_connection_pool(request)
 
     services = {
         "database": db_status,
         "redis": redis_status,
         "event_loop": event_loop_status,
         "clock_skew": clock_skew_status,
-        "fd_guardrails": fd_guardrails_status
+        "fd_guardrails": fd_guardrails_status,
+        "connection_pool": connection_pool_status,
     }
 
     # Determine overall health - all critical services must be healthy
@@ -640,5 +699,127 @@ async def trigger_replica_lag_check() -> Dict[str, Any]:
         raise HTTPException(
             status_code=500,
             detail=f"Replica lag check failed: {str(e)}"
+        )
+
+
+# --- Connection Pool Diagnostics Endpoints (#1408) ---
+
+@router.get("/pool-status", tags=["Health", "Database"])
+async def pool_status() -> Dict[str, Any]:
+    """
+    Get detailed connection pool status and diagnostics.
+    
+    Returns current pool metrics, health status, and starvation risk assessment.
+    Useful for monitoring database connection pool health.
+    """
+    try:
+        from ..utils.connection_pool_diagnostics import get_pool_diagnostics
+        from ..services.db_service import engine
+        
+        diagnostics = await get_pool_diagnostics(engine)
+        status = await diagnostics.get_status()
+        
+        return {
+            "enabled": True,
+            "status": status,
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting pool status: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Could not retrieve pool status: {str(e)}"
+        )
+
+
+@router.get("/pool-metrics", tags=["Health", "Database"])
+async def pool_metrics(
+    limit: int = Query(100, ge=1, le=1000, description="Number of metrics samples to return")
+) -> Dict[str, Any]:
+    """
+    Get connection pool metrics history.
+    
+    Returns historical metrics for trend analysis and monitoring.
+    """
+    try:
+        from ..utils.connection_pool_diagnostics import get_pool_diagnostics
+        from ..services.db_service import engine
+        
+        diagnostics = await get_pool_diagnostics(engine)
+        
+        history = diagnostics.get_metrics_history(limit=limit)
+        stats = diagnostics.get_statistics()
+        
+        return {
+            "metrics": [m.to_dict() for m in history],
+            "statistics": stats,
+            "count": len(history),
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting pool metrics: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Could not retrieve pool metrics: {str(e)}"
+        )
+
+
+@router.get("/pool-alerts", tags=["Health", "Database"])
+async def pool_alerts(
+    limit: int = Query(50, ge=1, le=500, description="Number of alerts to return")
+) -> Dict[str, Any]:
+    """
+    Get connection pool alert history.
+    
+    Returns alerts triggered due to high utilization, starvation risk, etc.
+    """
+    try:
+        from ..utils.connection_pool_diagnostics import get_pool_diagnostics
+        from ..services.db_service import engine
+        
+        diagnostics = await get_pool_diagnostics(engine)
+        
+        alerts = diagnostics.get_alert_history(limit=limit)
+        
+        return {
+            "alerts": alerts,
+            "count": len(alerts),
+        }
+        
+    except Exception as e:
+        logger.error(f"Error getting pool alerts: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Could not retrieve pool alerts: {str(e)}"
+        )
+
+
+@router.get("/pool-health", tags=["Health", "Database"])
+async def pool_health_check() -> Dict[str, Any]:
+    """
+    Perform comprehensive connection pool health check.
+    
+    Returns detailed health report including starvation risk assessment
+    and recommendations.
+    """
+    try:
+        from ..utils.connection_pool_diagnostics import (
+            get_pool_diagnostics,
+            ConnectionPoolHealthCheck
+        )
+        from ..services.db_service import engine
+        
+        diagnostics = await get_pool_diagnostics(engine)
+        adapter = ConnectionPoolHealthCheck(diagnostics)
+        
+        result = await adapter.check()
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Error checking pool health: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Pool health check failed: {str(e)}"
         )
 

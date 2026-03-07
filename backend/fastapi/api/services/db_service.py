@@ -146,6 +146,53 @@ def get_pool_status():
     return {"pool_type": type(engine.pool).__name__, "message": "Metrics not supported for this pool type"}
 
 
+def record_pool_timeout():
+    """
+    Record a connection pool timeout event for diagnostics (#1408).
+    
+    This should be called whenever a connection request times out,
+    indicating potential pool starvation.
+    """
+    try:
+        # Import here to avoid circular dependencies
+        from ..utils.connection_pool_diagnostics import get_pool_diagnostics
+        
+        # Use asyncio to run the async function
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            # Schedule in background to not block
+            asyncio.create_task(_async_record_timeout())
+        else:
+            # Synchronous fallback
+            pass
+    except Exception:
+        # Don't let diagnostics errors affect application
+        pass
+
+
+async def _async_record_timeout():
+    """Async helper to record timeout."""
+    try:
+        from ..utils.connection_pool_diagnostics import get_pool_diagnostics
+        diagnostics = await get_pool_diagnostics(engine)
+        diagnostics.record_timeout()
+    except Exception:
+        pass
+
+
+async def get_pool_diagnostics_status() -> dict:
+    """
+    Get comprehensive pool diagnostics status (#1408).
+    
+    Returns:
+        Dictionary with pool metrics, health status, and statistics
+    """
+    from ..utils.connection_pool_diagnostics import get_pool_diagnostics
+    
+    diagnostics = await get_pool_diagnostics(engine)
+    return await diagnostics.get_status()
+
+
 class AssessmentService:
     """Service for managing assessments (scores) using AsyncSession."""
 
