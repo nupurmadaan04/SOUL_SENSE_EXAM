@@ -27,7 +27,7 @@ jobs:
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
           if [ -f backend/fastapi/requirements.txt ]; then pip install -r backend/fastapi/requirements.txt; fi
-          pip install pytest pytest-mock pytest-cov pytest-xdist pytest-timeout flake8
+          pip install pytest pytest-mock pytest-cov pytest-xdist pytest-timeout flake8 coverage
 
       - name: Install pre-commit
         run: pip install pre-commit
@@ -83,15 +83,18 @@ jobs:
           path: vulnerability-report.json
           retention-days: 90
 
-      - name: Test Root App
+      - name: Test Root App (Unit + Integration)
         timeout-minutes: 20
         env:
           DISPLAY: ":0.0"
         run: |
-          # Run parallel tests with 2 workers (conservative for CI stability)
-          pytest tests/ -n 2 --maxfail=5 -m "not serial" --timeout=120 -v
+          # Run unit tests in parallel with coverage
+          pytest tests/ -n 2 --maxfail=5 -m "not serial" --timeout=120 -v \
+            --cov=app --cov=backend --cov-report=term-missing --cov-report=html:htmlcov
+          
           # Run serial tests sequentially with per-test timeout
-          pytest tests/ -m "serial" --maxfail=5 --timeout=180
+          pytest tests/ -m "serial" --maxfail=5 --timeout=180 -v \
+            --cov=app --cov=backend --cov-report=term-missing --cov-report=html:htmlcov --cov-append
 
       - name: Detect Flaky Tests
         if: always()
@@ -112,36 +115,8 @@ jobs:
           name: flaky-test-report-${{ github.sha }}
           path: flaky_test_report.json
           retention-days: 90
+      - name: Test Backend App
         timeout-minutes: 10
-        run: |
-          # Run fidelity tests with metrics collection
-          pytest tests/test_environment_fidelity.py -v --tb=short
-          
-          # Generate scorecard and check threshold
-          python scripts/generate_fidelity_scorecard.py --output fidelity-scorecard.json --text > fidelity-scorecard.txt
-          python scripts/generate_fidelity_scorecard.py --html fidelity-scorecard.html
-          
-          # Fail if scorecard indicates issues
-          SCORE=$(python -c "import json; data = json.load(open('fidelity-scorecard.json')); print(int(data['overall_score']))")
-          if [ $SCORE -lt 75 ]; then
-            echo "❌ Fidelity score ($SCORE) below threshold (75)"
-            exit 1
-          fi
-          echo "✓ Fidelity score: $SCORE/100"
-
-      - name: Upload Fidelity Scorecard
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: fidelity-scorecard-${{ github.sha }}
-          path: |
-            fidelity-scorecard.json
-            fidelity-scorecard.txt
-            fidelity-scorecard.html
-          retention-days: 30
-
-      - timeout-minutes: 10
-        name: Test Backend App
         run: |
           mkdir -p ../../data
           nohup python start_server.py --host 127.0.0.1 --port 8000 --no-reload --y > server.log 2>&1 &
@@ -178,3 +153,40 @@ jobs:
         with:
           name: zap-scan-report
           path: backend/fastapi/zap_report.html
+
+      - name: Upload Test Coverage Report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report-${{ github.sha }}
+          path: htmlcov
+          retention-days: 30
+
+      - name: Test Environment Fidelity (Issue #1315)
+        timeout-minutes: 10
+        run: |
+          # Run fidelity tests with metrics collection
+          pytest tests/test_environment_fidelity.py -v --tb=short
+          
+          # Generate scorecard and check threshold
+          python scripts/generate_fidelity_scorecard.py --output fidelity-scorecard.json --text > fidelity-scorecard.txt
+          python scripts/generate_fidelity_scorecard.py --html fidelity-scorecard.html
+          
+          # Fail if scorecard indicates issues
+          SCORE=$(python -c "import json; data = json.load(open('fidelity-scorecard.json')); print(int(data['overall_score']))")
+          if [ $SCORE -lt 75 ]; then
+            echo "❌ Fidelity score ($SCORE) below threshold (75)"
+            exit 1
+          fi
+          echo "✓ Fidelity score: $SCORE/100"
+
+      - name: Upload Fidelity Scorecard
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fidelity-scorecard-${{ github.sha }}
+          path: |
+            fidelity-scorecard.json
+            fidelity-scorecard.txt
+            fidelity-scorecard.html
+          retention-days: 30

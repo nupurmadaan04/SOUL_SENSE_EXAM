@@ -45,6 +45,28 @@
             }
         }
     },
+    "cost_monitoring": {
+        "enabled": true,
+        "alert_on_anomaly": true,
+        "baseline_days": 7,
+        "services": {
+            "api_compute": {
+                "daily_budget_usd": 50.0,
+                "spike_threshold_percent": 20,
+                "rate_of_change_multiplier": 2.0
+            },
+            "ml_endpoints": {
+                "daily_budget_usd": 100.0,
+                "spike_threshold_percent": 25,
+                "rate_of_change_multiplier": 2.0
+            },
+            "database": {
+                "daily_budget_usd": 30.0,
+                "spike_threshold_percent": 15,
+                "rate_of_change_multiplier": 1.5
+            }
+        }
+    },
     "experimental": {
         "ai_journal_suggestions": false,
         "advanced_analytics": false,

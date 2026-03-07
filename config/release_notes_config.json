@@ -1,0 +1,32 @@
+{
+  "release_notes": {
+    "output_file": "CHANGELOG.md",
+    "format": "markdown",
+    "append_mode": true
+  },
+  "commit_types": {
+    "feat": "Features",
+    "fix": "Bug Fixes",
+    "docs": "Documentation",
+    "refactor": "Refactoring",
+    "perf": "Performance",
+    "test": "Testing",
+    "build": "Build System",
+    "ci": "CI/CD",
+    "chore": "Maintenance",
+    "style": "Code Style"
+  },
+  "breaking_change_markers": [
+    "!:",
+    "BREAKING CHANGE:"
+  ],
+  "exclude_authors": [
+    "dependabot",
+    "github-actions"
+  ],
+  "metadata": {
+    "include_date": true,
+    "include_contributors": true,
+    "include_commit_hash": true
+  }
+}

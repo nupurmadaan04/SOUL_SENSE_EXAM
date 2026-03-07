@@ -1,0 +1,109 @@
+{
+  "baselines": {
+    "user_by_id": {
+      "query_id": "user_by_id",
+      "sql_text": "SELECT * FROM users WHERE id = ?",
+      "baseline_plan": "SCAN",
+      "baseline_time_ms": 2.0,
+      "baseline_row_count": 0,
+      "table_names": [
+        "users"
+      ],
+      "uses_index": false,
+      "created_at": "2026-03-07T16:22:33.073415",
+      "last_verified": "2026-03-07T16:22:33.073415",
+      "observation_count": 1
+    },
+    "scores_by_user": {
+      "query_id": "scores_by_user",
+      "sql_text": "SELECT * FROM scores WHERE user_id = ?",
+      "baseline_plan": "SCAN",
+      "baseline_time_ms": 5.0,
+      "baseline_row_count": 0,
+      "table_names": [
+        "scores"
+      ],
+      "uses_index": false,
+      "created_at": "2026-03-07T16:22:33.079428",
+      "last_verified": "2026-03-07T16:22:33.079428",
+      "observation_count": 1
+    },
+    "all_scores": {
+      "query_id": "all_scores",
+      "sql_text": "SELECT * FROM scores",
+      "baseline_plan": "[(2, 0, 0, 'SCAN scores')]",
+      "baseline_time_ms": 8.0,
+      "baseline_row_count": 0,
+      "table_names": [
+        "scores"
+      ],
+      "uses_index": false,
+      "created_at": "2026-03-07T16:22:33.084425",
+      "last_verified": "2026-03-07T16:22:33.084425",
+      "observation_count": 1
+    }
+  },
+  "alerts": [
+    {
+      "query_id": "user_by_id",
+      "severity": "warning",
+      "regression_type": "time",
+      "details": "Execution time increased from 2.00ms to 2.50ms",
+      "baseline_value": 2.0,
+      "current_value": 2.5,
+      "variance_percent": 25.0,
+      "timestamp": "2026-03-07T15:47:32.933188"
+    },
+    {
+      "query_id": "scores_by_user",
+      "severity": "warning",
+      "regression_type": "time",
+      "details": "Execution time increased from 5.00ms to 6.50ms",
+      "baseline_value": 5.0,
+      "current_value": 6.5,
+      "variance_percent": 30.0,
+      "timestamp": "2026-03-07T15:47:32.952240"
+    },
+    {
+      "query_id": "all_scores",
+      "severity": "critical",
+      "regression_type": "time",
+      "details": "Execution time increased from 8.00ms to 12.00ms",
+      "baseline_value": 8.0,
+      "current_value": 12.0,
+      "variance_percent": 50.0,
+      "timestamp": "2026-03-07T15:47:32.961489"
+    },
+    {
+      "query_id": "user_by_id",
+      "severity": "warning",
+      "regression_type": "time",
+      "details": "Execution time increased from 2.00ms to 2.50ms",
+      "baseline_value": 2.0,
+      "current_value": 2.5,
+      "variance_percent": 25.0,
+      "timestamp": "2026-03-07T16:22:33.089440"
+    },
+    {
+      "query_id": "scores_by_user",
+      "severity": "warning",
+      "regression_type": "time",
+      "details": "Execution time increased from 5.00ms to 6.50ms",
+      "baseline_value": 5.0,
+      "current_value": 6.5,
+      "variance_percent": 30.0,
+      "timestamp": "2026-03-07T16:22:33.092971"
+    },
+    {
+      "query_id": "all_scores",
+      "severity": "critical",
+      "regression_type": "time",
+      "details": "Execution time increased from 8.00ms to 12.00ms",
+      "baseline_value": 8.0,
+      "current_value": 12.0,
+      "variance_percent": 50.0,
+      "timestamp": "2026-03-07T16:22:33.096982"
+    }
+  ],
+  "updated_at": "2026-03-07T16:22:33.097969"
+}

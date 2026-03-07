@@ -674,6 +674,10 @@ def create_app() -> FastAPI:
     from .routers.vacuum_scheduler import router as vacuum_scheduler_router
     app.include_router(vacuum_scheduler_router, prefix="/api/v1")
 
+    # Register Failover Drill Router (#1424: Database failover drill automation)
+    from .routers.failover_drill import router as failover_drill_router
+    app.include_router(failover_drill_router, prefix="/api/v1")
+
     from .exceptions import APIException
     from .constants.errors import ErrorCode
 
