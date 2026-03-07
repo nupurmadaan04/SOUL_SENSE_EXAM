@@ -29,6 +29,13 @@ try:
 except ImportError:
     BACKFILL_REGISTRY_AVAILABLE = False
 
+# Import schema rollback rehearsal pipeline
+try:
+    from app.infra.schema_rollback_rehearsal import RollbackRehearsalPipeline
+    ROLLBACK_REHEARSAL_AVAILABLE = True
+except ImportError:
+    ROLLBACK_REHEARSAL_AVAILABLE = False
+
 # Import your models
 try:
     from backend.fastapi.api.models import Base
@@ -122,6 +129,26 @@ def log_backfill_registry_status() -> None:
         pass  # Graceful degradation
 
 
+def log_rollback_rehearsal_status() -> None:
+    """Log schema rollback rehearsal pipeline status."""
+    if not ROLLBACK_REHEARSAL_AVAILABLE:
+        return
+    
+    try:
+        import logging
+        log = logging.getLogger(__name__)
+        
+        pipeline = RollbackRehearsalPipeline()
+        migrations = pipeline.discover_pending_migrations()
+        
+        if migrations:
+            log.info(f"✓ Schema Rollback Rehearsal: {len(migrations)} migrations ready for validation")
+        else:
+            log.info("✓ Schema Rollback Rehearsal: Available (no pending migrations)")
+    except Exception:
+        pass  # Graceful degradation
+
+
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode."""
@@ -130,6 +157,7 @@ def run_migrations_offline() -> None:
     url = DATABASE_URL # Use app config
     log_index_policy_info(url)
     log_backfill_registry_status()
+    log_rollback_rehearsal_status()
     
     context.configure(
         url=url,
@@ -170,6 +198,7 @@ def run_migrations_online() -> None:
     # Log index policy and backfill registry information
     log_index_policy_info(target_url)
     log_backfill_registry_status()
+    log_rollback_rehearsal_status()
         
     from sqlalchemy import create_engine
     connect_args = {}
