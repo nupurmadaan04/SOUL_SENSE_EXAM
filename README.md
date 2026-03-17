@@ -388,9 +388,9 @@ SOUL_SENSE_EXAM/
 
 | Language | Code | Status | Translation File |
 |:---:|:---:|:---:|:---:|
-| 🇬🇧 English | `en` | ✅ Complete | `resources/en.json` |
-| 🇮🇳 Hindi (हिंदी) | `hi` | ✅ Complete | `resources/hi.json` |
-| 🇪🇸 Spanish (Español) | `es` | ✅ Complete | `resources/es.json` |
+| 🇬🇧 English | `en` | ✅ Complete | [`app/locales/en.json`](app/locales/en.json) |
+| 🇮🇳 Hindi (हिंदी) | `hi` | ✅ Complete | [`app/locales/hi.json`](app/locales/hi.json) |
+| 🇪🇸 Spanish (Español) | `es` | ✅ Complete | [`app/locales/es.json`](app/locales/es.json) |
 
 </div>
 
