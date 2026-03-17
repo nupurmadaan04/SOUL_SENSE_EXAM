@@ -1,3 +1,5 @@
+<div align="center">
+
 # 🧠 Soul Sense EQ Test
 
 [GitHub Repository](https://github.com/nupurmadaan04/SOUL_SENSE_EXAM)
@@ -8,6 +10,8 @@
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Tests](https://img.shields.io/badge/Tests-Passing-brightgreen.svg)](tests/)
 ![Visitors](https://visitor-badge.laobi.icu/badge?page_id=nupurmadaan04.SOUL_SENSE_EXAM)
+
+</div>
 
 ## 📋 Table of Contents
 
@@ -67,18 +71,69 @@ graph TB
     B --> M
 ```
 
+### AI Sentiment Pipeline
+
+```mermaid
+flowchart LR
+    A["📝 Raw Journal Text"] --> B["🧪 NLTK VADER\nSentiment Scoring"]
+    B --> C{"Compound Score\nAnalysis"}
+    C -->|"Negative ≤ -0.05"| D["🔴 Stress Indicators\nDetected"]
+    C -->|"Neutral"| E["🟡 Baseline\nEmotional State"]
+    C -->|"Positive ≥ 0.05"| F["🟢 Growth Mindset\nSignals"]
+    D --> G["🤖 Personalized\nAI Prompts"]
+    E --> G
+    F --> G
+    G --> H["📊 Emotional\nTrend Dashboard"]
+```
+
+### Tauri Sidecar Architecture
+
+```mermaid
+flowchart TB
+    subgraph Tauri["🖥️ Tauri Native Shell (Rust)"]
+        direction TB
+        TW["Webview Window"]
+        TC["Tauri Commands"]
+        SC["Sidecar Manager"]
+    end
+
+    subgraph Frontend["⚛️ Next.js Frontend"]
+        direction TB
+        UI["React/TS Components"]
+        ST["State Management"]
+    end
+
+    subgraph Backend["🐍 Python FastAPI Backend"]
+        direction TB
+        API["REST API Routes"]
+        ML["ML / NLTK Engine"]
+        DB["SQLite Data Layer"]
+    end
+
+    TW --- UI
+    TC <-->|"IPC Bridge"| SC
+    SC <-->|"localhost:8000"| API
+    UI <-->|"HTTP / Fetch"| API
+    API --> ML
+    API --> DB
+```
+
 ### System Components
 
-| Component              | Technology         | Purpose                                  |
-| ---------------------- | ------------------ | ---------------------------------------- |
-| **Desktop Shell**      | Tauri (Rust)       | Modern native wrapper for the Web UI     |
-| **Frontend (Desktop)** | Tkinter            | Legacy lightweight desktop UI            |
-| **Frontend (Web)**     | Next.js            | Modern web & desktop UI (React/TS)       |
-| **Backend (Sidecar)**  | Python/FastAPI     | Bundled API service for local data flow  |
-| **Database**           | SQLite             | Local data persistence                   |
-| **ML Engine**          | NLTK, scikit-learn | Sentiment analysis and pattern detection |
-| **Auth System**        | bcrypt, JWT        | Secure user authentication               |
-| **Migration System**   | Alembic            | Database schema management               |
+<div align="center">
+
+| | Component | Technology | Purpose |
+|:---:|:---|:---|:---|
+| ![Rust](https://img.shields.io/badge/-Rust-000?logo=rust) | **Desktop Shell** | Tauri (Rust) | Modern native wrapper for the Web UI |
+| ![Tk](https://img.shields.io/badge/-Tkinter-3776AB?logo=python&logoColor=white) | **Frontend (Desktop)** | Tkinter | Legacy lightweight desktop UI |
+| ![Next.js](https://img.shields.io/badge/-Next.js-000?logo=next.js) | **Frontend (Web)** | Next.js | Modern web & desktop UI (React/TS) |
+| ![FastAPI](https://img.shields.io/badge/-FastAPI-009688?logo=fastapi&logoColor=white) | **Backend (Sidecar)** | Python/FastAPI | Bundled API service for local data flow |
+| ![SQLite](https://img.shields.io/badge/-SQLite-003B57?logo=sqlite&logoColor=white) | **Database** | SQLite | Local data persistence |
+| ![NLTK](https://img.shields.io/badge/-NLTK-154f3c) | **ML Engine** | NLTK, scikit-learn | Sentiment analysis and pattern detection |
+| ![Auth](https://img.shields.io/badge/-bcrypt-512BD4) | **Auth System** | bcrypt, JWT | Secure user authentication |
+| ![Alembic](https://img.shields.io/badge/-Alembic-6BA81E) | **Migration System** | Alembic | Database schema management |
+
+</div>
 
 ### Data Flow
 
@@ -90,14 +145,18 @@ User Input → GUI Events → Business Logic → Data Validation → Database �
 
 ## ✨ Key Features
 
-### Core Assessment
+<details>
+<summary><strong>🎯 Core Assessment</strong></summary>
 
 - ✅ 4-point Likert scale EQ evaluation
 - ✅ Age-appropriate question filtering
 - ✅ Real-time score calculation
 - ✅ Comprehensive result interpretation
 
-### AI & Analytics
+</details>
+
+<details>
+<summary><strong>🤖 AI & Analytics</strong></summary>
 
 - **Sentiment Analysis**: NLTK VADER integration for emotional tone detection
 - **Pattern Recognition**: Stress indicators, growth mindset, self-reflection tracking
@@ -106,7 +165,10 @@ User Input → GUI Events → Business Logic → Data Validation → Database �
 - **ML Integration**: Custom model training on user data
 - **Benchmarking**: Population-level EQ score comparisons
 
-### User Experience
+</details>
+
+<details>
+<summary><strong>👤 User Experience</strong></summary>
 
 - **Multi-language**: English, Hindi, Spanish with easy switching
 - **Daily Journal**: AI-powered emotional reflection with personalized insights
@@ -116,13 +178,18 @@ User Input → GUI Events → Business Logic → Data Validation → Database �
 - **Settings Sync**: Cross-device preference synchronization
 - **Data Management**: Backup, restore, and data export capabilities (JSON/text formats)
 
-### Developer Experience
+</details>
+
+<details>
+<summary><strong>🛠️ Developer Experience</strong></summary>
 
 - 🧪 **Comprehensive Testing**: Pytest suite with isolated databases
 - 🔄 **Database Migrations**: Alembic-powered schema evolution
 - 🐳 **Container Ready**: Docker support for consistent environments
 - 📖 **API Documentation**: OpenAPI/Swagger documentation
 - 🎭 **Mock Authentication**: Simplified auth for testing and development ([Quick Start](docs/MOCK_AUTH_QUICKSTART.md))
+
+</details>
 
 ---
 
@@ -203,13 +270,10 @@ _Web app will be available at http://localhost:3005._
 
 For contributors, we provide a setup script to ensure your environment is ready for Tauri development:
 
-`powershell`bash
-
+```powershell
 # Windows (PowerShell)
-
 .\scripts\setup_tauri_env.ps1
-
-````
+```
 
 This script checks for Rust, installs the Tauri CLI, and verifies your configuration.
 
@@ -261,7 +325,7 @@ journal = requests.post("http://localhost:8000/api/v1/journal", headers=headers,
     "content": "Today was productive but stressful...",
     "tags": ["work", "stress"]
 })
-````
+```
 
 #### CLI Tools
 
@@ -282,21 +346,55 @@ python scripts/outlier_analysis.py --user john_doe
 
 ### Project Structure
 
-```
+<pre>
 SOUL_SENSE_EXAM/
-├── app/                     # Desktop Application package
-│   ├── main.py              # GUI entry point
-│   ├── cli.py               # CLI entry point
-│   └── ui/                  # Tkinter components
-├── backend/fastapi/         # REST API Ecosystem
-│   ├── api/                 # Core API logic (Models, Routers, Services)
-│   └── start_server.py      # Recommended API launcher
-├── frontend-web/            # Modern Next.js Web Client
-├── data/                    # Unified SQLite database and local logs
-├── scripts/                 # Setup, seeding, and maintenance utilities
-├── tests/                   # Pytest suite (covers App and API)
-└── requirements.txt         # Core dependencies
-```
+├── app/                         # Desktop Application package
+│   ├── main.py                  # GUI entry point
+│   ├── cli.py                   # CLI entry point
+│   └── ui/                      # Tkinter components
+├── backend/fastapi/             # REST API Ecosystem
+│   ├── api/                     # Core API logic
+│   │   ├── main.py              # FastAPI app entry
+│   │   ├── routers/             # Route handlers
+│   │   ├── models/              # SQLAlchemy models
+│   │   ├── ml/                  # ML / NLTK engine
+│   │   ├── middleware/          # Auth, logging, CORS
+│   │   └── config/              # App configuration
+│   ├── scripts/                 # Backend utilities
+│   ├── tests/                   # API test suite
+│   └── start_server.py          # Recommended API launcher
+├── frontend-web/                # Modern Next.js Web Client
+│   ├── src/                     # Application source
+│   │   ├── app/                 # Next.js app router pages
+│   │   ├── components/          # React UI components
+│   │   ├── hooks/               # Custom React hooks
+│   │   ├── lib/                 # Utilities and helpers
+│   │   ├── stores/              # State management
+│   │   └── styles/              # Global styles
+│   ├── src-tauri/               # Tauri / Rust shell
+│   │   ├── src/                 # Rust source code
+│   │   └── tauri.conf.json      # Tauri configuration
+│   ├── tests-e2e/               # Playwright E2E tests
+│   └── package.json             # Node dependencies
+├── data/                        # SQLite database and logs
+├── scripts/                     # Setup, seeding, and maintenance
+├── tests/                       # Pytest suite (App + API)
+└── requirements.txt             # Core Python dependencies
+</pre>
+
+### I18N Multi-Language Support
+
+<div align="center">
+
+| Language | Code | Status | Translation File |
+|:---:|:---:|:---:|:---:|
+| 🇬🇧 English | `en` | ✅ Complete | `resources/en.json` |
+| 🇮🇳 Hindi (हिंदी) | `hi` | ✅ Complete | `resources/hi.json` |
+| 🇪🇸 Spanish (Español) | `es` | ✅ Complete | `resources/es.json` |
+
+</div>
+
+> See the [I18N Guide](docs/I18N_GUIDE.md) for instructions on adding new languages.
 
 ### Environment Configuration
 
@@ -506,7 +604,7 @@ For more help, check the [User Manual](docs/USER_MANUAL.md) or open an issue on 
 
 ---
 
-## �📄 License
+## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
