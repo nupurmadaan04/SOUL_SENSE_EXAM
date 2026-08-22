@@ -614,7 +614,9 @@ def create_app() -> FastAPI:
         allow_credentials = True
     else:
         # Production: Use configured origins with credential support
-        origins = settings.BACKEND_CORS_ORIGINS
+        origins = list(settings.BACKEND_CORS_ORIGINS) if isinstance(settings.BACKEND_CORS_ORIGINS, (list, tuple, set)) else [str(settings.BACKEND_CORS_ORIGINS)]
+        if "https://soul-sense-eq.vercel.app" not in origins:
+            origins.append("https://soul-sense-eq.vercel.app")
         allow_credentials = settings.cors_allow_credentials
 
         # Security validation: ensure no wildcard with credentials
@@ -627,6 +629,7 @@ def create_app() -> FastAPI:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=origins,
+        allow_origin_regex=r"^https:\/\/([a-zA-Z0-9_-]+\.)*vercel\.app$|^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$",
         allow_credentials=allow_credentials,
         allow_methods=["*"],
         allow_headers=["*"],

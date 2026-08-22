@@ -57,6 +57,9 @@ export const metadata: Metadata = {
     statusBarStyle: 'default',
     title: 'Soul Sense',
   },
+  other: {
+    'mobile-web-app-capable': 'yes',
+  },
 };
 
 export const viewport: Viewport = {

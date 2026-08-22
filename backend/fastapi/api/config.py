@@ -206,9 +206,13 @@ class BaseAppSettings(BaseSettings):
     BACKEND_CORS_ORIGINS: Any = Field(
         default=[
             "http://localhost:3000", 
+            "http://localhost:3001",
             "http://localhost:3005", 
             "http://127.0.0.1:3000",
+            "http://127.0.0.1:3001",
             "http://127.0.0.1:3005",
+            "https://soul-sense-eq.vercel.app",
+            "https://soul-sense-exam.onrender.com",
             "tauri://localhost"
         ],
         description="Allowed origins for CORS"

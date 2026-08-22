@@ -229,7 +229,12 @@ export default function CommunityDashboard() {
                   {/* Primary Stats Section */}
                   <StatsCard
                     title="Contributors"
-                    value={safeData.stats?.contributors || (safeData.contributors ? safeData.contributors.length : 43)}
+                    value={
+                      typeof safeData.stats?.contributors === 'number'
+                        ? safeData.stats.contributors
+                        : safeData.stats?.contributors?.total ??
+                          (Array.isArray(safeData.contributors) ? safeData.contributors.length : 43)
+                    }
                     icon={Users}
                     description="43+ active open-source contributors"
                     trend="up"
@@ -237,7 +242,11 @@ export default function CommunityDashboard() {
                   />
                   <StatsCard
                     title="Repository Stars"
-                    value={safeData.stats?.repository?.stars || 15}
+                    value={
+                      typeof safeData.stats?.repository?.stars === 'number'
+                        ? safeData.stats.repository.stars
+                        : safeData.stats?.stars ?? 15
+                    }
                     icon={Star}
                     description="Global project recognition"
                     trend="up"
@@ -245,15 +254,31 @@ export default function CommunityDashboard() {
                   />
                   <StatsCard
                     title="PR Throughput"
-                    value={safeData.stats?.pull_requests?.total || 674}
+                    value={
+                      typeof safeData.stats?.pull_requests?.total === 'number'
+                        ? safeData.stats.pull_requests.total
+                        : typeof safeData.stats?.pull_requests === 'number'
+                        ? safeData.stats.pull_requests
+                        : 733
+                    }
                     icon={GitMerge}
-                    description={`${safeData.stats?.pull_requests?.open || 0} open, ${safeData.stats?.pull_requests?.closed || 674} merged PRs`}
+                    description={`${safeData.stats?.pull_requests?.open ?? 0} open, ${
+                      safeData.stats?.pull_requests?.closed ?? 733
+                    } merged PRs`}
                     trend="up"
                     color="cyan"
                   />
                   <StatsCard
                     title="Commit Count"
-                    value={safeData.stats?.commits?.total || 2014}
+                    value={
+                      typeof safeData.stats?.commits?.total === 'number'
+                        ? safeData.stats.commits.total
+                        : typeof safeData.stats?.commit_count === 'number'
+                        ? safeData.stats.commit_count
+                        : typeof safeData.stats?.commits === 'number'
+                        ? safeData.stats.commits
+                        : 2014
+                    }
                     icon={GitCommit}
                     description="2,014 lifetime repository commits"
                     trend="up"

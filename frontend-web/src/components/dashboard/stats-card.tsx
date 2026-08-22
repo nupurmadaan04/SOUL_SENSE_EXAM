@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 
 interface StatsCardProps {
   title: string;
-  value: string | number;
+  value: string | number | any;
   description?: string;
   icon: LucideIcon;
   className?: string;
@@ -22,6 +22,25 @@ export function StatsCard({
   trend,
   color = 'blue',
 }: StatsCardProps) {
+  const formatValue = (val: any): string | number => {
+    if (val === null || val === undefined) return 0;
+    if (typeof val === 'number' || typeof val === 'string') return val;
+    if (typeof val === 'object') {
+      if ('total' in val && (typeof val.total === 'number' || typeof val.total === 'string')) {
+        return val.total;
+      }
+      if ('count' in val && (typeof val.count === 'number' || typeof val.count === 'string')) {
+        return val.count;
+      }
+      if ('stars' in val && (typeof val.stars === 'number' || typeof val.stars === 'string')) {
+        return val.stars;
+      }
+      if (Array.isArray(val)) return val.length;
+      return Object.keys(val).length;
+    }
+    return String(val);
+  };
+
   const getTrendIcon = () => {
     switch (trend) {
       case 'up':
@@ -89,7 +108,7 @@ export function StatsCard({
         <CardContent className="relative z-10">
           <div className="flex items-baseline gap-2">
             <div className="text-3xl font-black tracking-tight text-slate-900 dark:text-white">
-              {value}
+              {formatValue(value)}
             </div>
             {trend && (
               <div className="flex items-center gap-1 bg-slate-100 dark:bg-white/5 px-2 py-0.5 rounded-full border border-slate-200 dark:border-white/5">
