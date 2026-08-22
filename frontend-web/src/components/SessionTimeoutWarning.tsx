@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { useSessionTimeout } from '@/hooks/useSessionTimeout';
+import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui';
 import { AlertCircle, Clock } from 'lucide-react';
 
@@ -12,11 +13,12 @@ import { AlertCircle, Clock } from 'lucide-react';
  * due to inactivity. Allows the user to extend their session.
  */
 export function SessionTimeoutWarning() {
+  const { isAuthenticated } = useAuth();
   const { showWarning, remainingSeconds, continueSession } = useSessionTimeout({
-    enabled: true,
+    enabled: !!isAuthenticated,
   });
 
-  if (!showWarning) {
+  if (!isAuthenticated || !showWarning) {
     return null;
   }
 

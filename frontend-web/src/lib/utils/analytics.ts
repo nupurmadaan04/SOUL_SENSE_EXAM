@@ -161,154 +161,126 @@ class AnalyticsManager {
 
   private setupSessionTracking() {
     // Track app visibility changes for session management
-    if (typeof document !== 'undefined') {
-      document.addEventListener('visibilitychange', () => {
-        if (document.hidden) {
+    if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+      try {
+        document.addEventListener('visibilitychange', () => {
+          if (document.hidden) {
+            this.endSession();
+          } else {
+            this.startSession();
+          }
+        });
+
+        // Handle page unload (tab close, navigation)
+        window.addEventListener('beforeunload', () => {
           this.endSession();
-        } else {
+        });
+
+        // Handle page load
+        if (document.readyState === 'complete') {
           this.startSession();
+        } else {
+          window.addEventListener('load', () => {
+            this.startSession();
+          });
         }
-      });
-
-      // Handle page unload (tab close, navigation)
-      window.addEventListener('beforeunload', () => {
-        this.endSession();
-      });
-
-      // Handle page load
-      window.addEventListener('load', () => {
-        this.startSession();
-      });
+      } catch (e) {
+        console.warn('Analytics session tracking setup error:', e);
+      }
     }
   }
 
   private setupScrollDepthTracking() {
     // Track scroll depth on pages with scrollable content
     if (typeof window !== 'undefined' && typeof document !== 'undefined') {
-      // Use a throttled scroll handler to avoid excessive tracking
-      let scrollTimeout: NodeJS.Timeout;
-      const scrollThresholds = [25, 50, 75, 100];
-      const reachedThresholds = new Set<number>();
+      try {
+        // Use a throttled scroll handler to avoid excessive tracking
+        let scrollTimeout: any;
+        const scrollThresholds = [25, 50, 75, 100];
+        const reachedThresholds = new Set<number>();
 
-      const handleScroll = () => {
-        clearTimeout(scrollTimeout);
-        scrollTimeout = setTimeout(() => {
-          const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-          const windowHeight = window.innerHeight;
-          const documentHeight = Math.max(
-            document.body.scrollHeight,
-            document.body.offsetHeight,
-            document.documentElement.clientHeight,
-            document.documentElement.scrollHeight,
-            document.documentElement.offsetHeight
-          );
+        const handleScroll = () => {
+          clearTimeout(scrollTimeout);
+          scrollTimeout = setTimeout(() => {
+            if (!document.body || !document.documentElement) return;
+            const scrollTop = window.pageYOffset || document.documentElement.scrollTop || 0;
+            const windowHeight = window.innerHeight || 800;
+            const documentHeight = Math.max(
+              document.body.scrollHeight || 0,
+              document.body.offsetHeight || 0,
+              document.documentElement.clientHeight || 0,
+              document.documentElement.scrollHeight || 0,
+              document.documentElement.offsetHeight || 0
+            ) || 1000;
 
-          const scrollPercentage = Math.round(((scrollTop + windowHeight) / documentHeight) * 100);
+            const scrollPercentage = Math.round(((scrollTop + windowHeight) / documentHeight) * 100);
 
-          // Check each threshold
-          for (const threshold of scrollThresholds) {
-            if (scrollPercentage >= threshold && !reachedThresholds.has(threshold)) {
-              reachedThresholds.add(threshold);
-              this.trackScrollDepth(threshold);
+            // Check each threshold
+            for (const threshold of scrollThresholds) {
+              if (scrollPercentage >= threshold && !reachedThresholds.has(threshold)) {
+                reachedThresholds.add(threshold);
+                this.trackScrollDepth(threshold);
+              }
             }
+          }, 100); // Throttle to 100ms
+        };
+
+        // Add scroll event listener
+        window.addEventListener('scroll', handleScroll, { passive: true });
+
+        // Reset thresholds on page navigation (SPA routing)
+        let currentPath = window.location.pathname;
+        const checkPathChange = () => {
+          if (typeof window !== 'undefined' && window.location.pathname !== currentPath) {
+            currentPath = window.location.pathname;
+            reachedThresholds.clear();
           }
-        }, 100); // Throttle to 100ms
-      };
+        };
 
-      // Add scroll event listener
-      window.addEventListener('scroll', handleScroll, { passive: true });
-
-      // Reset thresholds on page navigation (SPA routing)
-      // This is a simplified approach - in a real SPA, you'd listen to route changes
-      let currentPath = window.location.pathname;
-      const checkPathChange = () => {
-        if (window.location.pathname !== currentPath) {
-          currentPath = window.location.pathname;
-          reachedThresholds.clear();
-        }
-      };
-
-      // Check for path changes periodically (for SPA navigation)
-      setInterval(checkPathChange, 1000);
+        // Check for path changes periodically (for SPA navigation)
+        setInterval(checkPathChange, 1000);
+      } catch (e) {
+        console.warn('Analytics scroll tracking setup error:', e);
+      }
     }
   }
 
   private setupScreenTimeTracking() {
     // Handle screen exits on page visibility changes and before unload
-    if (typeof document !== 'undefined') {
-      // Handle app background/foreground
-      document.addEventListener('visibilitychange', () => {
-        if (document.hidden && this.currentScreen) {
-          // App going to background - exit current screen
-          this.exitScreen('background');
-        } else if (!document.hidden && this.currentScreen) {
-          // App coming to foreground - re-enter current screen
-          this.enterScreen(this.currentScreen);
-        }
-      });
+    if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+      try {
+        // Handle app background/foreground
+        document.addEventListener('visibilitychange', () => {
+          if (document.hidden && this.currentScreen) {
+            // App going to background - exit current screen
+            this.exitScreen('background');
+          } else if (!document.hidden && this.currentScreen) {
+            // App coming to foreground - re-enter current screen
+            this.enterScreen(this.currentScreen);
+          }
+        });
 
-      // Handle page unload (tab close, navigation)
-      window.addEventListener('beforeunload', () => {
-        if (this.currentScreen) {
-          this.exitScreen('force_close');
-        }
-      });
+        // Handle page unload (tab close, navigation)
+        window.addEventListener('beforeunload', () => {
+          if (this.currentScreen) {
+            this.exitScreen('force_close');
+          }
+        });
 
-      // Handle browser navigation (back/forward buttons, direct URL changes)
-      window.addEventListener('popstate', () => {
-        if (this.currentScreen) {
-          this.exitScreen('navigation');
-        }
-      });
+        // Handle browser navigation (back/forward buttons, direct URL changes)
+        window.addEventListener('popstate', () => {
+          if (this.currentScreen) {
+            this.exitScreen('navigation');
+          }
+        });
+      } catch (e) {
+        console.warn('Analytics screen time tracking setup error:', e);
+      }
     }
   }
 
   private setupNetworkInterceptor() {
-    // Intercept fetch requests for API error tracking
-    if (typeof window !== 'undefined' && typeof fetch !== 'undefined') {
-      const originalFetch = window.fetch;
-
-      window.fetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-        const startTime = Date.now();
-        let retryCount = 0;
-
-        // Extract endpoint URL
-        const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-
-        try {
-          const response = await originalFetch(input, init);
-          const latency = Date.now() - startTime;
-
-          // Track API errors (4xx, 5xx status codes)
-          if (!response.ok) {
-            let errorMessage = `HTTP ${response.status}`;
-            try {
-              const errorData = await response.clone().json();
-              if (errorData.message) {
-                errorMessage = errorData.message;
-              }
-            } catch {
-              // If we can't parse the error response, use the status text
-              if (response.statusText) {
-                errorMessage = response.statusText;
-              }
-            }
-
-            this.trackApiError(url, response.status, errorMessage, latency, retryCount);
-          }
-
-          return response;
-        } catch (error) {
-          const latency = Date.now() - startTime;
-          const errorMessage = error instanceof Error ? error.message : 'Network request failed';
-
-          // Track network/timeout errors
-          this.trackApiError(url, 0, errorMessage, latency, retryCount);
-
-          throw error;
-        }
-      };
-    }
+    // No-op to preserve standard native fetch and Next.js App Router streaming
   }
 
   private startSession() {

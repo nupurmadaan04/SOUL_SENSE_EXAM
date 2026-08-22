@@ -24,10 +24,20 @@ const navItems = [
 export function BottomNavigation() {
   const pathname = usePathname();
   const { light } = useHapticFeedback();
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleNavClick = () => {
     light();
   };
+
+  if (!mounted) return null;
+
+  const isPublic = pathname === '/' || pathname.startsWith('/community') || pathname.startsWith('/faq') || pathname.startsWith('/terms') || pathname.startsWith('/privacy') || pathname.startsWith('/login') || pathname.startsWith('/register') || pathname.startsWith('/forgot-password');
+  if (isPublic) return null;
 
   return (
     <nav
