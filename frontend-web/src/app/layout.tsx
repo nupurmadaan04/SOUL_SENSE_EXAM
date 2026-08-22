@@ -9,7 +9,7 @@ import { WebVitalsMonitor } from '@/components/monitoring';
 import { SkipLinks } from '@/components/accessibility';
 import { OfflineBanner } from '@/components/offline';
 import { SessionTimeoutWarning } from '@/components/SessionTimeoutWarning';
-import { register } from '@/lib/offline';
+import { ServiceWorkerRegister } from '@/components/ServiceWorkerRegister';
 import { Toaster } from 'sonner';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-sans', display: 'swap' });
@@ -139,16 +139,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </AuthProvider>
           </QueryProvider>
         </ThemeProvider>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              if (typeof window !== 'undefined') {
-                ${register.toString()}
-                register();
-              }
-            `,
-          }}
-        />
+        <ServiceWorkerRegister />
       </body>
     </html>
   );
