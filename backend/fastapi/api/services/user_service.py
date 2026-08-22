@@ -289,15 +289,6 @@ class UserService:
         
         if count > 0:
             await self.db.commit()
-        async with transaction_scope(self.db):
-            for user in expired_users:
-                try:
-                    await self.db.delete(user)
-                    count += 1
-                except Exception as e:
-                    print(f"[ERROR] Failed to purge user {user.id}: {e}")
-        
-        if count > 0:
             print(f"[CLEANUP] Purged {count} expired accounts")
             
         return count

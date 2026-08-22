@@ -230,11 +230,20 @@ class AsyncWorkerManager:
 
         logger.info("AsyncWorkerManager shutdown complete")
 
-    def register_worker(self, name: str, factory: Callable, restart_interval: int = 3600):
+    def register_worker(self, name: str, factory: Optional[Callable] = None, restart_interval: int = 3600, **kwargs):
         """Register a worker factory function."""
+        if factory is None and "worker_func" in kwargs:
+            factory = kwargs.pop("worker_func")
+        if factory is None:
+            logger.warning(f"No factory provided for worker {name}")
+            return
         self.worker_factories[name] = factory
         self.restart_intervals[name] = restart_interval
         logger.info(f"Registered worker: {name} (restart every {restart_interval}s)")
+
+    async def shutdown_all_workers(self):
+        """Alias for shutdown."""
+        await self.shutdown()
 
     def add_cleanup_hook(self, hook: Callable):
         """Add a cleanup hook to run on shutdown."""
