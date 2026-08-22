@@ -344,8 +344,8 @@ async def health_check(
         "connection_pool": connection_pool_status,
     }
 
-    # Determine overall health - core services must not be unhealthy
-    is_healthy = db_status.status != "unhealthy" and redis_status.status != "unhealthy" and not any(s.status == "unhealthy" for s in services.values())
+    # Determine overall health - core database must be healthy
+    is_healthy = db_status.status != "unhealthy"
 
     if not is_healthy:
         response.status_code = 503  # Service Unavailable
