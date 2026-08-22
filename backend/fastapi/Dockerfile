@@ -19,6 +19,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application source code
 COPY . .
 
+# Create database and logs directories with write permissions
+RUN mkdir -p /app/data /app/logs /data && chmod -R 777 /app/data /app/logs /data
+
 # Expose port
 EXPOSE 8000
 

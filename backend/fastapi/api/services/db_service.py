@@ -20,8 +20,17 @@ logger = logging.getLogger("api.db")
 
 # Convert standard sqlite:// to sqlite+aiosqlite:// if needed
 database_url = settings.database_url
-if database_url.startswith("sqlite:///"):
-    database_url = database_url.replace("sqlite:///", "sqlite+aiosqlite:///")
+if "sqlite" in database_url:
+    import os
+    # Extract file path from sqlite url (handle sqlite:///, sqlite+aiosqlite:///, etc.)
+    db_file_path = database_url.split("sqlite:///")[-1].split("sqlite+aiosqlite:///")[-1]
+    if db_file_path and not db_file_path.startswith(":memory:"):
+        db_dir = os.path.dirname(os.path.abspath(db_file_path))
+        if db_dir:
+            os.makedirs(db_dir, exist_ok=True)
+    if database_url.startswith("sqlite:///"):
+        database_url = database_url.replace("sqlite:///", "sqlite+aiosqlite:///")
+
 
 # Configure connect_args based on DB type
 connect_args = {}

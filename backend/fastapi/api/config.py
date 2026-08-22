@@ -8,9 +8,23 @@ from dotenv import load_dotenv
 from pydantic import Field, field_validator, ValidationError, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-ROOT_DIR = Path(__file__).resolve().parent.parent.parent.parent
-BACKEND_DIR = ROOT_DIR / "backend"
-FASTAPI_DIR = BACKEND_DIR / "fastapi"
+# Detect application root directory and data directory
+CURRENT_FILE = Path(__file__).resolve()
+if (CURRENT_FILE.parent.parent.parent.parent / "frontend-web").exists():
+    ROOT_DIR = CURRENT_FILE.parent.parent.parent.parent
+elif (CURRENT_FILE.parent.parent / "api").exists():
+    ROOT_DIR = CURRENT_FILE.parent.parent
+else:
+    ROOT_DIR = CURRENT_FILE.parent.parent
+
+DATA_DIR = ROOT_DIR / "data"
+try:
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+except Exception:
+    pass
+
+BACKEND_DIR = ROOT_DIR / "backend" if (ROOT_DIR / "backend").exists() else ROOT_DIR
+FASTAPI_DIR = BACKEND_DIR / "fastapi" if (BACKEND_DIR / "fastapi").exists() else BACKEND_DIR
 ENV_FILE = ROOT_DIR / ".env"
 
 # Only add backend-specific paths to avoid module name conflicts with main app
@@ -18,6 +32,7 @@ if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 if str(FASTAPI_DIR) not in sys.path:
     sys.path.insert(0, str(FASTAPI_DIR))
+
 
 
 try:
