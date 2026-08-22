@@ -25,7 +25,7 @@ const ForceDirectedGraph = dynamic(
     import('@/components/dashboard/charts/force-directed-graph').then(
       (mod) => mod.ForceDirectedGraph
     ),
-  { ssr: false }
+  { ssr: false, loading: () => <div className="h-64 rounded-2xl bg-slate-100 dark:bg-slate-800/50 animate-pulse" /> }
 );
 
 const RepositorySunburst = dynamic(
@@ -33,20 +33,41 @@ const RepositorySunburst = dynamic(
     import('@/components/dashboard/charts/repository-sunburst').then(
       (mod) => mod.RepositorySunburst
     ),
-  { ssr: false }
+  { ssr: false, loading: () => <div className="h-64 rounded-2xl bg-slate-100 dark:bg-slate-800/50 animate-pulse" /> }
 );
 
 export default function CommunityDashboard() {
+  const [mounted, setMounted] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'mission-control'>('overview');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<any>(MOCK_DASHBOARD_DATA);
 
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    let isSubscribed = true;
+
     async function fetchData() {
       try {
         const host = typeof window !== 'undefined' ? (window.location.hostname || 'localhost') : '127.0.0.1';
         const API_BASE = process.env.NEXT_PUBLIC_API_URL || `http://${host}:8000/api/v1`;
+        
+        const fetchWithTimeout = async (url: string, timeoutMs: number = 4000) => {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+          try {
+            const res = await fetch(url, { signal: controller.signal });
+            clearTimeout(timeoutId);
+            return res;
+          } catch (e) {
+            clearTimeout(timeoutId);
+            return null;
+          }
+        };
+
         const [
           statsRes,
           contributorsRes,
@@ -59,103 +80,83 @@ export default function CommunityDashboard() {
           issuesRes,
           roadmapRes,
         ] = await Promise.all([
-          fetch(`${API_BASE}/community/stats`),
-          fetch(`${API_BASE}/community/contributors?limit=100`),
-          fetch(`${API_BASE}/community/activity`),
-          fetch(`${API_BASE}/community/mix`),
-          fetch(`${API_BASE}/community/reviews`),
-          fetch(`${API_BASE}/community/graph`),
-          fetch(`${API_BASE}/community/sunburst`),
-          fetch(`${API_BASE}/community/pulse`),
-          fetch(`${API_BASE}/community/issues`),
-          fetch(`${API_BASE}/community/roadmap`),
+          fetchWithTimeout(`${API_BASE}/community/stats`),
+          fetchWithTimeout(`${API_BASE}/community/contributors?limit=100`),
+          fetchWithTimeout(`${API_BASE}/community/activity`),
+          fetchWithTimeout(`${API_BASE}/community/mix`),
+          fetchWithTimeout(`${API_BASE}/community/reviews`),
+          fetchWithTimeout(`${API_BASE}/community/graph`),
+          fetchWithTimeout(`${API_BASE}/community/sunburst`),
+          fetchWithTimeout(`${API_BASE}/community/pulse`),
+          fetchWithTimeout(`${API_BASE}/community/issues`),
+          fetchWithTimeout(`${API_BASE}/community/roadmap`),
         ]);
 
-        if (
-          !statsRes.ok ||
-          !contributorsRes.ok ||
-          !activityRes.ok ||
-          !mixRes.ok ||
-          !reviewsRes.ok ||
-          !graphRes.ok ||
-          !sunburstRes.ok ||
-          !pulseRes.ok ||
-          !issuesRes.ok ||
-          !roadmapRes.ok
-        ) {
-          throw new Error('Failed to fetch community data');
+        if (statsRes && statsRes.ok) {
+          const stats = await statsRes.json();
+          const contributors = (contributorsRes && contributorsRes.ok) ? await contributorsRes.json() : MOCK_DASHBOARD_DATA.contributors;
+          const activity = (activityRes && activityRes.ok) ? await activityRes.json() : MOCK_DASHBOARD_DATA.activity;
+          const mix = (mixRes && mixRes.ok) ? await mixRes.json() : MOCK_DASHBOARD_DATA.mix;
+          const reviews = (reviewsRes && reviewsRes.ok) ? await reviewsRes.json() : MOCK_DASHBOARD_DATA.reviews;
+          const graph = (graphRes && graphRes.ok) ? await graphRes.json() : MOCK_DASHBOARD_DATA.graph;
+          const sunburst = (sunburstRes && sunburstRes.ok) ? await sunburstRes.json() : MOCK_DASHBOARD_DATA.sunburst;
+          const pulse = (pulseRes && pulseRes.ok) ? await pulseRes.json() : MOCK_DASHBOARD_DATA.pulse;
+          const issues = (issuesRes && issuesRes.ok) ? await issuesRes.json() : MOCK_DASHBOARD_DATA.issues;
+          const roadmap = (roadmapRes && roadmapRes.ok) ? await roadmapRes.json() : MOCK_DASHBOARD_DATA.roadmap;
+
+          if (isSubscribed) {
+            setData({
+              stats,
+              contributors,
+              activity,
+              mix,
+              reviews,
+              graph,
+              sunburst,
+              pulse,
+              issues,
+              roadmap,
+            });
+          }
+        } else {
+          if (isSubscribed) {
+            setData(MOCK_DASHBOARD_DATA);
+          }
         }
-
-        const stats = await statsRes.json();
-        const contributors = await contributorsRes.json();
-        const activity = await activityRes.json();
-        const mix = await mixRes.json();
-        const reviews = await reviewsRes.json();
-        const graph = await graphRes.json();
-        const sunburst = await sunburstRes.json();
-        const pulse = await pulseRes.json();
-        const issues = await issuesRes.json();
-        const roadmap = await roadmapRes.json();
-
-        setData({
-          stats,
-          contributors,
-          activity,
-          mix,
-          reviews,
-          graph,
-          sunburst,
-          pulse,
-          issues,
-          roadmap,
-        });
       } catch (err) {
-        console.warn('Failed to fetch community data, using fallback cache:', err);
-        setData(MOCK_DASHBOARD_DATA);
+        console.warn('Failed to fetch community data, using fallback mock cache:', err);
+        if (isSubscribed) {
+          setData(MOCK_DASHBOARD_DATA);
+        }
       } finally {
-        setLoading(false);
+        if (isSubscribed) {
+          setLoading(false);
+        }
       }
     }
 
     fetchData();
+
+    return () => {
+      isSubscribed = false;
+    };
   }, []);
 
-  if (loading) {
+  if (!mounted || loading) {
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans transition-colors duration-500">
         <div className="max-w-7xl mx-auto px-6 md:px-8 space-y-8">
           <div className="h-14 md:h-20" aria-hidden="true" />
-          <motion.h1
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-50 pl-1"
-          >
-            Initializing Dashboard...
-          </motion.h1>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-50 pl-1">
+            Soul Sense Community Hub
+          </h1>
           <DashboardSkeleton />
         </div>
       </div>
     );
   }
 
-  if (error) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold text-red-500 font-mono tracking-tighter">
-            CONNECTION_ERROR
-          </h2>
-          <p className="text-slate-600 dark:text-slate-400 mt-2 max-w-md mx-auto">{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="mt-6 px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-full shadow-lg hover:shadow-blue-500/40 transition-all active:scale-95"
-          >
-            Re-establish Link
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const safeData = data || MOCK_DASHBOARD_DATA;
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans transition-colors duration-500">
@@ -194,7 +195,7 @@ export default function CommunityDashboard() {
 
           {/* System Log & Action Button */}
           <div className="flex flex-col sm:flex-row items-center gap-3">
-            <ActivityPulse events={data.pulse} />
+            <ActivityPulse events={safeData?.pulse || MOCK_DASHBOARD_DATA.pulse} />
             <motion.a
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
@@ -221,14 +222,14 @@ export default function CommunityDashboard() {
                 className="space-y-12"
               >
                 {/* Good First Issues Carousel */}
-                <GoodFirstIssues data={data.issues} />
+                <GoodFirstIssues data={safeData?.issues || MOCK_DASHBOARD_DATA.issues} />
 
                 {/* Dynamic Bento Grid Layout */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                   {/* Primary Stats Section */}
                   <StatsCard
                     title="Contributors"
-                    value={data.stats?.contributors || (data.contributors ? data.contributors.length : 43)}
+                    value={safeData.stats?.contributors || (safeData.contributors ? safeData.contributors.length : 43)}
                     icon={Users}
                     description="43+ active open-source contributors"
                     trend="up"
@@ -236,7 +237,7 @@ export default function CommunityDashboard() {
                   />
                   <StatsCard
                     title="Repository Stars"
-                    value={data.stats?.repository?.stars || 15}
+                    value={safeData.stats?.repository?.stars || 15}
                     icon={Star}
                     description="Global project recognition"
                     trend="up"
@@ -244,15 +245,15 @@ export default function CommunityDashboard() {
                   />
                   <StatsCard
                     title="PR Throughput"
-                    value={data.stats?.pull_requests?.total || 674}
+                    value={safeData.stats?.pull_requests?.total || 674}
                     icon={GitMerge}
-                    description={`${data.stats?.pull_requests?.open || 0} open, ${data.stats?.pull_requests?.closed || 674} merged PRs`}
+                    description={`${safeData.stats?.pull_requests?.open || 0} open, ${safeData.stats?.pull_requests?.closed || 674} merged PRs`}
                     trend="up"
                     color="cyan"
                   />
                   <StatsCard
                     title="Commit Count"
-                    value={data.stats?.commits?.total || 2014}
+                    value={safeData.stats?.commits?.total || 2014}
                     icon={GitCommit}
                     description="2,014 lifetime repository commits"
                     trend="up"
@@ -261,26 +262,26 @@ export default function CommunityDashboard() {
 
                   {/* Main Visualizations Row */}
                   <div className="col-span-full lg:col-span-2 transition-all duration-300">
-                    <ActivityAreaChart data={data.activity} />
+                    <ActivityAreaChart data={safeData?.activity || MOCK_DASHBOARD_DATA.activity} />
                   </div>
 
                   <div className="col-span-full lg:col-span-2">
-                    <ContributionMixChart data={data.mix} />
+                    <ContributionMixChart data={safeData?.mix || MOCK_DASHBOARD_DATA.mix} />
                   </div>
 
                   <div className="col-span-full">
-                    <Leaderboard contributors={data.contributors} />
+                    <Leaderboard contributors={safeData?.contributors || MOCK_DASHBOARD_DATA.contributors} />
                   </div>
 
-                  <ForceDirectedGraph data={data.graph} />
+                  <ForceDirectedGraph data={safeData?.graph || MOCK_DASHBOARD_DATA.graph} />
 
-                  <RepositorySunburst data={data.sunburst} />
+                  <RepositorySunburst data={safeData?.sunburst || MOCK_DASHBOARD_DATA.sunburst} />
                   <div className="col-span-full lg:col-span-2">
-                    <ReviewerMetrics data={data.reviews} />
+                    <ReviewerMetrics data={safeData?.reviews || MOCK_DASHBOARD_DATA.reviews} />
                   </div>
 
                   <div className="col-span-full">
-                    <ProjectRoadmap data={data.roadmap} />
+                    <ProjectRoadmap data={safeData?.roadmap || MOCK_DASHBOARD_DATA.roadmap} />
                   </div>
                 </div>
               </motion.div>
@@ -296,12 +297,6 @@ export default function CommunityDashboard() {
               </motion.div>
             )}
           </AnimatePresence>
-        </div>
-
-        {/* Footer Meta */}
-        <div className="pt-8 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-          <span>System Status: Optimal</span>
-          <span>Last Sync: {new Date().toLocaleTimeString()}</span>
         </div>
       </div>
     </div>
