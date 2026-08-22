@@ -1,0 +1,46 @@
+services:
+  # FastAPI Backend API Service
+  - type: web
+    name: soulsense-backend
+    env: python
+    rootDir: backend/fastapi
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn api.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: APP_ENV
+        value: production
+      - key: DEBUG
+        value: false
+      - key: DATABASE_URL
+        value: sqlite:///./data/soulsense.db
+      - key: SECRET_KEY
+        generateValue: true
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: JWT_EXPIRATION_HOURS
+        value: 24
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: BACKEND_CORS_ORIGINS
+        value: https://soulsense-frontend.onrender.com,http://localhost:3000,http://localhost:3005
+
+  # Next.js Frontend Web Service
+  - type: web
+    name: soulsense-frontend
+    env: node
+    rootDir: frontend-web
+    buildCommand: npm install && npm run build
+    startCommand: npm run start -- -p $PORT
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: 18.20.2
+      - key: NEXT_PUBLIC_API_URL
+        fromService:
+          type: web
+          name: soulsense-backend
+          property: host
