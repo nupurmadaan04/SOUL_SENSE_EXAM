@@ -21,11 +21,22 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../.
 from ..schemas import HealthResponse, ServiceStatus
 from ..services.db_service import get_db
 from ..services.replica_lag_monitor import get_lag_monitor
-from ..config import get_settings
-from scripts.utilities.poison_resistant_lock import PoisonResistantLock, register_lock
+try:
+    from scripts.utilities.poison_resistant_lock import PoisonResistantLock, register_lock
+except ImportError:
+    class PoisonResistantLock:  # type: ignore
+        def __init__(self):
+            self._lock = threading.Lock()
+        def __enter__(self):
+            return self._lock.__enter__()
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            return self._lock.__exit__(exc_type, exc_val, exc_tb)
+    def register_lock(lock):
+        pass
 
 router = APIRouter()
 logger = logging.getLogger("api.health")
+
 
 
 # --- Version Detection ---
