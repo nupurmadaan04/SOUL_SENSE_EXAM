@@ -79,25 +79,24 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           dangerouslySetInnerHTML={{
             __html: `
               try {
-                // Theme initialization
-                if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-                  document.documentElement.classList.add('dark');
-                } else if (localStorage.theme === 'light') {
-                  document.documentElement.classList.remove('dark');
-                  document.documentElement.classList.add('light');
-                }
-                // Font size initialization
-                const fontSize = localStorage.getItem('soulsense_font_size');
-                if (fontSize && ['small', 'medium', 'large'].includes(fontSize)) {
-                  document.documentElement.classList.add('font-size-' + fontSize);
-                }
-                // High contrast initialization
-                if (localStorage.getItem('soulsense_high_contrast') === 'true') {
-                  document.documentElement.classList.add('high-contrast');
-                }
-                // Reduced motion initialization
-                if (localStorage.getItem('soulsense_reduced_motion') === 'true') {
-                  document.documentElement.classList.add('reduced-motion');
+                if (typeof window !== 'undefined' && 'localStorage' in window) {
+                  var t = localStorage.getItem('theme');
+                  if (t === 'dark' || (!t && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                    document.documentElement.classList.add('dark');
+                  } else if (t === 'light') {
+                    document.documentElement.classList.remove('dark');
+                    document.documentElement.classList.add('light');
+                  }
+                  var fs = localStorage.getItem('soulsense_font_size');
+                  if (fs && ['small', 'medium', 'large'].indexOf(fs) !== -1) {
+                    document.documentElement.classList.add('font-size-' + fs);
+                  }
+                  if (localStorage.getItem('soulsense_high_contrast') === 'true') {
+                    document.documentElement.classList.add('high-contrast');
+                  }
+                  if (localStorage.getItem('soulsense_reduced_motion') === 'true') {
+                    document.documentElement.classList.add('reduced-motion');
+                  }
                 }
               } catch (_) {}
             `,

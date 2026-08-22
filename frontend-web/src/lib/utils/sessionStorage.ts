@@ -49,21 +49,59 @@ export const isTokenExpired = (token: string): boolean => {
   }
 };
 
+const safeLocalStorage = {
+  getItem: (key: string): string | null => {
+    try {
+      return typeof window !== 'undefined' && window.localStorage ? window.localStorage.getItem(key) : null;
+    } catch {
+      return null;
+    }
+  },
+  setItem: (key: string, value: string): void => {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) window.localStorage.setItem(key, value);
+    } catch {}
+  },
+  removeItem: (key: string): void => {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) window.localStorage.removeItem(key);
+    } catch {}
+  },
+};
+
+const safeSessionStorage = {
+  getItem: (key: string): string | null => {
+    try {
+      return typeof window !== 'undefined' && window.sessionStorage ? window.sessionStorage.getItem(key) : null;
+    } catch {
+      return null;
+    }
+  },
+  setItem: (key: string, value: string): void => {
+    try {
+      if (typeof window !== 'undefined' && window.sessionStorage) window.sessionStorage.setItem(key, value);
+    } catch {}
+  },
+  removeItem: (key: string): void => {
+    try {
+      if (typeof window !== 'undefined' && window.sessionStorage) window.sessionStorage.removeItem(key);
+    } catch {}
+  },
+};
+
 /**
  * Save session to storage
  * @param session User session data
  * @param rememberMe Whether to use localStorage (persistent) or sessionStorage (per-tab)
  */
 export const saveSession = (session: UserSession, rememberMe: boolean): void => {
-  if (!isBrowser()) return;
-  
   const data = JSON.stringify(session);
   if (rememberMe) {
-    localStorage.setItem(SESSION_KEY, data);
-    sessionStorage.removeItem(SESSION_KEY); // Clear duplicate
+    safeLocalStorage.setItem(SESSION_KEY, data);
+    safeSessionStorage.removeItem(SESSION_KEY); // Clear duplicate
   } else {
-    sessionStorage.setItem(SESSION_KEY, data);
-    localStorage.removeItem(SESSION_KEY); // Clear duplicate
+    safeSessionStorage.setItem(SESSION_KEY, data);
+    safeLocalStorage.removeItem(SESSION_KEY); // Clear duplicate
   }
 };
 
@@ -72,10 +110,8 @@ export const saveSession = (session: UserSession, rememberMe: boolean): void => 
  * Checks both localStorage and sessionStorage
  */
 export const getSession = (): UserSession | null => {
-  if (!isBrowser()) return null;
-  
-  const localData = localStorage.getItem(SESSION_KEY);
-  const sessionData = sessionStorage.getItem(SESSION_KEY);
+  const localData = safeLocalStorage.getItem(SESSION_KEY);
+  const sessionData = safeSessionStorage.getItem(SESSION_KEY);
 
   const data = localData || sessionData;
   if (!data) return null;
@@ -101,10 +137,8 @@ export const getSession = (): UserSession | null => {
  * Clear session from both storage types
  */
 export const clearSession = (): void => {
-  if (!isBrowser()) return;
-  
-  localStorage.removeItem(SESSION_KEY);
-  sessionStorage.removeItem(SESSION_KEY);
+  safeLocalStorage.removeItem(SESSION_KEY);
+  safeSessionStorage.removeItem(SESSION_KEY);
 };
 
 /**
@@ -121,11 +155,9 @@ export const getExpiryTimestamp = (): number => {
  * Used for session timeout tracking (Issue #999)
  */
 export const updateLastActivity = (): void => {
-  if (!isBrowser()) return;
-  
   const now = Date.now();
-  localStorage.setItem(LAST_ACTIVITY_KEY, now.toString());
-  sessionStorage.setItem(LAST_ACTIVITY_KEY, now.toString());
+  safeLocalStorage.setItem(LAST_ACTIVITY_KEY, now.toString());
+  safeSessionStorage.setItem(LAST_ACTIVITY_KEY, now.toString());
 };
 
 /**
@@ -133,10 +165,8 @@ export const updateLastActivity = (): void => {
  * Returns null if no activity recorded
  */
 export const getLastActivity = (): number | null => {
-  if (!isBrowser()) return null;
-  
-  const localActivity = localStorage.getItem(LAST_ACTIVITY_KEY);
-  const sessionActivity = sessionStorage.getItem(LAST_ACTIVITY_KEY);
+  const localActivity = safeLocalStorage.getItem(LAST_ACTIVITY_KEY);
+  const sessionActivity = safeSessionStorage.getItem(LAST_ACTIVITY_KEY);
   const activityStr = sessionActivity || localActivity;
   
   if (!activityStr) return null;
@@ -178,8 +208,6 @@ export const getRemainingTime = (timeoutMs: number = 15 * 60 * 1000): number => 
  * Clear last activity tracking
  */
 export const clearLastActivity = (): void => {
-  if (!isBrowser()) return;
-  
-  localStorage.removeItem(LAST_ACTIVITY_KEY);
-  sessionStorage.removeItem(LAST_ACTIVITY_KEY);
+  safeLocalStorage.removeItem(LAST_ACTIVITY_KEY);
+  safeSessionStorage.removeItem(LAST_ACTIVITY_KEY);
 };
