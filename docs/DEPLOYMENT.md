@@ -33,8 +33,9 @@ For ultra-fast global CDN delivery of the Next.js frontend:
    - **Root Directory**: Select `frontend-web`.
    - **Framework Preset**: Next.js.
 4. Add Environment Variable:
-   - `NEXT_PUBLIC_API_URL`: Your live backend API URL (e.g. `https://soulsense-backend.onrender.com`).
+   - `NEXT_PUBLIC_API_URL`: `https://soul-sense-exam.onrender.com/api/v1`
 5. Click **Deploy**.
+
 
 ### 2. Deploy Backend on Render / Railway:
 1. Create a **New Web Service** pointing to `nupurmadaan04/SOUL_SENSE_EXAM`.
