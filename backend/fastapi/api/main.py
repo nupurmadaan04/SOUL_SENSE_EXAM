@@ -279,7 +279,7 @@ async def lifespan(app: FastAPI):
             from .services.cache_service import cache_service
             if worker_manager:
                 # Register with AsyncWorkerManager for memory leak prevention
-                await worker_manager.register_worker(
+                worker_manager.register_worker(
                     name="cache_invalidation_listener",
                     worker_func=cache_service.start_invalidation_listener,
                     restart_on_failure=True,
