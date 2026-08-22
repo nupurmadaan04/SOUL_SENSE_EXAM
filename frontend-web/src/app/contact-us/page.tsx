@@ -272,15 +272,47 @@ export default function ContactUsPage() {
                   <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 mb-4">
                     <Mail className="w-6 h-6 text-primary" />
                   </div>
-                  <h3 className="font-semibold mb-2">Email Us</h3>
-                  <p className="text-sm text-muted-foreground">support@soulsense.com</p>
+                  <h3 className="font-semibold mb-2">Direct Email</h3>
+                  <a
+                    href="mailto:nupur.04.m@gmail.com"
+                    className="text-sm text-primary hover:underline"
+                  >
+                    nupur.04.m@gmail.com
+                  </a>
                 </div>
                 <div className="glass-card p-6 text-center card-hover">
                   <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-secondary/10 mb-4">
                     <MessageSquare className="w-6 h-6 text-secondary" />
                   </div>
-                  <h3 className="font-semibold mb-2">Response Time</h3>
-                  <p className="text-sm text-muted-foreground">Usually within 24-48 hours</p>
+                  <h3 className="font-semibold mb-2">Creator Connect</h3>
+                  <div className="flex items-center justify-center gap-4 mt-2">
+                    <a
+                      href="https://www.linkedin.com/in/nupurmadaan04"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs text-muted-foreground hover:text-primary font-medium"
+                    >
+                      LinkedIn
+                    </a>
+                    <span>•</span>
+                    <a
+                      href="https://github.com/nupurmadaan04"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs text-muted-foreground hover:text-primary font-medium"
+                    >
+                      GitHub
+                    </a>
+                    <span>•</span>
+                    <a
+                      href="https://twitter.com/nupurmadaan04"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs text-muted-foreground hover:text-primary font-medium"
+                    >
+                      Twitter
+                    </a>
+                  </div>
                 </div>
               </motion.div>
             </div>

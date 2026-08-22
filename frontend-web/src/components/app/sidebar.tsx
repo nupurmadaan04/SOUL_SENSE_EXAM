@@ -10,6 +10,7 @@ import {
   BarChart3,
   User,
   Settings,
+  HelpCircle,
   ChevronLeft,
   ChevronRight,
   LogOut,
@@ -24,6 +25,7 @@ import {
   TooltipProvider,
   Avatar,
   AvatarFallback,
+  AvatarImage,
 } from '@/components/ui';
 import { cn } from '@/lib/utils';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -73,6 +75,12 @@ const navigationItems: NavItem[] = [
     icon: <Settings className="h-5 w-5" />,
     tooltip: 'Configure app and privacy preferences',
   },
+  {
+    label: 'Help & Guide',
+    href: '/settings#support',
+    icon: <HelpCircle className="h-5 w-5" />,
+    tooltip: 'User guide, FAQs and support',
+  },
 ];
 
 export function Sidebar() {
@@ -80,7 +88,7 @@ export function Sidebar() {
   const [isMobile, setIsMobile] = React.useState(false);
   const [isMobileOpen, setIsMobileOpen] = React.useState(false);
   const pathname = usePathname();
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
 
   // Detect mobile breakpoint separately from collapse state
   React.useEffect(() => {
@@ -89,7 +97,6 @@ export function Sidebar() {
     const handleChange = (event: MediaQueryListEvent | MediaQueryList) => {
       const matches = event.matches;
       setIsMobile(matches);
-      // Auto-close mobile drawer when switching to desktop
       if (!matches) {
         setIsMobileOpen(false);
       }
@@ -118,7 +125,9 @@ export function Sidebar() {
   }, [pathname]);
 
   const isActive = (href: string) => {
-    return pathname.startsWith(href);
+    const cleanHref = href.split('#')[0];
+    if (cleanHref === '/dashboard') return pathname === '/dashboard';
+    return pathname.startsWith(cleanHref);
   };
 
   const getUserInitials = (name?: string) => {
@@ -147,7 +156,7 @@ export function Sidebar() {
   if (isMobile) {
     return (
       <TooltipProvider>
-        {/* Hamburger trigger button — always visible on mobile */}
+        {/* Hamburger trigger button */}
         <Button
           variant="ghost"
           size="icon"
@@ -173,34 +182,24 @@ export function Sidebar() {
           )}
         </AnimatePresence>
 
-        {/* Sidebar drawer — slides in/out via translate */}
+        {/* Sidebar drawer */}
         <aside
           className={cn(
-            'fixed top-0 left-0 z-[999] flex flex-col h-screen w-72 bg-background/95 backdrop-blur-2xl shadow-2xl border-r border-border/40',
+            'fixed top-0 left-0 z-[999] flex flex-col h-screen w-72 bg-background/95 backdrop-blur-2xl shadow-2xl border-r border-border/40 overflow-x-hidden',
             'transition-transform duration-300 ease-in-out',
             isMobileOpen ? 'translate-x-0' : '-translate-x-full'
           )}
         >
-          {/* Decorative Background Elements */}
-          <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10">
-            <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[30%] bg-primary/5 blur-[80px] rounded-full" />
-            <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[30%] bg-secondary/5 blur-[80px] rounded-full" />
-          </div>
-
-          {/* Header with Title and Close Button */}
-          <div className="flex items-center justify-between border-b border-border/40 px-4 py-6 mb-2">
-            <motion.div
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="flex items-center gap-3"
-            >
+          {/* Header */}
+          <div className="flex items-center justify-between border-b border-border/40 px-4 py-5 mb-1 shrink-0">
+            <div className="flex items-center gap-3">
               <div className="rounded-xl bg-gradient-to-br from-primary to-secondary p-2 shadow-lg shadow-primary/20">
                 <BookOpen className="h-5 w-5 text-white" />
               </div>
               <span className="text-lg font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
                 Soul Sense
               </span>
-            </motion.div>
+            </div>
 
             <Button
               variant="ghost"
@@ -214,86 +213,74 @@ export function Sidebar() {
           </div>
 
           {/* Navigation Links */}
-          <nav className="flex-1 space-y-1.5 overflow-y-auto px-3 py-4">
+          <nav className="flex-1 space-y-1.5 overflow-y-auto overflow-x-hidden px-3 py-3">
             {navigationItems.map((item) => {
               const active = isActive(item.href);
 
               return (
                 <div key={item.href}>
-                  <Link href={item.href}>
-                    <motion.div
-                      whileHover={{ x: 4 }}
-                      whileTap={{ scale: 0.98 }}
+                  <Link href={item.href} onClick={closeMobileDrawer}>
+                    <Button
+                      variant="ghost"
+                      className={cn(
+                        'w-full transition-all duration-200 relative group justify-start gap-3.5 px-4 h-11 rounded-2xl',
+                        active
+                          ? 'bg-primary/15 text-primary font-bold shadow-xs'
+                          : 'text-slate-700 dark:text-slate-200 hover:text-primary hover:bg-primary/10 font-semibold'
+                      )}
                     >
-                      <Button
-                        variant="ghost"
+                      {active && (
+                        <div className="absolute left-0 w-[3px] h-6 bg-primary rounded-r-full" />
+                      )}
+
+                      <div
                         className={cn(
-                          'w-full transition-all duration-300 relative group overflow-hidden justify-start gap-4 px-4',
+                          'transition-transform duration-200 shrink-0',
                           active
-                            ? 'bg-primary/5 text-primary font-medium'
-                            : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'
+                            ? 'text-primary'
+                            : 'text-slate-600 dark:text-slate-300 group-hover:text-primary'
                         )}
                       >
-                        {active && (
-                          <motion.div
-                            layoutId="sidebar-mobile-active-tab"
-                            className="absolute left-0 w-[3px] h-5 bg-primary rounded-r-full"
-                            transition={{ type: 'tween', ease: 'easeOut', duration: 0.3 }}
-                          />
+                        {item.icon}
+                      </div>
+
+                      <span
+                        className={cn(
+                          'text-sm font-bold transition-colors whitespace-nowrap',
+                          active ? 'text-primary' : 'text-slate-800 dark:text-slate-100 group-hover:text-primary'
                         )}
-
-                        <div
-                          className={cn(
-                            'transition-colors duration-300',
-                            active
-                              ? 'text-primary'
-                              : 'text-muted-foreground group-hover:text-foreground'
-                          )}
-                        >
-                          {item.icon}
-                        </div>
-
-                        <motion.span
-                          initial={{ opacity: 0, x: -5 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          className="text-sm"
-                        >
-                          {item.label}
-                        </motion.span>
-                      </Button>
-                    </motion.div>
+                      >
+                        {item.label}
+                      </span>
+                    </Button>
                   </Link>
                 </div>
               );
             })}
           </nav>
 
-          {/* User Profile Summary & Footer Section */}
-          <div className="mt-auto p-3 space-y-4">
-            <div className="rounded-2xl p-2 transition-all duration-300 border border-transparent bg-muted/30 hover:bg-muted/50 hover:border-border/40">
-              <div className="flex items-center gap-3 px-2">
+          {/* User Profile Summary & Footer */}
+          <div className="mt-auto p-3 space-y-2 shrink-0 border-t border-border/40 bg-muted/10">
+            <Link href="/profile" onClick={closeMobileDrawer}>
+              <div className="rounded-2xl p-2 transition-all duration-300 border border-transparent bg-muted/30 hover:bg-muted/50 hover:border-border/40 flex items-center gap-3">
                 <Avatar className="h-9 w-9 border-2 border-background shadow-sm">
-                  <AvatarFallback className="bg-gradient-to-br from-primary/80 to-secondary/80 text-white text-xs font-bold">
-                    {getUserInitials(user?.name)}
+                  <AvatarFallback className="bg-gradient-to-br from-primary to-primary/70 text-white text-xs font-bold">
+                    {getUserInitials(user?.name || user?.username)}
                   </AvatarFallback>
                 </Avatar>
 
-                <motion.div
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  className="flex-1 min-w-0"
-                >
+                <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold truncate leading-none mb-1">
-                    {user?.name || 'User'}
+                    {user?.name || user?.username || 'User'}
                   </p>
-                  <p className="text-[10px] text-muted-foreground truncate uppercase tracking-wider font-medium">
-                    {user?.username || 'Free Member'}
+                  <p className="text-[10px] text-muted-foreground truncate font-medium">
+                    @{user?.username || 'member'}
                   </p>
-                </motion.div>
+                </div>
               </div>
-            </div>
+            </Link>
 
-            <div className="px-4 py-2">
+            <div className="px-2 py-1">
               <p className="text-[10px] text-center text-muted-foreground font-medium opacity-60">
                 © 2026 Soul Sense EQ
               </p>
@@ -304,40 +291,28 @@ export function Sidebar() {
     );
   }
 
-  // ─── DESKTOP: In-flow sidebar with icon-strip collapse ─────────────
+  // ─── DESKTOP: In-flow sticky sidebar ─────────────────────────────
   return (
     <TooltipProvider>
       <aside
         className={cn(
-          'flex flex-col h-screen border-r border-border/40 bg-background/40 backdrop-blur-2xl shadow-sm transition-all duration-500 ease-in-out relative z-40 flex-shrink-0',
+          'flex flex-col h-screen sticky top-0 border-r border-border/60 bg-card/75 dark:bg-card/40 backdrop-blur-2xl shadow-sm transition-all duration-300 ease-in-out relative z-40 shrink-0 overflow-x-hidden select-none',
           isCollapsed ? 'w-20' : 'w-64'
         )}
       >
-        {/* Decorative Background Elements */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10">
-          <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[30%] bg-primary/5 blur-[80px] rounded-full" />
-          <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[30%] bg-secondary/5 blur-[80px] rounded-full" />
-        </div>
-
         {/* Header with Title and Collapse Button */}
-        <div className="flex items-center justify-between border-b border-border/40 px-4 py-6 mb-2">
-          <AnimatePresence mode="wait">
-            {!isCollapsed && (
-              <motion.div
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -10 }}
-                className="flex items-center gap-3"
-              >
-                <div className="rounded-xl bg-gradient-to-br from-primary to-secondary p-2 shadow-lg shadow-primary/20">
-                  <BookOpen className="h-5 w-5 text-white" />
-                </div>
-                <span className="text-lg font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
-                  Soul Sense
-                </span>
-              </motion.div>
-            )}
-          </AnimatePresence>
+        <div className="flex items-center justify-between border-b border-border/40 px-4 py-5 mb-1 shrink-0">
+          {!isCollapsed && (
+            <Link href="/dashboard" className="flex items-center gap-3">
+              <div className="rounded-xl bg-gradient-to-br from-primary to-secondary p-2 shadow-lg shadow-primary/20">
+                <BookOpen className="h-5 w-5 text-white" />
+              </div>
+              <span className="text-lg font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-foreground to-foreground/70">
+                Soul Sense
+              </span>
+            </Link>
+          )}
+
           <Button
             variant="ghost"
             size="icon"
@@ -357,108 +332,106 @@ export function Sidebar() {
         </div>
 
         {/* Navigation Links */}
-        <nav className="flex-1 space-y-1.5 overflow-y-auto px-3 py-4">
+        <nav className="flex-1 space-y-1.5 overflow-y-auto overflow-x-hidden px-3 py-3">
           {navigationItems.map((item) => {
             const active = isActive(item.href);
 
+            const NavButton = (
+              <Button
+                variant="ghost"
+                className={cn(
+                  'w-full transition-all duration-200 relative group h-11 rounded-2xl cursor-pointer',
+                  isCollapsed ? 'justify-center px-0' : 'justify-start gap-3.5 px-4',
+                  active
+                    ? 'bg-primary/15 text-primary font-bold shadow-xs'
+                    : 'text-slate-700 dark:text-slate-200 hover:text-primary hover:bg-primary/10 font-semibold'
+                )}
+              >
+                {/* Active Indicator Line */}
+                {active && (
+                  <div className="absolute left-0 w-[3px] h-6 bg-primary rounded-r-full" />
+                )}
+
+                <div
+                  className={cn(
+                    'transition-transform duration-200 shrink-0',
+                    active
+                      ? 'text-primary'
+                      : 'text-slate-600 dark:text-slate-300 group-hover:text-primary'
+                  )}
+                >
+                  {item.icon}
+                </div>
+
+                {!isCollapsed && (
+                  <span
+                    className={cn(
+                      'text-sm font-bold transition-colors whitespace-nowrap',
+                      active ? 'text-primary' : 'text-slate-800 dark:text-slate-100 group-hover:text-primary'
+                    )}
+                  >
+                    {item.label}
+                  </span>
+                )}
+              </Button>
+            );
+
             return (
               <div key={item.href}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Link href={item.href}>
-                      <motion.div
-                        whileHover={{ x: isCollapsed ? 0 : 4 }}
-                        whileTap={{ scale: 0.98 }}
-                      >
-                        <Button
-                          variant="ghost"
-                          className={cn(
-                            'w-full transition-all duration-300 relative group overflow-hidden',
-                            isCollapsed ? 'justify-center px-0' : 'justify-start gap-4 px-4',
-                            active
-                              ? 'bg-primary/5 text-primary font-medium'
-                              : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'
-                          )}
-                        >
-                          {/* Active Indicator Line */}
-                          {active && (
-                            <motion.div
-                              layoutId="sidebar-active-tab"
-                              className="absolute left-0 w-[3px] h-5 bg-primary rounded-r-full"
-                              transition={{ type: 'tween', ease: 'easeOut', duration: 0.3 }}
-                            />
-                          )}
-
-                          <div
-                            className={cn(
-                              'transition-colors duration-300',
-                              active
-                                ? 'text-primary'
-                                : 'text-muted-foreground group-hover:text-foreground'
-                            )}
-                          >
-                            {item.icon}
-                          </div>
-
-                          {!isCollapsed && (
-                            <motion.span
-                              initial={{ opacity: 0, x: -5 }}
-                              animate={{ opacity: 1, x: 0 }}
-                              className="text-sm"
-                            >
-                              {item.label}
-                            </motion.span>
-                          )}
-                        </Button>
-                      </motion.div>
-                    </Link>
-                  </TooltipTrigger>
-                  <TooltipContent side="right">
-                    <div className="flex flex-col gap-1">
+                {isCollapsed ? (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Link href={item.href}>
+                        {NavButton}
+                      </Link>
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="bg-popover text-popover-foreground border shadow-md font-semibold text-xs py-1.5 px-3">
                       <p className="font-bold">{item.label}</p>
-                      <p className="text-xs opacity-70">{item.tooltip}</p>
-                    </div>
-                  </TooltipContent>
-                </Tooltip>
+                      <p className="text-[11px] opacity-80">{item.tooltip}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                ) : (
+                  <Link href={item.href}>
+                    {NavButton}
+                  </Link>
+                )}
               </div>
             );
           })}
         </nav>
 
         {/* User Profile Summary & Footer Section */}
-        <div className="mt-auto p-3 space-y-4">
-          <div
-            className={cn(
-              'rounded-2xl p-2 transition-all duration-300 border border-transparent',
-              !isCollapsed && 'bg-muted/30 hover:bg-muted/50 hover:border-border/40'
-            )}
-          >
-            <div className={cn('flex items-center gap-3', isCollapsed ? 'justify-center' : 'px-2')}>
-              <Avatar className="h-9 w-9 border-2 border-background shadow-sm">
-                <AvatarFallback className="bg-gradient-to-br from-primary/80 to-secondary/80 text-white text-xs font-bold">
-                  {getUserInitials(user?.name)}
-                </AvatarFallback>
-              </Avatar>
-
-              {!isCollapsed && (
-                <motion.div
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  className="flex-1 min-w-0"
-                >
-                  <p className="text-sm font-semibold truncate leading-none mb-1">
-                    {user?.name || 'User'}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground truncate uppercase tracking-wider font-medium">
-                    {user?.username || 'Free Member'}
-                  </p>
-                </motion.div>
+        <div className="mt-auto p-3 space-y-2 shrink-0 border-t border-border/40 bg-muted/10">
+          <Link href="/profile">
+            <div
+              className={cn(
+                'rounded-2xl p-2 transition-all duration-300 border border-transparent cursor-pointer',
+                !isCollapsed && 'bg-muted/30 hover:bg-muted/60 hover:border-border/40'
               )}
+            >
+              <div className={cn('flex items-center gap-3', isCollapsed ? 'justify-center' : 'px-2')}>
+                <Avatar className="h-9 w-9 border-2 border-background shadow-sm shrink-0">
+                  <AvatarFallback className="bg-gradient-to-br from-primary to-primary/70 text-white text-xs font-bold">
+                    {getUserInitials(user?.name || user?.username)}
+                  </AvatarFallback>
+                </Avatar>
+
+                {!isCollapsed && (
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold truncate leading-none mb-1 text-foreground">
+                      {user?.name || user?.username || 'User'}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground truncate font-medium">
+                      @{user?.username || 'member'}
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+          </Link>
 
           {!isCollapsed && (
-            <div className="px-4 py-2">
+            <div className="px-2 py-1">
               <p className="text-[10px] text-center text-muted-foreground font-medium opacity-60">
                 © 2026 Soul Sense EQ
               </p>

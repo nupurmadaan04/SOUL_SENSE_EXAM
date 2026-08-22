@@ -151,6 +151,8 @@ class JournalService:
         self,
         current_user: User,
         content: str,
+        title: Optional[str] = None,
+        mood_score: Optional[int] = None,
         background_tasks: Optional[BackgroundTasks] = None,
         tags: Optional[List[str]] = None,
         privacy_level: str = "private",
@@ -163,27 +165,31 @@ class JournalService:
         stress_triggers: Optional[str] = None,
         daily_schedule: Optional[str] = None
     ) -> JournalEntry:
-        """Create entry (Async)."""
-        """Create a new journal entry. Sentiment analysis is offloaded to gRPC microservice (#1126)."""
-        
-        # Calculate word count synchronously
+        """Create a new journal entry with real-time sentiment analysis and persistence."""
         word_count = calculate_word_count(content)
-        
-        # Extract fields to local variables to avoid detached instance errors after commit
         u_id = current_user.id
         u_name = current_user.username
+
+        # Calculate sentiment score immediately (0-100 scale)
+        sentiment_score = analyze_sentiment(content)
+
+        now_str = datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S")
 
         # Create entry
         entry = JournalEntry(
             username=u_name,
             user_id=u_id,
+            title=title or "Daily Reflection",
             content=content,
-            sentiment_score=0.0, # Will be updated asynchronously
+            mood_score=mood_score or 5,
+            sentiment_score=sentiment_score,
             emotional_patterns="[]",
             word_count=word_count,
             tags=self._parse_tags(tags),
             privacy_level=privacy_level,
-            entry_date=datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S"),
+            entry_date=now_str,
+            timestamp=now_str,
+            updated_at=now_str,
             sleep_hours=sleep_hours,
             sleep_quality=sleep_quality,
             energy_level=energy_level,
@@ -194,66 +200,22 @@ class JournalService:
             daily_schedule=daily_schedule
         )
 
-        # Step 1: Add entry to the session and flush to the DB to obtain a real PK (id).
-        # This is required BEFORE writing the outbox payload, which references entry.id.
-        # Without flush(), entry.id is None and the payload would contain null. (#1176)
         self.db.add(entry)
-        await self.db.flush()  # Assigns entry.id without committing
+        await self.db.commit()
+        await self.db.refresh(entry)
 
-        # Step 2: Write outbox event in the SAME transaction so they commit atomically.
-        import uuid as _uuid
-        from ..models import OutboxEvent
-        self.db.add(OutboxEvent(
-            topic="search_indexing",
-            payload={
-                "event_id": str(_uuid.uuid4()),  # Stable idempotency key for at-least-once delivery
-                "journal_id": entry.id,           # Safe: entry.id is real after flush
-                "action": "upsert",
-                "event_version": 1,               # Explicit version for ES upsert idempotency
-                "timestamp": datetime.now(UTC).isoformat()
-            }
-        ))
-
-        # Step 3: Commit both entry + outbox atomically.
-        try:
-            self.db.add(entry)
-            await self.db.commit()
-            await self.db.refresh(entry)
-        except Exception as e:
-            await self.db.rollback()
-            await self.db.commit()
-            db_id = entry.id # Keep reference
-            await self.db.refresh(entry)
-            
-            # Offload heavy sentiment analysis to gRPC microservice (#1126)
-            if background_tasks:
-                background_tasks.add_task(
-                    self.async_sentiment_update,
-                    entry_id=entry.id,
-                    content=content,
-                    user_id=current_user.id
-                )
-            else:
-                # Fallback to local if no background_tasks provided (e.g., tests)
-                logger.warning(f"No background_tasks for journal {entry.id}, skipping async analysis.")
-        except Exception as e:
-            await self.db.rollback()
-            logger.error(f"Transaction failed during journal create_entry: {e}")
-            raise e
-
-        # Attach dynamic fields (non-SQL)
+        # Attach dynamic non-SQL fields
         entry.reading_time_mins = round(entry.word_count / 200, 2)
 
-        # Trigger Gamification Post-Commit
+        # Post-commit gamification triggers
         try:
-            await GamificationService.award_xp(self.db, current_user.id, 50, "Journal entry")
-            await GamificationService.update_streak(self.db, current_user.id, "journal")
-            await GamificationService.check_achievements(self.db, current_user.id, "journal")
             await GamificationService.award_xp(self.db, u_id, 50, "Journal entry")
             await GamificationService.update_streak(self.db, u_id, "journal")
             await GamificationService.check_achievements(self.db, u_id, "journal")
         except Exception as e:
             logger.debug(f"Post-commit gamification update failed: {e}")
+
+        return entry
 
     async def get_entries_cursor(
         self,
@@ -365,7 +327,7 @@ class JournalService:
         # Attach dynamic fields and check for archival
         for entry in entries:
             entry.reading_time_mins = round(entry.word_count / 200, 2)
-            if entry.archive_pointer and not entry.content:
+            if getattr(entry, "archive_pointer", None) and not entry.content:
                 # Mark as archived for UI but don't fetch all content in a list view
                 entry.is_archived = True
                 # Placeholder to avoid showing None
@@ -391,7 +353,7 @@ class JournalService:
         entry.reading_time_mins = round(entry.word_count / 200, 2)
         
         # Handle Cold Storage retrieval (#1125)
-        if entry.archive_pointer and not entry.content:
+        if getattr(entry, "archive_pointer", None) and not entry.content:
             from .storage_service import get_storage_service
             storage = get_storage_service()
             logger.info(f"Fetching archived journal {entry.id} from cold storage: {entry.archive_pointer}")
@@ -587,7 +549,7 @@ class JournalService:
         # Attach dynamic fields
         for entry in entries:
             entry.reading_time_mins = round(entry.word_count / 200, 2)
-            if entry.archive_pointer and not entry.content:
+            if getattr(entry, "archive_pointer", None) and not entry.content:
                 entry.is_archived = True
                 entry.content = "[Archived in Cold Storage]"
         
@@ -846,4 +808,19 @@ class JournalService:
             "date_range": date_range,
             "total_entries": total_entries
         }
+
+
+def get_journal_prompts(category: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Return categorized reflection prompts for journaling."""
+    default_prompts = [
+        {"id": 1, "prompt": "What emotion did you experience most strongly today, and what triggered it?", "category": "reflection", "description": "Emotional awareness"},
+        {"id": 2, "prompt": "Describe a challenging interaction today and how you handled your emotional response.", "category": "emotions", "description": "Emotional regulation"},
+        {"id": 3, "prompt": "What is one thing you are grateful for right now, and why?", "category": "gratitude", "description": "Cultivating gratitude"},
+        {"id": 4, "prompt": "How did your stress or energy levels affect your focus and decision-making today?", "category": "reflection", "description": "Mindfulness check-in"},
+        {"id": 5, "prompt": "What is a personal boundary or goal you want to focus on tomorrow?", "category": "goals", "description": "Future intentions"},
+    ]
+    if category:
+        return [p for p in default_prompts if p.get("category") == category]
+    return default_prompts
+
 

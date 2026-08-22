@@ -18,7 +18,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 class UserAnalyticsService:
     @classmethod
     async def get_dashboard_summary(cls, db: AsyncSession, user_id: int) -> UserAnalyticsSummary:
-        """Dashboard summary (Async)."""
         """
         Calculate headline stats for the user dashboard.
         """
@@ -28,7 +27,6 @@ class UserAnalyticsService:
             func.avg(Score.total_score),
             func.max(Score.total_score)
         ).filter(Score.user_id == user_id)
-        ).join(UserSession, Score.session_id == UserSession.session_id).filter(UserSession.user_id == user_id)
         
         result = await db.execute(stmt)
         stats = result.first()
@@ -112,8 +110,8 @@ class UserAnalyticsService:
         """Get EQ score history for charting."""
         cutoff = datetime.now(UTC) - timedelta(days=days)
         
-        stmt = select(Score).join(UserSession, Score.session_id == UserSession.session_id).filter(
-            UserSession.user_id == user_id,
+        stmt = select(Score).filter(
+            Score.user_id == user_id,
             Score.timestamp >= cutoff
         ).order_by(Score.timestamp.asc())
         
@@ -123,9 +121,8 @@ class UserAnalyticsService:
         return [
             EQScorePoint(
                 id=s.id,
-                timestamp=s.timestamp,
-                timestamp=s.timestamp.isoformat() if isinstance(s.timestamp, datetime) else s.timestamp,
-                total_score=s.total_score,
+                timestamp=s.timestamp.isoformat() if isinstance(s.timestamp, datetime) else str(s.timestamp or ""),
+                total_score=s.total_score or 0,
                 sentiment_score=s.sentiment_score
             )
             for s in scores
@@ -133,15 +130,12 @@ class UserAnalyticsService:
 
     @classmethod
     async def get_wellbeing_trends(cls, db: AsyncSession, user_id: int, days: int = 30) -> List[WellbeingPoint]:
-        """Wellbeing trends (Async)."""
         """Get wellbeing metrics from Journal (Sleep, Stress, Energy)."""
         cutoff = datetime.now(UTC) - timedelta(days=days)
         cutoff_str = cutoff.strftime("%Y-%m-%d")
         
         stmt = select(JournalEntry).filter(
             JournalEntry.user_id == user_id,
-            JournalEntry.entry_date >= cutoff_str
-        ).order_by(JournalEntry.entry_date.asc())
             JournalEntry.entry_date >= cutoff_str,
             JournalEntry.is_deleted == False
         ).order_by(JournalEntry.entry_date.asc())

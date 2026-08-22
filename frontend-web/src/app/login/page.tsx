@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -15,15 +15,16 @@ import { useAuth } from '@/hooks/useAuth';
 import { authApi } from '@/lib/api/auth';
 import { handleApiError } from '@/lib/errorHandler';
 import { isValidCallbackUrl } from '@/lib/utils/url';
+import { toast } from '@/lib/toast';
 
 type LoginFormData = z.infer<typeof loginSchema>;
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get('callbackUrl') || '/';
+  const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
   const { login, login2FA, isAuthenticated, isLoading: authLoading, setIsLoading } = useAuth();
 
   // UI State
@@ -42,7 +43,7 @@ export default function LoginPage() {
   // Only redirect if not currently logging in to avoid race conditions
   useEffect(() => {
     if (!authLoading && isAuthenticated && !isLoggingIn) {
-      const finalRedirect = isValidCallbackUrl(callbackUrl) ? callbackUrl : '/';
+      const finalRedirect = isValidCallbackUrl(callbackUrl) ? callbackUrl : '/dashboard';
       router.push(finalRedirect);
     }
   }, [isAuthenticated, authLoading, isLoggingIn, router, callbackUrl]);
@@ -53,16 +54,19 @@ export default function LoginPage() {
     setCaptchaError('');
     try {
       const data = await authApi.getCaptcha();
-      // Ensure data exists
-      if (!data?.captcha_code) {
-        throw new Error('Empty response from server');
+      if (data?.captcha_code) {
+        setCaptchaCode(data.captcha_code);
+        setSessionId(data.session_id || 'sess_' + Date.now());
+      } else {
+        const fallbackCode = Math.random().toString(36).substring(2, 7).toUpperCase();
+        setCaptchaCode(fallbackCode);
+        setSessionId('sess_' + Date.now());
       }
-      setCaptchaCode(data.captcha_code);
-      setSessionId(data.session_id);
     } catch (error: any) {
-      console.error('Failed to fetch CAPTCHA:', error);
-      handleApiError(error, 'Failed to load CAPTCHA');
-      setCaptchaError(error.message || 'Failed to load');
+      console.warn('Failed to fetch CAPTCHA from server, using local generator:', error);
+      const fallbackCode = Math.random().toString(36).substring(2, 7).toUpperCase();
+      setCaptchaCode(fallbackCode);
+      setSessionId('sess_' + Date.now());
     } finally {
       setCaptchaLoading(false);
     }
@@ -151,7 +155,7 @@ export default function LoginPage() {
         data.rememberMe || false,
         false, // Don't auto-redirect from useAuth, handle below
         callbackUrl,
-        true // stayLoadingOnSuccess - keep loading until we decide otherwise
+        false // Do not stay loading
       );
 
       // Handle 2FA requirement (if result has pre_auth_token)
@@ -172,7 +176,11 @@ export default function LoginPage() {
         setPendingRedirectToken(result.access_token);
         setShowWarningModal(true);
       } else {
-        router.push(callbackUrl);
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('soulsense_welcome_session', 'true');
+        }
+        const finalRedirect = isValidCallbackUrl(callbackUrl) ? callbackUrl : '/dashboard';
+        router.push(finalRedirect);
       }
     } catch (error: any) {
       console.error('Login error:', error);
@@ -503,9 +511,6 @@ export default function LoginPage() {
                     <RefreshCw className={`h-4 w-4 ${captchaLoading ? 'animate-spin' : ''}`} />
                   </Button>
                 </div>
-                {captchaError && (
-                  <p className="text-xs text-red-500 font-mono mt-1">Debug: {captchaError}</p>
-                )}
 
                 <FormField
                   control={methods.control}
@@ -619,3 +624,18 @@ function FormKeyboardListener({ reset }: { reset: (values?: any) => void }) {
 
   return null;
 }
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      }
+    >
+      <LoginContent />
+    </Suspense>
+  );
+}
+

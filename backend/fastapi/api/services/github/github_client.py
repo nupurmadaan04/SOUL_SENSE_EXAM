@@ -28,7 +28,7 @@ class GitHubClient:
         if self._client is None or self._client.is_closed:
             self._client = httpx.AsyncClient(
                 headers=self.headers,
-                timeout=httpx.Timeout(30.0, connect=10.0)
+                timeout=httpx.Timeout(5.0, connect=3.0)
             )
         return self._client
 

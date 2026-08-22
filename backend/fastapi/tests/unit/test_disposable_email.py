@@ -1,5 +1,4 @@
-import pytest
-from ...api.services.security_service import SecurityService
+from api.services.security_service import SecurityService
 
 def test_is_disposable_email_exact_match():
     # Test domains from the provided JSON list

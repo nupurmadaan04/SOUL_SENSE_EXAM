@@ -19,7 +19,7 @@ import {
   Loader2,
 } from 'lucide-react';
 
-import { useToast } from '@/components/ui/toast';
+import { useToast } from '@/lib/toast';
 import { apiClient } from '@/lib/api/client';
 
 interface PrivacySettingsProps {

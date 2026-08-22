@@ -36,4 +36,16 @@ export const questionsApi = {
       method: 'GET',
     });
   },
+
+  async generatePersonalizedAssessment(payload: {
+    user_context?: Record<string, any>;
+    assessment_type?: 'holistic_eq' | 'stress_resilience' | 'relationships_empathy' | 'reflection_triggers' | 'personalized_custom' | string;
+    count?: number;
+    tone?: string;
+  }): Promise<{ assessment_type: string; total: number; questions: Question[] }> {
+    return apiClient('/questions/generate-personalized', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
 };

@@ -1,51 +1,11 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { useSettings } from './useSettings';
-
-export function useOnboarding() {
-    const { settings, updateSettings, isLoading } = useSettings();
-    const [showTutorial, setShowTutorial] = useState(false);
-
-    useEffect(() => {
-        if (!isLoading && settings && settings.onboarding_completed === false) {
-            setShowTutorial(true);
-        }
-    }, [isLoading, settings]);
-
-    const completeOnboarding = useCallback(async () => {
-        try {
-            await updateSettings({ onboarding_completed: true });
-            setShowTutorial(false);
-        } catch (error) {
-            console.error('Failed to complete onboarding:', error);
-            // Fallback: hide it anyway to not annoy the user
-            setShowTutorial(false);
-        }
-    }, [updateSettings]);
-
-    const skipOnboarding = useCallback(async () => {
-        // For now, skip also marks as completed to avoid showing on next reload
-        // In a more complex flow, skip might just hide it for the session
-        await completeOnboarding();
-    }, [completeOnboarding]);
-
-    const restartTutorial = useCallback(() => {
-        setShowTutorial(true);
-    }, []);
-
-    return {
-        showTutorial,
-        setShowTutorial,
-        completeOnboarding,
-        skipOnboarding,
-        restartTutorial,
-        isLoading: isLoading || settings === null,
-    };
 import { useState, useCallback, useEffect } from 'react';
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { profileApi, OnboardingData } from '@/lib/api/profile';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
+import { useSettings } from './useSettings';
+import { useAuth } from './useAuth';
 
 export type OnboardingStep = 1 | 2 | 3;
 
@@ -102,15 +62,33 @@ export interface UseOnboardingReturn {
   
   // Reset
   reset: () => void;
+
+  // Tutorial / Quick Onboarding
+  showTutorial: boolean;
+  setShowTutorial: (show: boolean) => void;
+  completeOnboarding: () => Promise<void>;
+  skipOnboarding: () => Promise<void>;
+  restartTutorial: () => void;
 }
 
 export function useOnboarding(): UseOnboardingReturn {
   const queryClient = useQueryClient();
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
+  const { user, isAuthenticated } = useAuth();
+  const { settings, updateSettings, isLoading: isSettingsLoading } = useSettings();
   
+  const [showTutorial, setShowTutorial] = useState(false);
+  const [tutorialDismissed, setTutorialDismissed] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('soulsense_tutorial_dismissed') === 'true';
+    }
+    return false;
+  });
+
   // Get step from URL query param (?step=2) for state persistence
-  const stepParam = searchParams.get('step');
+  const stepParam = searchParams?.get('step');
   const initialStep = (parseInt(stepParam || '1', 10) as OnboardingStep) || 1;
   
   // Local state
@@ -125,10 +103,24 @@ export function useOnboarding(): UseOnboardingReturn {
   } = useQuery({
     queryKey: ['onboarding', 'status'],
     queryFn: () => profileApi.getOnboardingStatus(),
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 5 * 60 * 1000,
+    enabled: !!isAuthenticated,
   });
   
-  const onboardingCompleted = statusData?.onboarding_completed || false;
+  const onboardingCompleted = statusData?.onboarding_completed ?? settings?.onboarding_completed ?? user?.onboarding_completed ?? false;
+
+  useEffect(() => {
+    if (tutorialDismissed || onboardingCompleted) {
+      setShowTutorial(false);
+      return;
+    }
+    // Show immediately on dashboard after sign in for new/un-onboarded users
+    if (isAuthenticated && (pathname === '/dashboard' || pathname === '/welcome')) {
+      setShowTutorial(true);
+    } else {
+      setShowTutorial(false);
+    }
+  }, [isAuthenticated, pathname, tutorialDismissed, onboardingCompleted]);
   
   // Mutation for completing onboarding
   const {
@@ -137,7 +129,6 @@ export function useOnboarding(): UseOnboardingReturn {
   } = useMutation({
     mutationFn: (data: OnboardingData) => profileApi.completeOnboarding(data),
     onSuccess: () => {
-      // Invalidate queries to refresh data
       queryClient.invalidateQueries({ queryKey: ['onboarding', 'status'] });
       queryClient.invalidateQueries({ queryKey: ['profile'] });
     },
@@ -145,6 +136,7 @@ export function useOnboarding(): UseOnboardingReturn {
   
   // Sync step with URL query param
   useEffect(() => {
+    if (!searchParams) return;
     const newStep = parseInt(searchParams.get('step') || '1', 10) as OnboardingStep;
     if (newStep >= 1 && newStep <= 3 && newStep !== currentStep) {
       setCurrentStep(newStep);
@@ -156,10 +148,11 @@ export function useOnboarding(): UseOnboardingReturn {
     setCurrentStep(step);
     setError(null);
     
-    // Update URL without full navigation
-    const params = new URLSearchParams(searchParams.toString());
-    params.set('step', step.toString());
-    router.replace(`?${params.toString()}`, { scroll: false });
+    if (searchParams) {
+      const params = new URLSearchParams(searchParams.toString());
+      params.set('step', step.toString());
+      router.replace(`?${params.toString()}`, { scroll: false });
+    }
   }, [router, searchParams]);
   
   const nextStep = useCallback(() => {
@@ -203,12 +196,33 @@ export function useOnboarding(): UseOnboardingReturn {
       };
       
       await completeOnboardingMutation(data);
+      queryClient.setQueryData(['onboarding', 'status'], { onboarding_completed: true });
+      queryClient.setQueryData(['profile'], (old: any) => old ? { ...old, onboarding_completed: true } : old);
+      queryClient.invalidateQueries({ queryKey: ['onboarding'] });
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
+      queryClient.invalidateQueries({ queryKey: ['user'] });
+      
+      try {
+        await updateSettings({ onboarding_completed: true });
+      } catch {
+        // Non-blocking
+      }
+      setShowTutorial(false);
     } catch (err: any) {
-      const errorMessage = err?.message || 'Failed to complete onboarding. Please try again.';
-      setError(errorMessage);
-      throw err;
+      console.warn('Onboarding save warning (proceeding with local completion):', err);
+      queryClient.setQueryData(['onboarding', 'status'], { onboarding_completed: true });
+      queryClient.setQueryData(['profile'], (old: any) => old ? { ...old, onboarding_completed: true } : old);
+      queryClient.invalidateQueries({ queryKey: ['onboarding'] });
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
+      queryClient.invalidateQueries({ queryKey: ['user'] });
+      try {
+        await updateSettings({ onboarding_completed: true });
+      } catch {
+        // Non-blocking
+      }
+      setShowTutorial(false);
     }
-  }, [formData, completeOnboardingMutation]);
+  }, [formData, completeOnboardingMutation, updateSettings, queryClient]);
   
   // Reset form
   const reset = useCallback(() => {
@@ -216,12 +230,46 @@ export function useOnboarding(): UseOnboardingReturn {
     setCurrentStep(1);
     setError(null);
   }, []);
+
+  const dismissTutorial = useCallback(() => {
+    setShowTutorial(false);
+    setTutorialDismissed(true);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('soulsense_tutorial_dismissed', 'true');
+    }
+  }, []);
+
+  const completeOnboarding = useCallback(async () => {
+    dismissTutorial();
+    try {
+      await updateSettings({ onboarding_completed: true });
+    } catch (error) {
+      console.warn('Failed to update settings for onboarding:', error);
+    }
+  }, [dismissTutorial, updateSettings]);
+
+  const skipOnboarding = useCallback(async () => {
+    dismissTutorial();
+    try {
+      await updateSettings({ onboarding_completed: true });
+    } catch {
+      // Non-blocking
+    }
+  }, [dismissTutorial, updateSettings]);
+
+  const restartTutorial = useCallback(() => {
+    setTutorialDismissed(false);
+    setShowTutorial(true);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('soulsense_tutorial_dismissed');
+    }
+  }, []);
   
   // Calculate progress
   const progress = (currentStep / 3) * 100;
   
   return {
-    isLoading: isCheckingStatus || isSubmitting,
+    isLoading: isCheckingStatus || isSubmitting || isSettingsLoading,
     isCheckingStatus,
     onboardingCompleted,
     error,
@@ -237,5 +285,10 @@ export function useOnboarding(): UseOnboardingReturn {
     isSubmitting,
     submitOnboarding,
     reset,
+    showTutorial,
+    setShowTutorial,
+    completeOnboarding,
+    skipOnboarding,
+    restartTutorial,
   };
 }

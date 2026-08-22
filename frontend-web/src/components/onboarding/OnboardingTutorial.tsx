@@ -71,11 +71,17 @@ export const OnboardingTutorial: React.FC<OnboardingTutorialProps> = ({
         setIsVisible(true);
     }, []);
 
+    const handleSkip = () => {
+        setIsVisible(false);
+        onSkip?.();
+    };
+
     const nextStep = () => {
         if (currentStep < steps.length - 1) {
             setCurrentStep(currentStep + 1);
         } else {
-            onComplete();
+            setIsVisible(false);
+            onComplete?.();
         }
     };
 
@@ -113,8 +119,8 @@ export const OnboardingTutorial: React.FC<OnboardingTutorialProps> = ({
 
                         {/* Close/Skip button */}
                         <button
-                            onClick={onSkip}
-                            className="absolute top-4 right-4 p-2 rounded-full bg-black/10 hover:bg-black/20 dark:bg-white/10 dark:hover:bg-white/20 transition-colors"
+                            onClick={handleSkip}
+                            className="absolute top-4 right-4 p-2 rounded-full bg-black/10 hover:bg-black/20 dark:bg-white/10 dark:hover:bg-white/20 transition-colors cursor-pointer z-10"
                         >
                             <X className="w-5 h-5 text-white" />
                         </button>
@@ -153,8 +159,8 @@ export const OnboardingTutorial: React.FC<OnboardingTutorialProps> = ({
                             <div className="flex items-center justify-between">
                                 <Button
                                     variant="ghost"
-                                    onClick={onSkip}
-                                    className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                                    onClick={handleSkip}
+                                    className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 cursor-pointer"
                                 >
                                     Skip tutorial
                                 </Button>

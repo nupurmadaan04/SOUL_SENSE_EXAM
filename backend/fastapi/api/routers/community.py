@@ -1,16 +1,12 @@
 from fastapi import APIRouter, HTTPException
-from fastapi_cache.decorator import cache
 from ..services.github_service import github_service
 
 router = APIRouter(tags=["Community Dashboard"])
 
 @router.get("/stats")
-@cache(expire=1800)  # Cache for 30 minutes - community stats change moderately
 async def get_community_stats(refresh: bool = False):
     """Get aggregated repository statistics."""
     repo_stats = await github_service.get_repo_stats(refresh=refresh)
-
-    # Only refresh PRs if stats refresh is requested (cascade effect)
     pr_stats = await github_service.get_pull_requests(refresh=refresh)
 
     return {
@@ -19,39 +15,33 @@ async def get_community_stats(refresh: bool = False):
     }
 
 @router.get("/contributors")
-@cache(expire=3600)  # Cache for 1 hour - contributor data changes slowly
 async def get_contributors(limit: int = 100, refresh: bool = False):
     """Get list of top contributors."""
     contributors = await github_service.get_contributors(limit, refresh=refresh)
     return contributors
 
 @router.get("/activity")
-@cache(expire=1800)  # Cache for 30 minutes - activity data updates moderately
 async def get_activity(refresh: bool = False):
     """Get weekly commit activity for the past year."""
     activity = await github_service.get_activity(refresh=refresh)
     return activity
 
 @router.get("/mix")
-@cache(expire=3600)  # Cache for 1 hour - contribution mix data is stable
 async def get_contribution_mix(refresh: bool = False):
     """Get contribution types breakdown."""
     return await github_service.get_contribution_mix(refresh=refresh)
 
 @router.get("/reviews")
-@cache(expire=3600)  # Cache for 1 hour - reviewer stats change slowly
 async def get_reviewer_stats(refresh: bool = False):
     """Get top reviewers and community sentiment."""
     return await github_service.get_reviewer_stats(refresh=refresh)
 
 @router.get("/graph")
-@cache(expire=1800)  # Cache for 30 minutes - graph data updates moderately
 async def get_community_graph(refresh: bool = False):
     """Get force-directed graph data for contributor connections."""
     return await github_service.get_community_graph(refresh=refresh)
 
 @router.get("/sunburst")
-@cache(expire=3600)  # Cache for 1 hour - repository structure changes slowly
 async def get_repository_sunburst(refresh: bool = False):
     """Get repository directory attention data for sunburst chart."""
     return await github_service.get_repository_sunburst(refresh=refresh)

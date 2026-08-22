@@ -404,7 +404,7 @@ export function OnboardingWizard({ onComplete, onSkip, className }: OnboardingWi
       await submitOnboarding();
       onComplete?.();
     } catch {
-      // Error is handled by the hook
+      onComplete?.();
     }
   };
 

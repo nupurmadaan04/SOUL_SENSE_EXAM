@@ -14,7 +14,7 @@ from typing import Optional
 import logging
 
 from ..models import User
-from ..dependencies import get_current_user, require_admin
+from .auth import get_current_user, require_admin
 from ..services.db_service import get_db
 from ..services.dlq_service import DLQService
 

@@ -6,28 +6,21 @@ This middleware checks user consent before allowing analytics data collection.
 
 from fastapi import Request, HTTPException
 from fastapi.responses import JSONResponse
-from typing import Callable
+from typing import Callable, Optional
 import json
 
 from ..services.analytics_service import AnalyticsService
 from ..services.db_service import AsyncSessionLocal
 
 
-class ConsentValidationMiddleware:
+from starlette.middleware.base import BaseHTTPMiddleware
+
+class ConsentValidationMiddleware(BaseHTTPMiddleware):
     """
     Middleware to validate user consent before analytics operations.
     """
 
-    def __init__(self, app: Callable):
-        self.app = app
-
-    async def __call__(self, scope, receive, send):
-        if scope["type"] != "http":
-            await self.app(scope, receive, send)
-            return
-
-        request = Request(scope, receive)
-
+    async def dispatch(self, request: Request, call_next: Callable):
         # Check if this is an analytics endpoint
         if self._is_analytics_endpoint(request.url.path):
             # Extract anonymous_id from request
@@ -40,7 +33,7 @@ class ConsentValidationMiddleware:
 
                         if not consent_status.get('analytics_consent_given', False):
                             # Consent not given, block analytics
-                            response = JSONResponse(
+                            return JSONResponse(
                                 status_code=403,
                                 content={
                                     "error": "Analytics consent required",
@@ -48,13 +41,11 @@ class ConsentValidationMiddleware:
                                     "consent_required": True
                                 }
                             )
-                            await response(scope, receive, send)
-                            return
                 except Exception as e:
                     # Log error but don't block - fail open for now
                     print(f"Consent validation error: {e}")
 
-        await self.app(scope, receive, send)
+        return await call_next(request)
 
     def _is_analytics_endpoint(self, path: str) -> bool:
         """
@@ -68,9 +59,9 @@ class ConsentValidationMiddleware:
         ]
         return any(path.startswith(analytics_path) for analytics_path in analytics_paths)
 
-    def _extract_anonymous_id(self, request: Request) -> str:
+    def _extract_anonymous_id(self, request: Request) -> Optional[str]:
         """
-        Extract anonymous_id from request headers, query params, or body.
+        Extract anonymous_id from request headers or query params.
         """
         # Check headers first
         anonymous_id = request.headers.get("X-Anonymous-ID")
@@ -78,19 +69,4 @@ class ConsentValidationMiddleware:
             return anonymous_id
 
         # Check query parameters
-        anonymous_id = request.query_params.get("anonymous_id")
-        if anonymous_id:
-            return anonymous_id
-
-        # For POST requests, check body (this is a simplified check)
-        if request.method == "POST":
-            try:
-                # This is a basic check - in production, you'd want more robust parsing
-                body = request.body()
-                if body:
-                    body_data = json.loads(body.decode())
-                    return body_data.get("anonymous_id")
-            except:
-                pass
-
-        return None
+        return request.query_params.get("anonymous_id")

@@ -1,7 +1,12 @@
 import logging
 import asyncio
 from typing import Dict, Any, List, Optional
-from elasticsearch import AsyncElasticsearch, NotFoundError
+try:
+    from elasticsearch import AsyncElasticsearch, NotFoundError
+except ImportError:
+    AsyncElasticsearch = None
+    class NotFoundError(Exception):
+        pass
 from ..config import get_settings_instance
 
 logger = logging.getLogger(__name__)

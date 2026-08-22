@@ -30,7 +30,6 @@ class OTPManager:
     @classmethod
     async def generate_otp(cls, user_id: int, purpose: str, db_session: AsyncSession) -> tuple[Optional[str], Optional[str]]:
         """
-        Generate a new OTP for a user (Async).
         Generate a new OTP for a user.
         """
         try:
@@ -39,7 +38,6 @@ class OTPManager:
                 OTP.user_id == user_id,
                 OTP.type == purpose
             ).order_by(desc(OTP.created_at)).limit(1)
-            ).order_by(OTP.created_at.desc())
             
             result = await db_session.execute(stmt)
             last_otp = result.scalar_one_or_none()
@@ -91,7 +89,6 @@ class OTPManager:
     @classmethod
     async def verify_otp(cls, user_id: int, code: str, purpose: str, db_session: AsyncSession) -> tuple[bool, str]:
         """
-        Verify an OTP code (Async).
         Verify an OTP code.
         """
         try:
@@ -104,7 +101,6 @@ class OTPManager:
                 OTP.is_used == False,
                 OTP.expires_at > datetime.now(UTC)
             ).order_by(desc(OTP.created_at)).limit(1)
-            ).order_by(OTP.created_at.desc())
             
             result = await db_session.execute(stmt)
             otp = result.scalar_one_or_none()

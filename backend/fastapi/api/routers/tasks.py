@@ -19,7 +19,10 @@ from ..services.background_task_service import (
 from ..models import User, BackgroundJob
 from .auth import get_current_user, require_admin
 from ..utils.timestamps import normalize_utc_iso
-from app.core import NotFoundError, ValidationError
+try:
+    from ...app.core import NotFoundError, ValidationError
+except ImportError:
+    from backend.fastapi.app.core import NotFoundError, ValidationError
 from pydantic import BaseModel, Field
 from ..services.outbox_relay_service import OutboxRelayService
 

@@ -82,7 +82,7 @@ export function ActivityPulse({ events = [] }: { events: PulseEvent[] }) {
       onMouseLeave={() => setIsHovered(false)}
     >
       {/* Pill-Styled Box (Matches Image Layout) */}
-      <div className="flex items-center h-8 bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl border border-slate-200 dark:border-white/5 rounded-full overflow-hidden shadow-sm transition-all group-hover:border-blue-500/40 group-hover:shadow-md cursor-pointer w-[340px]">
+      <div className="flex items-center h-8 bg-white/95 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200/90 dark:border-white/10 rounded-full overflow-hidden shadow-sm transition-all group-hover:border-blue-500/40 group-hover:shadow-md cursor-pointer w-[340px]">
         {/* Left Side: Avatar + Action (Ticker) */}
         <div className="flex items-center gap-2 pl-2 pr-3 flex-grow min-w-0 h-full transition-colors">
           <div className="flex-shrink-0">

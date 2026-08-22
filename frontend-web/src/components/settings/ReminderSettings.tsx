@@ -5,7 +5,7 @@ import { useDebounceCallback } from '@/hooks/useDebounceCallback';
 import { Bell, Clock, ToggleLeft, ToggleRight, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { useToast } from '@/hooks/use-toast';
+import { useToast } from '@/lib/toast';
 
 interface ReminderSettingsProps {
   userId: number;
@@ -63,9 +63,8 @@ export function ReminderSettings({ userId, onSettingsUpdated }: ReminderSettings
     } catch (error) {
       console.error('Error loading reminder settings:', error);
       toast({
-        title: 'Error',
-        description: 'Failed to load reminder settings',
-        variant: 'destructive',
+        type: 'error',
+        message: 'Failed to load reminder settings',
       });
     } finally {
       setIsLoading(false);
@@ -88,8 +87,8 @@ export function ReminderSettings({ userId, onSettingsUpdated }: ReminderSettings
       }
 
       toast({
-        title: 'Success',
-        description: 'Reminder settings updated',
+        type: 'success',
+        message: 'Reminder settings updated',
       });
 
       if (onSettingsUpdated) {
@@ -98,9 +97,8 @@ export function ReminderSettings({ userId, onSettingsUpdated }: ReminderSettings
     } catch (error) {
       console.error('Error saving reminder settings:', error);
       toast({
-        title: 'Error',
-        description: 'Failed to save reminder settings',
-        variant: 'destructive',
+        type: 'error',
+        message: 'Failed to save reminder settings',
       });
     } finally {
       setIsSaving(false);

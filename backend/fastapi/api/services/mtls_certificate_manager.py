@@ -103,10 +103,9 @@ class CertificateAuthority:
                 key_encipherment=False,
                 data_encipherment=False,
                 key_agreement=False,
-                key_encipherment=False,
-                non_repudiation=False,
-                digital_signature=True,
                 content_commitment=False,
+                encipher_only=False,
+                decipher_only=False
             ),
             critical=True,
         ).sign(self.ca_private_key, hashes.SHA256(), default_backend())
@@ -545,5 +544,4 @@ def get_cert_manager() -> MTLSCertificateManager:
     global _cert_manager
     if _cert_manager is None:
         _cert_manager = MTLSCertificateManager()
-    return _cert_manager</content>
-<parameter name="filePath">c:\Users\Gupta\Downloads\SOUL_SENSE_EXAM\backend\fastapi\api\services\mtls_certificate_manager.py
+    return _cert_manager

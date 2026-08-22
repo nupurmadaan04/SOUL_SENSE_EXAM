@@ -167,10 +167,27 @@ export function ToastProvider({
   );
 }
 
+import { toast as sonnerToast } from 'sonner';
+
 export function useToast(): ToastContextValue {
   const context = React.useContext(ToastContext);
   if (!context) {
-    throw new Error('useToast must be used within a ToastProvider.');
+    return {
+      toasts: [],
+      toast: ({ title, description, variant }: { title?: React.ReactNode; description?: React.ReactNode; variant?: string }) => {
+        const msg = String(title || description || '');
+        if (variant === 'destructive') {
+          sonnerToast.error(msg, { description: description ? String(description) : undefined });
+        } else if (variant === 'success') {
+          sonnerToast.success(msg, { description: description ? String(description) : undefined });
+        } else {
+          sonnerToast(msg, { description: description ? String(description) : undefined });
+        }
+      },
+      dismiss: (id?: string) => {
+        sonnerToast.dismiss(id);
+      },
+    };
   }
 
   return context;

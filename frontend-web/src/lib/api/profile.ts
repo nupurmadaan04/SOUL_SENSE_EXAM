@@ -309,4 +309,119 @@ export const profileApi = {
       body: JSON.stringify(data),
     });
   },
+
+  // ========================================================================
+  // Comprehensive Mental & Emotional Health Profile
+  // ========================================================================
+
+  async getMentalHealthProfile(): Promise<MentalHealthFullProfile> {
+    const data = await apiClient<any>('/users/me/complete');
+    return {
+      sleep_hours: data.personal_profile?.sleep_hours ?? 7,
+      exercise_freq: data.personal_profile?.exercise_freq ?? '2-3 times/week',
+      dietary_patterns: data.personal_profile?.dietary_patterns ?? 'Balanced',
+      has_therapist: data.personal_profile?.has_therapist ?? false,
+      support_network_size: data.personal_profile?.support_network_size ?? 3,
+      primary_support_type: data.personal_profile?.primary_support_type ?? 'Friends',
+      daily_task_load: data.personal_profile?.daily_task_load ?? 5,
+      occupation: data.personal_profile?.occupation ?? '',
+      routine_habits: data.personal_profile?.routine_habits ?? 'Morning meditation, daily walks',
+      primary_stressors: data.personal_profile?.primary_stressors ?? 'Deadlines, exam preparation',
+      environment_type: data.personal_profile?.environment_type ?? 'Urban',
+      recent_incidents: data.personal_profile?.recent_incidents ?? '',
+      city: data.personal_profile?.city ?? '',
+      country: data.personal_profile?.country ?? '',
+      medications: data.medical_profile?.medications ?? '',
+      conditions: data.medical_profile?.medical_conditions ?? data.medical_profile?.conditions ?? '',
+      mental_health_history: data.medical_profile?.mental_health_history ?? '',
+      preferred_tone: data.emotional_patterns?.preferred_tone ?? 'empathetic',
+      common_emotions: data.emotional_patterns?.common_emotions ?? 'Calm, Focused, Occasional Stress',
+      emotional_triggers: data.emotional_patterns?.emotional_triggers ?? 'Unclear expectations, sudden deadlines',
+      coping_strategies: data.emotional_patterns?.coping_strategies ?? 'Deep breathing, music, journaling',
+      primary_goal: data.strengths?.primary_goal ?? 'Enhance emotional regulation and clarity',
+      focus_areas: data.strengths?.focus_areas ?? ['Self-Regulation', 'Empathy', 'Resilience'],
+    };
+  },
+
+  async updateMentalHealthProfile(profile: MentalHealthFullProfile): Promise<void> {
+    // 1. Personal profile update
+    await apiClient('/profiles/personal', {
+      method: 'PUT',
+      body: JSON.stringify({
+        sleep_hours: profile.sleep_hours,
+        exercise_freq: profile.exercise_freq,
+        dietary_patterns: profile.dietary_patterns,
+        has_therapist: profile.has_therapist,
+        support_network_size: profile.support_network_size,
+        primary_support_type: profile.primary_support_type,
+        daily_task_load: profile.daily_task_load,
+        occupation: profile.occupation,
+        routine_habits: profile.routine_habits,
+        primary_stressors: profile.primary_stressors,
+        environment_type: profile.environment_type,
+        recent_incidents: profile.recent_incidents,
+        city: profile.city,
+        country: profile.country,
+      }),
+    });
+
+    // 2. Medical profile update
+    await apiClient('/profiles/medical', {
+      method: 'PUT',
+      body: JSON.stringify({
+        medications: typeof profile.medications === 'string' ? profile.medications : JSON.stringify(profile.medications || []),
+        medical_conditions: typeof profile.conditions === 'string' ? profile.conditions : JSON.stringify(profile.conditions || []),
+        conditions: typeof profile.conditions === 'string' ? profile.conditions : JSON.stringify(profile.conditions || []),
+        mental_health_history: profile.mental_health_history,
+      }),
+    });
+
+    // 3. Emotional patterns update
+    await apiClient('/profiles/emotional-patterns', {
+      method: 'PUT',
+      body: JSON.stringify({
+        preferred_tone: profile.preferred_tone,
+        common_emotions: typeof profile.common_emotions === 'string' ? profile.common_emotions : JSON.stringify(profile.common_emotions || []),
+        emotional_triggers: profile.emotional_triggers,
+        coping_strategies: profile.coping_strategies,
+        preferred_support: profile.primary_support_type,
+      }),
+    });
+
+    // 4. Strengths & goals update
+    await apiClient('/profiles/strengths', {
+      method: 'PUT',
+      body: JSON.stringify({
+        primary_goal: profile.primary_goal,
+        focus_areas: profile.focus_areas,
+      }),
+    });
+  },
 };
+
+export interface MentalHealthFullProfile {
+  sleep_hours?: number;
+  exercise_freq?: string;
+  dietary_patterns?: string;
+  has_therapist?: boolean;
+  support_network_size?: number;
+  primary_support_type?: string;
+  daily_task_load?: number;
+  occupation?: string;
+  routine_habits?: string;
+  primary_stressors?: string;
+  environment_type?: string;
+  recent_incidents?: string;
+  city?: string;
+  country?: string;
+  medications?: string;
+  conditions?: string;
+  mental_health_history?: string;
+  preferred_tone?: string;
+  common_emotions?: string;
+  emotional_triggers?: string;
+  coping_strategies?: string;
+  primary_goal?: string;
+  focus_areas?: string[];
+}
+

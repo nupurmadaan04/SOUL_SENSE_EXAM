@@ -2,6 +2,7 @@ import time
 import logging
 from typing import Optional, Tuple
 from fastapi import Request, Response, HTTPException, status
+from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from ..utils.network import get_real_ip
 from ..services.quota_service import QuotaService
@@ -16,7 +17,11 @@ class DynamicQuotaMiddleware(BaseHTTPMiddleware):
     Replaces static fixed-rate limits with a Dynamic Token Bucket algorithm.
     """
     async def dispatch(self, request: Request, call_next):
-        if request.url.path.startswith("/api/v1/health") or not request.url.path.startswith("/api"):
+        if (
+            request.url.path.startswith("/api/v1/health") 
+            or request.url.path.startswith("/api/v1/community")
+            or not request.url.path.startswith("/api")
+        ):
             return await call_next(request)
 
         # 1. Extract context (tenant_id) — usually populated by RBAC middleware
@@ -33,26 +38,27 @@ class DynamicQuotaMiddleware(BaseHTTPMiddleware):
                     
                     if not allowed:
                         logger.warning(f"Quota exceeded for tenant {tenant_id}: {status_data.get('error')}")
-                        raise HTTPException(
+                        return JSONResponse(
                             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                            detail=f"Rate limit or daily quota exceeded: {status_data.get('error')}"
+                            content={"detail": f"Rate limit or daily quota exceeded: {status_data.get('error')}"}
                         )
                     
                     # Store usage for the response headers
                     request.state.quota_info = status_data
-            except HTTPException:
-                raise
             except Exception as e:
                 logger.error(f"QuotaMiddleware error for tenant {tenant_id}: {e}", exc_info=True)
                 # Fail-open for reliability, but log heavily
                 return await call_next(request)
         else:
-            # Fallback for anonymous or tenant-less requests (Legacy IP-based limiter)
+            # Fallback for anonymous or tenant-less requests (generous limit for UI operations)
             from ..middleware.rate_limiter import auth_limiter
             client_ip = get_real_ip(request)
-            allowed, remaining = await auth_limiter.is_rate_limited(client_ip)
+            allowed, remaining = await auth_limiter.is_rate_limited(client_ip, capacity=300, refill_rate=20.0)
             if not allowed:
-                raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Too many requests from this IP")
+                return JSONResponse(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    content={"detail": "Too many requests from this IP", "code": "RATE_LIMITED"}
+                )
 
         # 3. Process Request
         response: Response = await call_next(request)

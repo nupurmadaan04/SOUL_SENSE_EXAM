@@ -10,7 +10,7 @@ UTC = timezone.utc
 from unittest.mock import Mock, patch, AsyncMock
 import json
 
-from ..services.storage_service import SignedURLPolicy, signed_url_policy
+from api.services.storage_service import SignedURLPolicy, signed_url_policy
 
 
 class TestSignedURLPolicy:
@@ -236,7 +236,7 @@ class TestSignedURLIntegration:
     @pytest.mark.asyncio
     async def test_storage_service_integration(self):
         """Test integration with StorageService."""
-        from ..services.storage_service import StorageService
+        from api.services.storage_service import StorageService
 
         # Test that methods exist
         assert hasattr(StorageService, 'generate_signed_url')
@@ -253,5 +253,5 @@ class TestSignedURLIntegration:
 
     def test_policy_instance(self):
         """Test that global policy instance exists."""
-        from ..services.storage_service import signed_url_policy
+        from api.services.storage_service import signed_url_policy
         assert isinstance(signed_url_policy, SignedURLPolicy)

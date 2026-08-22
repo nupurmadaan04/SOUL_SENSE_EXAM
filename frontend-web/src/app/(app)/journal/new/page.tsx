@@ -6,10 +6,8 @@ import { format } from 'date-fns';
 import { ArrowLeft, Save, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-import { TagSelector, JournalEditor } from '@/components/journal';
-import { Button, Card, CardContent, useToast, EmotionIntensitySlider } from '@/components/ui';
-import { MoodSlider, TagSelector, JournalEditor } from '@/components/journal';
-import { Button, Card, CardContent } from '@/components/ui';
+import { TagSelector, JournalEditor, MoodSlider } from '@/components/journal';
+import { Button, Card, CardContent, EmotionIntensitySlider } from '@/components/ui';
 import { toast } from '@/lib/toast';
 import { journalApi } from '@/lib/api/journal';
 import { JournalEntryCreate } from '@/types/journal';

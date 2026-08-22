@@ -2,7 +2,10 @@ import json
 import logging
 import asyncio
 from typing import Dict, Any, Optional
-import consul
+try:
+    import consul
+except ImportError:
+    consul = None
 from cachetools import TTLCache
 from ..config import get_settings_instance
 
@@ -13,7 +16,13 @@ class FeatureFlagService:
         self.settings = get_settings_instance()
         self.consul_host = getattr(self.settings, 'consul_host', 'localhost')
         self.consul_port = getattr(self.settings, 'consul_port', 8500)
-        self.client = consul.Consul(host=self.consul_host, port=self.consul_port)
+        if consul:
+            try:
+                self.client = consul.Consul(host=self.consul_host, port=self.consul_port)
+            except Exception:
+                self.client = None
+        else:
+            self.client = None
         # Local cache for 30 seconds
         self.cache = TTLCache(maxsize=100, ttl=30)
         self.prefix = "soulsense/features/"
@@ -23,6 +32,16 @@ class FeatureFlagService:
         if "all_flags" in self.cache:
             return self.cache["all_flags"]
 
+        if not self.client:
+            # Fallback default flags when Consul is not installed/running
+            default_flags = {
+                "dark_mode": {"enabled": True},
+                "new_assessment_flow": {"enabled": True},
+                "enable_analytics": {"enabled": True}
+            }
+            self.cache["all_flags"] = default_flags
+            return default_flags
+
         flags = {}
         try:
             index, data = self.client.kv.get(self.prefix, recurse=True)
@@ -31,7 +50,8 @@ class FeatureFlagService:
                     key = item['Key'].replace(self.prefix, "")
                     if key:
                         try:
-                            flags[key] = json.loads(item['Value'])
+                            val = json.loads(item['Value'])
+                            flags[key] = val if isinstance(val, dict) else {"enabled": bool(val)}
                         except Exception:
                             logger.warning(f"Failed to parse flag value for {key}")
             
@@ -46,24 +66,30 @@ class FeatureFlagService:
         flags = self.get_all_flags()
         flag = flags.get(feature_name)
         
-        if not flag:
+        if flag is None:
             return False
         
-        if not flag.get('enabled', False):
-            return False
+        if isinstance(flag, bool):
+            return flag
 
-        # Tenant Override
-        if tenant_id and flag.get('tenant_overrides', {}).get(str(tenant_id)) is not None:
-            return flag['tenant_overrides'][str(tenant_id)]
+        if isinstance(flag, dict):
+            if not flag.get('enabled', False):
+                return False
 
-        # Rollout percentage (probabilistic)
-        if user_id and flag.get('rollout_percentage', 100) < 100:
-            import hashlib
-            # Deterministic hash for consistent user experience
-            hash_val = int(hashlib.md5(f"{feature_name}:{user_id}".encode()).hexdigest(), 16)
-            return (hash_val % 100) < flag['rollout_percentage']
+            # Tenant Override
+            if tenant_id and flag.get('tenant_overrides', {}).get(str(tenant_id)) is not None:
+                return flag['tenant_overrides'][str(tenant_id)]
 
-        return True
+            # Rollout percentage (probabilistic)
+            if user_id and flag.get('rollout_percentage', 100) < 100:
+                import hashlib
+                # Deterministic hash for consistent user experience
+                hash_val = int(hashlib.md5(f"{feature_name}:{user_id}".encode()).hexdigest(), 16)
+                return (hash_val % 100) < flag['rollout_percentage']
+
+            return True
+
+        return bool(flag)
 
     def set_flag(self, feature_name: str, config: Dict[str, Any]):
         """Create or update a flag in Consul."""

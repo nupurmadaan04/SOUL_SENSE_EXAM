@@ -19,6 +19,7 @@ export const authApi = {
   }> {
     return apiClient('/auth/login', {
       method: 'POST',
+      skipAuth: true,
       headers: {
         'Content-Type': 'application/json',
       },
@@ -41,6 +42,7 @@ export const authApi = {
   }> {
     return apiClient('/auth/login/2fa', {
       method: 'POST',
+      skipAuth: true,
       headers: {
         'Content-Type': 'application/json',
       },
@@ -51,6 +53,7 @@ export const authApi = {
   async initiatePasswordReset(email: string): Promise<{ message: string }> {
     return apiClient('/auth/password-reset/initiate', {
       method: 'POST',
+      skipAuth: true,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email }),
     });
@@ -63,14 +66,30 @@ export const authApi = {
   }): Promise<{ message: string }> {
     return apiClient('/auth/password-reset/complete', {
       method: 'POST',
+      skipAuth: true,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
   },
   async getCaptcha(): Promise<{ captcha_code: string; session_id: string }> {
-    return apiClient(`/auth/captcha?t=${Date.now()}`, {
-      method: 'GET',
-    });
+    try {
+      return await apiClient(`/auth/captcha?t=${Date.now()}`, {
+        method: 'GET',
+        skipAuth: true,
+        timeout: 5000,
+      });
+    } catch (err) {
+      console.warn('Backend CAPTCHA fetch failed, generating client fallback CAPTCHA:', err);
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      let code = '';
+      for (let i = 0; i < 5; i++) {
+        code += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return {
+        captcha_code: code,
+        session_id: `client_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+      };
+    }
   },
 
   async checkUsernameAvailability(
@@ -78,6 +97,7 @@ export const authApi = {
   ): Promise<{ available: boolean; message: string }> {
     return apiClient(`/auth/check-username?username=${encodeURIComponent(username)}`, {
       method: 'GET',
+      skipAuth: true,
     });
   },
 
@@ -102,6 +122,7 @@ export const authApi = {
     };
     return apiClient('/auth/register', {
       method: 'POST',
+      skipAuth: true,
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
@@ -110,12 +131,14 @@ export const authApi = {
   async refreshToken(): Promise<{ access_token: string }> {
     return apiClient('/auth/refresh', {
       method: 'POST',
+      skipAuth: true,
     });
   },
 
   async logout(): Promise<void> {
     return apiClient('/auth/logout', {
       method: 'POST',
+      skipAuth: true,
       credentials: 'include',
     });
   },
@@ -139,6 +162,7 @@ export const authApi = {
 
     return apiClient('/auth/oauth/login', {
       method: 'POST',
+      skipAuth: true,
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
       },

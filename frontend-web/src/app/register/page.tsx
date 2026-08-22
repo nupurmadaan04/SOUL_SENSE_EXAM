@@ -28,7 +28,7 @@ import { registrationSchema } from '@/lib/validation';
 import { z } from 'zod';
 import { UseFormReturn, useController } from 'react-hook-form';
 import { useDebounce } from '@/hooks/useDebounce';
-import { useEffect, useState, useMemo, useRef, useCallback } from 'react';
+import { useEffect, useState, useMemo, useRef, useCallback, Suspense } from 'react';
 import { cn } from '@/lib/utils';
 import { authApi } from '@/lib/api/auth';
 import { ApiError } from '@/lib/api/errors';
@@ -36,6 +36,7 @@ import { useRateLimiter } from '@/hooks/useRateLimiter';
 import { analyticsApi } from '@/lib/api/analytics';
 import { useAuth } from '@/hooks/useAuth';
 import { isValidCallbackUrl } from '@/lib/utils/url';
+import { toast } from 'sonner';
 
 type RegisterFormData = z.infer<typeof registrationSchema>;
 
@@ -515,7 +516,7 @@ function TermsStep({
   );
 }
 
-export default function RegisterPage() {
+function RegisterContent() {
   const [currentStep, setCurrentStep] = useState(0);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -528,11 +529,11 @@ export default function RegisterPage() {
 
   // Guard: Redirect if already logged in
   useEffect(() => {
-    if (!authLoading && isAuthenticated && !isLoading) {
-      const finalRedirect = isValidCallbackUrl(callbackUrl) ? callbackUrl : '/';
+    if (!authLoading && isAuthenticated && !isLoading && !isSuccess) {
+      const finalRedirect = isValidCallbackUrl(callbackUrl) && callbackUrl !== '/' ? callbackUrl : '/dashboard';
       router.push(finalRedirect);
     }
-  }, [isAuthenticated, authLoading, isLoading, router, callbackUrl]);
+  }, [isAuthenticated, authLoading, isLoading, isSuccess, router, callbackUrl]);
 
   const { lockoutTime, isLocked, handleRateLimitError } = useRateLimiter();
 
@@ -636,7 +637,14 @@ export default function RegisterPage() {
         event_name: 'signup_success',
       });
 
-      // AUTOMATIC LOGIN
+      // Flag for one-time new user onboarding wizard
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('soulsense_welcome_session', 'true');
+        sessionStorage.setItem('soulsense_just_signed_up', 'true');
+      }
+
+      // AUTOMATIC LOGIN DIRECTLY TO DASHBOARD
+      const targetDestination = isValidCallbackUrl(callbackUrl) && callbackUrl !== '/' ? callbackUrl : '/dashboard';
       try {
         await login(
           {
@@ -645,11 +653,11 @@ export default function RegisterPage() {
           },
           true, // rememberMe
           true, // shouldRedirect
-          callbackUrl
+          targetDestination
         );
       } catch (loginError) {
-        console.warn('Auto-login after registration failed:', loginError);
-        setIsSuccess(true); // Only show success state if auto-login fails
+        console.warn('Auto-login after registration failed, redirecting to dashboard:', loginError);
+        router.push(targetDestination);
       }
     } catch (error) {
       if (error instanceof ApiError) {
@@ -675,6 +683,7 @@ export default function RegisterPage() {
         methods.setError('root', {
           message: errorMessage || 'Registration failed. Please try again or contact support.',
         });
+        toast.error(errorMessage || 'Registration failed. Please try again.');
 
         analyticsApi.trackEvent({
           event_type: 'signup_workflow',
@@ -687,6 +696,7 @@ export default function RegisterPage() {
         methods.setError('root', {
           message: `Registration encountered an unexpected error: ${errorMsg}. Please try again or contact support.`,
         });
+        toast.error(`Registration error: ${errorMsg}`);
 
         analyticsApi.trackEvent({
           event_type: 'signup_workflow',
@@ -816,5 +826,19 @@ export default function RegisterPage() {
         </Form>
       )}
     </AuthLayout>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        </div>
+      }
+    >
+      <RegisterContent />
+    </Suspense>
   );
 }

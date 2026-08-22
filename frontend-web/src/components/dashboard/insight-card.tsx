@@ -96,7 +96,7 @@ export const InsightCard = ({ insight, onDismiss, onAction, className }: Insight
       exit={{ opacity: 0, scale: 0.95 }}
       whileHover={{ y: -4, transition: { duration: 0.2 } }}
       className={cn(
-        'group relative overflow-hidden rounded-3xl border border-white/20 bg-white/60 p-6 shadow-xl backdrop-blur-xl transition-all dark:bg-black/40',
+        'group relative overflow-hidden rounded-3xl border border-border/80 bg-card/90 p-6 shadow-xl backdrop-blur-xl transition-all',
         'flex flex-col h-full justify-between',
         className
       )}
@@ -104,7 +104,7 @@ export const InsightCard = ({ insight, onDismiss, onAction, className }: Insight
       {/* Background Accent Glow */}
       <div
         className={cn(
-          'absolute -inset-px bg-gradient-to-br opacity-0 transition-opacity duration-500 group-hover:opacity-10',
+          'absolute -inset-px bg-gradient-to-br opacity-0 transition-opacity duration-500 group-hover:opacity-15',
           config.accentColor
         )}
       />

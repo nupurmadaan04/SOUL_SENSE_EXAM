@@ -24,7 +24,9 @@ export * from './mood-widget';
 export * from './recent-activity';
 export * from './insight-card';
 export * from './section-wrapper';
+export * from './PersonalizedAssessmentHub';
 
 // ⚠️ DashboardCharts is NOT exported here to avoid eager loading recharts
 // Use dynamic import instead:
 //   import { DashboardCharts } from '@/lib/dynamic-imports';
+

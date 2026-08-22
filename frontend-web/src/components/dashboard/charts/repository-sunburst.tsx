@@ -70,13 +70,13 @@ export function RepositorySunburst({ data }: { data: SunburstData[] }) {
   };
 
   return (
-    <Card className="col-span-full lg:col-span-2 bg-background/60 backdrop-blur-md lg:backdrop-blur-2xl border border-border/40 shadow-xl rounded-3xl overflow-hidden group transition-all duration-300">
+    <Card className="col-span-full lg:col-span-2 bg-white/95 dark:bg-slate-900/80 backdrop-blur-md lg:backdrop-blur-2xl border border-slate-200/90 dark:border-white/10 shadow-sm hover:shadow-md rounded-3xl overflow-hidden group transition-all duration-300">
       <CardHeader className="pb-2">
         <CardTitle className="text-lg font-black tracking-tighter flex items-center gap-2 text-slate-900 dark:text-white">
           <FolderTree className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
           DIRECTORY_HEATMAP
         </CardTitle>
-        <CardDescription className="text-xs font-medium text-slate-500 dark:text-slate-400">
+        <CardDescription className="text-xs font-medium text-slate-600 dark:text-slate-400">
           Hierarchy of repository attention
         </CardDescription>
       </CardHeader>

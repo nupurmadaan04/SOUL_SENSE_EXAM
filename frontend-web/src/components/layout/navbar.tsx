@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import {
   Menu,
   X,
+  BookOpen,
   Rocket,
   Sun,
   Moon,
@@ -88,14 +89,14 @@ export function Navbar() {
         <div className="flex lg:flex-1">
           <Link
             href="/"
-            className="-m-1.5 p-1.5 flex items-center gap-2 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="-m-1.5 p-1.5 flex items-center gap-2.5 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-label="Soul Sense Home"
           >
-            <div className="bg-primary/10 p-2 rounded-xl group-hover:bg-primary/20 transition-colors">
-              <Rocket className="h-6 w-6 text-primary" aria-hidden="true" />
+            <div className="rounded-xl bg-gradient-to-br from-primary to-secondary p-2 shadow-lg shadow-primary/20 text-white group-hover:scale-105 transition-transform">
+              <BookOpen className="h-5 w-5" aria-hidden="true" />
             </div>
             <span className="text-xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">
-              SOUL SENSE
+              Soul Sense
             </span>
           </Link>
         </div>
@@ -292,13 +293,15 @@ export function Navbar() {
               <div className="flex items-center justify-between">
                 <Link
                   href="/"
-                  className="-m-1.5 p-1.5 flex items-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="-m-1.5 p-1.5 flex items-center gap-2.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   aria-label="Soul Sense Home"
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  <Rocket className="h-8 w-8 text-primary" aria-hidden="true" />
+                  <div className="rounded-xl bg-gradient-to-br from-primary to-secondary p-2 shadow-md text-white">
+                    <BookOpen className="h-5 w-5" aria-hidden="true" />
+                  </div>
                   <span className="text-xl font-bold" id="mobile-menu-title">
-                    SOUL SENSE
+                    Soul Sense
                   </span>
                 </Link>
                 <button

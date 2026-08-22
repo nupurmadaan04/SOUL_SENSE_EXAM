@@ -303,10 +303,7 @@ def check_tcp_tuning() -> IntegrityCheckResult:
     """
     # Check feature flag
     flag = EXPERIMENTAL_FLAGS.get("tcp_tuning_validation")
-    if not flag or not flag.default: # Check if enabled in code or via config later
-        # We need to check the actual value from config/env
-        from app.feature_flags import EXPERIMENTAL_FLAGS # Ensure we have latest
-        # In a real app we'd use a flag manager but here we'll check directly
+    if not flag or not flag.default:
         pass
 
     logger.info("Checking TCP tuning parameters...")

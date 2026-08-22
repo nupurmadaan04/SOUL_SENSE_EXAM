@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { profileApi, UserProfile, UpdateUserProfile } from '@/lib/api/profile';
+import { useAuth } from '@/hooks/useAuth';
 
 export interface UseProfileReturn {
   profile: UserProfile | null | undefined;
@@ -16,6 +17,7 @@ export interface UseProfileReturn {
 
 export function useProfile(): UseProfileReturn {
   const queryClient = useQueryClient();
+  const { user, isAuthenticated, isLoading: isAuthLoading } = useAuth();
   const [updateLoading, setUpdateLoading] = useState(false);
   const [updateError, setUpdateError] = useState<string | null>(null);
 
@@ -27,6 +29,8 @@ export function useProfile(): UseProfileReturn {
   } = useQuery({
     queryKey: ['profile'],
     queryFn: () => profileApi.getUserProfile(),
+    enabled: !isAuthLoading && (!!user || isAuthenticated),
+    retry: 1,
   });
 
   const updateProfile = useCallback(

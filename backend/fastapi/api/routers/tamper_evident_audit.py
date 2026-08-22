@@ -1,16 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Dict, Any, List
-from ..database import get_db
+from ..services.db_service import get_db
 from ..services.tamper_evident_audit_service import TamperEvidentAuditService
 from ..services.audit_service import AuditService
-from ..middleware.rbac import require_scopes
+from ..middleware.api_key_middleware import require_scopes
 from ..schemas import AuditLogResponse, AuditLogListResponse
 
 router = APIRouter(prefix="/tamper-evident-audit", tags=["tamper-evident-audit"])
 
-@router.get("/chain-status", response_model=Dict[str, Any])
-@require_scopes(["audit:read"])
+@router.get("/chain-status", response_model=Dict[str, Any], dependencies=[Depends(require_scopes(["audit:read"]))])
 async def get_chain_status(db: AsyncSession = Depends(get_db)):
     """
     Get comprehensive status of the tamper-evident audit log chain (#1265).
@@ -24,8 +23,7 @@ async def get_chain_status(db: AsyncSession = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get chain status: {str(e)}")
 
-@router.post("/validate-chain", response_model=Dict[str, Any])
-@require_scopes(["audit:admin"])
+@router.post("/validate-chain", response_model=Dict[str, Any], dependencies=[Depends(require_scopes(["audit:admin"]))])
 async def validate_chain_integrity(max_entries: int = 1000, db: AsyncSession = Depends(get_db)):
     """
     Validate the integrity of the audit log chain (#1265).
@@ -45,8 +43,7 @@ async def validate_chain_integrity(max_entries: int = 1000, db: AsyncSession = D
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Chain validation failed: {str(e)}")
 
-@router.get("/detect-tampering", response_model=List[Dict[str, Any]])
-@require_scopes(["audit:admin"])
+@router.get("/detect-tampering", response_model=List[Dict[str, Any]], dependencies=[Depends(require_scopes(["audit:admin"]))])
 async def detect_tampering(db: AsyncSession = Depends(get_db)):
     """
     Detect potential tampering in the audit log chain (#1265).
@@ -60,8 +57,7 @@ async def detect_tampering(db: AsyncSession = Depends(get_db)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Tampering detection failed: {str(e)}")
 
-@router.get("/logs/{user_id}", response_model=AuditLogListResponse)
-@require_scopes(["audit:read"])
+@router.get("/logs/{user_id}", response_model=AuditLogListResponse, dependencies=[Depends(require_scopes(["audit:read"]))])
 async def get_user_audit_logs(
     user_id: int,
     page: int = 1,
@@ -102,7 +98,7 @@ async def get_user_audit_logs(
             logs=log_responses,
             page=page,
             per_page=per_page,
-            total=len(log_responses)  # Note: This is approximate for pagination
+            total=len(log_responses)
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to retrieve audit logs: {str(e)}")

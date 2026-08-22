@@ -4,16 +4,13 @@ Profile Service Layer (Async)
 Handles CRUD operations for all user profile types using AsyncSession.
 """
 
+import json
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timezone
 UTC = timezone.utc
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete
-from sqlalchemy.orm import Session
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.exc import OperationalError, DatabaseError
-from sqlalchemy import select
 from fastapi import HTTPException, status
 
 from ..models import (
@@ -24,6 +21,16 @@ from ..models import (
     UserStrengths,
     UserEmotionalPatterns
 )
+
+def _serialize_dict(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Helper to convert lists or dicts into JSON strings for SQLite TEXT columns."""
+    result = {}
+    for k, v in data.items():
+        if isinstance(v, (list, dict)):
+            result[k] = json.dumps(v)
+        else:
+            result[k] = v
+    return result
 from ..utils.timestamps import normalize_utc_iso
 import logging
 
@@ -36,11 +43,6 @@ class ProfileService:
         self.db = db
 
     async def _verify_user_exists(self, user_id: int) -> User:
-        """Verify user exists and return user object (Async)."""
-        stmt = select(User).filter(User.id == user_id)
-        result = await self.db.execute(stmt)
-        user = result.scalar_one_or_none()
-        if not user:
         """Verify user exists and return user object."""
         try:
             stmt = select(User).filter(User.id == user_id)
@@ -52,6 +54,8 @@ class ProfileService:
                     detail="User not found"
                 )
             return user
+        except HTTPException:
+            raise
         except (OperationalError, DatabaseError):
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -259,17 +263,11 @@ class ProfileService:
     async def create_personal_profile(self, user_id: int, profile_data: Dict[str, Any]) -> PersonalProfile:
         """Create personal profile (Async)."""
         await self._verify_user_exists(user_id)
-        """Create personal profile."""
-        await self._verify_user_exists(user_id)
 
-        existing = await self.get_personal_profile(user_id)
-        # Original code check
-        if existing and existing.id:
-            pass
-
+        clean_data = _serialize_dict(profile_data)
         profile = PersonalProfile(
             user_id=user_id,
-            **profile_data,
+            **clean_data,
             last_updated=datetime.now(UTC).isoformat()
         )
 
@@ -281,30 +279,24 @@ class ProfileService:
     async def update_personal_profile(self, user_id: int, profile_data: Dict[str, Any]) -> PersonalProfile:
         """Update personal profile (Async)."""
         profile = await self.get_personal_profile(user_id)
-        
-        """Update personal profile."""
-        profile = await self.get_personal_profile(user_id)
         if not profile:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Personal profile not found. Create it first."
             )
 
-        # Update only provided fields
-        for key, value in profile_data.items():
+        clean_data = _serialize_dict(profile_data)
+        for key, value in clean_data.items():
             if value is not None and hasattr(profile, key):
                 setattr(profile, key, value)
 
         profile.last_updated = datetime.now(UTC).isoformat()
-        profile.last_updated = datetime.utcnow().isoformat()
         await self.db.commit()
         await self.db.refresh(profile)
         return profile
 
     async def delete_personal_profile(self, user_id: int) -> bool:
         """Delete personal profile (Async)."""
-        profile = await self.get_personal_profile(user_id)
-        """Delete personal profile."""
         profile = await self.get_personal_profile(user_id)
         if not profile:
             raise HTTPException(
@@ -322,7 +314,6 @@ class ProfileService:
 
     async def get_user_strengths(self, user_id: int) -> Optional[UserStrengths]:
         """Get user strengths (Async)."""
-        """Get user strengths."""
         await self._verify_user_exists(user_id)
         stmt = select(UserStrengths).filter(UserStrengths.user_id == user_id)
         result = await self.db.execute(stmt)
@@ -346,16 +337,11 @@ class ProfileService:
     async def create_user_strengths(self, user_id: int, strengths_data: Dict[str, Any]) -> UserStrengths:
         """Create user strengths (Async)."""
         await self._verify_user_exists(user_id)
-        """Create user strengths."""
-        await self._verify_user_exists(user_id)
 
-        existing = await self.get_user_strengths(user_id)
-        if existing and existing.id:
-            pass
-
+        clean_data = _serialize_dict(strengths_data)
         strengths = UserStrengths(
             user_id=user_id,
-            **strengths_data,
+            **clean_data,
             last_updated=datetime.now(UTC).isoformat()
         )
 
@@ -367,30 +353,24 @@ class ProfileService:
     async def update_user_strengths(self, user_id: int, strengths_data: Dict[str, Any]) -> UserStrengths:
         """Update user strengths (Async)."""
         strengths = await self.get_user_strengths(user_id)
-        
-        """Update user strengths."""
-        strengths = await self.get_user_strengths(user_id)
         if not strengths:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="User strengths not found. Create them first."
             )
 
-        # Update only provided fields
-        for key, value in strengths_data.items():
+        clean_data = _serialize_dict(strengths_data)
+        for key, value in clean_data.items():
             if value is not None and hasattr(strengths, key):
                 setattr(strengths, key, value)
 
         strengths.last_updated = datetime.now(UTC).isoformat()
-        strengths.last_updated = datetime.utcnow().isoformat()
         await self.db.commit()
         await self.db.refresh(strengths)
         return strengths
 
     async def delete_user_strengths(self, user_id: int) -> bool:
         """Delete user strengths (Async)."""
-        strengths = await self.get_user_strengths(user_id)
-        """Delete user strengths."""
         strengths = await self.get_user_strengths(user_id)
         if not strengths:
             raise HTTPException(
@@ -408,14 +388,13 @@ class ProfileService:
 
     async def get_emotional_patterns(self, user_id: int) -> Optional[UserEmotionalPatterns]:
         """Get emotional patterns (Async)."""
-        """Get emotional patterns."""
         await self._verify_user_exists(user_id)
         stmt = select(UserEmotionalPatterns).filter(UserEmotionalPatterns.user_id == user_id)
         result = await self.db.execute(stmt)
         patterns = result.scalar_one_or_none()
         
         if not patterns:
-             # Lazy creation
+            # Lazy creation
             patterns = UserEmotionalPatterns(
                 user_id=user_id,
                 common_emotions="[]",
@@ -429,16 +408,11 @@ class ProfileService:
     async def create_emotional_patterns(self, user_id: int, patterns_data: Dict[str, Any]) -> UserEmotionalPatterns:
         """Create emotional patterns (Async)."""
         await self._verify_user_exists(user_id)
-        """Create emotional patterns."""
-        await self._verify_user_exists(user_id)
 
-        existing = await self.get_emotional_patterns(user_id)
-        if existing and existing.id:
-            pass
-
+        clean_data = _serialize_dict(patterns_data)
         patterns = UserEmotionalPatterns(
             user_id=user_id,
-            **patterns_data,
+            **clean_data,
             last_updated=datetime.now(UTC).isoformat()
         )
 
@@ -450,22 +424,18 @@ class ProfileService:
     async def update_emotional_patterns(self, user_id: int, patterns_data: Dict[str, Any]) -> UserEmotionalPatterns:
         """Update emotional patterns (Async)."""
         patterns = await self.get_emotional_patterns(user_id)
-        
-        """Update emotional patterns."""
-        patterns = await self.get_emotional_patterns(user_id)
         if not patterns:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Emotional patterns not found. Create them first."
             )
 
-        # Update only provided fields
-        for key, value in patterns_data.items():
+        clean_data = _serialize_dict(patterns_data)
+        for key, value in clean_data.items():
             if value is not None and hasattr(patterns, key):
                 setattr(patterns, key, value)
 
         patterns.last_updated = datetime.now(UTC).isoformat()
-        patterns.last_updated = datetime.utcnow().isoformat()
         await self.db.commit()
         await self.db.refresh(patterns)
         return patterns
@@ -490,23 +460,23 @@ class ProfileService:
     # ========================================================================
 
     async def get_complete_profile(self, user_id: int) -> Dict[str, Any]:
-        """Get complete user profile with all sub-profiles (Async)."""
         """Get complete user profile with all sub-profiles."""
         user = await self._verify_user_exists(user_id)
+
+        onboarding_done = bool(getattr(user, "onboarding_completed", False))
 
         return {
             "user": {
                 "id": user.id,
                 "username": user.username,
                 "created_at": normalize_utc_iso(user.created_at, fallback_now=True),
-                "last_login": user.last_login,
-                "onboarding_completed": user.onboarding_completed or False
+                "last_login": getattr(user, "last_login", None),
+                "onboarding_completed": onboarding_done
             },
             "settings": await self.get_user_settings(user_id),
             "medical_profile": await self.get_medical_profile(user_id),
             "personal_profile": await self.get_personal_profile(user_id),
             "strengths": await self.get_user_strengths(user_id),
-            "emotional_patterns": await self.get_emotional_patterns(user_id)
             "emotional_patterns": await self.get_emotional_patterns(user_id),
-            "onboarding_completed": user.onboarding_completed or False
+            "onboarding_completed": onboarding_done
         }

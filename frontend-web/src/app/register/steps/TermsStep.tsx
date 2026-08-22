@@ -103,7 +103,7 @@ export default function TermsStep({
           <Shield className="mr-2 h-4 w-4" />
           Back
         </Button>
-        <Button type="submit" disabled={isLoading || !field.value || !canProceed} className="flex-1">
+        <Button type="submit" disabled={isLoading || !field.value} className="flex-1">
           {isLoading && lockoutTime > 0 ? (
             `Retry in ${lockoutTime}s`
           ) : isLoading ? (

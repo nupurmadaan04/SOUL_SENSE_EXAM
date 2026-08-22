@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 from datetime import datetime
 
 import json
@@ -58,7 +58,7 @@ class UserCreate(BaseModel):
     username: str = Field(..., min_length=3, max_length=20, description="Unique username")
     password: str = Field(..., min_length=8, description="Password (min 8 characters)")
     email: EmailStr = Field(..., description="User's email address")
-    first_name: str = Field(..., min_length=1, max_length=50, description="User's first name")
+    first_name: Optional[str] = Field("User", min_length=1, max_length=50, description="User's first name")
     last_name: Optional[str] = Field(None, max_length=50, description="User's last name")
     age: Optional[int] = Field(None, ge=13, le=120, description="User's age")
     gender: Optional[str] = Field(None, description="User's gender")
@@ -237,11 +237,11 @@ class CaptchaResponse(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    """Schema for login request with CAPTCHA and device fingerprinting."""
+    """Schema for login request with optional CAPTCHA and device fingerprinting."""
     identifier: str = Field(..., description="Username or email")
     password: str = Field(..., description="User password")
-    captcha_input: str = Field(..., description="User's CAPTCHA input")
-    session_id: str = Field(..., description="Session ID from CAPTCHA generation")
+    captcha_input: Optional[str] = Field(None, description="User's CAPTCHA input")
+    session_id: Optional[str] = Field(None, description="Session ID from CAPTCHA generation")
 
     # Device fingerprinting fields (#1230)
     device_screen_resolution: Optional[str] = Field(None, description="Screen resolution (e.g., '1920x1080')")
@@ -261,7 +261,7 @@ class UserResponse(BaseModel):
     """Schema for user response (excludes password)."""
     id: int
     username: str
-    created_at: datetime
+    created_at: Union[datetime, str]
     last_login: Optional[str] = None
     onboarding_completed: bool = False
 
@@ -748,6 +748,9 @@ class MedicalProfileResponse(BaseModel):
     allergies: Optional[str] = None
     medications: Optional[str] = None
     medical_conditions: Optional[str] = None
+    conditions: Optional[str] = None
+    medications: Optional[str] = None
+    mental_health_history: Optional[str] = None
     surgeries: Optional[str] = None
     therapy_history: Optional[str] = None
     ongoing_health_issues: Optional[str] = None
@@ -792,6 +795,11 @@ class PersonalProfileCreate(BaseModel):
     has_therapist: Optional[bool] = None
     support_network_size: Optional[int] = Field(None, ge=0, le=100, description="Number of people in support network (0-100)")
     primary_support_type: Optional[str] = None
+    daily_task_load: Optional[int] = Field(None, ge=1, le=10)
+    routine_habits: Optional[str] = None
+    primary_stressors: Optional[str] = None
+    environment_type: Optional[str] = None
+    recent_incidents: Optional[str] = None
 
 
 class PersonalProfileUpdate(BaseModel):
@@ -824,6 +832,11 @@ class PersonalProfileUpdate(BaseModel):
     has_therapist: Optional[bool] = None
     support_network_size: Optional[int] = Field(None, ge=0, le=100, description="Number of people in support network (0-100)")
     primary_support_type: Optional[str] = None
+    daily_task_load: Optional[int] = Field(None, ge=1, le=10)
+    routine_habits: Optional[str] = None
+    primary_stressors: Optional[str] = None
+    environment_type: Optional[str] = None
+    recent_incidents: Optional[str] = None
 
     @field_validator('email', mode='before')
     @classmethod
@@ -872,6 +885,11 @@ class PersonalProfileResponse(BaseModel):
     has_therapist: Optional[bool] = None
     support_network_size: Optional[int] = None
     primary_support_type: Optional[str] = None
+    daily_task_load: Optional[int] = None
+    routine_habits: Optional[str] = None
+    primary_stressors: Optional[str] = None
+    environment_type: Optional[str] = None
+    recent_incidents: Optional[str] = None
     
     last_updated: str
 
@@ -926,14 +944,14 @@ class UserStrengthsResponse(BaseModel):
     """Schema for user strengths response."""
     id: int
     user_id: int
-    top_strengths: str
-    areas_for_improvement: str
-    current_challenges: str
-    learning_style: Optional[str]
-    communication_preference: Optional[str]
-    comm_style: Optional[str]
-    sharing_boundaries: str
-    goals: Optional[str]
+    top_strengths: Optional[str] = "[]"
+    areas_for_improvement: Optional[str] = "[]"
+    current_challenges: Optional[str] = "[]"
+    learning_style: Optional[str] = None
+    communication_preference: Optional[str] = None
+    comm_style: Optional[str] = None
+    sharing_boundaries: Optional[str] = "[]"
+    goals: Optional[str] = None
     
     # Wave 2 Phase 2.1 & 2.2
     relationship_stress: Optional[int] = None
@@ -941,7 +959,7 @@ class UserStrengthsResponse(BaseModel):
     long_term_vision: Optional[str] = None
     primary_help_area: Optional[str] = None
     primary_goal: Optional[str] = None
-    focus_areas: Optional[List[str]] = None
+    focus_areas: Optional[Union[List[str], str]] = None
     
     last_updated: str
 
@@ -958,6 +976,8 @@ class UserEmotionalPatternsCreate(BaseModel):
     emotional_triggers: Optional[str] = None
     coping_strategies: Optional[str] = None
     preferred_support: Optional[str] = None
+    preferred_tone: Optional[str] = "empathetic"
+    recent_factors: Optional[str] = None
 
 
 class UserEmotionalPatternsUpdate(BaseModel):
@@ -966,6 +986,8 @@ class UserEmotionalPatternsUpdate(BaseModel):
     emotional_triggers: Optional[str] = None
     coping_strategies: Optional[str] = None
     preferred_support: Optional[str] = None
+    preferred_tone: Optional[str] = None
+    recent_factors: Optional[str] = None
 
 
 class UserEmotionalPatternsResponse(BaseModel):
@@ -976,6 +998,8 @@ class UserEmotionalPatternsResponse(BaseModel):
     emotional_triggers: Optional[str] = None
     coping_strategies: Optional[str] = None
     preferred_support: Optional[str] = None
+    preferred_tone: Optional[str] = "empathetic"
+    recent_factors: Optional[str] = None
     last_updated: str
 
     model_config = ConfigDict(from_attributes=True)

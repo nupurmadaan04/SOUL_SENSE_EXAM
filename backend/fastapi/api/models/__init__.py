@@ -56,6 +56,7 @@ class User(Base):
 
     # RBAC Roles
     is_admin = Column(Boolean, default=False, nullable=False)
+    onboarding_completed = Column(Boolean, default=False, nullable=False)
     
     settings = relationship("UserSettings", uselist=False, back_populates="user", cascade="all, delete-orphan")
     medical_profile = relationship("MedicalProfile", uselist=False, back_populates="user", cascade="all, delete-orphan")
@@ -545,7 +546,7 @@ class UserSession(Base):
     created_at = Column(DateTime, default=utc_now)
 
     # Device fingerprinting fields (#1230)
-    device_fingerprint_hash = Column(String(64), nullable=True, index=True)
+    device_fingerprint_hash = Column(String(64), nullable=True)
     device_user_agent = Column(Text, nullable=True)
     device_accept_language = Column(String, nullable=True)
     device_accept_encoding = Column(String, nullable=True)
@@ -629,6 +630,8 @@ class MedicalProfile(Base):
     allergies = Column(Text, nullable=True) # JSON string
     medications = Column(Text, nullable=True) # JSON string
     medical_conditions = Column(Text, nullable=True) # JSON string
+    conditions = Column(Text, nullable=True) # JSON string
+    mental_health_history = Column(Text, nullable=True)
     emergency_contact_name = Column(String, nullable=True)
     emergency_contact_phone = Column(String, nullable=True)
     last_updated = Column(String, default=lambda: datetime.now(UTC).isoformat())
@@ -658,6 +661,14 @@ class PersonalProfile(Base):
     sleep_hours = Column(Float, nullable=True)
     exercise_freq = Column(String, nullable=True)
     dietary_patterns = Column(String, nullable=True)
+    has_therapist = Column(Boolean, default=False, nullable=True)
+    support_network_size = Column(Integer, default=3, nullable=True)
+    primary_support_type = Column(String, nullable=True)
+    daily_task_load = Column(Integer, default=5, nullable=True)
+    routine_habits = Column(Text, nullable=True)
+    primary_stressors = Column(Text, nullable=True)
+    environment_type = Column(String, nullable=True)
+    recent_incidents = Column(Text, nullable=True)
     last_updated = Column(String, default=utc_now_iso)
     user = relationship("User", back_populates="personal_profile")
 
@@ -670,8 +681,11 @@ class UserStrengths(Base):
     current_challenges = Column(Text, nullable=True) # JSON string
     learning_style = Column(String, nullable=True)
     communication_preference = Column(String, nullable=True)
+    sharing_boundaries = Column(Text, nullable=True) # JSON string
     primary_help_area = Column(String, nullable=True)
     relationship_stress = Column(Integer, nullable=True)
+    primary_goal = Column(Text, nullable=True)
+    focus_areas = Column(Text, nullable=True) # JSON list
     last_updated = Column(String, default=utc_now_iso)
     user = relationship("User", back_populates="strengths")
 
@@ -684,6 +698,8 @@ class UserEmotionalPatterns(Base):
     emotional_triggers = Column(Text, nullable=True)
     coping_strategies = Column(Text, nullable=True)
     preferred_support = Column(String, nullable=True)
+    preferred_tone = Column(String, default="empathetic", nullable=True)
+    recent_factors = Column(Text, nullable=True)
     last_updated = Column(String, default=lambda: datetime.now(UTC).isoformat())
     user = relationship("User", back_populates="emotional_patterns")
 
@@ -703,11 +719,14 @@ class Score(Base):
     user_id = Column(Integer, ForeignKey('users.id'), nullable=True, index=True)
     session_id = Column(String, nullable=True, index=True)
     environment = Column(String, nullable=True, index=True)  # Environment column ensures strict separation between staging and production data
+    attempt_number = Column(Integer, default=1, nullable=False, index=True)
+    status = Column(String, default="completed", nullable=False, index=True)  # "in_progress", "completed", "abandoned"
     user = relationship("User", back_populates="scores")
     
     __table_args__ = (
         Index('idx_score_age_score', 'age', 'total_score'),
         Index('idx_score_agegroup_score', 'detailed_age_group', 'total_score'),
+        Index('idx_score_user_status', 'user_id', 'status'),
     )
 
 class Response(Base):
@@ -790,6 +809,7 @@ class JournalEntry(Base):
     screen_time_mins = Column(Integer, nullable=True)
     daily_schedule = Column(Text, nullable=True)
     tags = Column(Text, nullable=True)
+    archive_pointer = Column(String, nullable=True)
     is_deleted = Column(Boolean, default=False, nullable=False, index=True)
     deleted_at = Column(DateTime(timezone=True), nullable=True)
     privacy_level = Column(String, default="private", index=True)

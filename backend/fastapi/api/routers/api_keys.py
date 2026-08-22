@@ -11,8 +11,9 @@ Provides endpoints for:
 
 import logging
 from typing import List, Optional
-from datetime import datetime, timedelta
-from fastapi import APIRouter, Depends, HTTPException, status
+from datetime import datetime, timedelta, timezone
+UTC = timezone.utc
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, Field
 
@@ -73,7 +74,8 @@ async def get_current_user_id(token: str = Depends(oauth2_scheme)) -> int:
 @router.post("", response_model=CreateApiKeyResponse)
 @limiter.limit("10/minute")
 async def create_api_key(
-    request: CreateApiKeyRequest,
+    request: Request,
+    body: CreateApiKeyRequest,
     user_id: int = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
@@ -84,7 +86,7 @@ async def create_api_key(
     """
     # Validate scopes
     valid_scopes = {scope.value for scope in ApiKeyScope}
-    invalid_scopes = [scope for scope in request.scopes if scope not in valid_scopes]
+    invalid_scopes = [scope for scope in body.scopes if scope not in valid_scopes]
     if invalid_scopes:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -93,16 +95,16 @@ async def create_api_key(
 
     # Calculate expiration date
     expires_at = None
-    if request.expires_in_days:
-        expires_at = datetime.utcnow() + timedelta(days=request.expires_in_days)
+    if body.expires_in_days:
+        expires_at = datetime.now(UTC) + timedelta(days=body.expires_in_days)
 
     # Create the API key
     api_key_service = ApiKeyService(db)
     try:
         plain_key, key_record = await api_key_service.create_api_key(
             user_id=user_id,
-            name=request.name,
-            scopes=request.scopes,
+            name=body.name,
+            scopes=body.scopes,
             expires_at=expires_at
         )
 
@@ -118,6 +120,7 @@ async def create_api_key(
 @router.get("", response_model=List[ApiKeyInfo])
 @limiter.limit("30/minute")
 async def list_api_keys(
+    request: Request,
     user_id: int = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
@@ -131,6 +134,7 @@ async def list_api_keys(
 @router.delete("/{key_id}")
 @limiter.limit("10/minute")
 async def revoke_api_key(
+    request: Request,
     key_id: int,
     user_id: int = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
@@ -151,15 +155,16 @@ async def revoke_api_key(
 @router.put("/{key_id}/scopes", response_model=ApiKeyInfo)
 @limiter.limit("10/minute")
 async def update_api_key_scopes(
+    request: Request,
     key_id: int,
-    request: UpdateScopesRequest,
+    body: UpdateScopesRequest,
     user_id: int = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Update the scopes of an API key."""
     # Validate scopes
     valid_scopes = {scope.value for scope in ApiKeyScope}
-    invalid_scopes = [scope for scope in request.scopes if scope not in valid_scopes]
+    invalid_scopes = [scope for scope in body.scopes if scope not in valid_scopes]
     if invalid_scopes:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -171,7 +176,7 @@ async def update_api_key_scopes(
         success = await api_key_service.update_api_key_scopes(
             key_id=key_id,
             user_id=user_id,
-            new_scopes=request.scopes
+            new_scopes=body.scopes
         )
 
         if not success:
@@ -246,6 +251,7 @@ async def list_available_scopes():
 @router.get("/stats")
 @limiter.limit("30/minute")
 async def get_api_key_stats(
+    request: Request,
     user_id: int = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):

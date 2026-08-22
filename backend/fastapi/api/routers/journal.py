@@ -46,11 +46,6 @@ router = APIRouter(tags=["Journal"])
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-def get_journal_service(db: AsyncSession = Depends(get_db)):
-    """Dependency to get JournalService."""
-    return JournalService(db)
-
-@router.post("/", response_model=JournalResponse, status_code=status.HTTP_201_CREATED)
 async def get_journal_service(db: AsyncSession = Depends(get_db)):
     """Dependency to get JournalService."""
     return JournalService(db)
@@ -60,35 +55,39 @@ async def get_journal_service(db: AsyncSession = Depends(get_db)):
 # Journal CRUD Endpoints
 # ============================================================================
 
-@router.post("/", response_model=JournalResponse, status_code=status.HTTP_202_ACCEPTED, summary="Create Journal Entry")
-@limiter.limit("10/minute")
+@router.post("", response_model=JournalResponse, status_code=status.HTTP_201_CREATED, summary="Create Journal Entry")
+@router.post("/", response_model=JournalResponse, status_code=status.HTTP_201_CREATED, summary="Create Journal Entry")
+@limiter.limit("60/minute")
 async def create_journal(
     request: Request,
     journal_data: JournalCreate,
-    background_tasks: Annotated[BackgroundTasks, Depends()],
     current_user: Annotated[User, Depends(get_current_user)],
+    background_tasks: BackgroundTasks,
     journal_service: Annotated[JournalService, Depends(get_journal_service)]
 ):
     """
-    Create a new journal entry. AI sentiment analysis starts asynchronously via gRPC.
+    Create a new journal entry with AI sentiment analysis.
     """
     return await journal_service.create_entry(
         current_user=current_user,
         content=journal_data.content,
+        title=getattr(journal_data, "title", None),
+        mood_score=getattr(journal_data, "mood_score", None),
         background_tasks=background_tasks,
         tags=journal_data.tags,
-        privacy_level=journal_data.privacy_level,
-        sleep_hours=journal_data.sleep_hours,
-        sleep_quality=journal_data.sleep_quality,
-        energy_level=journal_data.energy_level,
-        work_hours=journal_data.work_hours,
-        screen_time_mins=journal_data.screen_time_mins,
-        stress_level=journal_data.stress_level,
-        stress_triggers=journal_data.stress_triggers,
-        daily_schedule=journal_data.daily_schedule
+        privacy_level=getattr(journal_data, "privacy_level", "private"),
+        sleep_hours=getattr(journal_data, "sleep_hours", None),
+        sleep_quality=getattr(journal_data, "sleep_quality", None),
+        energy_level=getattr(journal_data, "energy_level", None),
+        work_hours=getattr(journal_data, "work_hours", None),
+        screen_time_mins=getattr(journal_data, "screen_time_mins", None),
+        stress_level=getattr(journal_data, "stress_level", None),
+        stress_triggers=getattr(journal_data, "stress_triggers", None),
+        daily_schedule=getattr(journal_data, "daily_schedule", None)
     )
 
 
+@router.get("", response_model=JournalListResponse, summary="List Journal Entries")
 @router.get("/", response_model=JournalListResponse, summary="List Journal Entries")
 @limiter.limit("100/minute")
 async def list_journals(

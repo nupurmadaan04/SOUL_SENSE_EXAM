@@ -178,8 +178,7 @@ class DeepDiveService:
             DeepDiveResultResponse(
                 id=r.id,
                 assessment_type=r.assessment_type,
-                total_score=0,
-                total_score=0, 
+                total_score=r.total_score or 0, 
                 normalized_score=r.total_score,
                 timestamp=r.timestamp,
                 details=json.loads(r.details) if r.details else {}
@@ -189,9 +188,6 @@ class DeepDiveService:
 
     @classmethod
     async def get_recommendations(cls, db: AsyncSession, user: User) -> List[str]:
-        """
-        Recommend Deep Dives based on EQ stats (Async).
-        """
         """Recommend Deep Dives based on EQ stats."""
         from ..services.user_analytics_service import UserAnalyticsService
         

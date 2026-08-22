@@ -7,28 +7,28 @@
 
 @layer base {
   :root {
-    --background: 0 0% 98%;
-    --foreground: 240 10% 4%;
+    --background: 210 40% 98%;
+    --foreground: 222 47% 11%;
 
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 4%;
+    --card-foreground: 222 47% 11%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 4%;
+    --popover-foreground: 222 47% 11%;
 
     /* Brand Primary: Sophisticated Indigo */
-    --primary: 230 45% 40%;
+    --primary: 224 76% 48%;
     --primary-foreground: 0 0% 100%;
 
     /* Brand Secondary: Soft Slate */
-    --secondary: 220 20% 90%;
-    --secondary-foreground: 220 30% 20%;
+    --secondary: 210 40% 94%;
+    --secondary-foreground: 222 47% 11%;
 
-    --muted: 240 5% 96%;
-    --muted-foreground: 240 4% 46%;
+    --muted: 210 40% 95%;
+    --muted-foreground: 215 25% 35%;
 
-    --accent: 240 5% 96%;
-    --accent-foreground: 240 6% 10%;
+    --accent: 210 40% 94%;
+    --accent-foreground: 222 47% 11%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
@@ -43,9 +43,9 @@
     --info: 217 91% 60%;
     --info-foreground: 0 0% 100%;
 
-    --border: 240 6% 90%;
-    --input: 240 6% 90%;
-    --ring: 230 45% 40%;
+    --border: 214 32% 86%;
+    --input: 214 32% 86%;
+    --ring: 224 76% 48%;
 
     --radius: 0.75rem;
   }
@@ -106,6 +106,49 @@
     font-feature-settings:
       'rlig' 1,
       'calt' 1;
+  }
+
+  /* Real Dynamic Typography Scaling */
+  html.font-size-small {
+    font-size: 14px !important;
+  }
+  html.font-size-medium {
+    font-size: 16px !important;
+  }
+  html.font-size-large {
+    font-size: 18.5px !important;
+  }
+
+  /* Real High Contrast Theme Enforcement */
+  html.high-contrast {
+    --border: 220 20% 40% !important;
+    --muted-foreground: 222 47% 15% !important;
+  }
+  html.dark.high-contrast {
+    --background: 0 0% 0% !important;
+    --card: 0 0% 4% !important;
+    --foreground: 0 0% 100% !important;
+    --border: 0 0% 45% !important;
+    --muted-foreground: 0 0% 90% !important;
+  }
+  html.high-contrast * {
+    font-weight: 550 !important;
+  }
+  html.high-contrast button,
+  html.high-contrast input,
+  html.high-contrast select,
+  html.high-contrast textarea {
+    border-width: 2px !important;
+  }
+
+  /* Real Reduced Motion Enforcement */
+  html.reduced-motion *,
+  html.reduced-motion *::before,
+  html.reduced-motion *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
   }
 
   /* Improve focus visibility for accessibility */
@@ -187,13 +230,13 @@
 
 /* Custom component utilities */
 @layer components {
-  /* Glass morphism effect */
+  /* Glass morphism effect with high contrast light mode support */
   .glass {
-    @apply bg-background/60 backdrop-blur-xl border border-border/40;
+    @apply bg-white/95 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200/90 dark:border-white/10;
   }
 
   .glass-card {
-    @apply glass rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)];
+    @apply glass rounded-2xl shadow-[0_4px_20px_rgb(0,0,0,0.05)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.25)];
   }
 
   /* Gradient text */

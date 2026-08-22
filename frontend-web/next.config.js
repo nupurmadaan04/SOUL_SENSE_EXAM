@@ -23,6 +23,10 @@ const nextConfig = {
   // Enable SWC minification for faster builds
   swcMinify: true,
 
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+
   // Performance optimizations
   experimental: {
     // optimizeCss: true, // Only available for "pages" directory

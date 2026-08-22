@@ -11,7 +11,8 @@ def get_real_ip(request: Request) -> str:
     client_ip = request.client.host if request.client else "Unknown"
     
     # Only trust X-Forwarded-For if the direct requester is a trusted proxy
-    if client_ip in settings.TRUSTED_PROXIES:
+    trusted = getattr(settings, "TRUSTED_PROXIES", ["127.0.0.1", "::1", "localhost"])
+    if client_ip in trusted:
         forwarded = request.headers.get("X-Forwarded-For")
         if forwarded:
             # X-Forwarded-For can contain a list of IPs: "client, proxy1, proxy2"

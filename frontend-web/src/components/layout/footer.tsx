@@ -1,23 +1,24 @@
 import Link from 'next/link';
-import { Rocket, Github, Twitter, Linkedin, Mail } from 'lucide-react';
+import { BookOpen, Github, Twitter, Linkedin, Mail } from 'lucide-react';
 import { Button } from '@/components/ui';
 
 const footerLinks = {
   product: [
-    { name: 'Features', href: '#features' },
-    { name: 'Testimonials', href: '#testimonials' },
-    { name: 'FAQ', href: '#faq' },
+    { name: 'Features', href: '/#features' },
+    { name: 'Testimonials', href: '/#testimonials' },
+    { name: 'FAQ', href: '/faq' },
   ],
   company: [
-    { name: 'About', href: '#about' },
-    { name: 'Contact Us', href: '/contact-us' },
-    { name: 'Privacy', href: '/privacy' },
-    { name: 'Terms', href: '/terms' },
+    { name: 'About', href: '/#about' },
+    { name: 'Contact Us', href: '/contact' },
+    { name: 'Privacy Policy', href: '/privacy' },
+    { name: 'Terms of Service', href: '/terms' },
   ],
   social: [
-    { name: 'GitHub', href: 'https://github.com', icon: Github },
-    { name: 'Twitter', href: 'https://twitter.com', icon: Twitter },
-    { name: 'LinkedIn', href: 'https://linkedin.com', icon: Linkedin },
+    { name: 'GitHub', href: 'https://github.com/nupurmadaan04', icon: Github },
+    { name: 'LinkedIn', href: 'https://www.linkedin.com/in/nupurmadaan04', icon: Linkedin },
+    { name: 'Twitter', href: 'https://twitter.com/nupurmadaan04', icon: Twitter },
+    { name: 'Email', href: 'mailto:nupur.04.m@gmail.com', icon: Mail },
   ],
 };
 
@@ -27,9 +28,13 @@ export function Footer() {
       <div className="container mx-auto px-6 py-12 lg:px-8">
         <div className="xl:grid xl:grid-cols-3 xl:gap-8">
           <div className="space-y-8">
-            <Link href="/" className="flex items-center gap-2">
-              <Rocket className="h-8 w-8 text-primary" />
-              <span className="text-xl font-bold tracking-tight">SOUL SENSE</span>
+            <Link href="/" className="flex items-center gap-2.5">
+              <div className="rounded-xl bg-gradient-to-br from-primary to-secondary p-2 shadow-md text-white">
+                <BookOpen className="h-5 w-5" />
+              </div>
+              <span className="text-xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">
+                Soul Sense
+              </span>
             </Link>
             <p className="text-sm leading-6 text-muted-foreground max-w-xs">
               Empowering individuals through emotional intelligence. Discover your EQ and unlock

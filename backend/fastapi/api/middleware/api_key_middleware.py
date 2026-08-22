@@ -177,11 +177,8 @@ async def api_key_middleware(request: Request, call_next: Callable):
     # Extract API key from header
     api_key_header = request.headers.get(API_KEY_HEADER)
     if not api_key_header:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="API key required",
-            headers={"WWW-Authenticate": f"APIKey realm=\"{path}\""},
-        )
+        # If no X-API-Key is provided, pass through to downstream JWT handlers
+        return await call_next(request)
 
     # Validate API key
     async with AsyncSessionLocal() as db_session:

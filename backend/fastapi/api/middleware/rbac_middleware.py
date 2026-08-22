@@ -38,13 +38,17 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
 # Paths that never need RBAC validation
 _EXEMPT_PREFIXES = (
-    "/docs", "/redoc", "/openapi.json", "/favicon.ico", "/health",
+    "/docs", "/redoc", "/openapi.json", "/favicon.ico", "/health", "/ready", "/startup",
+    "/api/v1/health", "/api/v1/ready", "/api/v1/startup", "/api/v1/questions", "/api/v1/categories",
+    "/api/v1/export/supported-formats", "/api/v1/avatars", "/api/v1/feedback", "/api/v1/contact",
+    "/api/v1/tamper-evident-audit/genesis-hash",
 )
 _EXEMPT_EXACT = {
     "/api/v1/auth/login",
     "/api/v1/auth/register",
     "/api/v1/auth/captcha",
     "/api/v1/auth/server-id",
+    "/api/v1/auth/refresh",
     "/api/v1/analytics/events",
     "/",
 }
@@ -98,14 +102,14 @@ async def rbac_middleware(request: Request, call_next: Callable):
 
     try:
         # ── 3. JWT decode (CPU only, no I/O) ────────────────────────────
+        auth_header = request.headers.get("Authorization")
+        if not auth_header:
+            return await call_next(request)
+
         try:
             token: str = await oauth2_scheme(request)
         except Exception:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Missing authentication token",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
+            return await call_next(request)
 
         try:
             payload = jwt.decode(

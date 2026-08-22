@@ -104,6 +104,12 @@ class PayloadLimitMiddleware(BaseHTTPMiddleware):
                     {"max_size_bytes": self.max_request_size}
                 )
             
+            # Re-inject body so downstream handlers and FastAPI can access it
+            request._body = body
+            async def receive():
+                return {"type": "http.request", "body": body, "more_body": False}
+            request._receive = receive
+            
             # Validate based on content type
             try:
                 if 'application/json' in content_type:

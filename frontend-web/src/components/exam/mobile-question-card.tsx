@@ -23,17 +23,15 @@ interface MobileQuestionCardProps {
 const LIKERT_LABELS: Record<number, string> = {
   1: 'Strongly Disagree',
   2: 'Disagree',
-  3: 'Neutral',
-  4: 'Agree',
-  5: 'Strongly Agree',
+  3: 'Agree',
+  4: 'Strongly Agree',
 };
 
 const LIKERT_SHORT_LABELS: Record<number, string> = {
   1: 'SD',
   2: 'D',
-  3: 'N',
-  4: 'A',
-  5: 'SA',
+  3: 'A',
+  4: 'SA',
 };
 
 export const MobileQuestionCard: React.FC<MobileQuestionCardProps> = ({
@@ -52,9 +50,12 @@ export const MobileQuestionCard: React.FC<MobileQuestionCardProps> = ({
   const { isMobile } = useBreakpoint();
   const { light, medium } = useHapticFeedback();
 
-  const options = question.options?.length
-    ? question.options
-    : [1, 2, 3, 4, 5].map((v) => ({ value: v, label: LIKERT_LABELS[v] }));
+  const options = [
+    { value: 1, label: 'Strongly Disagree' },
+    { value: 2, label: 'Disagree' },
+    { value: 3, label: 'Agree' },
+    { value: 4, label: 'Strongly Agree' },
+  ];
 
   const handleSwipeLeft = useCallback(() => {
     if (!disabled && selectedValue !== undefined && onNext) {

@@ -311,5 +311,4 @@ def get_client_cert_info(request: Request) -> Optional[Dict[str, Any]]:
 
     Only available for requests that passed mTLS validation.
     """
-    return getattr(request.state, 'client_cert_info', None)</content>
-<parameter name="filePath">c:\Users\Gupta\Downloads\SOUL_SENSE_EXAM\backend\fastapi\api\middleware\mtls_middleware.py
+    return getattr(request.state, 'client_cert_info', None)

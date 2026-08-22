@@ -7,34 +7,18 @@ import { OnboardingModal } from '@/components/onboarding';
 import { Sidebar, Header } from '@/components/app';
 import { useOnboarding } from '@/hooks/useOnboarding';
 import { OnboardingTutorial } from '@/components/onboarding/OnboardingTutorial';
-
-export default function AppLayout({ children }: { children: React.ReactNode }) {
-  // Authentication checks are handled by Edge middleware; this hook is used only for UI state
-  const { isAuthenticated, isLoading } = useAuth();
-  const { showTutorial, completeOnboarding, skipOnboarding } = useOnboarding();
-
-  return (
-    <div className="flex h-screen bg-background text-foreground relative">
-      <Sidebar />
-
-      {/* Main content area: flex-1 ensures it expands to fill all remaining space
-          when the sidebar collapses (desktop 80px strip) or is removed from flow (mobile fixed positioning) */}
-      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-        <Header />
-        <main className="flex-1 overflow-y-auto p-4 md:p-8">
-          {children}
-        </main>
 import { Loader } from '@/components/ui';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   // Authentication checks are handled by Edge middleware; this hook is used only for UI state
   const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
+  const { showTutorial, completeOnboarding, skipOnboarding } = useOnboarding();
   
   // Onboarding guard - intercepts new users
   const { needsOnboarding, isChecking, markComplete, skipForSession } = useOnboardingGuard();
   
-  // Show loader while checking auth or onboarding status
-  if (isAuthLoading || isChecking) {
+  // Show loader only on initial auth load when not yet authenticated
+  if (isAuthLoading && !isAuthenticated) {
     return (
       <div className="flex h-screen bg-background text-foreground">
         <Loader fullScreen text="Loading your experience..." />
@@ -56,8 +40,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <div className="flex h-screen bg-background text-foreground relative">
         <Sidebar />
 
-        {/* Main content area: flex-1 ensures it expands to fill all remaining space
-            when the sidebar collapses (desktop 80px strip) or is removed from flow (mobile fixed positioning) */}
+        {/* Main content area */}
         <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
           <Header />
           <main className="flex-1 overflow-y-auto p-4 md:p-8">
@@ -72,7 +55,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           onSkip={skipOnboarding}
         />
       )}
-    </div>
     </>
   );
 }

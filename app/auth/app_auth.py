@@ -91,18 +91,21 @@ class AppAuth:
         import requests
         import uuid
         
-        # Fetch CAPTCHA
+        # Fetch CAPTCHA with local fallback
         captcha_code = ""
         session_id = ""
         try:
-            response = requests.get('http://localhost:8000/api/v1/auth/captcha', timeout=5)
+            response = requests.get('http://127.0.0.1:8000/api/v1/auth/captcha', timeout=2)
             if response.status_code == 200:
                 data = response.json()
                 captcha_code = data.get('captcha_code', '')
                 session_id = data.get('session_id', '')
+            else:
+                raise Exception("Non-200 response from captcha endpoint")
         except Exception as e:
-            self.logger.error(f"Failed to fetch CAPTCHA: {e}")
-            captcha_code = "ERROR"
+            self.logger.warning(f"Using local CAPTCHA generator fallback: {e}")
+            import random, string
+            captcha_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=5))
             session_id = str(uuid.uuid4())
         
         login_win = tk.Toplevel(self.app.root)
@@ -262,15 +265,19 @@ class AppAuth:
         def refresh_captcha():
             nonlocal captcha_code, session_id
             try:
-                response = requests.get('http://localhost:8000/api/v1/auth/captcha', timeout=5)
+                response = requests.get('http://127.0.0.1:8000/api/v1/auth/captcha', timeout=2)
                 if response.status_code == 200:
                     data = response.json()
                     captcha_code = data.get('captcha_code', '')
                     session_id = data.get('session_id', '')
-                    captcha_display.config(text=captcha_code)
-                    captcha_entry.delete(0, tk.END)
+                else:
+                    raise Exception("Non-200 response")
             except Exception as e:
-                self.logger.error(f"Failed to refresh CAPTCHA: {e}")
+                import random, string
+                captcha_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=5))
+                session_id = str(uuid.uuid4())
+            captcha_display.config(text=captcha_code)
+            captcha_entry.delete(0, tk.END)
         
         refresh_btn = tk.Button(captcha_frame, text="🔄", command=refresh_captcha,
                                font=("Segoe UI", 10), bg=self.app.colors["bg"], fg=self.app.colors["text_primary"])
@@ -351,58 +358,62 @@ class AppAuth:
             if has_error:
                 return
 
-            # Validate CAPTCHA and login via backend API
+            # Validate CAPTCHA
+            if captcha_code and captcha_code != "ERROR" and captcha_input.upper() != captcha_code.upper():
+                captcha_error_label.config(text="Invalid CAPTCHA. Please try again!")
+                refresh_captcha()
+                return
+
+            # Validate and login via backend API or local DB
             try:
-                response = requests.post('http://localhost:8000/api/v1/auth/login', 
+                response = requests.post('http://127.0.0.1:8000/api/v1/auth/login', 
                                        json={
                                            'identifier': user,
                                            'password': pwd,
                                            'captcha_input': captcha_input,
                                            'session_id': session_id
-                                       }, timeout=10)
+                                       }, timeout=5)
                 
                 if response.status_code == 200:
                     data = response.json()
-                    # Store token for session management
                     self.session_token = data.get('access_token')
                     self.app.username = user
-                    # Save session if Remember Me is checked
+                    self.auth_manager.current_user = user
                     session_storage.save_session(user, remember_me_var.get())
                     self._load_user_settings(user)
                     login_win.destroy()
                     self._post_login_init()
+                    return
                 elif response.status_code == 400:
                     error_data = response.json()
                     code = error_data.get('detail', {}).get('code')
                     if code == 'AUTH003':
                         captcha_error_label.config(text="Invalid CAPTCHA. Please try again!")
-                        refresh_captcha()  # Regenerate CAPTCHA
+                        refresh_captcha()
+                        return
                     else:
                         tmb.showerror("Login Failed", error_data.get('detail', {}).get('message', 'Invalid input'))
+                        return
                 elif response.status_code == 401:
                     error_data = response.json()
                     tmb.showerror("Login Failed", error_data.get('detail', {}).get('message', 'Invalid credentials'))
+                    return
                 else:
-                    error_data = response.json()
-                    tmb.showerror("Login Failed", error_data.get('detail', {}).get('message', 'Login failed'))
-                    
-            except requests.exceptions.RequestException as e:
-                self.logger.error(f"Login request failed: {e}")
-                # Fallback to local auth if backend is unavailable
+                    raise Exception("Backend error, falling back to local DB")
+            except Exception as e:
+                self.logger.info(f"API login fallback to local authentication: {e}")
                 success, msg, err_code = self.auth_manager.login_user(user, pwd)
                 
                 if success:
                     self.app.username = user
-                    # Save session if Remember Me is checked
+                    self.auth_manager.current_user = user
                     session_storage.save_session(user, remember_me_var.get())
                     self._load_user_settings(user)
                     login_win.destroy()
                     self._post_login_init()
                 elif err_code == "AUTH_2FA_REQUIRED":
-                    # 2FA Required
                     self.show_2fa_login_dialog(user, login_win)
                 elif err_code == "AUTH002":
-                    # Rate limit exceeded - show countdown
                     remaining = self.auth_manager.get_lockout_remaining_seconds(user)
                     if remaining > 0:
                         update_countdown(remaining, login_btn)
@@ -418,6 +429,11 @@ class AppAuth:
             username_entry.focus_set()        
 
         def do_register():
+            if hasattr(self, 'login_window') and self.login_window:
+                try:
+                    self.login_window.destroy()
+                except Exception:
+                    pass
             self.show_signup_screen()
 
         # Buttons - store reference for rate limit control
@@ -428,14 +444,14 @@ class AppAuth:
                  
         # Keyboard usability: Bind Enter to login
         login_win.bind("<Return>", lambda e: do_login())
-        self.login_window.bind("<Return>", lambda e: do_login()) # Changed login_win to self.login_window
+        self.login_window.bind("<Return>", lambda e: do_login())
 
-        tk.Button(self.login_window, text="Create Account", command=do_register, # Changed login_win to self.login_window
+        tk.Button(self.login_window, text="Create Account", command=do_register,
                  font=("Segoe UI", 10), bg=self.app.colors["bg"], fg=self.app.colors["primary"],
                  bd=0, cursor="hand2").pack()
         # --- BIND KEYS TO ACTIONS ---
-        self.login_window.bind('<Return>', do_login)   # Enter Key -> Logs in # Changed login_win to self.login_window
-        self.login_window.bind('<Escape>', clear_fields) # Esc Key -> Clears text # Changed login_win to self.login_window
+        self.login_window.bind('<Return>', do_login)
+        self.login_window.bind('<Escape>', clear_fields)
 
         # Forgot Password button
         tk.Button(self.login_window, text="Forgot Password?", command=self.show_forgot_password,
@@ -1088,8 +1104,14 @@ class AppAuth:
             age = int(age_str)
             success, msg, _ = self.auth_manager.register_user(username, email, first_name, last_name, age, gender, password)
             if success:
-                tmb.showinfo("Success", "Account created successfully! You can now login.")
+                # Store credentials / session and open dashboard directly
+                self.app.username = username
+                self.auth_manager.current_user = username
+                session_storage.save_session(username, True)
+                self._load_user_settings(username)
                 signup_win.destroy()
+                self._post_login_init()
+                tmb.showinfo("Welcome!", f"Account created successfully!\nWelcome to SoulSense, {first_name or username}!")
             else:
                 # Registration failed - show error but keep form open with data preserved
                 tmb.showerror("Registration Failed", msg)
@@ -1119,7 +1141,7 @@ class AppAuth:
         signup_win.bind("<Return>", lambda e: do_signup())
 
         # Back to Login button
-        back_btn = tk.Button(button_frame, text="← Back to Login", command=signup_win.destroy,
+        back_btn = tk.Button(button_frame, text="← Back to Login", command=lambda: [signup_win.destroy(), self.show_login_screen()],
                             font=("Segoe UI", 10), bg=self.app.colors["bg"], fg=self.app.colors["text_secondary"],
                             bd=0, cursor="hand2", activeforeground=self.app.colors["primary"])
         back_btn.pack(pady=(15, 0))

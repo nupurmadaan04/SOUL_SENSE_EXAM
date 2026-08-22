@@ -6,6 +6,7 @@ import { UserSettings } from '@/lib/api/settings';
 
 export default function NotificationsDemoPage() {
   const [settings, setSettings] = useState<UserSettings>({
+    onboarding_completed: true,
     theme: 'system',
     notifications: {
       email: true,

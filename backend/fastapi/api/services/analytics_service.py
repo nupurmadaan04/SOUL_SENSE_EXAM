@@ -166,7 +166,9 @@ class AnalyticsService:
             'assessment_quality_metrics': {
                 'rushed_assessments': quality.rushed or 0,
                 'inconsistent_assessments': quality.inconsistent or 0
-    
+            }
+        }
+
     @staticmethod
     async def get_overall_summary(db: AsyncSession) -> Dict:
         """Get overall analytics summary utilizing CQRS Read Models (#1124)."""
@@ -737,10 +739,6 @@ class AnalyticsService:
             }
 
         return {
-            'most_common_age_group': most_common.detailed_age_group if most_common else 'Unknown',
-            'highest_performing_age_group': highest_perf.detailed_age_group if highest_perf else 'Unknown',
-            'total_population_size': total_users,
-            'assessment_completion_rate': completion_rate
             'analytics_consent_given': False,
             'consent_version': None,
             'last_updated': None

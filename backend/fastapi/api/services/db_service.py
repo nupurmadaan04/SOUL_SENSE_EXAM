@@ -393,6 +393,21 @@ class QuestionService:
         result = await db.execute(stmt)
         return list(result.scalars().all())
 
+    @staticmethod
+    async def get_categories(db: AsyncSession) -> List[QuestionCategory]:
+        """Get all question categories."""
+        stmt = select(QuestionCategory).order_by(QuestionCategory.name)
+        result = await db.execute(stmt)
+        return list(result.scalars().all())
+
+    @staticmethod
+    async def get_category_by_id(db: AsyncSession, category_id: int) -> Optional[QuestionCategory]:
+        """Get question category by ID."""
+        stmt = select(QuestionCategory).filter(QuestionCategory.id == category_id)
+        result = await db.execute(stmt)
+        return result.scalar_one_or_none()
+
+
 
 class ResponseService:
     """Service for managing responses."""

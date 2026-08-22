@@ -2,7 +2,7 @@
  * Session storage utilities for handling user persistence
  */
 
-const SESSION_KEY = 'soul_sense_auth_session';
+export const SESSION_KEY = 'soul_sense_auth_session';
 const SESSION_EXPIRY_DAYS = 30;
 const LAST_ACTIVITY_KEY = 'soul_sense_last_activity';
 

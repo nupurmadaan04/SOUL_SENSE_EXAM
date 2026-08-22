@@ -65,7 +65,7 @@ export default function JournalPage() {
     hasNextPage,
     refetch,
     loadMore,
-  } = useJournal(filters, true);
+  } = useJournal(filters);
 
   const setJournalFilters = (newFilters: JournalFilters) => {
     setFilters(newFilters);
@@ -459,26 +459,6 @@ export default function JournalPage() {
             </motion.div>
           ))}
         </InfiniteScroll>
-      {/* Entries List */}
-      {!error && entries.length > 0 && (
-        <JournalListContainer
-          entries={entries}
-          onEntryClick={handleEntryClick}
-        />
-      )}
-
-      {/* Load More / Pagination */}
-      {hasNextPage && (
-        <div className="flex justify-center">
-          <Button
-            onClick={handleLoadMore}
-            disabled={loading}
-            variant="outline"
-            className="rounded-full px-8"
-          >
-            {loading ? 'Loading...' : 'Load More'}
-          </Button>
-        </div>
       )}
     </motion.div>
   );

@@ -105,8 +105,7 @@ export default function ExamPage() {
           </div>
 
           <Card
-            variant="elevated"
-            className="bg-[linear-gradient(135deg,var(--calm-1),var(--calm-2),var(--calm-3))]"
+            className="border-border/80 bg-card/90 backdrop-blur-md shadow-xl"
           >
             <CardHeader>
               <CardTitle className="text-2xl text-foreground">Assessment Details</CardTitle>
@@ -171,7 +170,7 @@ export default function ExamPage() {
 
         {hasResume && (
           <div className="mt-10">
-            <Card variant="outlined" className="border-emerald-200 bg-white/80">
+            <Card className="border-primary/40 bg-card/90 backdrop-blur-md shadow-lg">
               <CardHeader>
                 <CardTitle className="text-xl">Resume your assessment</CardTitle>
                 <CardDescription>

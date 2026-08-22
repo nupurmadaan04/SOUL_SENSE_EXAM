@@ -3,7 +3,16 @@ import { sanitizeError, logError, shouldLogout, isRetryableError } from '../util
 import { retryRequest } from '../utils/requestUtils';
 import { getSession, saveSession, isTokenExpired, isSessionTimedOut, updateLastActivity } from '../utils/sessionStorage';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/v1';
+export function getApiBaseUrl(): string {
+  if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
+  if (typeof window !== 'undefined') {
+    const host = window.location.hostname || 'localhost';
+    return `http://${host}:8000/api/v1`;
+  }
+  return 'http://127.0.0.1:8000/api/v1';
+}
+
+const API_BASE_URL = getApiBaseUrl();
 
 // State variables for token refresh locking mechanism
 let isRefreshing = false;
@@ -98,7 +107,8 @@ export async function apiClient<T>(endpoint: string, options: RequestOptions = {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeout);
 
-  const url = endpoint.startsWith('http') ? endpoint : `${API_BASE_URL}${endpoint}`;
+  const baseUrl = getApiBaseUrl();
+  const url = endpoint.startsWith('http') ? endpoint : `${baseUrl}${endpoint}`;
 
   // Inject authentication token
   const token = options._token || (skipAuth ? null : getAuthToken());
@@ -147,11 +157,15 @@ export async function apiClient<T>(endpoint: string, options: RequestOptions = {
 
           if (isRefreshing) {
             // Queue the request
-            return new Promise((resolve, reject) => {
+            return new Promise<string>((resolve, reject) => {
               failedQueue.push({ resolve, reject });
-            }).then((token) => {
-              return apiClient(endpoint, { ...options, _isRetry: true, _token: token as string });
-            });
+            })
+              .then((token) => {
+                return apiClient(endpoint, { ...options, _isRetry: true, _token: token });
+              })
+              .catch((err) => {
+                throw err instanceof ApiError ? err : apiError;
+              });
           }
 
           // Start refreshing
@@ -170,11 +184,8 @@ export async function apiClient<T>(endpoint: string, options: RequestOptions = {
 
               // Update session
               const session = getSession();
-              if (session) {
+              if (session && data.access_token) {
                 session.token = data.access_token;
-                if (data.refresh_token) {
-                  // Cookie is HTTPOnly
-                }
                 // Persist update (keeping existing storage type)
                 saveSession(session, !!localStorage.getItem('soul_sense_auth_session'));
               }
@@ -184,11 +195,12 @@ export async function apiClient<T>(endpoint: string, options: RequestOptions = {
               // Retry original request with new token
               return apiClient(endpoint, { ...options, _isRetry: true, _token: data.access_token });
             } else {
-              throw new Error('Refresh failed');
+              processQueue(apiError, null);
+              handleAuthFailure();
+              throw apiError;
             }
           } catch (err) {
-            console.error('Token refresh failed:', err);
-            processQueue(err, null);
+            processQueue(apiError, null);
             handleAuthFailure();
             throw apiError;
           } finally {

@@ -11,7 +11,13 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional, Annotated
 from ..services.db_service import get_db, AssessmentService
-from app.core.exceptions import NotFoundError, AuthorizationError
+try:
+    from backend.fastapi.app.core.exceptions import NotFoundError, AuthorizationError
+except ImportError:
+    try:
+        from app.core.exceptions import NotFoundError, AuthorizationError
+    except ImportError:
+        from ...app.core.exceptions import NotFoundError, AuthorizationError
 from ..schemas import (
     AssessmentListResponse,
     AssessmentResponse,
@@ -24,6 +30,7 @@ from ..models import User
 router = APIRouter(tags=["Assessments"])
 
 
+@router.get("", response_model=AssessmentListResponse)
 @router.get("/", response_model=AssessmentListResponse)
 async def get_assessments(
     username: Optional[str] = Query(None, description="Filter by username (Admin only)"),

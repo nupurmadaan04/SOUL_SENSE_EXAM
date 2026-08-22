@@ -95,28 +95,5 @@ export const goalsApi = {
 
     getStats: async () => {
         return authFetch('/goals/stats');
-
-        return await apiClient.get<GoalListResponse>(url);
-    },
-
-    get: async (id: number) => {
-        return await apiClient.get<Goal>(`/goals/${id}`);
-    },
-
-    create: async (data: GoalCreate) => {
-        return await apiClient.post<Goal>('/goals/', data);
-    },
-
-    update: async (id: number, data: GoalUpdate) => {
-        // @ts-ignore - Patch was just added but typing might not have caught up in IDE
-        return await apiClient.patch<Goal>(`/goals/${id}`, data);
-    },
-
-    delete: async (id: number) => {
-        await apiClient.delete(`/goals/${id}`);
-    },
-
-    getStats: async () => {
-        return await apiClient.get<any>('/goals/stats');
     }
 };

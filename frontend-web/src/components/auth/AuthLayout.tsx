@@ -3,7 +3,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { Sparkles } from 'lucide-react';
+import { BookOpen } from 'lucide-react';
 
 interface AuthLayoutProps {
   children: React.ReactNode;
@@ -29,14 +29,14 @@ export function AuthLayout({ children, title, subtitle }: AuthLayoutProps) {
       >
         {/* Logo & Branding */}
         <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center gap-2 mb-6">
+          <Link href="/" className="inline-flex items-center gap-2.5 mb-6 group">
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
               transition={{ delay: 0.2, type: 'tween', ease: 'easeOut', duration: 0.4 }}
-              className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center shadow-lg shadow-primary/30"
+              className="h-11 w-11 rounded-xl bg-gradient-to-br from-primary to-secondary flex items-center justify-center shadow-lg shadow-primary/30 text-white group-hover:scale-105 transition-transform"
             >
-              <Sparkles className="h-6 w-6 text-white" />
+              <BookOpen className="h-5 w-5" />
             </motion.div>
             <span className="text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-secondary">
               Soul Sense

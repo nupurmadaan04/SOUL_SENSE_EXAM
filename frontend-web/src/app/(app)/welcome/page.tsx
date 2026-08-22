@@ -17,13 +17,8 @@ export default function WelcomePage() {
     }
   }, [onboardingCompleted, router]);
   
-  const handleComplete = async () => {
-    try {
-      await submitOnboarding();
-      router.push('/dashboard');
-    } catch {
-      // Error is handled by the hook
-    }
+  const handleComplete = () => {
+    router.push('/dashboard');
   };
   
   const handleSkip = () => {

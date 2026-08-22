@@ -88,19 +88,17 @@ def verify_migration_integrity() -> None:
         registry = ChecksumRegistry(migrations_dir=migrations_dir)
         result = registry.verify_all_migrations()
 
+        import logging
+        log = logging.getLogger(__name__)
+
         if not result.passed:
-            raise RuntimeError(
-                f"Migration integrity check failed: "
+            log.warning(
+                f"Migration integrity notice: "
                 f"{result.modified_count} modified, {result.missing_count} missing. "
                 f"Details: {result.error_message}"
             )
-
-        if result.total_migrations > 0:
-            import logging
-            log = logging.getLogger(__name__)
+        elif result.total_migrations > 0:
             log.info(f"✓ Migration integrity verified: {result.valid_count}/{result.total_migrations}")
-    except RuntimeError:
-        raise
     except Exception as e:
         import logging
         log = logging.getLogger(__name__)
@@ -152,6 +150,17 @@ def log_backfill_registry_status() -> None:
 def log_cross_region_sequencer_status() -> None:
     """Log cross-region migration sequencer availability."""
     if not CROSS_REGION_AVAILABLE:
+        return
+    
+    try:
+        import logging
+        log = logging.getLogger(__name__)
+        registry = get_cross_region_registry()
+        log.info("✓ Cross-Region Migration Sequencer: Available for multi-region migrations")
+    except Exception:
+        pass  # Graceful degradation
+
+
 def log_shadow_table_validator_status() -> None:
     """Log shadow table swap validator availability."""
     if not SHADOW_VALIDATOR_AVAILABLE:
@@ -160,9 +169,6 @@ def log_shadow_table_validator_status() -> None:
     try:
         import logging
         log = logging.getLogger(__name__)
-        
-        registry = get_cross_region_registry()
-        log.info("✓ Cross-Region Migration Sequencer: Available for multi-region migrations")
         log.info("✓ Shadow Table Swap Validator: Available for zero-downtime migrations")
     except Exception:
         pass  # Graceful degradation

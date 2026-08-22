@@ -15,12 +15,11 @@ interface QuestionCardProps {
   currentIndex?: number;
 }
 
-const LIKERT_LABELS: Record<number, string> = {
+export const LIKERT_4_LABELS: Record<number, string> = {
   1: 'Strongly Disagree',
   2: 'Disagree',
-  3: 'Neutral',
-  4: 'Agree',
-  5: 'Strongly Agree',
+  3: 'Agree',
+  4: 'Strongly Agree',
 };
 
 export const QuestionCard: React.FC<QuestionCardProps> = ({
@@ -33,10 +32,13 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
 }) => {
   const optionsRef = useRef<(HTMLButtonElement | null)[]>([]);
 
-  // Default to 1-5 scale if question.options is missing or empty
-  const options = question.options?.length
-    ? question.options
-    : [1, 2, 3, 4, 5].map((v) => ({ value: v, label: LIKERT_LABELS[v] }));
+  // Strict 4-point forced-choice scale (No Neutral)
+  const options = [
+    { value: 1, label: 'Strongly Disagree' },
+    { value: 2, label: 'Disagree' },
+    { value: 3, label: 'Agree' },
+    { value: 4, label: 'Strongly Agree' },
+  ];
 
   const handleKeyDown = (e: React.KeyboardEvent, index: number) => {
     if (disabled) return;
@@ -61,34 +63,34 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
       transition={{ duration: 0.3, ease: 'easeInOut' }}
       className="w-full max-w-2xl mx-auto"
     >
-      <Card className="overflow-hidden border-none shadow-xl bg-white/80 dark:bg-slate-900/80 backdrop-blur-md">
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
+      <Card className="overflow-hidden border border-border/80 shadow-2xl bg-card/90 backdrop-blur-md rounded-3xl">
+        <CardHeader className="flex flex-row items-center justify-between pb-2 pt-6 px-6 sm:px-8">
           <div className="flex items-center space-x-2">
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300">
-              {question.category || 'General'}
+            <span className="px-3 py-1 rounded-full text-xs font-bold bg-primary/10 text-primary border border-primary/20">
+              {question.category || 'Emotional Insight'}
             </span>
           </div>
           {totalQuestions !== undefined && currentIndex !== undefined && (
-            <span className="text-sm font-medium text-slate-500 dark:text-slate-400">
+            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
               Question {currentIndex + 1} of {totalQuestions}
             </span>
           )}
         </CardHeader>
 
-        <CardContent className="pt-6 pb-8">
+        <CardContent className="pt-6 pb-8 px-6 sm:px-8">
           <h2
             id={`question-${question.id}`}
-            className="text-2xl md:text-3xl font-bold text-slate-800 dark:text-slate-100 leading-tight"
+            className="text-xl sm:text-2xl md:text-3xl font-black text-foreground leading-snug"
           >
             {question.text}
           </h2>
         </CardContent>
 
-        <CardFooter className="flex flex-col space-y-4 pt-4 pb-8">
+        <CardFooter className="flex flex-col space-y-4 pt-2 pb-8 px-6 sm:px-8">
           <div
             role="radiogroup"
             aria-labelledby={`question-${question.id}`}
-            className="grid grid-cols-1 sm:grid-cols-5 gap-3 w-full"
+            className="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full"
           >
             {options.map((option, idx) => {
               const isSelected = selectedValue === option.value;
@@ -106,31 +108,36 @@ export const QuestionCard: React.FC<QuestionCardProps> = ({
                   onKeyDown={(e) => handleKeyDown(e, idx)}
                   tabIndex={isSelected || (selectedValue === undefined && idx === 0) ? 0 : -1}
                   className={cn(
-                    'relative flex flex-col items-center justify-center p-4 rounded-xl transition-all duration-200 border-2 text-center group',
-                    'hover:scale-105 active:scale-95',
+                    'relative flex flex-col items-center justify-center p-4 rounded-2xl transition-all duration-200 border-2 text-center group cursor-pointer',
+                    'hover:scale-102 active:scale-98',
                     isSelected
-                      ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-500/30'
-                      : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:border-indigo-400 dark:hover:border-indigo-500',
+                      ? 'bg-primary border-primary text-primary-foreground shadow-lg shadow-primary/30'
+                      : 'bg-card border-border/80 text-foreground hover:border-primary/50 hover:bg-muted/30',
                     disabled && 'opacity-50 cursor-not-allowed hover:scale-100'
                   )}
                 >
                   <span
                     className={cn(
-                      'text-xl font-bold mb-1',
-                      isSelected ? 'text-white' : 'text-slate-900 dark:text-white'
+                      'text-xl font-black mb-1',
+                      isSelected ? 'text-primary-foreground' : 'text-foreground'
                     )}
                   >
                     {option.value}
                   </span>
-                  <span className="text-[10px] uppercase tracking-wider font-semibold opacity-80 line-clamp-1">
+                  <span
+                    className={cn(
+                      'text-[11px] uppercase tracking-wider font-black leading-tight text-center whitespace-normal',
+                      isSelected ? 'text-primary-foreground' : 'text-muted-foreground'
+                    )}
+                  >
                     {option.label}
                   </span>
 
                   {isSelected && (
                     <motion.div
                       layoutId={`question-active-bg-${question.id}`}
-                      className="absolute inset-0 rounded-xl bg-indigo-600 -z-10"
-                      transition={{ type: 'tween', ease: 'easeOut', duration: 0.4 }}
+                      className="absolute inset-0 rounded-2xl bg-primary -z-10"
+                      transition={{ type: 'tween', ease: 'easeOut', duration: 0.3 }}
                     />
                   )}
                 </button>

@@ -2,7 +2,20 @@ import uuid
 import logging
 from typing import Optional, Tuple
 from ..services.cache_service import cache_service
-from ....clock_skew_monitor import get_clock_monitor
+try:
+    from scripts.monitoring.clock_skew_monitor import get_clock_monitor
+except ImportError:
+    try:
+        from clock_skew_monitor import get_clock_monitor
+    except ImportError:
+        def get_clock_monitor():
+            class DummyMonitor:
+                def get_adjusted_time(self):
+                    import time
+                    return time.time()
+                def is_skew_acceptable(self):
+                    return True
+            return DummyMonitor()
 
 logger = logging.getLogger("api.utils.redlock")
 

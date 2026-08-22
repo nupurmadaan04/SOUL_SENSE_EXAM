@@ -62,6 +62,12 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const isPublicRoute = (path?: string | null): boolean => {
+  if (!path) return false;
+  const publicPaths = ['/register', '/login', '/forgot-password', '/terms', '/privacy'];
+  return path === '/' || publicPaths.some((p) => path.startsWith(p));
+};
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<UserSession['user'] | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -74,7 +80,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // Clear lingering global loading state when transitioning away from auth pages
   useEffect(() => {
-    if (mounted && isLoading && !!user && pathname !== '/login' && pathname !== '/register') {
+    if (mounted && isLoading && !!user && !isPublicRoute(pathname)) {
       setIsLoading(false);
     }
   }, [pathname, isLoading, user, mounted]);
@@ -106,8 +112,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             } catch (refreshError) {
               console.warn('Auth: Proactive refresh failed. Logging out:', refreshError);
               clearSession();
-              setUser(null);
-              router.push('/login');
+              if (isMounted) setUser(null);
+              const currentWindowPath = typeof window !== 'undefined' ? window.location.pathname : '';
+              if (!isPublicRoute(pathname) && !isPublicRoute(currentWindowPath)) {
+                router.push('/login');
+              }
               setIsLoading(false);
               return;
             }
@@ -120,7 +129,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
               toast.error('Authentication session corrupted. Please log in again.');
               clearSession();
               if (isMounted) setUser(null);
-              router.push('/login');
+              const currentWindowPath = typeof window !== 'undefined' ? window.location.pathname : '';
+              if (!isPublicRoute(pathname) && !isPublicRoute(currentWindowPath)) {
+                router.push('/login');
+              }
             } else {
               if (isMounted) setUser(session.user);
             }
@@ -159,14 +171,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (response.ok) {
         const { server_id } = await response.json();
-        const storedId = localStorage.getItem('soul_sense_server_instance_id');
-
-        if (storedId && server_id && storedId !== server_id) {
-          console.log('🔄 Server restart detected. Clearing stale session.');
-          clearSession();
-          setUser(null);
-        }
-
         if (server_id) {
           localStorage.setItem('soul_sense_server_instance_id', server_id);
         }
@@ -202,7 +206,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     },
     rememberMe: boolean,
     shouldRedirect = true,
-    redirectTo = '/',
+    redirectTo = '/dashboard',
     stayLoadingOnSuccess = false
   ) => {
     setIsLoading(true);
@@ -210,6 +214,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const result = await authApi.login(loginData);
 
       if (result.pre_auth_token) {
+        setIsLoading(false);
         return result; // 2FA Required
       }
 
@@ -239,13 +244,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(session.user);
 
       if (shouldRedirect) {
-        const finalRedirect = isValidCallbackUrl(redirectTo) ? redirectTo : '/';
+        const finalRedirect = isValidCallbackUrl(redirectTo) ? redirectTo : '/dashboard';
         console.log(`useAuth: Navigation to ${finalRedirect} triggered`);
         router.push(finalRedirect);
       }
-
-      // If we are redirecting and want to stay loading, we don't clear it here
-      if (stayLoadingOnSuccess) return result;
 
       setIsLoading(false);
       return result;
@@ -292,7 +294,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(session.user);
 
       if (shouldRedirect) {
-        const finalRedirect = isValidCallbackUrl(redirectTo) ? redirectTo : '/';
+        const finalRedirect = isValidCallbackUrl(redirectTo) ? redirectTo : '/dashboard';
         router.push(finalRedirect);
       }
 
@@ -304,9 +306,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       console.error('2FA verification failed:', error);
       throw error;
     } finally {
-      if (!stayLoadingOnSuccess) {
-        setIsLoading(false);
-      }
+      setIsLoading(false);
     }
   };
 
@@ -314,7 +314,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     data: { provider: string; idToken?: string; accessToken?: string },
     rememberMe: boolean,
     shouldRedirect = true,
-    redirectTo = '/'
+    redirectTo = '/dashboard'
   ) => {
     setIsLoading(true);
     try {
@@ -341,7 +341,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setUser(session.user);
 
       if (shouldRedirect) {
-        const finalRedirect = isValidCallbackUrl(redirectTo) ? redirectTo : '/';
+        const finalRedirect = isValidCallbackUrl(redirectTo) ? redirectTo : '/dashboard';
         router.push(finalRedirect);
       }
 
@@ -355,25 +355,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const logout = useCallback(async () => {
+  const logout = useCallback(async (showToast = false) => {
     try {
       await authApi.logout();
     } catch (error) {
-      console.error('Logout error:', error);
-      toast.error('Logout failed. Your session may still be active on the server.');
+      console.warn('Backend logout notification skipped (session cleared locally):', error);
     } finally {
-      // Always clear local session even if backend call fails
+      // Always clean up local session state safely
       clearSession();
-      clearLastActivity(); // Clear activity tracking on logout (Issue #999)
+      clearLastActivity();
       setUser(null);
-      router.push('/login');
+      setIsLoading(false);
+      if (showToast) {
+        toast.info('You have been logged out successfully.');
+      }
+      router.push('/');
     }
   }, [router]);
 
   // Listen for auth-failure events from API client
   useEffect(() => {
     const handleAuthFailure = () => {
-      logout();
+      // Only logout if we had a session to begin with
+      const session = getSession();
+      if (session) {
+        logout();
+      }
     };
 
     window.addEventListener('auth-failure', handleAuthFailure);

@@ -14,6 +14,49 @@ interface MissionControlProps {
   className?: string;
 }
 
+const FALLBACK_MISSION_CONTROL: MissionControlData = {
+  items: [
+    {
+      id: 'mc-1',
+      number: 734,
+      type: 'pr',
+      title: 'Enhance Light Theme Contrast and Add FAQ/Legal Pages',
+      status: 'Done',
+      priority: 'High',
+      domain: 'frontend',
+      assignee: {
+        login: 'nupurmadaan04',
+        avatar: 'https://avatars.githubusercontent.com/u/185025269?v=4',
+      },
+      labels: ['enhancement', 'ui/ux', 'core'],
+      url: 'https://github.com/nupurmadaan04/SOUL_SENSE_EXAM',
+      updated_at: '2026-08-22T04:00:00Z',
+    },
+    {
+      id: 'mc-2',
+      number: 735,
+      type: 'issue',
+      title: 'Integrate Real Contributor Telemetry & Hall of Fame',
+      status: 'Done',
+      priority: 'High',
+      domain: 'analytics',
+      assignee: {
+        login: 'nupurmadaan04',
+        avatar: 'https://avatars.githubusercontent.com/u/185025269?v=4',
+      },
+      labels: ['analytics', 'community'],
+      url: 'https://github.com/nupurmadaan04/SOUL_SENSE_EXAM',
+      updated_at: '2026-08-22T04:00:00Z',
+    },
+  ],
+  stats: {
+    total: 2,
+    backlog: 0,
+    in_progress: 0,
+    done: 2,
+  },
+};
+
 export const MissionControl: React.FC<MissionControlProps> = ({ className }) => {
   const [viewMode, setViewMode] = useState<'board' | 'list'>('board');
   const [data, setData] = useState<MissionControlData | null>(null);
@@ -32,8 +75,9 @@ export const MissionControl: React.FC<MissionControlProps> = ({ className }) => 
   const fetchData = async () => {
     setLoading(true);
     try {
+      const host = typeof window !== 'undefined' ? (window.location.hostname || 'localhost') : '127.0.0.1';
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000/api/v1'}/community/mission-control`
+        `${process.env.NEXT_PUBLIC_API_URL || `http://${host}:8000/api/v1`}/community/mission-control`
       );
       if (response.ok) {
         const jsonData = await response.json();
@@ -42,9 +86,8 @@ export const MissionControl: React.FC<MissionControlProps> = ({ className }) => 
         throw new Error('API Error');
       }
     } catch (error) {
-      console.warn('Mission Control API unavailable, using mock fallback:', error);
-      // Fallback to mock data with type assertion since mock data is now aligned
-      setData(MOCK_DASHBOARD_DATA.missionControl as unknown as MissionControlData);
+      console.warn('Mission Control API unavailable, using fallback:', error);
+      setData(FALLBACK_MISSION_CONTROL);
     } finally {
       setLoading(false);
     }

@@ -138,19 +138,7 @@ class SmartPromptService:
         }
         
         # 1. EQ Score
-        stmt_eq = select(Score).filter(Score.user_id == user_id).order_by(desc(Score.timestamp))
-        result_eq = await self.db.execute(stmt_eq)
-        latest_score = result_eq.scalar_one_or_none()
-        if latest_score:
-            context["latest_eq_score"] = latest_score.total_score
-        
-        # 2. Journal Trends
-        week_ago = (datetime.utcnow() - timedelta(days=7)).strftime("%Y-%m-%d")
-        stmt_journal = select(JournalEntry).filter(
-        # 1. Get latest EQ score
-        score_stmt = select(Score).join(UserSession, Score.session_id == UserSession.session_id).filter(
-            UserSession.user_id == user_id
-        ).order_by(desc(Score.timestamp))
+        score_stmt = select(Score).filter(Score.user_id == user_id).order_by(desc(Score.timestamp))
         score_res = await self.db.execute(score_stmt)
         latest_score = score_res.scalar_one_or_none()
         
@@ -165,8 +153,6 @@ class SmartPromptService:
             JournalEntry.entry_date >= week_ago,
             JournalEntry.is_deleted == False
         ).order_by(desc(JournalEntry.entry_date))
-        result_journal = await self.db.execute(stmt_journal)
-        recent_entries = list(result_journal.scalars().all())
         entries_res = await self.db.execute(entries_stmt)
         recent_entries = list(entries_res.scalars().all())
         
@@ -195,19 +181,7 @@ class SmartPromptService:
                     except (json.JSONDecodeError, TypeError):
                         context["detected_patterns"].append(entry.emotional_patterns)
 
-        # 3. stored patterns
-        stmt_p = select(UserEmotionalPatterns).filter(UserEmotionalPatterns.user_id == user_id)
-        result_p = await self.db.execute(stmt_p)
-        user_patterns = result_p.scalar_one_or_none()
-        if user_patterns and user_patterns.common_emotions:
-            try:
-                common = json.loads(user_patterns.common_emotions)
-                context["detected_patterns"].extend(common if isinstance(common, list) else [common])
-            except: pass
-                        if entry.emotional_patterns:
-                            context["detected_patterns"].append(entry.emotional_patterns)
-        
-        # 3. Get user's stored emotional patterns
+        # 3. User stored emotional patterns
         patterns_stmt = select(UserEmotionalPatterns).filter(
             UserEmotionalPatterns.user_id == user_id
         )
@@ -217,11 +191,9 @@ class SmartPromptService:
         if user_patterns and user_patterns.common_emotions:
             try:
                 common = json.loads(user_patterns.common_emotions)
-                context["detected_patterns"].extend(common)
+                context["detected_patterns"].extend(common if isinstance(common, list) else [common])
             except (json.JSONDecodeError, TypeError):
                 pass
-        
-        context["detected_patterns"] = list(set(context["detected_patterns"]))
         
         context["detected_patterns"] = list(set([str(p) for p in context["detected_patterns"] if p]))
         return context

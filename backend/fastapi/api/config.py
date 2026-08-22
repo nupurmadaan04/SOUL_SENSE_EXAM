@@ -47,6 +47,12 @@ class BaseAppSettings(BaseSettings):
     
     # Mock Authentication Mode (for testing/development)
     mock_auth_mode: bool = Field(default=False, description="Enable mock authentication for testing")
+    allowed_hosts: list[str] = Field(default_factory=lambda: ["*"], description="Allowed hosts")
+    ALLOWED_HOSTS: list[str] = Field(default_factory=lambda: ["*"], description="Allowed hosts alias")
+    cors_origins: list[str] = Field(default_factory=lambda: ["*"], description="CORS origins")
+    CORS_ORIGINS: list[str] = Field(default_factory=lambda: ["*"], description="CORS origins alias")
+    trusted_proxies: list[str] = Field(default_factory=lambda: ["127.0.0.1", "::1"], description="Trusted proxy IPs")
+    TRUSTED_PROXIES: list[str] = Field(default_factory=lambda: ["127.0.0.1", "::1"], description="Trusted proxy IPs alias")
 
     # Database configuration
     database_type: str = Field(default="sqlite", description="Database type")

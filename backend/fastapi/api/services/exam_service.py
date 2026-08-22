@@ -16,13 +16,15 @@ from .gamification_service import GamificationService
 from ..utils.db_transaction import transactional, retry_on_transient
 from ..utils.race_condition_protection import with_row_lock
 
-# Mock ConflictError if not found in core, though it should be there in a proper project
 try:
-    from app.core import ConflictError
+    from ...app.core import ConflictError
 except ImportError:
-    class ConflictError(APIException):
-        def __init__(self, message, details=None):
-            super().__init__(ErrorCode.BUSINESS_VIO, message, status_code=409, details=details)
+    try:
+        from backend.fastapi.app.core import ConflictError
+    except ImportError:
+        class ConflictError(APIException):
+            def __init__(self, message, details=None):
+                super().__init__(ErrorCode.BUSINESS_VIO, message, status_code=409, details=details)
 
 try:
     from .crypto import EncryptionManager

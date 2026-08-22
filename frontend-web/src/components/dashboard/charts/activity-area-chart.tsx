@@ -37,12 +37,12 @@ export function ActivityAreaChart({ data }: { data: any[] }) {
   }
 
   return (
-    <Card className="h-full backdrop-blur-md lg:backdrop-blur-2xl bg-background/60 border border-border/40 shadow-sm hover:shadow-md transition-all rounded-3xl overflow-hidden group">
+    <Card className="h-full backdrop-blur-md lg:backdrop-blur-2xl bg-white/95 dark:bg-slate-900/80 border border-slate-200/90 dark:border-white/10 shadow-sm hover:shadow-md transition-all rounded-3xl overflow-hidden group">
       <CardHeader>
         <CardTitle className="text-lg font-bold text-slate-900 dark:text-white leading-none">
           Engineering Velocity
         </CardTitle>
-        <CardDescription className="text-xs text-slate-500 mt-1">
+        <CardDescription className="text-xs text-slate-600 dark:text-slate-400 font-medium mt-1">
           Commit frequency aggregated by week during the project&apos;s active lifespan
         </CardDescription>
       </CardHeader>

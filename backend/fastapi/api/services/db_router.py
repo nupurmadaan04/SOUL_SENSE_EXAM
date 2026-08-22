@@ -69,6 +69,11 @@ PrimarySessionLocal = async_sessionmaker(
     autoflush=False,
 )
 
+def get_db_session() -> AsyncSession:
+    """Helper returning an async database session for middleware and background tasks."""
+    return PrimarySessionLocal()
+
+
 # Replica (read) engine – optional with optimized connection pooling
 _ReplicaSessionLocal: Optional[async_sessionmaker] = None
 if settings.async_replica_database_url:

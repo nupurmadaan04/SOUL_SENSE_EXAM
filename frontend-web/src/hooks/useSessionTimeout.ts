@@ -12,7 +12,7 @@ const INACTIVITY_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes in milliseconds
 const WARNING_THRESHOLD_MS = 30 * 1000; // 30 seconds warning before timeout
 const ACTIVITY_THROTTLE_MS = 1000; // Throttle activity tracking to once per second
 
-interface UseSessionTimeoutOptions {
+export interface UseSessionTimeoutOptions {
   enabled?: boolean;
   onTimeout?: () => void;
   onWarning?: (remainingSeconds: number) => void;

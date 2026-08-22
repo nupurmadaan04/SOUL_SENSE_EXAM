@@ -1,8 +1,11 @@
 import json
 import asyncio
 import logging
-from typing import Optional
-from aiokafka import AIOKafkaProducer
+from typing import Optional, Any, Dict, List
+try:
+    from aiokafka import AIOKafkaProducer
+except ImportError:
+    AIOKafkaProducer = None
 from ..config import get_settings_instance
 
 logger = logging.getLogger(__name__)

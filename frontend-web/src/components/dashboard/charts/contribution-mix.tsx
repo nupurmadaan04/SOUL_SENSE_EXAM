@@ -25,13 +25,13 @@ export function ContributionMixChart({ data }: { data: any[] }) {
         ];
 
   return (
-    <Card className="col-span-full md:col-span-1 lg:col-span-3 backdrop-blur-md lg:backdrop-blur-2xl bg-background/60 border border-border/40 shadow-sm hover:shadow-md transition-all rounded-3xl overflow-hidden relative group">
+    <Card className="col-span-full md:col-span-1 lg:col-span-3 backdrop-blur-md lg:backdrop-blur-2xl bg-white/95 dark:bg-slate-900/80 border border-slate-200/90 dark:border-white/10 shadow-sm hover:shadow-md transition-all rounded-3xl overflow-hidden relative group">
       <CardHeader className="pb-0 flex flex-row items-start justify-between">
         <div>
           <CardTitle className="text-lg font-bold text-slate-900 dark:text-white leading-none">
             Project Persona
           </CardTitle>
-          <CardDescription className="text-xs text-slate-500 mt-1">
+          <CardDescription className="text-xs text-slate-600 dark:text-slate-400 font-medium mt-1">
             Weighted impact by contribution type
           </CardDescription>
         </div>

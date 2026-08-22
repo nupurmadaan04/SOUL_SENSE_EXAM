@@ -72,7 +72,7 @@ export function ProjectRoadmap({ data }: { data?: Milestone[] }) {
   }
 
   return (
-    <div className="bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl border border-slate-200 dark:border-white/5 rounded-2xl p-6 overflow-hidden shadow-sm hover:shadow-md transition-all">
+    <div className="bg-white/95 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200/90 dark:border-white/10 rounded-2xl p-6 overflow-hidden shadow-sm hover:shadow-md transition-all">
       <div className="flex items-center justify-between mb-8">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-sky-500/10 rounded-lg">

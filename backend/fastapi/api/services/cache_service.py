@@ -19,10 +19,23 @@ class CacheService:
         self._local_cache: weakref.WeakValueDictionary = weakref.WeakValueDictionary()
         self._cache_cleanup_callbacks: weakref.WeakSet = weakref.WeakSet()
         self._pubsub_connection: Optional[redis.Redis] = None
+        self._in_memory_store: dict = {}
+        self._in_memory_versions: dict = {}
+        self._redis_disabled = False
 
     async def connect(self):
-        if not self.redis:
-            self.redis = redis.from_url(self.settings.redis_url, decode_responses=True)
+        if not self.redis and not self._redis_disabled:
+            try:
+                self.redis = redis.from_url(
+                    self.settings.redis_url,
+                    decode_responses=True,
+                    socket_connect_timeout=0.2,
+                    socket_timeout=0.2,
+                    retry_on_timeout=False
+                )
+            except Exception:
+                self._redis_disabled = True
+                self.redis = None
 
     def cache_with_weak_ref(self, key: str, value: Any, cleanup_callback: Optional[callable] = None):
         """Cache an object using weak references to prevent memory leaks."""
@@ -82,61 +95,93 @@ class CacheService:
 
     async def get(self, key: str) -> Optional[Any]:
         await self.connect()
-        try:
-            val = await self.redis.get(key)
-            if val:
-                return json.loads(val)
-            return None
-        except Exception as e:
-            logger.error(f"Redis get error for {key}: {e}")
-            return None
+        if self.redis:
+            try:
+                val = await self.redis.get(key)
+                if val:
+                    return json.loads(val)
+                return None
+            except Exception:
+                self.redis = None
+        # Fallback to local memory
+        item = self._in_memory_store.get(key)
+        if item:
+            val, exp = item
+            if exp is None or exp > time.time():
+                return val
+            else:
+                self._in_memory_store.pop(key, None)
+        return None
 
     async def set(self, key: str, value: Any, ttl_seconds: int = 3600):
         await self.connect()
-        try:
-            await self.redis.setex(key, ttl_seconds, json.dumps(value))
-        except Exception as e:
-            logger.error(f"Redis set error for {key}: {e}")
+        if self.redis:
+            try:
+                await self.redis.setex(key, ttl_seconds, json.dumps(value))
+                return
+            except Exception:
+                self.redis = None
+        # Fallback to local memory
+        exp = time.time() + ttl_seconds if ttl_seconds else None
+        self._in_memory_store[key] = (value, exp)
 
     async def delete(self, key: str):
         await self.connect()
-        try:
-            await self.redis.delete(key)
-        except Exception as e:
-            logger.error(f"Redis delete error for {key}: {e}")
+        if self.redis:
+            try:
+                await self.redis.delete(key)
+            except Exception:
+                self.redis = None
+        self._in_memory_store.pop(key, None)
 
     async def invalidate_prefix(self, prefix: str):
         await self.connect()
-        try:
-            # Note: keys is not recommended for very huge datasets but since this is targeted caches, it's fine. 
-            # Better approach is SCAN
-            cursor = '0'
-            while cursor != 0:
-                cursor, keys = await self.redis.scan(cursor=cursor, match=f"{prefix}*", count=100)
-                if keys:
-                    await self.redis.delete(*keys)
-        except Exception as e:
-            logger.error(f"Redis invalidate_prefix error for {prefix}: {e}")
+        if self.redis:
+            try:
+                cursor = '0'
+                while cursor != 0:
+                    cursor, keys = await self.redis.scan(cursor=cursor, match=f"{prefix}*", count=100)
+                    if keys:
+                        await self.redis.delete(*keys)
+            except Exception:
+                self.redis = None
+        keys_to_remove = [k for k in self._in_memory_store.keys() if k.startswith(prefix)]
+        for k in keys_to_remove:
+            self._in_memory_store.pop(k, None)
 
     def sync_invalidate(self, key: str):
         try:
             import redis
-            r = redis.from_url(self.settings.redis_url)
+            r = redis.from_url(
+                self.settings.redis_url,
+                socket_connect_timeout=0.1,
+                socket_timeout=0.1,
+                retry_on_timeout=False
+            )
             r.delete(key)
-        except Exception as e:
-            logger.error(f"Redis sync delete error for {key}: {e}")
+        except Exception:
+            pass
+        self._in_memory_store.pop(key, None)
             
     def sync_invalidate_prefix(self, prefix: str):
         try:
             import redis
-            r = redis.from_url(self.settings.redis_url)
+            r = redis.from_url(
+                self.settings.redis_url,
+                socket_connect_timeout=0.1,
+                socket_timeout=0.1,
+                retry_on_timeout=False
+            )
             cursor = '0'
             while cursor != 0:
                 cursor, keys = r.scan(cursor=cursor, match=f"{prefix}*", count=100)
                 if keys:
                     r.delete(*keys)
-        except Exception as e:
-            logger.error(f"Redis sync invalidate_prefix error for {prefix}: {e}")
+        except Exception:
+            pass
+        keys_to_remove = [k for k in self._in_memory_store.keys() if k.startswith(prefix)]
+        for k in keys_to_remove:
+            self._in_memory_store.pop(k, None)
 
     # ==========================================
     # Distributed Cache Invalidation (ISSUE-1123)
@@ -255,23 +300,26 @@ class CacheService:
     async def update_version(self, entity_type: str, entity_id: Any, version: int):
         """Update the authoritative version for an entity in Redis."""
         await self.connect()
-        try:
-            key = f"version:{entity_type}:{entity_id}"
-            await self.redis.set(key, version) # No TTL, this is the persistent truth
-            logger.debug(f"[GenVersion] Updated {key} -> {version}")
-        except Exception as e:
-            logger.error(f"[GenVersion] Update failed for {entity_type}:{entity_id}: {e}")
+        key = f"version:{entity_type}:{entity_id}"
+        self._in_memory_versions[key] = version
+        if self.redis:
+            try:
+                await self.redis.set(key, version) # No TTL, this is the persistent truth
+                logger.debug(f"[GenVersion] Updated {key} -> {version}")
+            except Exception:
+                self.redis = None
 
     async def get_latest_version(self, entity_type: str, entity_id: Any) -> int:
         """Get the authoritative version for an entity from Redis."""
         await self.connect()
-        try:
-            key = f"version:{entity_type}:{entity_id}"
-            val = await self.redis.get(key)
-            return int(val) if val else 0
-        except Exception as e:
-            logger.error(f"[GenVersion] Get failed for {entity_type}:{entity_id}: {e}")
-            return 0
+        key = f"version:{entity_type}:{entity_id}"
+        if self.redis:
+            try:
+                val = await self.redis.get(key)
+                return int(val) if val else self._in_memory_versions.get(key, 0)
+            except Exception:
+                self.redis = None
+        return self._in_memory_versions.get(key, 0)
 
     async def get_with_version_check(self, key: str, entity_type: str, entity_id: Any) -> Optional[Any]:
         """

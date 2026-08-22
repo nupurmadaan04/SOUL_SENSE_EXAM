@@ -37,13 +37,7 @@ export function CTA() {
               variant="secondary"
               className="h-14 px-10 rounded-full text-lg font-bold group"
               asChild
-              onClick={() =>
-                analytics.trackEvent({
-                  category: 'CTA',
-                  action: 'click',
-                  label: 'Bottom Start Free Test',
-                })
-              }
+              onClick={() => analytics.trackButtonClick('bottom_start_free_test', 'button')}
             >
               <Link href="/register">
                 Start Free Test
@@ -55,9 +49,7 @@ export function CTA() {
               variant="outline"
               className="h-14 px-10 rounded-full text-lg font-bold border-white/20 hover:bg-white/10 text-white"
               asChild
-              onClick={() =>
-                analytics.trackEvent({ category: 'CTA', action: 'click', label: 'Bottom Login' })
-              }
+              onClick={() => analytics.trackButtonClick('bottom_login', 'button')}
             >
               <Link href="/login">Log in to Account</Link>
             </Button>

@@ -62,6 +62,8 @@ export const ANALYTICS_EVENTS = {
 
   // Error events
   API_ERROR: 'api_error',
+  NETWORK_ERROR: 'network_error',
+  VALIDATION_ERROR: 'validation_error',
   VALIDATION_FAILED: 'validation_failed',
 } as const;
 

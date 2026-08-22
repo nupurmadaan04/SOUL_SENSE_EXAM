@@ -13,7 +13,10 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from ..utils.limiter import limiter
-from app.core import NotFoundError
+try:
+    from ...app.core import NotFoundError
+except ImportError:
+    from backend.fastapi.app.core import NotFoundError
 
 from ..schemas import (
     # User Settings
@@ -457,6 +460,7 @@ async def delete_strengths(
 # ============================================================================
 
 @router.get("/emotional-patterns", response_model=UserEmotionalPatternsResponse, summary="Get Emotional Patterns")
+@router.get("/emotional_patterns", response_model=UserEmotionalPatternsResponse, include_in_schema=False)
 async def get_emotional_patterns(
     current_user: Annotated[User, Depends(get_current_user)],
     profile_service: Annotated[ProfileService, Depends(get_profile_service)]
@@ -474,6 +478,7 @@ async def get_emotional_patterns(
 
 
 @router.post("/emotional-patterns", response_model=UserEmotionalPatternsResponse, status_code=status.HTTP_201_CREATED, summary="Create Emotional Patterns")
+@router.post("/emotional_patterns", response_model=UserEmotionalPatternsResponse, status_code=status.HTTP_201_CREATED, include_in_schema=False)
 async def create_emotional_patterns(
     patterns_data: UserEmotionalPatternsCreate,
     current_user: Annotated[User, Depends(get_current_user)],
@@ -481,14 +486,6 @@ async def create_emotional_patterns(
 ):
     """
     Create emotional patterns for the current user.
-    
-    **Fields:**
-    - common_emotions: JSON array of common emotions (default: "[]")
-    - emotional_triggers: What causes these emotions (optional)
-    - coping_strategies: User's coping strategies (optional)
-    - preferred_support: Preferred support style during distress (optional)
-    
-    **Authentication Required**
     """
     patterns = await profile_service.create_emotional_patterns(
         user_id=current_user.id,
@@ -498,6 +495,7 @@ async def create_emotional_patterns(
 
 
 @router.put("/emotional-patterns", response_model=UserEmotionalPatternsResponse, summary="Update Emotional Patterns")
+@router.put("/emotional_patterns", response_model=UserEmotionalPatternsResponse, include_in_schema=False)
 async def update_emotional_patterns(
     patterns_data: UserEmotionalPatternsUpdate,
     current_user: Annotated[User, Depends(get_current_user)],
@@ -514,6 +512,7 @@ async def update_emotional_patterns(
 
 
 @router.delete("/emotional-patterns", status_code=status.HTTP_204_NO_CONTENT, summary="Delete Emotional Patterns")
+@router.delete("/emotional_patterns", status_code=status.HTTP_204_NO_CONTENT, include_in_schema=False)
 async def delete_emotional_patterns(
     current_user: Annotated[User, Depends(get_current_user)],
     profile_service: Annotated[ProfileService, Depends(get_profile_service)]

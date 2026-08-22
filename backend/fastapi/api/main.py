@@ -213,20 +213,20 @@ async def lifespan(app: FastAPI):
         
         # Start background task for soft-delete cleanup with memory-safe worker management
         async def purge_task_loop():
+            purge_logger = logging.getLogger("api.purge_task")
             while True:
                 try:
-                    logger.info("Starting scheduled purge of expired accounts...", extra={"task": "cleanup"})
+                    purge_logger.info("Starting scheduled purge of expired accounts...", extra={"task": "cleanup"})
                     print("[CLEANUP] Starting scheduled purge of expired accounts...")
                     from .services.db_service import AsyncSessionLocal
                     async with AsyncSessionLocal() as db:
                         from .services.user_service import UserService
                         user_service = UserService(db)
                         await user_service.purge_deleted_users(settings.deletion_grace_period_days)
-                    logger.info("Scheduled purge completed successfully", extra={"task": "cleanup"})
+                    purge_logger.info("Scheduled purge completed successfully", extra={"task": "cleanup"})
                     print("[CLEANUP] Scheduled purge completed successfully")
                 except Exception as e:
-                    logger = logging.getLogger("api.purge_task")
-                    logger.error(f"Soft-delete cleanup task failed: {e}", exc_info=True)
+                    purge_logger.error(f"Soft-delete cleanup task failed: {e}", exc_info=True)
                     # Continue the loop instead of crashing - the task will retry in 24 hours
 
                 # Run once every 24 hours
@@ -234,14 +234,18 @@ async def lifespan(app: FastAPI):
 
         if worker_manager:
             # Register with AsyncWorkerManager for memory leak prevention
-            await worker_manager.register_worker(
-                name="soft_delete_purge",
-                worker_func=purge_task_loop,
-                restart_on_failure=True,
-                memory_threshold_mb=50.0,
-                cleanup_interval_seconds=3600
-            )
-            print("[OK] Soft-delete cleanup task registered with AsyncWorkerManager")
+            try:
+                worker_manager.register_worker(
+                    name="soft_delete_purge",
+                    factory=purge_task_loop,
+                    restart_interval=3600
+                )
+                await worker_manager.start_worker("soft_delete_purge")
+                print("[OK] Soft-delete cleanup task registered with AsyncWorkerManager")
+            except Exception as e:
+                purge_task = asyncio.create_task(purge_task_loop())
+                app.state.purge_task = purge_task
+                print(f"[OK] Soft-delete cleanup task started via fallback: {e}")
         else:
             # Fallback to direct task creation
             purge_task = asyncio.create_task(purge_task_loop())
@@ -580,7 +584,6 @@ def create_app() -> FastAPI:
     app.add_middleware(ETagMiddleware)
 
     # Server-side RBAC enforcement middleware
-    from starlette.middleware.base import BaseHTTPMiddleware
     from .middleware.quota_middleware import DynamicQuotaMiddleware
     from .middleware.rbac_middleware import rbac_middleware
     from .middleware.feature_flags import feature_flag_middleware
@@ -598,15 +601,17 @@ def create_app() -> FastAPI:
     # CORS middleware with security hardening
     # Environment-specific configuration for security
     if settings.debug:
-        # Development: Allow localhost origins only, no credentials
+        # Development: Allow localhost and 127.0.0.1 origins with credentials
         origins = [
             "http://localhost:3000",
+            "http://localhost:3001",
             "http://localhost:3005",
             "http://127.0.0.1:3000",
+            "http://127.0.0.1:3001",
             "http://127.0.0.1:3005",
             "tauri://localhost"
         ]
-        allow_credentials = False  # Must be False when allowing specific origins in dev
+        allow_credentials = True
     else:
         # Production: Use configured origins with credential support
         origins = settings.BACKEND_CORS_ORIGINS
@@ -623,17 +628,9 @@ def create_app() -> FastAPI:
         CORSMiddleware,
         allow_origins=origins,
         allow_credentials=allow_credentials,
-        allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-        allow_headers=[
-            "Content-Type",
-            "Authorization",
-            "Accept",
-            "Origin",
-            "X-Requested-With",
-            "X-API-Key",
-            "X-Request-ID"
-        ],
-        expose_headers=settings.cors_expose_headers,
+        allow_methods=["*"],
+        allow_headers=["*"],
+        expose_headers=["*"],
         max_age=settings.cors_max_age,  # Configurable preflight cache
     )
     
@@ -767,10 +764,11 @@ def create_app() -> FastAPI:
     
     # Host Header Validation
     from fastapi.middleware.trustedhost import TrustedHostMiddleware
-    logger.info(f"Loading TrustedHostMiddleware with allowed_hosts: {settings.ALLOWED_HOSTS}")
+    allowed_hosts = getattr(settings, "ALLOWED_HOSTS", None) or getattr(settings, "allowed_hosts", ["*"])
+    logger.info(f"Loading TrustedHostMiddleware with allowed_hosts: {allowed_hosts}")
     app.add_middleware(
         TrustedHostMiddleware, 
-        allowed_hosts=settings.ALLOWED_HOSTS
+        allowed_hosts=allowed_hosts
     )
 
     return app

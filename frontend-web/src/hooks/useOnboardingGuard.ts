@@ -1,9 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { profileApi } from '@/lib/api/profile';
-import { usePathname, useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'next/navigation';
 
 export interface UseOnboardingGuardReturn {
   /** Whether the user needs to complete onboarding */
@@ -16,76 +15,45 @@ export interface UseOnboardingGuardReturn {
   skipForSession: () => void;
 }
 
-/**
- * Hook to guard routes and intercept users who haven't completed onboarding.
- * 
- * This hook checks if the current user has completed onboarding and returns
- * a flag indicating whether they should be shown the onboarding wizard.
- * 
- * @example
- * ```tsx
- * function AppLayout({ children }) {
- *   const { needsOnboarding, isChecking } = useOnboardingGuard();
- *   
- *   if (isChecking) return <LoadingScreen />;
- *   
- *   return (
- *     <>
- *       <OnboardingModal isOpen={needsOnboarding} onComplete={markComplete} />
- *       {children}
- *     </>
- *   );
- * }
- * ```
- */
 export function useOnboardingGuard(): UseOnboardingGuardReturn {
   const router = useRouter();
-  const pathname = usePathname();
+  const queryClient = useQueryClient();
   const [skipped, setSkipped] = useState(false);
-  
-  // Query for onboarding status
-  const { 
-    data, 
-    isLoading,
-    isFetching,
-  } = useQuery({
-    queryKey: ['onboarding', 'status'],
-    queryFn: () => profileApi.getOnboardingStatus(),
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
-    refetchOnWindowFocus: false,
-  });
-  
-  // Also check the user profile for onboarding status (as a fallback/source of truth)
-  const {
-    data: profileData,
-    isLoading: isProfileLoading,
-  } = useQuery({
-    queryKey: ['profile'],
-    queryFn: () => profileApi.getUserProfile(),
-    staleTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: false,
-  });
-  
-  // Determine if onboarding is needed
-  // Priority: API status > Profile data > Default false
-  const apiCompleted = data?.onboarding_completed ?? false;
-  const profileCompleted = profileData?.onboarding_completed ?? false;
-  const isCompleted = apiCompleted || profileCompleted;
-  
-  const needsOnboarding = !isCompleted && !skipped;
-  const isChecking = isLoading || isProfileLoading || isFetching;
-  
-  // Mark onboarding as complete locally (after API call succeeds)
+  const [locallyCompleted, setLocallyCompleted] = useState(false);
+
+  // Trigger welcome modal immediately once after login or signup session
+  const shouldShowWelcome =
+    typeof window !== 'undefined' &&
+    (sessionStorage.getItem('soulsense_welcome_session') === 'true' ||
+      sessionStorage.getItem('soulsense_just_signed_up') === 'true');
+
+  const needsOnboarding = shouldShowWelcome && !skipped && !locallyCompleted;
+  const isChecking = false;
+
+  // Mark onboarding as complete locally
   const markComplete = () => {
-    // The actual state update comes from the query invalidation
-    // This is just a trigger for any local UI updates if needed
+    setLocallyCompleted(true);
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('soulsense_welcome_session');
+      sessionStorage.removeItem('soulsense_just_signed_up');
+      localStorage.setItem('soulsense_onboarding_wizard_done', 'true');
+    }
+    queryClient.setQueryData(['onboarding', 'status'], { onboarding_completed: true });
+    queryClient.invalidateQueries({ queryKey: ['onboarding'] });
+    queryClient.invalidateQueries({ queryKey: ['profile'] });
+    router.push('/dashboard');
   };
-  
-  // Skip onboarding for this session only
+
+  // Skip onboarding for this session
   const skipForSession = () => {
     setSkipped(true);
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('soulsense_welcome_session');
+      sessionStorage.removeItem('soulsense_just_signed_up');
+    }
+    router.push('/dashboard');
   };
-  
+
   return {
     needsOnboarding,
     isChecking,

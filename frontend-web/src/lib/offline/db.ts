@@ -76,7 +76,7 @@ export class SoulSenseDB extends Dexie {
   }
 
   async clearAllData() {
-    await this.transaction('rw', this.assessments, this.journals, this.questionsCache, this.syncQueue, this.userSettings, async () => {
+    await this.transaction('rw', [this.assessments, this.journals, this.questionsCache, this.syncQueue, this.userSettings], async () => {
       await this.assessments.clear();
       await this.journals.clear();
       await this.questionsCache.clear();

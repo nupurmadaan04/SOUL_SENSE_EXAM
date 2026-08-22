@@ -34,9 +34,8 @@ export const ReviewScreen: React.FC<ReviewScreenProps> = ({
     const labels = {
       1: 'Strongly Disagree',
       2: 'Disagree',
-      3: 'Neutral',
-      4: 'Agree',
-      5: 'Strongly Agree',
+      3: 'Agree',
+      4: 'Strongly Agree',
     };
     return labels[value as keyof typeof labels] || `Value: ${value}`;
   };

@@ -46,13 +46,13 @@ export const BentoGridItem = ({
         show: { opacity: 1, y: 0 },
       }}
       className={cn(
-        'row-span-1 rounded-3xl group/bento hover:shadow-2xl transition duration-200 shadow-input dark:shadow-none p-6 dark:bg-black dark:border-white/[0.1] bg-white border border-transparent justify-between flex flex-col space-y-4',
-        'backdrop-blur-xl bg-opacity-60 dark:bg-opacity-40 border-white/20 shadow-xl relative overflow-hidden', // Enhanced Glassmorphism
+        'row-span-1 rounded-3xl group/bento hover:shadow-2xl transition duration-200 shadow-input dark:shadow-none p-6 bg-card/85 dark:bg-card/90 border border-border/80 text-card-foreground justify-between flex flex-col space-y-4',
+        'backdrop-blur-xl shadow-xl relative overflow-hidden', // Enhanced Glassmorphism
         className
       )}
     >
       {/* Background Glow Effect */}
-      <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-purple-600 rounded-3xl blur opacity-0 group-hover:opacity-10 transition duration-500"></div>
+      <div className="absolute -inset-1 bg-gradient-to-r from-primary/30 to-secondary/30 rounded-3xl blur opacity-0 group-hover:opacity-10 transition duration-500"></div>
 
       <div className="relative z-10 h-full flex flex-col justify-between">
         {header || children}

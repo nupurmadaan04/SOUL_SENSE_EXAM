@@ -80,7 +80,7 @@ export function GoodFirstIssues({ data }: GoodFirstIssuesProps) {
   };
 
   return (
-    <div className="col-span-full relative bg-white/60 dark:bg-slate-900/60 backdrop-blur-xl border border-slate-200 dark:border-white/5 rounded-2xl p-6 overflow-hidden min-h-[160px] group transition-all duration-500 shadow-sm hover:shadow-md">
+    <div className="col-span-full relative bg-white/95 dark:bg-slate-900/80 backdrop-blur-xl border border-slate-200/90 dark:border-white/10 rounded-2xl p-6 overflow-hidden min-h-[160px] group transition-all duration-500 shadow-sm hover:shadow-md">
       <div className="relative z-10 flex flex-col h-full">
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-6">
@@ -93,7 +93,7 @@ export function GoodFirstIssues({ data }: GoodFirstIssuesProps) {
                 Priority Tasks
               </h3>
               {show_notice && (
-                <p className="text-xs text-slate-500 mt-1">
+                <p className="text-xs text-slate-600 dark:text-slate-400 font-medium mt-1">
                   Connect with the community by picking up a task.
                 </p>
               )}

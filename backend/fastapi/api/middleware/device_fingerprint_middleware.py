@@ -14,7 +14,6 @@ from sqlalchemy import select
 
 from ..utils.device_fingerprinting import DeviceFingerprinting, DeviceFingerprint
 from ..models import UserSession
-from ..services.db_router import get_db_session
 
 logger = logging.getLogger(__name__)
 

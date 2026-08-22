@@ -79,10 +79,25 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           dangerouslySetInnerHTML={{
             __html: `
               try {
+                // Theme initialization
                 if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-                  document.documentElement.classList.add('dark')
-                } else {
-                  document.documentElement.classList.remove('dark')
+                  document.documentElement.classList.add('dark');
+                } else if (localStorage.theme === 'light') {
+                  document.documentElement.classList.remove('dark');
+                  document.documentElement.classList.add('light');
+                }
+                // Font size initialization
+                const fontSize = localStorage.getItem('soulsense_font_size');
+                if (fontSize && ['small', 'medium', 'large'].includes(fontSize)) {
+                  document.documentElement.classList.add('font-size-' + fontSize);
+                }
+                // High contrast initialization
+                if (localStorage.getItem('soulsense_high_contrast') === 'true') {
+                  document.documentElement.classList.add('high-contrast');
+                }
+                // Reduced motion initialization
+                if (localStorage.getItem('soulsense_reduced_motion') === 'true') {
+                  document.documentElement.classList.add('reduced-motion');
                 }
               } catch (_) {}
             `,

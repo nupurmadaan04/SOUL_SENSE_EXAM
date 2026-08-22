@@ -52,7 +52,7 @@ export function unregister() {
 export async function requestSync() {
   if ('serviceWorker' in navigator && 'sync' in ServiceWorkerRegistration.prototype) {
     const registration = await navigator.serviceWorker.ready;
-    await registration.sync.register('sync-data');
+    await (registration as any).sync.register('sync-data');
   } else {
     console.warn('Background sync not supported');
   }

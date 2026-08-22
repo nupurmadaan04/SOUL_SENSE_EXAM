@@ -26,35 +26,41 @@ import { cn } from '@/lib/utils';
 import { UserProfile } from '@/lib/api/profile';
 
 // TagInput Component
-function TagInput({ value = [], onChange, placeholder, ...props }: {
+function TagInput({
+  value,
+  onChange,
+  placeholder,
+  ...props
+}: {
   value?: string[];
   onChange?: (value: string[]) => void;
   placeholder?: string;
   [key: string]: any;
 }) {
   const [inputValue, setInputValue] = useState('');
+  const safeList = Array.isArray(value) ? value : [];
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && inputValue.trim()) {
       e.preventDefault();
-      const newValue = [...(value || []), inputValue.trim()];
+      const newValue = [...safeList, inputValue.trim()];
       onChange?.(newValue);
       setInputValue('');
-    } else if (e.key === 'Backspace' && !inputValue && value?.length) {
-      const newValue = value.slice(0, -1);
+    } else if (e.key === 'Backspace' && !inputValue && safeList.length) {
+      const newValue = safeList.slice(0, -1);
       onChange?.(newValue);
     }
   };
 
   const removeTag = (index: number) => {
-    const newValue = value?.filter((_, i) => i !== index) || [];
+    const newValue = safeList.filter((_, i) => i !== index);
     onChange?.(newValue);
   };
 
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap gap-2 min-h-[2.5rem] p-2 border border-input rounded-md bg-background focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
-        {value?.map((tag, index) => (
+        {safeList.map((tag, index) => (
           <span
             key={index}
             className="inline-flex items-center gap-1 px-2 py-1 text-sm bg-primary/10 text-primary rounded-md"
@@ -147,7 +153,11 @@ export function ProfileForm({ profile, onSubmit, onCancel, isSubmitting }: Profi
       supportNetworkSize: profile?.support_network_size,
       primarySupportType: profile?.primary_support_type as 'family' | 'friends' | 'professional' | 'none',
       primaryGoal: profile?.primary_goal || '',
-      focusAreas: profile?.focus_areas || [],
+      focusAreas: Array.isArray(profile?.focus_areas)
+        ? profile.focus_areas
+        : typeof profile?.focus_areas === 'string'
+        ? profile.focus_areas.split(',').map((s: string) => s.trim()).filter(Boolean)
+        : [],
     },
   });
 

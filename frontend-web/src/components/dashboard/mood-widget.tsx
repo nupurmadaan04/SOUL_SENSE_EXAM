@@ -2,143 +2,189 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BentoGridItem } from './bento-grid';
-import { History, ArrowRight, CloudRain, Cloud, CloudSun, Sun, Sparkles } from 'lucide-react';
+import { ArrowRight, Frown, Meh, Smile, Sparkles, Heart } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
+import { toast } from '@/lib/toast';
 
 const MOODS = [
   {
-    icon: CloudRain,
-    label: 'Very Low',
-    rating: 1,
-    color: 'text-secondary bg-secondary/10 border-secondary/20',
-  },
-  {
-    icon: Cloud,
+    icon: Frown,
     label: 'Low',
-    rating: 2,
-    color: 'text-secondary/80 bg-secondary/5 border-secondary/10',
+    rating: 1,
+    colorClass: 'text-rose-500 bg-rose-500/10 border-rose-500/30 hover:bg-rose-500/20',
   },
   {
-    icon: CloudSun,
-    label: 'Neutral',
-    rating: 3,
-    color: 'text-muted-foreground bg-muted border-border',
+    icon: Meh,
+    label: 'Moderate',
+    rating: 2,
+    colorClass: 'text-amber-500 bg-amber-500/10 border-amber-500/30 hover:bg-amber-500/20',
   },
-  { icon: Sun, label: 'Good', rating: 4, color: 'text-primary/80 bg-primary/5 border-primary/10' },
+  {
+    icon: Smile,
+    label: 'Good',
+    rating: 3,
+    colorClass: 'text-emerald-500 bg-emerald-500/10 border-emerald-500/30 hover:bg-emerald-500/20',
+  },
   {
     icon: Sparkles,
     label: 'Great',
-    rating: 5,
-    color: 'text-primary bg-primary/10 border-primary/20',
+    rating: 4,
+    colorClass: 'text-purple-500 bg-purple-500/10 border-purple-500/30 hover:bg-purple-500/20',
   },
 ];
 
-export const MoodWidget = () => {
-  const [loggedMood, setLoggedMood] = useState<number | null>(null);
+const DAYS_OF_WEEK = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Today'];
 
-  // Mock trend data for last 7 days (1-5 scale)
-  const trendData = [3, 4, 3, 5, 4, 2, 4];
+export const MoodWidget = () => {
+  const [loggedMood, setLoggedMood] = useState<number | null>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('soulsense_today_mood');
+      return saved ? parseInt(saved, 10) : null;
+    }
+    return null;
+  });
 
   const handleMoodSelect = (rating: number) => {
-    // Simulate logging
     setLoggedMood(rating);
+    try {
+      localStorage.setItem('soulsense_today_mood', String(rating));
+    } catch (e) {}
+    const mood = MOODS.find((m) => m.rating === rating);
+    toast.success(`Logged your mood: ${mood?.label || 'Recorded'}`);
   };
 
   const selectedMood = MOODS.find((m) => m.rating === loggedMood);
 
   return (
-    <BentoGridItem
-      title="Daily Check-in"
-      description={
-        loggedMood ? "Good to know how you're feeling." : 'How are you feeling right now?'
-      }
-      className="md:col-span-1 border-none shadow-none p-0 group overflow-hidden"
-    >
-      <div className="flex flex-col h-full bg-white/60 dark:bg-black/40 backdrop-blur-xl rounded-3xl p-6 border border-white/20 transition-all group-hover:shadow-2xl">
-        <div className="flex-1 flex flex-col justify-center">
-          <AnimatePresence mode="wait">
-            {!loggedMood ? (
-              <motion.div
-                key="selector"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="flex justify-between items-center gap-2"
-              >
-                {MOODS.map((mood) => (
-                  <motion.button
+    <div className="border border-border/80 bg-card/90 backdrop-blur-md rounded-3xl p-6 shadow-xl flex flex-col justify-between h-full group overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between pb-2">
+        <div className="flex items-center gap-2.5">
+          <div className="p-2 rounded-2xl bg-primary/10 text-primary">
+            <Heart className="h-4 w-4" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-foreground">Daily Mood Check-in</h3>
+            <p className="text-[11px] text-muted-foreground">How is your emotional energy right now?</p>
+          </div>
+        </div>
+        {loggedMood && (
+          <button
+            onClick={() => setLoggedMood(null)}
+            className="text-[10px] text-primary font-bold hover:underline cursor-pointer"
+          >
+            Change
+          </button>
+        )}
+      </div>
+
+      {/* Mood Selector Buttons */}
+      <div className="my-auto py-2">
+        <AnimatePresence mode="wait">
+          {!loggedMood ? (
+            <motion.div
+              key="selector"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              className="grid grid-cols-4 gap-2"
+            >
+              {MOODS.map((mood) => {
+                const Icon = mood.icon;
+                return (
+                  <button
                     key={mood.rating}
-                    whileHover={{ scale: 1.05, y: -2 }}
-                    whileTap={{ scale: 0.95 }}
                     onClick={() => handleMoodSelect(mood.rating)}
                     className={cn(
-                      'flex-1 aspect-square rounded-2xl flex items-center justify-center transition-all border shadow-sm',
-                      'bg-background/40 hover:bg-background border-border/40 hover:border-primary/30',
-                      mood.color.split(' ')[0] // Extract just the text color for the icon idle state
+                      'flex flex-col items-center justify-center p-2.5 rounded-2xl border transition-all duration-200 cursor-pointer shadow-sm hover:scale-105 active:scale-95 text-center',
+                      mood.colorClass
                     )}
                     title={mood.label}
                   >
-                    <mood.icon className="w-6 h-6 sm:w-8 sm:h-8" strokeWidth={1.5} />
-                  </motion.button>
-                ))}
-              </motion.div>
-            ) : (
-              <motion.div
-                key="logged"
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="flex flex-col items-center py-4"
-              >
-                <div className="mb-4">
-                  {selectedMood && (
-                    <selectedMood.icon className="w-16 h-16 drop-shadow-md" strokeWidth={1} />
-                  )}
-                </div>
-                <div
-                  className={cn(
-                    'px-4 py-1 rounded-full text-xs font-semibold border mb-4 backdrop-blur-sm',
-                    selectedMood?.color
-                  )}
-                >
-                  {selectedMood?.label}
-                </div>
-                <Link
-                  href="/journal"
-                  className="group/link flex items-center gap-1 text-sm text-primary font-medium hover:underline"
-                >
-                  Complete Journal
-                  <ArrowRight className="h-3.5 w-3.5 group-hover/link:translate-x-1 transition-transform" />
-                </Link>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        {/* Mini Trend */}
-        <div className="mt-6 pt-4 border-t border-neutral-200/50 dark:border-neutral-800/50">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] uppercase tracking-wider font-bold text-neutral-400">
-              Past 7 Days
-            </span>
-            <History className="h-3 w-3 text-neutral-400" />
-          </div>
-          <div className="flex items-end justify-between h-8 gap-1 px-1">
-            {trendData.map((val, i) => (
-              <motion.div
-                key={i}
-                initial={{ height: 0 }}
-                animate={{ height: `${(val / 5) * 100}%` }}
-                className={cn(
-                  'flex-1 rounded-full min-h-[4px]',
-                  val >= 4 ? 'bg-green-500/40' : val <= 2 ? 'bg-red-500/40' : 'bg-yellow-500/40'
+                    <Icon className="w-6 h-6 mb-1.5 shrink-0" strokeWidth={2} />
+                    <span className="text-[11px] font-bold tracking-tight whitespace-nowrap">{mood.label}</span>
+                  </button>
+                );
+              })}
+            </motion.div>
+          ) : (
+            <motion.div
+              key="logged"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="flex items-center justify-between p-3.5 rounded-2xl bg-muted/30 border border-border/60"
+            >
+              <div className="flex items-center gap-3">
+                {selectedMood && (
+                  <div className={cn('p-2.5 rounded-xl border shadow-sm', selectedMood.colorClass)}>
+                    <selectedMood.icon className="w-5 h-5" strokeWidth={2} />
+                  </div>
                 )}
-              />
-            ))}
-          </div>
+                <div>
+                  <p className="text-xs font-bold text-foreground">Mood Logged: {selectedMood?.label}</p>
+                  <p className="text-[10px] text-muted-foreground">Recorded for your daily emotional tracking</p>
+                </div>
+              </div>
+              <Link
+                href="/journal"
+                className="inline-flex items-center gap-1 text-[11px] font-bold text-primary hover:text-primary/80 transition-colors bg-primary/10 px-3 py-1.5 rounded-xl"
+              >
+                Journal
+                <ArrowRight className="h-3 w-3" />
+              </Link>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Past 7 Days Mood Trend */}
+      <div className="pt-3 border-t border-border/40">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground">Past 7 Days History</span>
+          <span className="text-[9px] font-medium text-muted-foreground/80">
+            {loggedMood ? `Today: ${selectedMood?.label}` : 'No mood logged today'}
+          </span>
+        </div>
+        <div className="grid grid-cols-7 gap-1.5">
+          {DAYS_OF_WEEK.map((dayName, i) => {
+            const isToday = i === 6;
+            const moodObj = isToday && loggedMood ? MOODS.find((m) => m.rating === loggedMood) : null;
+
+            return (
+              <div
+                key={i}
+                className="flex flex-col items-center gap-1 group/day"
+                title={moodObj ? `${dayName}: ${moodObj.label}` : `${dayName}: No entry`}
+              >
+                {moodObj ? (
+                  <div
+                    className={cn(
+                      'w-full h-3 rounded-full transition-all duration-300 shadow-xs',
+                      moodObj.rating === 1 && 'bg-rose-500',
+                      moodObj.rating === 2 && 'bg-amber-500',
+                      moodObj.rating === 3 && 'bg-emerald-500',
+                      moodObj.rating === 4 && 'bg-purple-500'
+                    )}
+                  />
+                ) : (
+                  <div className="w-full h-3 rounded-full border border-dashed border-border/60 bg-muted/10 flex items-center justify-center">
+                    <span className="text-[7px] text-muted-foreground/40 leading-none">—</span>
+                  </div>
+                )}
+                <span
+                  className={cn(
+                    'text-[8px] font-bold',
+                    isToday ? 'text-primary' : 'text-muted-foreground/70'
+                  )}
+                >
+                  {dayName}
+                </span>
+              </div>
+            );
+          })}
         </div>
       </div>
-    </BentoGridItem>
+    </div>
   );
 };

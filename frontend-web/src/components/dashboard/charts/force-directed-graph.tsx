@@ -58,14 +58,14 @@ export function ForceDirectedGraph({ data }: { data: GraphData }) {
   const isDark = theme === 'dark';
 
   return (
-    <Card className="col-span-full lg:col-span-4 bg-background/60 backdrop-blur-2xl border border-border/40 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] rounded-3xl overflow-hidden group relative transition-all duration-300">
+    <Card className="col-span-full lg:col-span-4 bg-white/95 dark:bg-slate-900/80 backdrop-blur-2xl border border-slate-200/90 dark:border-white/10 shadow-[0_4px_20px_rgb(0,0,0,0.05)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.1)] rounded-3xl overflow-hidden group relative transition-all duration-300">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <div className="space-y-1">
           <CardTitle className="text-xl font-black tracking-tighter flex items-center gap-2 text-slate-900 dark:text-white">
             <Share2 className="h-5 w-5 text-blue-600 dark:text-blue-400" />
             CONSTELLATION_MAP
           </CardTitle>
-          <CardDescription className="text-xs font-medium text-slate-500 dark:text-slate-400">
+          <CardDescription className="text-xs font-medium text-slate-600 dark:text-slate-400">
             Visualizing the gravitational pull of contributors on repository modules.
           </CardDescription>
         </div>

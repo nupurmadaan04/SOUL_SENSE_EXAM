@@ -31,6 +31,7 @@ api_router.include_router(settings_sync.router, prefix="/sync", tags=["Settings 
 api_router.include_router(community.router, prefix="/community", tags=["Community"])
 api_router.include_router(contact.router, prefix="/contact", tags=["Contact"])
 api_router.include_router(export.router, prefix="/reports/export", tags=["Exports"])
+api_router.include_router(export.router, prefix="/export", tags=["Exports"])
 api_router.include_router(deep_dive.router, prefix="/deep-dive", tags=["Deep Dive"])
 api_router.include_router(goals.router, prefix="/goals", tags=["Goals"])
 api_router.include_router(gamification.router, prefix="/gamification", tags=["Gamification"])

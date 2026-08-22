@@ -79,7 +79,7 @@ export default function ProfilePage() {
       <div className="max-w-5xl mx-auto py-12 px-6">
         <div className="text-center bg-destructive/5 p-12 rounded-2xl border border-destructive/10">
           <p className="text-destructive font-bold mb-6 text-lg">
-            Failed to load profile: {error || 'Unknown error'}
+            Failed to load profile: {typeof error === 'string' ? error : (error as any)?.message || 'Unknown error'}
           </p>
           <Button onClick={refetch} variant="outline" className="font-bold">
             Try Again
@@ -121,6 +121,7 @@ export default function ProfilePage() {
                       variant="full"
                       editable={true}
                       onEdit={handleEditToggle}
+                      onAvatarUpdated={refetch}
                     />
                   </motion.div>
                 ) : (

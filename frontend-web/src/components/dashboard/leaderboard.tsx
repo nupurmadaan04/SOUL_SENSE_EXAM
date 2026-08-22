@@ -81,12 +81,12 @@ export function Leaderboard({ contributors }: { contributors: any[] }) {
   return (
     <>
       <Card
-        className={`mx-4 md:mx-0 col-span-full backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-slate-200 dark:border-white/5 shadow-xl rounded-2xl overflow-hidden group transition-all duration-500 ${isExpanded ? 'min-h-[500px]' : ''}`}
+        className={`mx-4 md:mx-0 col-span-full backdrop-blur-xl bg-white/95 dark:bg-slate-900/80 border-slate-200/90 dark:border-white/10 shadow-lg rounded-2xl overflow-hidden group transition-all duration-500 ${isExpanded ? 'min-h-[500px]' : ''}`}
       >
         <CardHeader className="flex flex-row items-center justify-between px-8">
           <div className="flex items-center gap-2">
             <Trophy className="h-5 w-5 text-yellow-500" />
-            <CardTitle className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600 dark:from-white dark:to-slate-300">
+            <CardTitle className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-300">
               Contributor Hall of Fame
             </CardTitle>
           </div>
@@ -96,7 +96,7 @@ export function Leaderboard({ contributors }: { contributors: any[] }) {
               variant="outline"
               size="sm"
               onClick={() => setIsExpanded(!isExpanded)}
-              className="h-8 px-3 rounded-xl border-slate-200 dark:border-white/10 bg-white/50 dark:bg-white/5 hover:bg-white dark:hover:bg-white/10 text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-all flex items-center gap-2 font-black uppercase text-[10px] tracking-widest shadow-sm active:scale-95"
+              className="h-8 px-3 rounded-xl border-slate-200 dark:border-white/10 bg-white dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/10 text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-all flex items-center gap-2 font-bold uppercase text-[10px] tracking-widest shadow-sm active:scale-95"
             >
               {isExpanded ? (
                 <>
@@ -118,7 +118,7 @@ export function Leaderboard({ contributors }: { contributors: any[] }) {
                   size="icon"
                   onClick={() => scroll('left')}
                   disabled={!canScrollLeft}
-                  className={`h-8 w-8 rounded-full border border-slate-200 dark:border-white/10 hover:bg-white dark:hover:bg-white/5 transition-all text-slate-400 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white ${!canScrollLeft ? 'opacity-20 grayscale' : 'opacity-100'}`}
+                  className={`h-8 w-8 rounded-full border border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/5 transition-all text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white ${!canScrollLeft ? 'opacity-20 grayscale' : 'opacity-100'}`}
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
@@ -127,7 +127,7 @@ export function Leaderboard({ contributors }: { contributors: any[] }) {
                   size="icon"
                   onClick={() => scroll('right')}
                   disabled={!canScrollRight}
-                  className={`h-8 w-8 rounded-full border border-slate-200 dark:border-white/10 hover:bg-white dark:hover:bg-white/5 transition-all text-slate-400 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white ${!canScrollRight ? 'opacity-20 grayscale' : 'opacity-100'}`}
+                  className={`h-8 w-8 rounded-full border border-slate-200 dark:border-white/10 hover:bg-slate-100 dark:hover:bg-white/5 transition-all text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white ${!canScrollRight ? 'opacity-20 grayscale' : 'opacity-100'}`}
                 >
                   <ChevronRight className="h-4 w-4" />
                 </Button>
@@ -166,7 +166,7 @@ export function Leaderboard({ contributors }: { contributors: any[] }) {
                   }}
                   key={contributor.login}
                   onClick={() => setSelectedContributor(contributor)}
-                  className="flex-shrink-0 w-[200px] flex flex-col items-center p-6 rounded-2xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/5 hover:border-blue-500/30 transition-shadow group/item relative snap-start cursor-pointer active:scale-95 shadow-sm hover:shadow-md"
+                  className="flex-shrink-0 w-[200px] flex flex-col items-center p-6 rounded-2xl bg-white dark:bg-slate-800/60 border border-slate-200/90 dark:border-white/10 hover:border-blue-500/50 transition-all group/item relative snap-start cursor-pointer active:scale-95 shadow-sm hover:shadow-md"
                 >
                   <div className="absolute top-2 right-4">{getRankIcon(index)}</div>
 

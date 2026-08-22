@@ -50,7 +50,7 @@ export function ReviewerMetrics({ data }: ReviewerMetricsProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 col-span-full">
       {/* Top Reviewers */}
-      <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-slate-200 dark:border-white/5 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all group">
+      <Card className="backdrop-blur-xl bg-white/95 dark:bg-slate-900/80 border-slate-200/90 dark:border-white/10 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all group">
         <CardHeader className="pb-4">
           <CardTitle className="flex items-center gap-3">
             <div className="p-2 bg-purple-500/10 rounded-lg">
@@ -60,7 +60,7 @@ export function ReviewerMetrics({ data }: ReviewerMetricsProps) {
               <h3 className="text-lg font-bold text-slate-900 dark:text-white leading-none">
                 Top Reviewers
               </h3>
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="text-xs text-slate-600 dark:text-slate-400 font-medium mt-1">
                 Engineers ensuring architectural integrity
               </p>
             </div>
@@ -113,7 +113,7 @@ export function ReviewerMetrics({ data }: ReviewerMetricsProps) {
       </Card>
 
       {/* Community Happiness */}
-      <Card className="backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-slate-200 dark:border-white/5 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all">
+      <Card className="backdrop-blur-xl bg-white/95 dark:bg-slate-900/80 border-slate-200/90 dark:border-white/10 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-all">
         <CardHeader className="pb-4">
           <CardTitle className="flex items-center gap-3">
             <div className="p-2 bg-emerald-500/10 rounded-lg">
@@ -123,7 +123,7 @@ export function ReviewerMetrics({ data }: ReviewerMetricsProps) {
               <h3 className="text-lg font-bold text-slate-900 dark:text-white leading-none">
                 Community Health
               </h3>
-              <p className="text-xs text-slate-500 mt-1">
+              <p className="text-xs text-slate-600 dark:text-slate-400 font-medium mt-1">
                 Based on {analyzed_comments} recent interactions
               </p>
             </div>

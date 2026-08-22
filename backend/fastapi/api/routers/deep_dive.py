@@ -4,8 +4,10 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..services.db_service import get_db
-from ..services.deep_dive_service import DeepDiveService
-from app.core import NotFoundError
+try:
+    from ...app.core import NotFoundError
+except ImportError:
+    from backend.fastapi.app.core import NotFoundError
 from ..schemas import (
     DeepDiveType, 
     DeepDiveQuestion, 

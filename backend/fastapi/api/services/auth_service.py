@@ -13,50 +13,31 @@ if TYPE_CHECKING:
 
 from fastapi import Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update, delete, func, and_
+from sqlalchemy import select, update, delete, func, and_, desc
 from sqlalchemy.exc import OperationalError, IntegrityError
 import bcrypt
 
-from .db_service import get_db
-from ..models import User, LoginAttempt, PersonalProfile, RefreshToken
-from ..config import get_settings
-from ..constants.errors import ErrorCode
-from ..constants.security_constants import BCRYPT_ROUNDS, REFRESH_TOKEN_EXPIRE_DAYS
-from ..exceptions import AuthException
-from .audit_service import AuditService
-
-
-settings = get_settings()
-logger = logging.getLogger("api.auth")
-
-class AuthService:
-    """Service for handling authentication and session management (Async)."""
-    
-    def __init__(self, db: AsyncSession = Depends(get_db)):
-from sqlalchemy import select, update, delete, func
 from sqlalchemy.orm import selectinload
-from sqlalchemy.exc import OperationalError
+from .db_service import get_db
+from ..models import User, LoginAttempt, PersonalProfile, RefreshToken, PasswordHistory, UserSession, StepUpToken
+from ..config import get_settings_instance
+from ..constants.errors import ErrorCode
+from ..constants.security_constants import BCRYPT_ROUNDS, REFRESH_TOKEN_EXPIRE_DAYS, PASSWORD_HISTORY_LIMIT
+from ..exceptions import AuthException
 from .audit_service import AuditService
 from .auth_anomaly_service import AuthAnomalyService
 from ..utils.db_transaction import transactional, async_transactional, retry_on_transient
 from ..utils.security import get_password_hash, verify_password, is_hashed, check_password_history
 from ..utils.race_condition_protection import with_row_lock
 from ..utils.timestamps import utc_now_iso
-from ..models import User, LoginAttempt, PersonalProfile, RefreshToken, PasswordHistory, UserSession, StepUpToken
-from ..constants.security_constants import PASSWORD_HISTORY_LIMIT, REFRESH_TOKEN_EXPIRE_DAYS
 from .db_router import mark_write
 
-settings = get_settings()
+settings = get_settings_instance()
 logger = logging.getLogger("api.auth")
+
 
 class AuthService:
     """Service for handling authentication and session management (Async)."""
-    
-settings = get_settings_instance()
-
-logger = logging.getLogger("api.auth")
-
-class AuthService:
     def __init__(self, db: AsyncSession):
         self.db = db
 
@@ -110,19 +91,12 @@ class AuthService:
         return await asyncio.to_thread(_verify)
 
     async def authenticate_user(self, identifier: str, password: str, ip_address: str = "0.0.0.0", user_agent: str = "Unknown") -> Optional[User]:
-        """Authenticate user (Async)."""
-        identifier_lower = identifier.lower().strip()
-
-        # Check for Lockout
-
-    async def authenticate_user(self, identifier: str, password: str, ip_address: str = "0.0.0.0", user_agent: str = "Unknown") -> Optional[User]:
         """
         Authenticate a user by username OR email and password.
         """
-        # 1. Normalize identifier
         identifier_lower = identifier.lower().strip()
 
-        # 2. Check for Lockout (Pre-Auth)
+        # Check for Lockout
         is_locked, lockdown_msg, wait_seconds = await self._is_account_locked(identifier_lower)
         if is_locked:
             raise AuthException(
@@ -131,14 +105,12 @@ class AuthService:
                 details={"wait_seconds": wait_seconds} if wait_seconds else None
             )
 
-        # Try fetching by username
+        # Try fetching by username first
         stmt = select(User).filter(User.username == identifier_lower)
-        # 3. Try fetching by username first
-        stmt = select(User).filter(User.username == identifier_lower).options(selectinload(User.personal_profile))
         result = await self.db.execute(stmt)
         user = result.scalar_one_or_none()
         
-        # Try fetching by email
+        # Try fetching by email if not found
         if not user:
             stmt_p = select(PersonalProfile).filter(PersonalProfile.email == identifier_lower)
             res_p = await self.db.execute(stmt_p)
@@ -147,110 +119,59 @@ class AuthService:
                 stmt_u = select(User).filter(User.id == profile.user_id)
                 res_u = await self.db.execute(stmt_u)
                 user = res_u.scalar_one_or_none()
-            profile_stmt = select(PersonalProfile).filter(PersonalProfile.email == identifier_lower)
-            profile_result = await self.db.execute(profile_stmt)
-            profile = profile_result.scalar_one_or_none()
-            if profile:
-                user_stmt = select(User).filter(User.id == profile.user_id).options(selectinload(User.personal_profile))
-                user_result = await self.db.execute(user_stmt)
-                user = user_result.scalar_one_or_none()
         
         if not user:
-            # Timing attack protection
+            # Timing attack protection dummy check
             await self.verify_password("dummy", "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW")
             await self._record_login_attempt(identifier_lower, False, ip_address, reason="User not found")
             logger.warning(f"Login failed: User not found {identifier_lower}")
-            # Dummy verify to consume time
-            self.verify_password("dummy", "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW")
-            await self._record_login_attempt(identifier_lower, False, ip_address)
-            verify_password("dummy", "$2b$12$EixZaYVK1fsbw1ZfbX3OXePaWxn96p36WQoeG6Lruj3vjPGga31lW")
-            await self._record_login_attempt(identifier_lower, False, ip_address, reason="User not found")
             raise AuthException(
                 code=ErrorCode.AUTH_INVALID_CREDENTIALS,
                 message="Incorrect username or password"
             )
 
-        # 5. Verify password
-        if not self.verify_password(password, user.password_hash):
-            await self._record_login_attempt(identifier_lower, False, ip_address)
-        if not await self.verify_password(password, user.password_hash):
+        # Verify password
+        is_valid = await self.verify_password(password, user.password_hash)
+        if not is_valid:
+            # Also test utility function fallback
+            is_valid = verify_password(password, user.password_hash)
+
+        if not is_valid:
             await self._record_login_attempt(identifier_lower, False, ip_address, reason="Invalid password")
             logger.warning(f"Login failed: Invalid password {identifier_lower}")
-        # 6. Verify password
-        if not verify_password(password, user.password_hash):
-            await self._record_login_attempt(identifier_lower, False, ip_address, reason="Invalid password")
             raise AuthException(
                 code=ErrorCode.AUTH_INVALID_CREDENTIALS,
                 message="Incorrect username or password"
             )
-        
-        # 6. Success - Update last login & Audit
-        await self._record_login_attempt(identifier_lower, True, ip_address)
-        await self.update_last_login(user.id)
-        
-        # 6.1 Legacy Password Migration (Issue #996)
-        # If password was stored in plain text, migrate it to a hash now
-        if not is_hashed(user.password_hash):
-            logger.info(f"⚡ Migrating legacy plain-text password for user: {user.username}")
-            user.password_hash = get_password_hash(password)
-            # Log to history too
-            self.db.add(PasswordHistory(user_id=user.id, password_hash=user.password_hash))
-            await self.db.commit()
-        
-        # 6.5 Reactivate account if soft-deleted
+
+        # Success - Reactivate if soft-deleted
         if getattr(user, "is_deleted", False):
             logger.info(f"Reactivating soft-deleted account: {user.username}")
             user.is_deleted = False
             user.deleted_at = None
             user.is_active = True
-        
-        await self._record_login_attempt(identifier_lower, True, ip_address, user_id=user.id)
-        await self.update_last_login(user.id)
-        
-        # Comprehensive Audit Log
-        await AuditService.log_event(
-            user.id,
-            "LOGIN",
-            ip_address=ip_address,
-            user_agent=user_agent,
-            details={"method": "password", "device_fingerprint": device_fingerprint}
-        )
+
+        # Success - Record login attempt & update last login
         await self._record_login_attempt(identifier_lower, True, ip_address, user_id=user.id)
         await self.update_last_login(user.id)
 
-        # Anomaly Detection (#1263) - Check for suspicious behavior after successful auth
+        # Audit Log
         try:
-            anomaly_service = AuthAnomalyService(self.db)
-            risk_score = await anomaly_service.calculate_risk_score(
-                user_id=user.id,
-                identifier=identifier_lower,
+            await AuditService.log_event(
+                user.id,
+                "LOGIN",
                 ip_address=ip_address,
                 user_agent=user_agent,
-                device_fingerprint=""  # Could be enhanced with actual fingerprint
+                details={"method": "password", "status": "success"},
+                db_session=self.db
             )
-
-            # Log anomalies for monitoring
-            if risk_score.risk_level.value in ['medium', 'high', 'critical']:
-                from ..services.auth_anomaly_service import AnomalyType
-                await anomaly_service.log_anomaly_event(
-                    user_id=user.id,
-                    anomaly_type=AnomalyType.BRUTE_FORCE if "Brute Force" in str(risk_score.triggered_rules) else AnomalyType.SUSPICIOUS_IP,
-                    risk_score=risk_score,
-                    ip_address=ip_address,
-                    user_agent=user_agent,
-                    details={"post_auth_check": True, "successful_login": True}
-                )
-
         except Exception as e:
-            logger.error(f"Error in post-auth anomaly detection: {e}")
-            # Don't fail authentication if anomaly detection has issues
+            logger.warning(f"Audit log failed during login: {e}")
 
         return user
 
     def create_access_token(self, data: dict, expires_delta: Optional[timedelta] = None) -> str:
-        """Create JWT access token (Synchronous as it's computation only)."""
-        from jose import jwt
-        """Create a new JWT access token with unique JTI (#1101) and Tenant ID (#1084)."""
+        """Create JWT access token."""
         from jose import jwt
         import uuid
 
@@ -259,57 +180,17 @@ class AuthService:
             expire = datetime.now(timezone.utc) + expires_delta
         else:
             expire = datetime.now(timezone.utc) + timedelta(minutes=settings.access_token_expire_minutes)
-            
-        to_encode.update({"exp": expire})
-        return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.jwt_algorithm)
 
-    async def initiate_2fa_login(self, user: User) -> str:
-        """Generate OTP and return pre_auth token (Async)."""
-        from .otp_manager import OTPManager
-        from .email_service import EmailService
-        
-        code, _ = await OTPManager.generate_otp(user.id, "LOGIN_CHALLENGE", db_session=self.db)
-        
-        email = None
-        stmt = select(PersonalProfile).filter(PersonalProfile.user_id == user.id)
-        result = await self.db.execute(stmt)
-        profile = result.scalar_one_or_none()
-        if profile:
-            email = profile.email
-            
-        if email and code:
-            EmailService.send_otp(email, code, "Login Verification")
-            await self.db.commit()
-
-    async def initiate_2fa_login(self, user: User) -> str:
-        """Generate OTP and return pre_auth token (Async)."""
-        from .otp_manager import OTPManager
-        from .email_service import EmailService
-        
-        code, _ = await OTPManager.generate_otp(user.id, "LOGIN_CHALLENGE", db_session=self.db)
-        
-        email = None
-        stmt = select(PersonalProfile).filter(PersonalProfile.user_id == user.id)
-        result = await self.db.execute(stmt)
-        profile = result.scalar_one_or_none()
-        if profile:
-            email = profile.email
-            
-        if email and code:
-            EmailService.send_otp(email, code, "Login Verification")
-            await self.db.commit()
         jti = str(uuid.uuid4())
-        # Ensure tid is a string for JWT encoding
         tid = to_encode.get("tid")
         if tid and not isinstance(tid, str):
             to_encode["tid"] = str(tid)
-            
+
         to_encode.update({
             "exp": expire,
             "jti": jti
         })
-        encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.jwt_algorithm)
-        return encoded_jwt
+        return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.jwt_algorithm)
 
     def create_pre_auth_token(self, user_id: int) -> str:
         """Create a temporary token for 2FA verification step."""
@@ -344,22 +225,12 @@ class AuthService:
         
         return self.create_pre_auth_token(user.id)
 
-    def create_pre_auth_token(self, user_id: int) -> str:
-        """Create temporary 2FA token."""
-        from jose import jwt
-        expire = datetime.now(timezone.utc) + timedelta(minutes=5)
-        to_encode = {"sub": str(user_id), "exp": expire, "scope": "pre_auth", "type": "2fa_challenge"}
-        return jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.jwt_algorithm)
-
-    async def verify_2fa_login(self, pre_auth_token: str, code: str, ip_address: str = "0.0.0.0") -> User:
-        """Verify 2FA and return User (Async)."""
     async def verify_2fa_login(self, pre_auth_token: str, code: str, ip_address: str = "0.0.0.0") -> User:
         """Verify pre-auth token and OTP code."""
         from jose import jwt, JWTError
         from .otp_manager import OTPManager
         
         try:
-            # 1. Verify Token
             payload = jwt.decode(pre_auth_token, settings.SECRET_KEY, algorithms=[settings.jwt_algorithm])
             user_id = payload.get("sub")
             if not user_id or payload.get("scope") != "pre_auth":
@@ -379,49 +250,11 @@ class AuthService:
             await self._record_login_attempt(user.username, True, ip_address)
             await self.update_last_login(user.id)
             await AuditService.log_event(user.id, "LOGIN_2FA", ip_address=ip_address, details={"method": "2fa", "status": "success"}, db_session=self.db)
-            
-                 
-            stmt = select(User).filter(User.id == user_id_int)
-            result = await self.db.execute(stmt)
-            user = result.scalar_one_or_none()
-            if not user:
-                 raise AuthException(code=ErrorCode.AUTH_USER_NOT_FOUND, message="User not found")
-                 
-            await self._record_login_attempt(user.username, True, ip_address)
-            await self.update_last_login(user.id)
-            await AuditService.log_event(user.id, "LOGIN_2FA", ip_address=ip_address, details={"method": "2fa", "status": "success"}, db_session=self.db)
-            
-            if not await OTPManager.verify_otp(user_id_int, code, "LOGIN_CHALLENGE", db_session=self.db):
-                 raise AuthException(code=ErrorCode.AUTH_INVALID_CREDENTIALS, message="Invalid or expired code")
-                 
-            # 3. Success - Fetch User
-            user_stmt = select(User).filter(User.id == user_id_int).options(selectinload(User.personal_profile))
-            user_result = await self.db.execute(user_stmt)
-            user = user_result.scalar_one_or_none()
-            
-            if not user:
-                 raise AuthException(code=ErrorCode.AUTH_USER_NOT_FOUND, message="User not found")
-                 
-            # Audit success
-            await self._record_login_attempt(user.username, True, ip_address)
-            await self.update_last_login(user.id)
-            
-            # SoulSense Audit Log
-            await AuditService.log_event(
-                user.id,
-                "LOGIN_2FA",
-                ip_address=ip_address,
-                details={"method": "2fa", "status": "success"},
-                db_session=self.db
-            )
-            
-            await self.db.commit() # Save OTP used state
+            await self.db.commit()
             return user
         except JWTError:
             raise AuthException(code=ErrorCode.AUTH_INVALID_TOKEN, message="Invalid or expired session")
 
-    async def update_last_login(self, user_id: int) -> None:
-        """Update last login timestamp (Async)."""
     async def send_2fa_setup_otp(self, user: User) -> bool:
         """Generate and send OTP for 2FA setup."""
         from .otp_manager import OTPManager
@@ -454,9 +287,12 @@ class AuthService:
                 user.version = (getattr(user, 'version', 0) or 1) + 1
                 await self.db.commit()
                 
-                from .cache_service import cache_service
-                await cache_service.update_version("user", user.id, user.version)
-                await cache_service.broadcast_invalidation(f"user_data:{user.id}", is_prefix=False)
+                try:
+                    from .cache_service import cache_service
+                    await cache_service.update_version("user", user.id, user.version)
+                    await cache_service.broadcast_invalidation(f"user_data:{user.id}", is_prefix=False)
+                except Exception as e:
+                    logger.debug(f"Cache update skipped: {e}")
                 return True
         return False
 
@@ -470,9 +306,12 @@ class AuthService:
             user.version = (getattr(user, 'version', 0) or 1) + 1
             await self.db.commit()
             
-            from .cache_service import cache_service
-            await cache_service.update_version("user", user.id, user.version)
-            await cache_service.broadcast_invalidation(f"user_data:{user.id}", is_prefix=False)
+            try:
+                from .cache_service import cache_service
+                await cache_service.update_version("user", user.id, user.version)
+                await cache_service.broadcast_invalidation(f"user_data:{user.id}", is_prefix=False)
+            except Exception as e:
+                logger.debug(f"Cache update skipped: {e}")
             return True
         return False
 
@@ -484,7 +323,6 @@ class AuthService:
             user = result.scalar_one_or_none()
             if user:
                 user.last_login = datetime.now(timezone.utc).isoformat()
-                await self.db.commit()
                 user.version = (getattr(user, 'version', 0) or 1) + 1
                 await self.db.commit()
                 logger.info(f"Updated last_login for user_id={user_id} (v={user.version})")
@@ -492,17 +330,13 @@ class AuthService:
                 try:
                     from .cache_service import cache_service
                     await cache_service.update_version("user", user_id, user.version)
-                    await mark_write(user.username)
                 except Exception as e:
-                    logger.warning(f"Failed to record version/mark write in Redis: {e}")
+                    logger.debug(f"Failed to record version in cache: {e}")
         except Exception as e:
             await self.db.rollback()
             logger.error(f"Failed to update last_login: {e}")
 
-    async def _record_login_attempt(self, username: str, success: bool, ip_address: str):
     async def _is_account_locked(self, username: str) -> Tuple[bool, Optional[str], int]:
-        """Check progressive lockout (Async)."""
-        thirty_mins_ago = datetime.now(timezone.utc) - timedelta(minutes=30)
         """Check if an account is locked based on recent failed attempts."""
         thirty_mins_ago = datetime.now(timezone.utc) - timedelta(minutes=30)
 
@@ -550,7 +384,6 @@ class AuthService:
             await self.db.rollback()
             logger.error(f"Failed to record login attempt: {e}")
 
-    async def register_user(self, user_data: 'UserCreate') -> User:
     async def register_user(self, user_data: 'UserCreate') -> Tuple[bool, Optional[User], str]:
         """
         Register a new user and their personal profile.
@@ -601,7 +434,7 @@ class AuthService:
             await self.db.flush()
 
             new_profile = PersonalProfile(
-                user_id=new_user.id, email=email_lower,
+                user_id=new_user.id, email=user_data.email.strip(),
                 first_name=user_data.first_name, last_name=user_data.last_name,
                 age=user_data.age, gender=user_data.gender
             )
@@ -618,86 +451,6 @@ class AuthService:
             await self.db.rollback()
             logger.error(f"Registration failed: {e}")
             return False, None, "Internal error."
-
-    async def create_refresh_token(self, user_id: int) -> str:
-        """
-        Generate a secure refresh token, hash it, and store it in the DB.
-        """
-        """Create refresh token (Async)."""
-        try:
-            # 1. Validation (Does NOT leak existence if we return generic later)
-            # But we still do it for integrity.
-            from sqlalchemy import select
-            stmt = select(User).filter(User.username == username_lower)
-            result = await self.db.execute(stmt)
-            existing_username = result.scalar_one_or_none()
-            
-            stmt = select(PersonalProfile).filter(PersonalProfile.email == email_lower)
-            result = await self.db.execute(stmt)
-            existing_email = result.scalar_one_or_none()
-
-            if existing_username or existing_email:
-                # ENUMERATION PROTECTION:
-                # We don't raise an error. We return "Success" but don't create.
-                # In a real app, we would send an "Already registered" email here.
-                logger.info(f"Registration attempt for existing identity: {username_lower} / {email_lower}")
-                return True, None, "Account creation initiated. Please check your email for verification link."
-
-            # 2. Disposable Email Check (This remains an error as it's a policy failure, not enumeration)
-            from .security_service import SecurityService
-            if SecurityService.is_disposable_email(email_lower):
-                return False, None, "Registration with disposable email domains is not allowed"
-
-            hashed_pw = self.hash_password(user_data.password)
-
-            # ── ATOMIC WRITE ─────────────────────────────────────────────────
-            # User + PersonalProfile must both succeed or neither persists.
-            # A failure mid-way (e.g. FK violation, DB crash) would otherwise
-            # leave an orphan User row with no associated PersonalProfile.
-            async with async_transactional(self.db):
-                new_user = User(
-                    username=username_lower,
-                    password_hash=hashed_pw
-                )
-                self.db.add(new_user)
-                await self.db.flush()  # Populate new_user.id before creating profile
-
-                new_profile = PersonalProfile(
-                    user_id=new_user.id,
-                    email=email_lower,
-                    first_name=user_data.first_name,
-                    last_name=user_data.last_name,
-                    age=user_data.age,
-                    gender=user_data.gender
-                )
-                self.db.add(new_profile)
-            # ─────────────────────────────────────────────────────────────────
-
-            # Refresh to get the latest data after transaction commit
-            await self.db.refresh(new_user)
-            
-            # CONSISTENCY: Ensure initial version (1) is in Redis truth mapping (#1143)
-            try:
-                from .cache_service import cache_service
-                await cache_service.update_version("user", new_user.id, new_user.version)
-                await mark_write(new_user.username)
-            except Exception as e:
-                logger.warning(f"Failed to seed version/mark write in Redis: {e}")
-            
-            return True, new_user, "Registration successful. Please verify your email."
-        except (OperationalError, DatabaseError) as e:
-            # Handle database connection/operational errors
-            await self.db.rollback()
-            logger.error(f"Database connection error during registration: {str(e)}")
-            return False, None, "Service temporarily unavailable. Please try again later."
-        except AttributeError as e:
-            logger.error(f"Registration Model Mismatch: {e}")
-            return False, None, "A configuration error occurred on the server."
-        except Exception as e:
-            import traceback
-            await self.db.rollback()
-            logger.error(f"Registration failed error: {str(e)}")
-            return False, None, "An internal error occurred. Please try again later."
 
     async def create_refresh_token(self, user_id: int, commit: bool = True) -> str:
         """Generate a secure refresh token, hash it, and store it in the DB."""
@@ -816,6 +569,19 @@ class AuthService:
                     message="Token rotation failed. Please try logging in again."
                 )
 
+    async def has_multiple_active_sessions(self, user_id: int) -> bool:
+        """Check if user has more than 1 active session."""
+        try:
+            stmt = select(func.count(RefreshToken.id)).filter(
+                RefreshToken.user_id == user_id,
+                RefreshToken.is_revoked == False,
+                RefreshToken.expires_at > datetime.now(timezone.utc)
+            )
+            result = await self.db.execute(stmt)
+            return (result.scalar() or 0) > 1
+        except Exception:
+            return False
+
     async def revoke_refresh_token(self, refresh_token: str) -> None:
         """Manually revoke a refresh token."""
         token_hash = hashlib.sha256(refresh_token.encode()).hexdigest()
@@ -827,12 +593,7 @@ class AuthService:
             await self.db.commit()
 
     async def revoke_access_token(self, token: str) -> None:
-        """Revoke access token (Async)."""
-        from jose import jwt
-        from ..root_models import TokenRevocation
-        try:
-    async def revoke_access_token(self, token: str) -> None:
-        """Revoke an access token by adding it to the Redis blacklist."""
+        """Revoke an access token."""
         try:
             # Use Redis blacklist for fast lookups
             from ..utils.jwt_blacklist import get_jwt_blacklist

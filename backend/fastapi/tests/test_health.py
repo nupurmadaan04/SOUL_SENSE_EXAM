@@ -153,4 +153,4 @@ async def test_health_check_all_unhealthy():
 
         assert response.status == "unhealthy"
         assert response.services["database"].status == "unhealthy"
-        assert response.services["redis"].status == "unhealthy"</content>
+        assert response.services["redis"].status == "unhealthy"

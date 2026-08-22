@@ -67,13 +67,13 @@ export function StatsCard({
     >
       <Card
         className={cn(
-          'backdrop-blur-xl bg-white/60 dark:bg-slate-900/60 border-slate-200 dark:border-white/5 transition-all shadow-sm hover:shadow-xl group relative overflow-hidden rounded-2xl',
+          'backdrop-blur-xl bg-white/95 dark:bg-slate-900/80 border-slate-200/90 dark:border-white/10 transition-all shadow-sm hover:shadow-md group relative overflow-hidden rounded-2xl',
           theme.border,
           className
         )}
       >
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
-          <CardTitle className="text-sm font-semibold tracking-wide text-slate-500 dark:text-slate-400 uppercase">
+          <CardTitle className="text-xs font-bold tracking-wider text-slate-600 dark:text-slate-400 uppercase">
             {title}
           </CardTitle>
           <div
@@ -98,7 +98,7 @@ export function StatsCard({
             )}
           </div>
           {description && (
-            <p className="text-xs font-medium text-slate-500 dark:text-slate-500 mt-2 flex items-center gap-1">
+            <p className="text-xs font-medium text-slate-600 dark:text-slate-400 mt-2 flex items-center gap-1">
               {description}
             </p>
           )}

@@ -46,6 +46,13 @@ export const nameSchema = z
   .min(1, 'Name is required')
   .max(50, 'Name must be at most 50 characters');
 
+export const optionalNameSchema = z
+  .string()
+  .trim()
+  .max(50, 'Name must be at most 50 characters')
+  .optional()
+  .or(z.literal(''));
+
 // Login schema
 export const loginSchema = z.object({
   identifier: z.string().trim().toLowerCase().min(1, 'Email or Username is required'),
@@ -67,7 +74,7 @@ export const registrationSchema = z
     password: passwordSchema,
     confirmPassword: z.string(),
     firstName: nameSchema,
-    lastName: nameSchema.optional(),
+    lastName: optionalNameSchema,
     age: z.coerce.number().min(13, 'You must be at least 13 years old').max(120, 'Invalid age'),
     gender: z.enum(['Male', 'Female', 'Other', 'Prefer not to say']),
     acceptTerms: z.boolean().refine((val) => val === true, {
@@ -82,7 +89,7 @@ export const registrationSchema = z
 // Profile update schema
 export const profileUpdateSchema = z.object({
   firstName: nameSchema,
-  lastName: nameSchema.optional(),
+  lastName: optionalNameSchema,
   email: emailSchema,
   username: usernameSchema,
 });

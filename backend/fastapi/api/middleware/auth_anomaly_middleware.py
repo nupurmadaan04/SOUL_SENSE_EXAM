@@ -9,7 +9,7 @@ and apply appropriate security measures.
 
 import logging
 from typing import Callable, Optional
-from fastapi import Request, Response, HTTPException, status
+from fastapi import Request, Response, HTTPException, status, Depends
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,47 +22,33 @@ logger = logging.getLogger(__name__)
 settings = get_settings_instance()
 
 
-class AuthAnomalyMiddleware:
+from starlette.middleware.base import BaseHTTPMiddleware
+
+class AuthAnomalyMiddleware(BaseHTTPMiddleware):
     """
     Middleware for detecting authentication anomalies and enforcing security measures.
     Integrates with FastAPI authentication pipeline.
     """
 
-    def __init__(self, app: Callable):
-        self.app = app
-
-    async def __call__(self, scope, receive, send):
-        if scope["type"] != "http":
-            await self.app(scope, receive, send)
-            return
-
-        request = Request(scope, receive)
-
+    async def dispatch(self, request: Request, call_next: Callable):
         # Only process authentication-related endpoints
         if not self._is_auth_endpoint(request.url.path):
-            await self.app(scope, receive, send)
-            return
+            return await call_next(request)
 
         # Extract request data for anomaly detection
         ip_address = get_real_ip(request)
         user_agent = request.headers.get("user-agent", "Unknown")
 
-        # Get database session
-        db = await get_db()
-        anomaly_service = AuthAnomalyService(db)
-
         try:
-            # For login attempts, we need to check before authentication
-            if request.url.path == "/api/v1/auth/login" and request.method == "POST":
-                await self._handle_login_attempt(request, ip_address, user_agent, anomaly_service, db)
-
-            # Continue with normal request processing
-            await self.app(scope, receive, send)
-
+            from ..services.db_service import AsyncSessionLocal
+            async with AsyncSessionLocal() as db:
+                anomaly_service = AuthAnomalyService(db)
+                if request.url.path == "/api/v1/auth/login" and request.method == "POST":
+                    await self._handle_login_attempt(request, ip_address, user_agent, anomaly_service, db)
         except Exception as e:
-            logger.error(f"Error in anomaly middleware: {e}")
-            # Continue with request even if anomaly detection fails
-            await self.app(scope, receive, send)
+            logger.debug(f"Error in anomaly middleware: {e}")
+
+        return await call_next(request)
 
     def _is_auth_endpoint(self, path: str) -> bool:
         """Check if the request path is authentication-related"""

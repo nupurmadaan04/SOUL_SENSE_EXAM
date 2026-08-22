@@ -14,17 +14,13 @@ MAINTENANCE_KEY = "soulsense:maintenance_state"
 
 class MaintenanceMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        # 1. Skip for internal health checks if needed
-        if request.url.path == "/health":
+        # 1. Skip for internal health checks and docs
+        if request.url.path in ("/health", "/ready", "/api/v1/health", "/api/v1/ready", "/docs", "/openapi.json"):
             return await call_next(request)
 
         # 2. Check Redis for maintenance state
-        # Cached for performance? For now, straight hit or small internal cache.
-        # Given it's a 'global switch', we can check Redis on every request but with a 5s local TTL if we expect high volume.
-        # For simplicity, we'll hit cache_service (which hits Redis).
-        
         state = await cache_service.get(MAINTENANCE_KEY)
-        if not state:
+        if not state or not isinstance(state, dict):
             return await call_next(request)
 
         mode = state.get("mode", "NORMAL")
