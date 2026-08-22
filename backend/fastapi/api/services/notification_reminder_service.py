@@ -9,9 +9,27 @@ Issue #1328: Push Notification Reminder System
 - User can disable anytime
 """
 
-from datetime import datetime, timedelta, time
+from datetime import datetime, timedelta, time, timezone
 from typing import Optional, List
-import pytz
+try:
+    import pytz
+except ImportError:
+    try:
+        from zoneinfo import ZoneInfo
+        class _PytzFallback:
+            def timezone(self, name):
+                return ZoneInfo(name)
+            def all_timezones(self):
+                return ["UTC"]
+        pytz = _PytzFallback()  # type: ignore
+    except Exception:
+        class _PytzFallback2:
+            def timezone(self, name):
+                return timezone.utc
+            def all_timezones(self):
+                return ["UTC"]
+        pytz = _PytzFallback2()  # type: ignore
+
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_
 

@@ -27,6 +27,12 @@ psutil>=5.9.0
 redis[asyncio]>=5.0.0
 fastapi-cache2>=0.2.0
 authlib>=1.3.0
+pytz>=2023.3
+pyotp>=2.9.0
+pyyaml>=6.0.0
+cryptography>=41.0.0
+packaging>=23.0
+aiohttp>=3.8.0
 
 # Async database drivers
 asyncpg>=0.29.0
@@ -43,7 +49,5 @@ torch>=2.0.0
 openai>=1.0.0
 numpy>=1.24.0
 scipy>=1.10.0
-psutil>=5.9.0
 boto3>=1.28.0
 cyclonedx-bom>=4.0.0
-
