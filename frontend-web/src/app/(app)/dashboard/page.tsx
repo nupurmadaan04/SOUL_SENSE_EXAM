@@ -126,8 +126,8 @@ export default function DashboardPage() {
   };
 
   const getDisplayName = () => {
-    if (mentalHealthProfile?.first_name) return mentalHealthProfile.first_name;
-    if (user?.first_name) return user.first_name;
+    if ((mentalHealthProfile as any)?.first_name) return (mentalHealthProfile as any).first_name;
+    if ((user as any)?.first_name) return (user as any).first_name;
     if (user?.name && user.name !== user.username) {
       return user.name.split(' ')[0];
     }

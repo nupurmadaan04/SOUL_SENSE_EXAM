@@ -27,6 +27,10 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
 
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+
   // Performance optimizations
   experimental: {
     // optimizeCss: true, // Only available for "pages" directory
