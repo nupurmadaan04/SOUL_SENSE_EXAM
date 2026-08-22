@@ -1,43 +1,9 @@
-"""
-FastAPI App Module
-
-Provides standardized error handling for the SoulSense API.
-"""
-
-from .core import (
-    BaseAPIException,
-    ValidationError,
-    NotFoundError,
-    AuthenticationError,
-    AuthorizationError,
-    ConflictError,
-    RateLimitError,
-    BusinessLogicError,
-    InternalServerError,
-    ServiceUnavailableError,
-    UserNotFoundError,
-    InvalidCredentialsError,
-    TokenExpiredError,
-    ResourceAlreadyExistsError,
-    InvalidStateTransitionError,
-    register_exception_handlers,
-)
-
-__all__ = [
-    "BaseAPIException",
-    "ValidationError",
-    "NotFoundError",
-    "AuthenticationError",
-    "AuthorizationError",
-    "ConflictError",
-    "RateLimitError",
-    "BusinessLogicError",
-    "InternalServerError",
-    "ServiceUnavailableError",
-    "UserNotFoundError",
-    "InvalidCredentialsError",
-    "TokenExpiredError",
-    "ResourceAlreadyExistsError",
-    "InvalidStateTransitionError",
-    "register_exception_handlers",
-]
+# app/__init__.py
+# This file makes the app directory a Python package
+try:
+    from backend.fastapi.app import core
+except ImportError:
+    try:
+        from . import core
+    except ImportError:
+        core = None

@@ -1,0 +1,117 @@
+{
+  "app_title": "सोलसेंस मूल्यांकन",
+  "welcome_message": "सोलसेंस में आपका स्वागत है!",
+  "user_details_title": "सोलसेंस - उपयोगकर्ता विवरण",
+  "enter_name": "अपना नाम दर्ज करें:",
+  "enter_age": "अपनी आयु दर्ज करें:",
+  "start_assessment": "मूल्यांकन शुरू करें",
+  "open_journal": "📝 जर्नल खोलें",
+  "view_dashboard": "📊 डैशबोर्ड देखें",
+  
+  "errors": {
+    "empty_name": "कृपया अपना नाम दर्ज करें",
+    "invalid_age": "कृपया एक मान्य आयु दर्ज करें (केवल संख्या)",
+    "minimum_age": "आयु कम से कम 12 होनी चाहिए",
+    "select_option": "कृपया एक विकल्प चुनें"
+  },
+  
+  "quiz": {
+    "question_counter": "प्रश्न {current} का {total}",
+    "strongly_disagree": "पूर्णतः असहमत",
+    "disagree": "असहमत",
+    "neutral": "तटस्थ",
+    "agree": "सहमत",
+    "strongly_agree": "पूर्णतः सहमत",
+    "previous": "← पिछला",
+    "next": "अगला →",
+    "finish": "समाप्त करें ✓",
+    "warning": "चेतावनी"
+  },
+  
+  "questions": [
+    "आप अपनी भावनाओं को पहचान सकते हैं जैसे ही वे होती हैं।",
+    "आपको यह समझना आसान लगता है कि आप किसी विशेष तरीके से क्यों महसूस करते हैं।",
+    "आप तनावपूर्ण स्थितियों में भी अपनी भावनाओं को नियंत्रित कर सकते हैं।",
+    "आप स्थितियों के प्रति अपनी भावनात्मक प्रतिक्रियाओं पर चिंतन करते हैं।",
+    "आप जानते हैं कि आपकी भावनाएँ दूसरों को कैसे प्रभावित करती हैं।"
+  ],
+  
+  "results": {
+    "completed": "पूर्ण",
+    "thank_you": "धन्यवाद {username}!",
+    "your_score": "आपका EQ स्कोर: {score} में से {max_score}",
+    "average": "औसत: {average} प्रति प्रश्न",
+    "view_dashboard_prompt": "अपना डैशबोर्ड देखें?"
+  },
+  
+  "journal": {
+    "title": "भावनात्मक जर्नल",
+    "daily_reflection": "दैनिक भावनात्मक चिंतन",
+    "date": "तारीख: {date}",
+    "write_reflection": "अपना भावनात्मक चिंतन लिखें:",
+    "save_analyze": "सहेजें और विश्लेषण करें",
+    "view_past": "पुरानी प्रविष्टियाँ देखें",
+    "dashboard": "📊 डैशबोर्ड",
+    "close": "बंद करें",
+    "empty_entry": "खाली प्रविष्टि",
+    "empty_warning": "कृपया सहेजने से पहले कुछ लिखें।",
+    "too_short": "बहुत छोटा",
+    "short_warning": "कृपया सार्थक विश्लेषण के लिए कम से कम 10 अक्षर लिखें।",
+    "analysis_title": "AI विश्लेषण परिणाम",
+    "emotional_analysis": "भावनात्मक विश्लेषण",
+    "sentiment_score": "भावना स्कोर: {score}",
+    "positive_tone": "सकारात्मक भावनात्मक स्वर का पता चला",
+    "negative_tone": "नकारात्मक भावनात्मक स्वर का पता चला",
+    "neutral_tone": "तटस्थ भावनात्मक स्वर",
+    "emotional_patterns": "भावनात्मक पैटर्न:",
+    "past_entries_title": "पुरानी जर्नल प्रविष्टियाँ",
+    "emotional_journey": "आपकी भावनात्मक यात्रा",
+    "no_entries": "कोई जर्नल प्रविष्टि नहीं मिली। अपनी भावनात्मक यात्रा को ट्रैक करने के लिए लिखना शुरू करें!",
+    "entry_date": "तारीख: {date}",
+    "entry_sentiment": "भावना: {score} | पैटर्न: {patterns}",
+    "entry_content": "प्रविष्टि: {content}"
+  },
+  
+  "dashboard": {
+    "title": "📊 भावनात्मक स्वास्थ्य डैशबोर्ड",
+    "analytics": "📊 भावनात्मक स्वास्थ्य विश्लेषण",
+    "correlation_tab": "🔗 सहसंबंध",
+    "eq_trends_tab": "📈 EQ रुझान",
+    "time_based_tab": "समय-आधारित विश्लेषण",
+    "journal_tab": "📝 जर्नल विश्लेषण",
+    "insights_tab": "🔍 अंतर्दृष्टि",
+    "correlation_title": "🔗 सहसंबंध विश्लेषण",
+    "correlation_desc": "अपने EQ स्कोर में पैटर्न और संबंधों का विश्लेषण करें",
+    "run_analysis": "सहसंबंध विश्लेषण चलाएँ",
+    "no_data": "कोई EQ डेटा उपलब्ध नहीं है",
+    "eq_progress": "📈 समय के साथ EQ स्कोर प्रगति",
+    "total_attempts": "कुल प्रयास: {count}",
+    "latest_score": "नवीनतम स्कोर: {score}",
+    "best_score": "सर्वश्रेष्ठ स्कोर: {score}",
+    "trend_title": "EQ स्कोर रुझान",
+    "trend_xlabel": "परीक्षण संख्या",
+    "trend_ylabel": "स्कोर",
+    "distribution_title": "स्कोर वितरण",
+    "distribution_xlabel": "स्कोर",
+    "distribution_ylabel": "आवृत्ति",
+    "moving_avg_title": "{window}-परीक्षण चलती औसत",
+    "moving_avg_ylabel": "औसत स्कोर",
+    "performance_title": "प्रदर्शन तुलना",
+    "performance_ylabel": "औसत स्कोर",
+    "first_half": "पहली छमाही",
+    "second_half": "दूसरी छमाही"
+  },
+  
+  "patterns": {
+    "stress_indicators": "तनाव संकेतक का पता चला",
+    "social_focus": "सामाजिक/संबंध फोकस",
+    "growth_oriented": "विकास-उन्मुख सोच",
+    "self_reflective": "आत्म-चिंतनशील सामग्री",
+    "general_expression": "सामान्य भावनात्मक अभिव्यक्ति"
+  },
+  
+  "settings": {
+    "language": "भाषा",
+    "select_language": "भाषा चुनें"
+  }
+}

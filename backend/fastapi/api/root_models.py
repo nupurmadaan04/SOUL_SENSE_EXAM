@@ -8,24 +8,42 @@ from pathlib import Path
 import sys
 import os
 
-# Get project root (SOUL_SENSE_EXAM directory)
-ROOT_DIR = Path(__file__).resolve().parent.parent.parent.parent
+# Get possible project roots
+CUR_DIR = Path(__file__).resolve().parent
+ROOT_DIR = CUR_DIR.parent.parent.parent
+BACKEND_DIR = CUR_DIR.parent
 
-# Ensure the root directory is in sys.path so 'import app' works correctly
-if str(ROOT_DIR) not in sys.path:
-    sys.path.insert(0, str(ROOT_DIR))
+# Ensure root & backend directories are in sys.path
+for p in [str(ROOT_DIR), str(BACKEND_DIR), str(CUR_DIR), "/app"]:
+    if p not in sys.path and os.path.exists(p):
+        sys.path.insert(0, p)
 
-# Load models from root app using standard import
-# This is much safer than importlib for SQLAlchemy models in test environments
+# Load models from app using standard import or file search
+_models_module = None
 try:
     import app.models as _models_module
-except ImportError:
-    # Very fallback: try to find it via absolute path if standard import fails
+except Exception:
+    pass
+
+if _models_module is None:
+    candidate_paths = [
+        ROOT_DIR / "app" / "models.py",
+        BACKEND_DIR / "app" / "models.py",
+        CUR_DIR / "app" / "models.py",
+        Path("/app/app/models.py"),
+        Path("/app/models.py")
+    ]
     import importlib.util
-    _models_path = ROOT_DIR / "app" / "models.py"
-    _spec = importlib.util.spec_from_file_location("root_app_models_final", _models_path)
-    _models_module = importlib.util.module_from_spec(_spec)
-    _spec.loader.exec_module(_models_module)
+    for p in candidate_paths:
+        if p.exists():
+            _spec = importlib.util.spec_from_file_location("root_app_models_final", p)
+            if _spec and _spec.loader:
+                _models_module = importlib.util.module_from_spec(_spec)
+                _spec.loader.exec_module(_models_module)
+                break
+
+if _models_module is None:
+    raise RuntimeError("Could not locate models.py in any expected application path.")
 
 # Re-export all model classes
 Base = _models_module.Base
