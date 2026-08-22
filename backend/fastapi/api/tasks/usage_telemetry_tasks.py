@@ -22,7 +22,7 @@ except ImportError:
             return decorator
     Celery = MockCelery
 
-from backend.fastapi.api.utils.usage_telemetry import (
+from api.utils.usage_telemetry import (
     get_telemetry_manager,
     BillingPeriodStatus,
     reset_telemetry_manager
@@ -328,7 +328,7 @@ def validate_event_integrity(self, start_date: str = None, end_date: str = None)
         async def _validate():
             manager = await get_telemetry_manager()
             
-            from backend.fastapi.api.utils.usage_telemetry import UsageEventValidator
+            from api.utils.usage_telemetry import UsageEventValidator
             
             # Filter events by date if specified
             events = manager.events

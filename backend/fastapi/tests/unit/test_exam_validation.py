@@ -15,7 +15,7 @@ import pytest
 from pydantic import ValidationError
 
 # Schema under test
-from backend.fastapi.api.schemas import AnswerSubmit, ExamSubmit
+from api.schemas import AnswerSubmit, ExamSubmit
 
 
 # ---------------------------------------------------------------------------

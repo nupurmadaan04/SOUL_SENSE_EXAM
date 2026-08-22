@@ -10,12 +10,12 @@ from typing import Dict, List, Optional, Any
 from pydantic import BaseModel, Field
 from datetime import datetime
 
-from backend.fastapi.api.utils.artifact_provenance import (
+from api.utils.artifact_provenance import (
     ArtifactType, SignatureAlgorithm, VerificationStatus, ProvenanceLevel,
     BuildMetadata, Signature, ProvenanceAttestation, Artifact, VerificationPolicy,
     VerificationResult, ArtifactChain, ArtifactProvenanceManager, get_provenance_manager
 )
-from backend.fastapi.api.deps import get_current_user, require_admin
+from api.deps import get_current_user, require_admin
 
 router = APIRouter(prefix="/artifact-provenance", tags=["artifact-provenance"])
 

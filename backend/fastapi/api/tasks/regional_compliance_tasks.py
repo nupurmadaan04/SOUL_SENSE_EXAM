@@ -24,7 +24,7 @@ except ImportError:
             return decorator
     Celery = MockCelery
 
-from backend.fastapi.api.utils.regional_compliance import (
+from api.utils.regional_compliance import (
     get_compliance_manager,
     ComplianceRegion,
     ComplianceAction,

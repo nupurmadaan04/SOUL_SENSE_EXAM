@@ -15,7 +15,7 @@ from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
-from backend.fastapi.api.utils.sso_federation import (
+from api.utils.sso_federation import (
     SSOFederationManager,
     get_federation_manager,
     SSOProtocol,

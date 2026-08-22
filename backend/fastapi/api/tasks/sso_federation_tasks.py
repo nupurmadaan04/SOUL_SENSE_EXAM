@@ -26,7 +26,7 @@ except ImportError:
             return decorator
     Celery = MockCelery
 
-from backend.fastapi.api.utils.sso_federation import (
+from api.utils.sso_federation import (
     get_federation_manager,
     IdPStatus,
     FederationStatus,

@@ -15,7 +15,7 @@ from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
-from backend.fastapi.api.utils.usage_telemetry import (
+from api.utils.usage_telemetry import (
     UsageTelemetryManager,
     get_telemetry_manager,
     UsageEventType,

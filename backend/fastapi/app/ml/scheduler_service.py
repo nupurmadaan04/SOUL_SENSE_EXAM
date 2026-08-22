@@ -26,7 +26,7 @@ from app.models import User
 
 # Import DistributedLock for leader election
 try:
-    from backend.fastapi.api.utils.distributed_lock import DistributedLock
+    from api.utils.distributed_lock import DistributedLock
 except ImportError:
     # Fallback/Mock if backend is not available
     class DistributedLock:

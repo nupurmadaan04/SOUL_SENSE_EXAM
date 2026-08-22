@@ -17,7 +17,7 @@ print("=" * 60)
 # Test 1: Import mock auth service
 print("\n✓ Test 1: Importing MockAuthService...")
 try:
-    from backend.fastapi.api.services.mock_auth_service import MockAuthService, MOCK_USERS, MOCK_OTP_CODES, MOCK_PROFILES
+    from api.services.mock_auth_service import MockAuthService, MOCK_USERS, MOCK_OTP_CODES, MOCK_PROFILES
     print("  ✅ Successfully imported MockAuthService")
     print(f"  ✅ Found {len(MOCK_USERS)} mock users")
     print(f"  ✅ Found {len(MOCK_PROFILES)} mock profiles")
@@ -118,7 +118,7 @@ except Exception as e:
 # Test 8: Configuration check
 print("\n✓ Test 8: Checking configuration...")
 try:
-    from backend.fastapi.api.config import get_settings
+    from api.config import get_settings
     settings = get_settings()
     if settings.mock_auth_mode:
         print(f"  ✅ Mock auth mode is enabled")

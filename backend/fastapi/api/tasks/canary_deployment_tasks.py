@@ -26,7 +26,7 @@ except ImportError:
             return decorator
     Celery = MockCelery
 
-from backend.fastapi.api.utils.canary_deployment import (
+from api.utils.canary_deployment import (
     get_canary_manager,
     CanaryStatus,
     reset_canary_manager

@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import OperationalError, IntegrityError
 
-from backend.fastapi.api.services.db_service import transaction_scope, deadlock_retry
+from api.services.db_service import transaction_scope, deadlock_retry
 
 
 class TestTransactionScope:

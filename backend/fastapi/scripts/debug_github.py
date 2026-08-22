@@ -11,7 +11,7 @@ if str(project_root) not in sys.path:
 
 async def run_debug():
     print("🚀 Starting GitHub Service Debug...")
-    from backend.fastapi.app.services.github_service import github_service
+    from app.services.github_service import github_service
     
     print(f"📡 Targeting: {github_service.owner}/{github_service.repo}")
     

@@ -10,12 +10,12 @@ from typing import Dict, List, Optional, Any
 from pydantic import BaseModel, Field
 from datetime import datetime
 
-from backend.fastapi.api.utils.api_deprecation import (
+from api.utils.api_deprecation import (
     DeprecationStatus, DeprecationSeverity, ApiVersionStatus,
     ApiVersion, DeprecationNotice, DeprecatedField,
     DeprecationHeaders, ApiDeprecationManager, get_deprecation_manager
 )
-from backend.fastapi.api.deps import get_current_user, require_admin
+from api.deps import get_current_user, require_admin
 
 router = APIRouter(prefix="/api-deprecation", tags=["api-deprecation"])
 

@@ -14,9 +14,9 @@ from fastapi import APIRouter, Depends, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from ..utils.limiter import limiter
 try:
-    from ...app.core import NotFoundError
+    from app.core import NotFoundError
 except ImportError:
-    from backend.fastapi.app.core import NotFoundError
+    from app.core import NotFoundError
 
 from ..schemas import (
     # User Settings

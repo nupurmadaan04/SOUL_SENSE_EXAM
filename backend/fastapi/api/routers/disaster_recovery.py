@@ -10,12 +10,12 @@ from typing import Dict, List, Optional, Any
 from pydantic import BaseModel, Field
 from datetime import datetime
 
-from backend.fastapi.api.utils.disaster_recovery_runbook import (
+from api.utils.disaster_recovery_runbook import (
     CheckStatus, CheckSeverity, CheckCategory, RunbookType,
     CheckStep, DRCheck, CheckExecution, RecoveryObjective, RunbookExecution,
     BackupVerification, DisasterRecoveryManager, get_dr_manager
 )
-from backend.fastapi.api.deps import get_current_user, require_admin
+from api.deps import get_current_user, require_admin
 
 router = APIRouter(prefix="/disaster-recovery", tags=["disaster-recovery"])
 

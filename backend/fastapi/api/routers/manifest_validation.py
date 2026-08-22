@@ -13,7 +13,7 @@ from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, status
 from pydantic import BaseModel, Field
 
-from backend.fastapi.api.utils.manifest_validation import (
+from api.utils.manifest_validation import (
     ManifestValidationManager,
     get_validation_manager,
     ValidationSeverity,

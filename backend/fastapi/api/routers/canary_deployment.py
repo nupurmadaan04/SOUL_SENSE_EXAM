@@ -13,7 +13,7 @@ from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel, Field
 
-from backend.fastapi.api.utils.canary_deployment import (
+from api.utils.canary_deployment import (
     CanaryDeploymentManager,
     get_canary_manager,
     CanaryStatus,
@@ -118,7 +118,7 @@ async def create_deployment(
     # Convert metric thresholds
     thresholds = []
     for t in data.metric_thresholds:
-        from backend.fastapi.api.utils.canary_deployment import MetricThreshold
+        from api.utils.canary_deployment import MetricThreshold
         thresholds.append(MetricThreshold(
             metric_name=t.metric_name,
             operator=t.operator,

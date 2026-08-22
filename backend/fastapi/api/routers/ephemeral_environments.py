@@ -10,13 +10,13 @@ from typing import Dict, List, Optional, Any
 from pydantic import BaseModel, Field
 from datetime import datetime
 
-from backend.fastapi.api.utils.ephemeral_environments import (
+from api.utils.ephemeral_environments import (
     EnvironmentStatus, EnvironmentSize, EnvironmentType, AccessLevel,
     ResourceAllocation, DeploymentConfig, DomainConfig, EnvironmentMetrics,
     PreviewEnvironment, EnvironmentTemplate, EnvironmentBudget, EnvironmentEvent,
     EphemeralEnvironmentManager, get_ephemeral_manager
 )
-from backend.fastapi.api.deps import get_current_user, require_admin
+from api.deps import get_current_user, require_admin
 
 router = APIRouter(prefix="/ephemeral-environments", tags=["ephemeral-environments"])
 

@@ -23,7 +23,7 @@ except ImportError:
             return decorator
     Celery = MockCelery
 
-from backend.fastapi.api.utils.template_marketplace import (
+from api.utils.template_marketplace import (
     get_marketplace_manager,
     TemplateFormat,
     TemplateStatus,
@@ -407,7 +407,7 @@ def moderate_pending_reviews(self):
         async def _moderate():
             manager = await get_marketplace_manager()
             
-            from backend.fastapi.api.utils.template_marketplace import ReviewStatus
+            from api.utils.template_marketplace import ReviewStatus
             
             approved = 0
             rejected = 0

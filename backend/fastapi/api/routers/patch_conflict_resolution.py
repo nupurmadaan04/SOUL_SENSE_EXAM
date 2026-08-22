@@ -10,12 +10,12 @@ from typing import Dict, List, Optional, Any
 from pydantic import BaseModel, Field
 from datetime import datetime
 
-from backend.fastapi.api.utils.patch_conflict_resolution import (
+from api.utils.patch_conflict_resolution import (
     ConflictStrategy, PatchStatus, ChangeType,
     FieldChange, ResourceVersion, PatchOperation, PatchRequest, PatchResult,
     PatchHistory, IdempotentPatchManager, get_patch_manager
 )
-from backend.fastapi.api.deps import get_current_user, require_admin
+from api.deps import get_current_user, require_admin
 
 router = APIRouter(prefix="/patch-operations", tags=["patch-operations"])
 

@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 import time
 import threading
 import redis
-from backend.fastapi.api.utils.distributed_lock import DistributedLock, DistributedLockError
+from api.utils.distributed_lock import DistributedLock, DistributedLockError
 
 class TestDistributedLock(unittest.TestCase):
     def setUp(self):

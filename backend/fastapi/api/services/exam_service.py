@@ -17,10 +17,10 @@ from ..utils.db_transaction import transactional, retry_on_transient
 from ..utils.race_condition_protection import with_row_lock
 
 try:
-    from ...app.core import ConflictError
+    from app.core import ConflictError
 except ImportError:
     try:
-        from backend.fastapi.app.core import ConflictError
+        from app.core import ConflictError
     except ImportError:
         class ConflictError(APIException):
             def __init__(self, message, details=None):

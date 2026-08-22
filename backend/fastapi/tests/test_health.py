@@ -13,8 +13,8 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 
 # Import the health functions directly instead of the full app
-from backend.fastapi.api.routers.health import health_check, check_database, check_redis
-from backend.fastapi.api.schemas import ServiceStatus
+from api.routers.health import health_check, check_database, check_redis
+from api.schemas import ServiceStatus
 
 
 def test_check_database_success():
@@ -70,7 +70,7 @@ def test_check_redis_failure():
 @pytest.mark.asyncio
 async def test_health_check_all_healthy():
     """Test health check when all services are healthy."""
-    from backend.fastapi.api.schemas import HealthResponse
+    from api.schemas import HealthResponse
 
     with patch('backend.fastapi.api.routers.health.check_database') as mock_db_check, \
          patch('backend.fastapi.api.routers.health.check_redis') as mock_redis_check:
@@ -89,7 +89,7 @@ async def test_health_check_all_healthy():
 @pytest.mark.asyncio
 async def test_health_check_database_unhealthy():
     """Test health check when database is unhealthy."""
-    from backend.fastapi.api.schemas import HealthResponse
+    from api.schemas import HealthResponse
 
     with patch('backend.fastapi.api.routers.health.check_database') as mock_db_check, \
          patch('backend.fastapi.api.routers.health.check_redis') as mock_redis_check:
@@ -111,7 +111,7 @@ async def test_health_check_database_unhealthy():
 @pytest.mark.asyncio
 async def test_health_check_redis_unhealthy():
     """Test health check when Redis is unhealthy."""
-    from backend.fastapi.api.schemas import HealthResponse
+    from api.schemas import HealthResponse
 
     with patch('backend.fastapi.api.routers.health.check_database') as mock_db_check, \
          patch('backend.fastapi.api.routers.health.check_redis') as mock_redis_check:
@@ -133,7 +133,7 @@ async def test_health_check_redis_unhealthy():
 @pytest.mark.asyncio
 async def test_health_check_all_unhealthy():
     """Test health check when all services are unhealthy."""
-    from backend.fastapi.api.schemas import HealthResponse
+    from api.schemas import HealthResponse
 
     with patch('backend.fastapi.api.routers.health.check_database') as mock_db_check, \
          patch('backend.fastapi.api.routers.health.check_redis') as mock_redis_check:

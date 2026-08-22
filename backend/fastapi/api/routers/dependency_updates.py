@@ -10,12 +10,12 @@ from typing import Dict, List, Optional, Any
 from pydantic import BaseModel, Field
 from datetime import datetime
 
-from backend.fastapi.api.utils.dependency_update_batching import (
+from api.utils.dependency_update_batching import (
     UpdateType, RiskTier, UpdateStatus, BatchingStrategy, CompatibilityStatus,
     Dependency, AvailableUpdate, UpdateBatch, DeploymentResult,
     DependencyUpdateManager, get_update_manager
 )
-from backend.fastapi.api.deps import get_current_user, require_admin
+from api.deps import get_current_user, require_admin
 
 router = APIRouter(prefix="/dependency-updates", tags=["dependency-updates"])
 

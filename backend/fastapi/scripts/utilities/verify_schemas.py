@@ -4,7 +4,7 @@ import os
 # Add project root to path
 sys.path.append(os.getcwd())
 
-from backend.fastapi.api.schemas import UserCreate, UserLogin, UserUpdate, PersonalProfileUpdate
+from api.schemas import UserCreate, UserLogin, UserUpdate, PersonalProfileUpdate
 from pydantic import ValidationError
 
 def test_user_create():

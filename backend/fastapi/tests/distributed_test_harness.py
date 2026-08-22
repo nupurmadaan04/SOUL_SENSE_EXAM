@@ -9,7 +9,7 @@ import redis
 
 # Add project root to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
-from backend.fastapi.api.utils.distributed_lock import DistributedLock, DistributedLockError
+from api.utils.distributed_lock import DistributedLock, DistributedLockError
 
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(processName)s - %(levelname)s - %(message)s')

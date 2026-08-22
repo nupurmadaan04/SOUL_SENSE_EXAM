@@ -2,9 +2,9 @@ import pytest
 from datetime import datetime, timezone
 UTC = timezone.utc
 from sqlalchemy.ext.asyncio import AsyncSession
-from backend.fastapi.api.models import Goal, User
-from backend.fastapi.api.services.goal_service import GoalService
-from backend.fastapi.api.schemas import GoalCreate, GoalUpdate
+from api.models import Goal, User
+from api.services.goal_service import GoalService
+from api.schemas import GoalCreate, GoalUpdate
 
 @pytest.mark.asyncio
 async def test_create_goal(db_session: AsyncSession):

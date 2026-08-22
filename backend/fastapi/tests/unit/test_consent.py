@@ -15,9 +15,9 @@ from datetime import datetime
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent.parent.parent
 sys.path.insert(0, str(ROOT_DIR))
 
-from backend.fastapi.api.main import app
-from backend.fastapi.api.services.db_service import get_db
-from backend.fastapi.api.services.analytics_service import AnalyticsService
+from api.main import app
+from api.services.db_service import get_db
+from api.services.analytics_service import AnalyticsService
 
 
 @pytest.fixture

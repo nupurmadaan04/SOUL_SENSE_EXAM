@@ -7,7 +7,7 @@ from fastapi import HTTPException
 from api.services.exam_service import ExamService
 from api.schemas import ExamResponseCreate, ExamResultCreate
 from api.root_models import User, Score, Response
-from backend.fastapi.app.core import ConflictError
+from app.core import ConflictError
 
 
 class TestExamService:

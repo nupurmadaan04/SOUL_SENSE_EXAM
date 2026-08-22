@@ -26,7 +26,7 @@ except ImportError:
             return decorator
     Celery = MockCelery
 
-from backend.fastapi.api.utils.manifest_validation import (
+from api.utils.manifest_validation import (
     get_validation_manager,
     ValidationStatus,
     reset_validation_manager

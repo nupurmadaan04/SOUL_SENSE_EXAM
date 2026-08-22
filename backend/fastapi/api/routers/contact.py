@@ -5,9 +5,9 @@ from fastapi import APIRouter, Query
 from pydantic import BaseModel, EmailStr, Field
 from typing import Optional
 try:
-    from ...app.core import NotFoundError, InternalServerError
+    from app.core import NotFoundError, InternalServerError
 except ImportError:
-    from backend.fastapi.app.core import NotFoundError, InternalServerError
+    from app.core import NotFoundError, InternalServerError
 
 router = APIRouter(tags=["Contact"])
 

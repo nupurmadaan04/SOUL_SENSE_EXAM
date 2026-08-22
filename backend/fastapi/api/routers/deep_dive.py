@@ -5,9 +5,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..services.db_service import get_db
 try:
-    from ...app.core import NotFoundError
+    from app.core import NotFoundError
 except ImportError:
-    from backend.fastapi.app.core import NotFoundError
+    from app.core import NotFoundError
 from ..schemas import (
     DeepDiveType, 
     DeepDiveQuestion, 

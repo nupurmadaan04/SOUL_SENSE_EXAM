@@ -10,7 +10,7 @@ import os
 # Add project root to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', '..'))
 
-from backend.fastapi.api.main import app
+from api.main import app
 
 client = TestClient(app)
 

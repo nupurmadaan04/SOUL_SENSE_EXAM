@@ -189,7 +189,7 @@ if not DATABASE_URL:
         
         # Check if backend directory exists before trying to import
         if os.path.exists(os.path.join(BASE_DIR, "backend")):
-            from backend.fastapi.api.config import get_settings_instance
+            from api.config import get_settings_instance
             settings = get_settings_instance()
             DATABASE_URL = settings.database_url
             DB_POOL_SIZE = settings.database_pool_size

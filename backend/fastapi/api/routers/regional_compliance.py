@@ -10,7 +10,7 @@ from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks, status
 from pydantic import BaseModel, Field
 
-from backend.fastapi.api.utils.regional_compliance import (
+from api.utils.regional_compliance import (
     RegionalComplianceManager,
     get_compliance_manager,
     ComplianceRegion,

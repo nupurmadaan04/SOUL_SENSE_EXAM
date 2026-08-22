@@ -16,7 +16,7 @@ from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, Query, status, BackgroundTasks
 from pydantic import BaseModel, Field
 
-from backend.fastapi.api.utils.template_marketplace import (
+from api.utils.template_marketplace import (
     TemplateMarketplaceManager,
     get_marketplace_manager,
     TemplateFormat,

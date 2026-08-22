@@ -28,7 +28,7 @@ from ..models import User, PersonalProfile, TokenRevocation
 from ..utils.limiter import limiter
 from ..utils.device_fingerprinting import DeviceFingerprinting
 try:
-    from ...app.core import (
+    from app.core import (
         AuthenticationError,
         AuthorizationError,
         InvalidCredentialsError,
@@ -39,7 +39,7 @@ try:
         BusinessLogicError
     )
 except ImportError:
-    from backend.fastapi.app.core import (
+    from app.core import (
         AuthenticationError,
         AuthorizationError,
         InvalidCredentialsError,

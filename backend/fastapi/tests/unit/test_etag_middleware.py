@@ -23,7 +23,7 @@ from pathlib import Path
 ROOT_DIR = Path(__file__).resolve().parent.parent.parent.parent.parent
 sys.path.insert(0, str(ROOT_DIR))
 
-from backend.fastapi.api.middleware.etag_middleware import (
+from api.middleware.etag_middleware import (
     ETagMiddleware,
     ConditionalETagMiddleware,
     create_etag_middleware
@@ -249,7 +249,7 @@ class TestETagComputation:
     
     def test_etag_is_md5_hash(self):
         """ETag should be MD5 hash wrapped in quotes."""
-        from backend.fastapi.api.middleware.etag_middleware import create_etag_middleware
+        from api.middleware.etag_middleware import create_etag_middleware
         
         # Create middleware with /test path enabled
         CustomETagMiddleware = create_etag_middleware(

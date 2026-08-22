@@ -1500,7 +1500,7 @@ class JournalFeature:
 
     def show_smart_prompts(self):
         """Display AI-generated personalized prompts based on user context (Issue #586)."""
-        from backend.fastapi.api.services.smart_prompt_service import SmartPromptService, SMART_PROMPTS
+        from api.services.smart_prompt_service import SmartPromptService, SMART_PROMPTS
         import random
         
         colors = self.colors
