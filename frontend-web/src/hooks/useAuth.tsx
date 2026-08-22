@@ -63,9 +63,29 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const isPublicRoute = (path?: string | null): boolean => {
-  if (!path) return false;
-  const publicPaths = ['/register', '/login', '/forgot-password', '/terms', '/privacy'];
-  return path === '/' || publicPaths.some((p) => path.startsWith(p));
+  if (!path) return true;
+  const publicPaths = [
+    '/',
+    '/community',
+    '/register',
+    '/login',
+    '/forgot-password',
+    '/terms',
+    '/privacy',
+    '/faq',
+    '/contact',
+    '/contact-us',
+    '/security',
+    '/welcome',
+    '/slider-demo',
+    '/modal-demo',
+    '/gauge-demo',
+    '/journal-demo',
+    '/privacy-demo',
+    '/notifications-demo',
+    '/progress-demo',
+  ];
+  return path === '/' || publicPaths.some((p) => path === p || path.startsWith(p + '/') || path.startsWith(p + '?'));
 };
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
@@ -91,63 +111,33 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const initAuth = async () => {
       try {
-        // 1. Check if server has restarted
-        await checkServerInstance();
+        // Non-blocking background health/server checks
+        checkServerInstance().catch(() => {});
+        checkMockMode().catch(() => {});
 
-        // 2. Check for existing session
+        // Check for existing session
         const session = getSession();
         if (session) {
-          // Client-side expiry check to prevent broken API requests
           if (isTokenExpired(session.token)) {
-            console.log('Auth: Access token expired. Attempting proactive refresh...');
-            try {
-              const refreshResult = await authApi.refreshToken();
+            authApi.refreshToken().then((refreshResult) => {
               session.token = refreshResult.access_token;
-
-              const isPersistent = !!localStorage.getItem('soul_sense_auth_session');
+              const isPersistent = typeof window !== 'undefined' && !!localStorage.getItem('soul_sense_auth_session');
               saveSession(session, isPersistent);
-              setUser(session.user);
-              updateLastActivity(); // Update activity on token refresh (Issue #999)
-              console.log('Auth: Proactive refresh successful.');
-            } catch (refreshError) {
-              console.warn('Auth: Proactive refresh failed. Logging out:', refreshError);
-              clearSession();
-              if (isMounted) setUser(null);
-              const currentWindowPath = typeof window !== 'undefined' ? window.location.pathname : '';
-              if (!isPublicRoute(pathname) && !isPublicRoute(currentWindowPath)) {
-                router.push('/login');
-              }
-              setIsLoading(false);
-              return;
-            }
-          } else {
-            // Critical: Verify the session isn't using the stale 'current' fallback
-            if (session.user.id === 'current') {
-              console.error(
-                'Critical Auth Sync Error: Stale "current" ID fallback found in stored session.'
-              );
-              toast.error('Authentication session corrupted. Please log in again.');
-              clearSession();
-              if (isMounted) setUser(null);
-              const currentWindowPath = typeof window !== 'undefined' ? window.location.pathname : '';
-              if (!isPublicRoute(pathname) && !isPublicRoute(currentWindowPath)) {
-                router.push('/login');
-              }
-            } else {
               if (isMounted) setUser(session.user);
-            }
+              updateLastActivity();
+            }).catch((err) => {
+              console.warn('Auth refresh failed:', err);
+              clearSession();
+              if (isMounted) setUser(null);
+            });
+          } else if (session.user?.id && session.user.id !== 'current') {
+            if (isMounted) setUser(session.user);
           }
         }
-
-        // 3. Check if backend is in mock mode
-        await checkMockMode();
       } catch (e) {
         console.warn('Auth initialization error:', e);
       } finally {
-        // Small delay to ensure state propagates
-        initTimerRef.current = setTimeout(() => {
-          if (isMounted) setIsLoading(false);
-        }, 50);
+        if (isMounted) setIsLoading(false);
       }
     };
 
@@ -392,6 +382,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   // ... existing code ...
 
+  const isPublic = isPublicRoute(pathname);
+  const showBlockingLoader = (!mounted || isLoading) && !isPublic;
+
   return (
     <AuthContext.Provider
       value={{
@@ -406,11 +399,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setIsLoading,
       }}
     >
-      {/* Always render children for Next.js router hydration, overlay loader if needed */}
-      {(!mounted || isLoading) && (
+      {showBlockingLoader && (
         <Loader fullScreen text={!mounted ? 'Bootstrapping...' : 'Authenticating...'} />
       )}
-      <div style={{ display: !mounted || isLoading ? 'none' : 'block', height: '100%' }}>
+      <div style={{ display: showBlockingLoader ? 'none' : 'block', height: '100%' }}>
         {children}
       </div>
     </AuthContext.Provider>
